@@ -257,11 +257,10 @@ class Mixmymeals {
 	 *
 	 * @return Mixmymeals_User_Roles
 	 */
-    /*
 	public function add_user_roles() {
 		return new Mixmymeals_User_Roles ();
 	}
-    */
+
 
 	public function add_post_types() {
 		return new Mixmymeals_Post_Types();

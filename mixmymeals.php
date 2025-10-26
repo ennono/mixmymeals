@@ -32,8 +32,8 @@ require_once 'includes/lib/class-mixmymeals-admin-api.php';
 require_once 'includes/lib/class-mixmymeals-post-types.php';
 require_once 'includes/lib/class-mixmymeals-taxonomies.php';
 //require_once 'includes/lib/class-mixmymeals-userfields.php';
-//require_once 'includes/lib/class-mixmymeals-user-roles.php';
-//require_once 'includes/lib/class-mixmymeals-shortcodes.php';
+require_once 'includes/lib/class-mixmymeals-user-roles.php';
+require_once 'includes/lib/class-mixmymeals-shortcodes.php';
 require_once 'includes/lib/class-mixmymeals-post-meta.php';
 require_once 'includes/lib/class-mixmymeals-recipe.php';
 require_once 'includes/lib/class-mixmymeals-ingredient.php';
@@ -77,10 +77,10 @@ function mixmymeals() {
 
 mixmymeals();
 //mixmymeals()->add_userfields();
-//mixmymeals()->add_user_roles();
+mixmymeals()->add_user_roles();
 mixmymeals()->add_post_types();
 mixmymeals()->add_taxonomies();
-//mixmymeals()->add_shortcodes();
+mixmymeals()->add_shortcodes();
 mixmymeals()->add_post_meta();
 
 
