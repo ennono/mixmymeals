@@ -1,0 +1,35 @@
+# === PHP ===
+*.log
+*.cache
+*.tmp
+
+# Ignore compiled files
+*.class
+*.php~  # temporäre Dateien von manchen Editoren
+
+# === Composer ===
+/vendor/               # Composer-Abhängigkeiten
+composer.lock          # Optional, wenn du keine festen Versionen tracken willst
+
+# === PhpStorm ===
+.idea/                 # PhpStorm-Projektdateien
+workspace.xml
+
+# === macOS-Systemdateien ===
+.DS_Store
+
+# === Umgebungsdateien ===
+.env
+.env.*
+
+# === Backup-/Editor-Dateien ===
+*~
+*.swp
+*.bak
+
+# === PHPUnit ===
+/phpunit.result.cache
+/tests/_output/
+
+# === Coverage Reports ===
+/coverage/
