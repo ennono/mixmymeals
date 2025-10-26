@@ -23,4 +23,18 @@ class Mixmymeals_Meal_Plan {
 		]);
 	}
 
+	public function count_meals() {
+		// Alle Meals zählen, die diesem Plan als Parent zugeordnet sind
+		$meal_count = get_posts([
+			'post_type'      => 'mmm_meal',
+			'post_parent'    => $this->post_id,
+			'post_status'    => 'any',
+			'fields'         => 'ids', // Nur IDs holen – schneller
+			'posts_per_page' => -1,
+		]);
+
+		return is_array($meal_count) ? count($meal_count) : 0;
+	}
+
+
 }

@@ -88,40 +88,8 @@ class Mixmymeals_Recipe {
 		return $cache;
 	}
 
-	/*
-	public function calculate_nutrition_totals( $servings = 1 ) {
-
-		write_to_log( 'Läuft!' );
-
-		$steps = $this->get_steps();
-
-		$totals = array_fill_keys( ['calories','fat','carbs','protein','sugar','fiber','salt'], 0 );
-
-		foreach ( $steps as $step ) {
-			foreach ( $step['ingredients'] ?? [] as $ing ) {
-				if ( empty( $ing['id'] ) || empty( $ing['amount'] ) ) continue;
-
-				$ing_obj = new Mixmymeals_Ingredient( $ing['id'] );
-				$nutrition = $ing_obj->get_nutrition();
-				$weight_item  = floatval( $nutrition['weight_item'] ?? 0 );
-				$factor = floatval( $ing['amount'] ) * $servings * $weight_item / 100;
-
-				$totals['calories'] += $factor * floatval( $nutrition['calories_100'] ?? 0 );
-				$totals['fat']      += $factor * floatval( $nutrition['fat'] ?? 0 );
-				$totals['carbs']    += $factor * floatval( $nutrition['carbs'] ?? 0 );
-				$totals['protein']  += $factor * floatval( $nutrition['protein'] ?? 0 );
-				$totals['sugar']    += $factor * floatval( $nutrition['sugar'] ?? 0 );
-				$totals['fiber']    += $factor * floatval( $nutrition['fiber'] ?? 0 );
-				$totals['salt']     += $factor * floatval( $nutrition['salt'] ?? 0 );
-			}
-		}
-
-		return $totals;
-	}
-	*/
 	public function calculate_nutrition_totals( $servings = 1 ): array {
 
-		write_to_log( 'läuft.' );
 		$steps = $this->get_steps();
 		$totals = array_fill_keys( ['calories','fat','carbs','protein','sugar','fiber','salt'], 0 );
 
