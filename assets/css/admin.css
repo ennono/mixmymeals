@@ -1,0 +1,201 @@
+/* ==========================================================================
+   MixMyMeals – Compact Calendar View for Daily Recipes
+   ========================================================================== */
+
+/* === Overall Layout ====================================================== */
+
+.mixmymeals-daily-recipes {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+/* Year Container */
+.mixmymeals-year {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    padding: 16px 20px;
+}
+
+.mixmymeals-year > h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d2327;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+
+/* === Collapsible Month Styling ========================================== */
+
+.mixmymeals-month {
+    margin-top: 10px;
+    border: 1px solid #e1e1e1;
+    border-radius: 6px;
+    background: #f9fafb;
+    overflow: hidden;
+}
+
+.mixmymeals-month summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2c3338;
+    background: #f2f4f7;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    list-style: none;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.mixmymeals-month summary:hover {
+    background: #e8ecf1;
+}
+
+.mixmymeals-month summary::-webkit-details-marker {
+    display: none;
+}
+
+.mixmymeals-month summary::after {
+    content: "▾";
+    font-size: 12px;
+    color: #666;
+    transition: transform 0.25s ease;
+}
+
+.mixmymeals-month[open] summary::after {
+    transform: rotate(180deg);
+}
+
+/* === Compact Calendar Grid ============================================== */
+
+.mixmymeals-month-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    padding: 10px;
+    background: #fff;
+}
+
+/* === Day Card ============================================================ */
+
+.mixmymeals-day {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.03);
+    transition: all 0.15s ease;
+}
+
+.mixmymeals-day:hover {
+    border-color: #bcd8f2;
+    box-shadow: 0 2px 4px rgba(34,113,177,0.1);
+    background: #f7fbff;
+}
+
+.mixmymeals-day h5 {
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* === Meals within a Day ================================================== */
+
+.mixmymeals-meals {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mixmymeals-meal {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: #fafafa;
+    border: 1px solid #e2e2e2;
+    border-radius: 4px;
+    padding: 6px;
+}
+
+.mixmymeals-meal:hover {
+    background: #f3f8fc;
+}
+
+.mixmymeals-meal label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #444;
+}
+
+/* === Recipe Selector ===================================================== */
+
+.mixmymeals-meal select {
+    width: 100%;
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mixmymeals-meal select:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+/* === Portions Field ====================================================== */
+
+.mixmymeals-portions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.mixmymeals-portions label {
+    font-size: 11px;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.mixmymeals-portions input[type="number"] {
+    width: 60px;
+    text-align: center;
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid #ccd0d4;
+    border-radius: 3px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mixmymeals-portions input[type="number"]:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+/* === Responsive Adjustments ============================================= */
+
+@media (max-width: 782px) {
+    .mixmymeals-month-content {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+
+    .mixmymeals-meal select,
+    .mixmymeals-portions input[type="number"] {
+        font-size: 11px;
+    }
+}

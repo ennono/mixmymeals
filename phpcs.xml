@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<ruleset name="PHPCompatibility Only">
+    <description>
+        Prüft PHP-Kompatibilität für PHP 7.4 bis 8.2.
+        Keine WordPress- oder Generic/Universal-Sniffs.
+    </description>
+
+    <rule ref="WordPress" />
+
+    <rule ref="PHPCompatibility">
+        <config name="testVersion" value="7.0-7.4"/>
+    </rule>
+
+    <rule ref="PHPCompatibilityWP">
+    </rule>
+
+    <!-- Ausnahmen: keine Prüfung im Vendor- oder Node-Ordner -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+</ruleset>
