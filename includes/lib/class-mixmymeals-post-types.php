@@ -61,7 +61,7 @@ class Mixmymeals_Post_Types {
 		$recipe_args = array(
 			'labels'              => $recipe_labels,
 			'description'         => __( 'Recipe Description', 'mixmymeals' ),
-			'public'              => false,
+			'public'              => true,
 			'publicly_queryable'  => true,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
@@ -119,7 +119,7 @@ class Mixmymeals_Post_Types {
 		$ingredient_args = array(
 			'labels'              => $ingredient_labels,
 			'description'         => __( 'Ingredient Description', 'mixmymeals' ),
-			'public'              => false,
+			'public'              => true,
 			'publicly_queryable'  => false,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
@@ -183,7 +183,7 @@ class Mixmymeals_Post_Types {
 
 		$args = [
 			'labels'              => $labels,
-			'public'              => false,
+			'public'              => true,
 			'show_ui'             => true,
 			'show_in_menu'        => 'edit.php?post_type=mmm_meal_plan',
 			'supports'            => [ 'title' ],

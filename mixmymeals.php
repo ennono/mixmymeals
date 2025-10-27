@@ -28,6 +28,7 @@ require_once 'includes/class-mixmymeals-settings.php';
 //require_once 'includes/class-mixmymeals-admin-pages.php';
 
 // Load plugin libraries.
+require_once 'includes/lib/class-mixmymeals-elementor-integration.php';
 require_once 'includes/lib/class-mixmymeals-admin-api.php';
 require_once 'includes/lib/class-mixmymeals-post-types.php';
 require_once 'includes/lib/class-mixmymeals-taxonomies.php';
@@ -82,6 +83,7 @@ mixmymeals()->add_post_types();
 mixmymeals()->add_taxonomies();
 mixmymeals()->add_shortcodes();
 mixmymeals()->add_post_meta();
+mixmymeals()->integrate_elementor();
 
 
 

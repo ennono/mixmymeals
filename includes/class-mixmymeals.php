@@ -274,6 +274,10 @@ class Mixmymeals {
 		return new Mixmymeals_Shortcodes();
 	}
 
+	public function integrate_elementor() {
+		return new Mixmymeals_Elementor_Integration();
+	}
+
 	/**
 	 * Load frontend CSS.
 	 *
