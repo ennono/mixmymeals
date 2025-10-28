@@ -36,5 +36,19 @@ class Mixmymeals_Meal_Plan {
 		return is_array($meal_count) ? count($meal_count) : 0;
 	}
 
+	public function get_meals() {
+		// Alle Meals abrufen, die diesem Plan zugeordnet sind
+		$meals = get_posts([
+			'post_type'      => 'mmm_meal',
+			'post_parent'    => $this->post_id,
+			'post_status'    => 'any',
+			'orderby'        => 'menu_order',
+			'order'          => 'ASC',
+			'posts_per_page' => -1,
+		]);
+
+		return $meals;
+	}
+
 
 }

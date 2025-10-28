@@ -129,4 +129,13 @@ class Mixmymeals_Meal {
 			'order'       => 'ASC',
 		]);
 	}
+
+	public function get_weekday() {
+		return get_post_meta( $this->post_id, '_mmm_weekday', true );
+	}
+
+	public function set_weekday( $weekday ) {
+		update_post_meta( $this->post_id, '_mmm_weekday', $weekday );
+	}
+
 }

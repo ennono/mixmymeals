@@ -539,31 +539,12 @@ class Mixmymeals_Post_Meta {
 		$servings = $meal_obj->get_servings();
 		$note = $meal_obj->get_note();
 		$parent_id = $meal_obj->get_parent_plan_id();
+		$weekday = $meal_obj->get_weekday();
 
-		// Alle verfügbaren Meal-Pläne abrufen
-		/*
-		$plans = get_posts([
-			'post_type'      => 'mmm_meal_plan',
-			'posts_per_page' => -1,
-			'post_status'    => 'publish',
-			'orderby'        => 'date',
-			'order'          => 'DESC',
-		]);
-		*/
 		$plans = Mixmymeals_Meal_Plan::get_all_meal_plans();
-
-		// Alle verfügbaren Rezepte abrufen
-		/*
-		$recipes = get_posts([
-			'post_type'      => 'mixmymeals_recipe',
-			'posts_per_page' => -1,
-			'post_status'    => 'publish',
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-		]);
-		*/
 		$recipes = Mixmymeals_Recipe::get_all_recipes();
 
+		// --- Meal Plan Auswahl ---
 		echo '<p><label><strong>' . esc_html__( 'Meal Plan (Parent)', 'mixmymeals' ) . '</strong></label><br>';
 		echo '<select name="mmm_parent_id" style="width:100%;">';
 		echo '<option value="">' . esc_html__( '— Select Meal Plan —', 'mixmymeals' ) . '</option>';
@@ -577,6 +558,7 @@ class Mixmymeals_Post_Meta {
 		}
 		echo '</select></p>';
 
+		// --- Rezept Auswahl ---
 		echo '<p><label><strong>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</strong></label><br>';
 		echo '<select name="recipe_id" style="width:100%;">';
 		echo '<option value="">' . esc_html__( '— Select Recipe —', 'mixmymeals' ) . '</option>';
@@ -590,20 +572,44 @@ class Mixmymeals_Post_Meta {
 		}
 		echo '</select></p>';
 
+		// --- NEU: Wochentag Auswahl ---
+		$weekdays = [
+			''        => __( '— No Day —', 'mixmymeals' ),
+			'monday'    => __( 'Monday', 'mixmymeals' ),
+			'tuesday'   => __( 'Tuesday', 'mixmymeals' ),
+			'wednesday' => __( 'Wednesday', 'mixmymeals' ),
+			'thursday'  => __( 'Thursday', 'mixmymeals' ),
+			'friday'    => __( 'Friday', 'mixmymeals' ),
+			'saturday'  => __( 'Saturday', 'mixmymeals' ),
+			'sunday'    => __( 'Sunday', 'mixmymeals' ),
+		];
+
+		echo '<p><label><strong>' . esc_html__( 'Weekday (optional)', 'mixmymeals' ) . '</strong></label><br>';
+		echo '<select name="weekday" style="width:100%;">';
+		foreach ( $weekdays as $key => $label ) {
+			printf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( $key ),
+				selected( $weekday, $key, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select></p>';
+
+		// --- Portionen ---
 		echo '<p><label><strong>' . esc_html__( 'Servings', 'mixmymeals' ) . '</strong></label><br>';
 		echo '<input type="number" name="servings" value="' . esc_attr( $servings ?: 1 ) . '" min="1" step="1" style="width:100px;"></p>';
 
+		// --- Notiz ---
 		echo '<p><label><strong>' . esc_html__( 'Note (optional)', 'mixmymeals' ) . '</strong></label><br>';
 		echo '<textarea name="note" rows="2" style="width:100%;">' . esc_textarea( $note ) . '</textarea></p>';
 	}
 
 	public function save_meal_meta( $post_id ) {
 
-		// Setting flag to prevent endless loop due to recursive hook callings:
 		if ( self::$updating_meal_meta ) return;
 		self::$updating_meal_meta = true;
 
-		// Nonce prüfen
 		if (
 			! isset( $_POST['mmm_meal_meta_nonce'] ) ||
 			! wp_verify_nonce( $_POST['mmm_meal_meta_nonce'], 'mmm_meal_meta_box' )
@@ -611,35 +617,34 @@ class Mixmymeals_Post_Meta {
 			return;
 		}
 
-		// Autosave und Berechtigung prüfen
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
-		// Handler-Objekt erstellen
 		$meal_obj = new Mixmymeals_Meal( $post_id );
 
-		// Parent ID speichern
 		if ( isset( $_POST['mmm_parent_id'] ) ) {
 			$meal_obj->set_parent_plan_id( $_POST['mmm_parent_id'] );
 		}
 
-		// Recipe ID speichern
 		if ( isset( $_POST['recipe_id'] ) ) {
 			$meal_obj->set_recipe_id( $_POST['recipe_id'] );
 		}
 
-		// Servings speichern
 		if ( isset( $_POST['servings'] ) ) {
 			$meal_obj->set_servings( $_POST['servings'] );
 		}
 
-		// Note speichern
 		if ( isset( $_POST['note'] ) ) {
 			$meal_obj->set_note( $_POST['note'] );
 		}
 
+		if ( isset( $_POST['weekday'] ) ) {
+			$meal_obj->set_weekday( sanitize_text_field( $_POST['weekday'] ) );
+		}
+
 		self::$updating_meal_meta = false;
 	}
+
 
 
 }
