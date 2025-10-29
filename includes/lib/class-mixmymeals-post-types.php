@@ -118,22 +118,21 @@ class Mixmymeals_Post_Types {
 
 		$ingredient_args = array(
 			'labels'              => $ingredient_labels,
-			'description'         => __( 'Ingredient Description', 'mixmymeals' ),
 			'public'              => true,
-			'publicly_queryable'  => false,
+			'publicly_queryable'  => true,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
-			'show_in_menu'        => 'edit.php?post_type=mixmymeals_recipe',
-			'show_in_nav_menus'   => false,
+			'show_in_menu'        => true,
+			'show_in_nav_menus'   => true,
 			'query_var'           => true,
 			'can_export'          => false,
 			'rewrite'             => false,
 			'capability_type'     => 'post',
-			'has_archive'         => false,
+			'has_archive'         => true,
 			'hierarchical'        => false,
 			'show_in_rest'        => false,
 			'supports'            => array( 'title', 'editor' ),
-			'menu_position'       => 31,
+			'menu_position'       => 30,
 			'menu_icon'           => 'dashicons-carrot',
 		);
 

@@ -87,7 +87,7 @@ class Mixmymeals_Post_Meta {
 			echo '<option value="' . esc_attr( $ing->ID ) . '">' . esc_html( $ing->post_title ) . '</option>';
 		}
 		echo '</select> ';
-		echo '<input type="number" step="1" min="0" class="small-text" placeholder="Amount">';
+		echo '<input type="number" step="0.1" min="0" class="small-text" placeholder="Amount">';
 		echo ' <button type="button" class="button mixmymeals-remove-ingredient">-</button>';
 		echo '</div></div>';
 
@@ -121,12 +121,21 @@ class Mixmymeals_Post_Meta {
 			echo '<div class="mixmymeals-step-ingredient">';
 			echo '<select name="mixmymeals_recipe_steps[' . $index . '][ingredients][' . $i . '][id]" class="widefat">';
 			echo '<option value="">-- ' . esc_html__( 'Select Ingredient', 'mixmymeals' ) . ' --</option>';
+
 			foreach ( $ingredients as $post_ing ) {
+				$ingredient_obj = new Mixmymeals_Ingredient( $post_ing->ID );
+				$nutrition      = $ingredient_obj->get_nutrition();
+				$weight_item    = floatval( $nutrition['weight_item'] ?? 0 );
+				$weight_label   = $weight_item > 0 ? ' (' . $weight_item . ' g)' : '';
+
 				$selected = selected( $ing_id, $post_ing->ID, false );
-				echo '<option value="' . esc_attr( $post_ing->ID ) . '" ' . $selected . '>' . esc_html( $post_ing->post_title ) . '</option>';
+				echo '<option value="' . esc_attr( $post_ing->ID ) . '" ' . $selected . '>' .
+				     esc_html( $post_ing->post_title . $weight_label ) .
+				     '</option>';
 			}
+
 			echo '</select> ';
-			echo '<input type="number" step="1" min="0" name="mixmymeals_recipe_steps[' . $index . '][ingredients][' . $i . '][amount]" value="' . esc_attr( $amount ) . '" class="small-text" placeholder="Amount">';
+			echo '<input type="number" step="0.1" min="0" name="mixmymeals_recipe_steps[' . $index . '][ingredients][' . $i . '][amount]" value="' . esc_attr( $amount ) . '" class="small-text" placeholder="Amount">';
 			echo ' <button type="button" class="button mixmymeals-remove-ingredient">-</button>';
 			echo '</div>';
 		}
@@ -147,6 +156,7 @@ class Mixmymeals_Post_Meta {
 		echo '<p class="mixmymeals-step-actions"><a href="#" class="mixmymeals-delete-step">' . esc_html__( 'Delete Step', 'mixmymeals' ) . '</a></p>';
 		echo '<hr></div>';
 	}
+
 
 	public function save_recipe_steps_meta_box( $post_ID ) {
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
