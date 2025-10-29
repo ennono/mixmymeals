@@ -115,5 +115,19 @@ class Mixmymeals_Recipe {
 		return $totals;
 	}
 
+	/* ---------------------------------------------------------- */
+	/* SERVINGS HANDLING                                          */
+	/* ---------------------------------------------------------- */
+
+	public function get_servings() {
+		$servings = get_post_meta( $this->post_id, '_mmm_servings', true );
+		return $servings !== '' ? floatval( $servings ) : 1;
+	}
+
+	public function set_servings( $servings ) {
+		$servings = max( 0.5, floatval( $servings ) ); // Mindestens 0.5 Portionen
+		update_post_meta( $this->post_id, '_mmm_servings', $servings );
+	}
+
 
 }

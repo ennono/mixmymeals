@@ -9,6 +9,10 @@ class Mixmymeals_Meal {
 		$this->post_id = $post_id;
 	}
 
+	public function get_id() {
+		return (int) $this->post_id;
+	}
+
 	/* ---------------------------------------------------------- */
 	/* BASIC META HANDLING                                        */
 	/* ---------------------------------------------------------- */

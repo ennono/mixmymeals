@@ -53,6 +53,21 @@ class Mixmymeals_Post_Meta {
 		$steps       = $recipe_obj->get_steps() ?: [];
 		$ingredients = Mixmymeals_Ingredient::get_all_ingredients();
 
+		// Portionen-Wert laden oder Default = 1
+		$servings = get_post_meta( $post->ID, '_mmm_servings', true );
+		if ( empty( $servings ) ) {
+			$servings = 1;
+		}
+
+		echo '<div class="mixmymeals-recipe-meta">';
+
+		// --- Feld für Anzahl der Portionen ---
+		echo '<div class="mixmymeals-servings-field" style="margin-bottom:1em;">';
+		echo '<label for="mmm_servings" style="font-weight:bold;">' . esc_html__( 'Servings (Portionen):', 'mixmymeals' ) . '</label><br />';
+		echo '<input type="number" min="1" step="0.5" name="mmm_servings" id="mmm_servings" value="' . esc_attr( $servings ) . '" style="width:80px; text-align:right;" />';
+		echo '</div>';
+
+		// --- Schritte-Editor ---
 		echo '<div class="mixmymeals-recipe-steps">';
 		if ( empty( $steps ) ) $steps[] = [];
 
@@ -63,7 +78,7 @@ class Mixmymeals_Post_Meta {
 
 		echo '<p><button type="button" id="mixmymeals-add-step" class="button button-secondary">+ ' . esc_html__( 'Add Step', 'mixmymeals' ) . '</button></p>';
 
-		// Template für JS
+		// --- Template für neue Zutaten (JS) ---
 		echo '<div id="mixmymeals-ingredient-template" style="display:none;">';
 		echo '<div class="mixmymeals-step-ingredient">';
 		echo '<select class="widefat">';
@@ -75,7 +90,10 @@ class Mixmymeals_Post_Meta {
 		echo '<input type="number" step="1" min="0" class="small-text" placeholder="Amount">';
 		echo ' <button type="button" class="button mixmymeals-remove-ingredient">-</button>';
 		echo '</div></div>';
+
+		echo '</div>';
 	}
+
 
 	private function render_step_row( $index, $step, $ingredients ) {
 		$title            = $step['title'] ?? '';
@@ -136,6 +154,12 @@ class Mixmymeals_Post_Meta {
 
 		$recipe_obj = new Mixmymeals_Recipe( $post_ID );
 
+		// 🟢 Portionen speichern
+		if ( isset( $_POST['mmm_servings'] ) ) {
+			$recipe_obj->set_servings( floatval( $_POST['mmm_servings'] ) );
+		}
+
+		// 🟢 Schritte speichern (wie gehabt)
 		if ( isset( $_POST['mixmymeals_recipe_steps'] ) ) {
 			$steps = array_filter( $_POST['mixmymeals_recipe_steps'], function( $step ) {
 				$title = trim( $step['title'] ?? '' );
@@ -148,6 +172,7 @@ class Mixmymeals_Post_Meta {
 			$recipe_obj->purge_steps();
 		}
 	}
+
 
 	/* ======================================================
  *  MEAL PLAN META BOX (Overview of linked meals)
