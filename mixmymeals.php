@@ -38,6 +38,7 @@ require_once 'includes/lib/class-mixmymeals-shortcodes.php';
 require_once 'includes/lib/class-mixmymeals-post-meta.php';
 require_once 'includes/lib/class-mixmymeals-recipe.php';
 require_once 'includes/lib/class-mixmymeals-ingredient.php';
+require_once 'includes/lib/class-mixmymeals-ingredient-amount.php';
 require_once 'includes/lib/class-mixmymeals-meal.php';
 require_once 'includes/lib/class-mixmymeals-meal-plan.php';
 

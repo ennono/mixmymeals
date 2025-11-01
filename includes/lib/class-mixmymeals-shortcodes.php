@@ -4,7 +4,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Mixmymeals_Shortcodes {
 
 	public function __construct() {
-
 		add_shortcode( 'mixmymeals_all_meals_in_a_single_meal_plan',
 			[ $this, 'all_meals_in_a_plan_callback' ] );
 
@@ -12,32 +11,30 @@ class Mixmymeals_Shortcodes {
 			[ $this, 'shopping_list_for_a_single_meal_plan_callback' ] );
 
 		add_shortcode( 'mixmymeals_simple_shopping_list_for_a_single_meal_plan',
-			array( $this, 'simple_shopping_list_for_a_single_meal_plan_callback' ) );
+			[ $this, 'simple_shopping_list_for_a_single_meal_plan_callback' ] );
 
 		add_shortcode( 'mixmymeals_recipe_steps',
 			[ $this, 'recipe_steps_callback' ] );
 
 		add_shortcode( 'mixmymeals_scaled_recipe_steps',
-			array( $this, 'scaled_recipe_steps_callback' ) );
+			[ $this, 'scaled_recipe_steps_callback' ] );
 
 		add_shortcode( 'meal_nutrition_table_for_a_sinle_meal',
-			array( $this, 'meal_nutrition_table_for_a_sinle_meal_callback' ) );
-
+			[ $this, 'meal_nutrition_table_for_a_sinle_meal_callback' ] );
 	}
 
-	/*
-	 * Prints all meals in a meal plan as a weekly table.
+	/**
+	 * Gibt alle Meals eines Plans als Wochenplan aus.
 	 */
 	public function all_meals_in_a_plan_callback() {
-
-		$meal_plan_id  = get_the_ID();
+		$meal_plan_id = get_the_ID();
 		if ( ! $meal_plan_id ) {
 			return '<p>' . esc_html__( 'No meal plan found.', 'mixmymeals' ) . '</p>';
 		}
 
 		$meals = Mixmymeals_Meal::get_meals_for_plan( $meal_plan_id );
 		if ( empty( $meals ) ) {
-			return '<p class="mmm-no-meals">' . esc_html__( 'No meals found in this plan.', 'mixmymeals' ) . '</p>';
+			return '<p>' . esc_html__( 'No meals found in this plan.', 'mixmymeals' ) . '</p>';
 		}
 
 		$weekdays = [
@@ -51,7 +48,7 @@ class Mixmymeals_Shortcodes {
 			''          => __( 'No Day assigned', 'mixmymeals' ),
 		];
 
-		// Meals nach Wochentag gruppieren
+		// Nach Wochentag gruppieren
 		$grouped_meals = [];
 		foreach ( $meals as $meal_post ) {
 			$meal    = new Mixmymeals_Meal( $meal_post->ID );
@@ -59,8 +56,7 @@ class Mixmymeals_Shortcodes {
 			$grouped_meals[ $weekday ][] = $meal;
 		}
 
-		ob_start();
-		?>
+		ob_start(); ?>
         <table class="mmm-meal-plan-table">
             <thead>
             <tr>
@@ -74,11 +70,9 @@ class Mixmymeals_Shortcodes {
 				<?php foreach ( $weekdays as $weekday_key => $weekday_label ) : ?>
                     <td class="mmm-meal-day">
 						<?php if ( ! empty( $grouped_meals[ $weekday_key ] ) ) : ?>
-							<?php foreach ( $grouped_meals[ $weekday_key ] as $meal ) : ?>
-								<?php
+							<?php foreach ( $grouped_meals[ $weekday_key ] as $meal ) :
 								$recipe_id = $meal->get_recipe_id();
 								$recipe_title = get_the_title( $recipe_id );
-								$recipe_link  = get_permalink( $recipe_id );
 								$meal_link = get_permalink( $meal->get_id() );
 								?>
                                 <div class="mmm-meal-item">
@@ -87,20 +81,18 @@ class Mixmymeals_Shortcodes {
 											<?php echo esc_html( $recipe_title ); ?>
                                         </a>
                                     </strong>
-
 									<?php if ( $meal->get_servings() ) : ?>
                                         <div class="mmm-meal-servings">
 											<?php echo esc_html__( 'Servings:', 'mixmymeals' ) . ' ' . intval( $meal->get_servings() ); ?>
                                         </div>
 									<?php endif; ?>
-
 									<?php if ( $meal->get_note() ) : ?>
                                         <div class="mmm-meal-note"><?php echo esc_html( $meal->get_note() ); ?></div>
 									<?php endif; ?>
                                 </div>
 							<?php endforeach; ?>
 						<?php else : ?>
-                            <em class="mmm-no-meal"><?php echo esc_html__( 'No meals', 'mixmymeals' ); ?></em>
+                            <em><?php esc_html_e( 'No meals', 'mixmymeals' ); ?></em>
 						<?php endif; ?>
                     </td>
 				<?php endforeach; ?>
@@ -111,9 +103,9 @@ class Mixmymeals_Shortcodes {
 		return ob_get_clean();
 	}
 
-	/*
- * Shopping matrix: Rows = Ingredients, Columns = Recipes, Cells = amount + rounded total sum
- */
+	/**
+	 * Einkaufsliste als Matrix (Rezepte × Zutaten)
+	 */
 	public function shopping_list_for_a_single_meal_plan_callback( $atts ) {
 		$meal_plan_id = get_the_ID();
 		$meals = Mixmymeals_Meal::get_meals_for_plan( $meal_plan_id );
@@ -124,28 +116,60 @@ class Mixmymeals_Shortcodes {
 
 		$recipes = [];
 		$ingredient_matrix = [];
+		$recipe_servings = [];
 
-		// Alle Meals durchgehen
+		// Durch alle Meals iterieren
 		foreach ( $meals as $meal_post ) {
 			$meal = new Mixmymeals_Meal( $meal_post->ID );
 			$recipe_id = $meal->get_recipe_id();
 			if ( ! $recipe_id ) continue;
 
 			$recipes[ $recipe_id ] = get_the_title( $recipe_id );
+			$recipe_servings[ $recipe_id ] = intval( $meal->get_servings() );
+
 			$recipe = new Mixmymeals_Recipe( $recipe_id );
 			$steps  = $recipe->get_steps();
+			$scale  = max( 1, $meal->get_servings() / max( 1, $recipe->get_servings() ) );
 
 			foreach ( $steps as $step ) {
 				foreach ( $step['ingredients'] ?? [] as $ing ) {
-					if ( empty( $ing['id'] ) || empty( $ing['amount'] ) ) continue;
-					$ing_id = intval( $ing['id'] );
-					$amount = floatval( $ing['amount'] );
+					if ( empty( $ing['id'] ) || ! isset( $ing['amount'] ) ) continue;
 
-					if ( ! isset( $ingredient_matrix[ $ing_id ] ) ) {
-						$ingredient_matrix[ $ing_id ] = [];
+					$ing_id    = intval( $ing['id'] );
+					$amount    = floatval( $ing['amount'] ) * $scale;
+					$amount_id = !empty($ing['amount_id']) ? intval($ing['amount_id']) : 0;
+
+					$unit_weight = 1;
+					$unit_title  = 'Gramm';
+
+					if ( $amount_id ) {
+						$amount_obj = new Mixmymeals_Ingredient_Amount( $amount_id );
+						$unit_weight = max(0.0001, floatval($amount_obj->get_weight()));
+						$unit_title  = $amount_obj->get_title() ?: 'g';
 					}
 
-					$ingredient_matrix[ $ing_id ][ $recipe_id ] = ( $ingredient_matrix[ $ing_id ][ $recipe_id ] ?? 0 ) + $amount;
+					if ( ! isset( $ingredient_matrix[ $ing_id ] ) ) {
+						$ingredient_matrix[ $ing_id ] = [
+							'total_weight' => 0,
+							'unit_title'   => $unit_title,
+							'unit_weight'  => $unit_weight,
+							'total_units'  => 0,
+						];
+					}
+
+					// Rezept-spezifische Werte mit Einheit speichern
+					if ( ! isset( $ingredient_matrix[ $ing_id ][ $recipe_id ] ) ) {
+						$ingredient_matrix[ $ing_id ][ $recipe_id ] = [
+							'amount' => 0,
+							'unit_title' => $unit_title,
+							'unit_weight' => $unit_weight,
+						];
+					}
+
+					// Mengen summieren
+					$ingredient_matrix[ $ing_id ][ $recipe_id ]['amount'] += $amount;
+					$ingredient_matrix[ $ing_id ]['total_weight'] += $amount * $unit_weight;
+					$ingredient_matrix[ $ing_id ]['total_units']  += $amount;
 				}
 			}
 		}
@@ -154,37 +178,41 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No ingredients found.', 'mixmymeals' ) . '</p>';
 		}
 
-		ob_start();
-		?>
+		ob_start(); ?>
         <table class="mmm-shopping-matrix">
             <thead>
             <tr>
                 <th><?php esc_html_e( 'Zutat', 'mixmymeals' ); ?></th>
                 <th class="mmm-total-column"><?php esc_html_e( 'Gesamtmenge', 'mixmymeals' ); ?></th>
-				<?php foreach ( $recipes as $recipe_id => $recipe_title ) : ?>
+				<?php foreach ( $recipes as $recipe_id => $recipe_title ) :
+					$servings = $recipe_servings[$recipe_id] ?? '';
+					?>
                     <th>
+                        <?php echo esc_html__( 'For', 'mixmymeals' ); ?>
                         <a href="<?php echo esc_url( get_permalink( $recipe_id ) ); ?>">
-							<?php echo esc_html( $recipe_title ); ?>
+							<?php
+							echo esc_html( $recipe_title );
+							if ( $servings ) {
+								echo ' (' . intval( $servings ) . ' ' . esc_html__( 'Servings', 'mixmymeals' ) . ')';
+							}
+							?>
                         </a>
                     </th>
 				<?php endforeach; ?>
             </tr>
             </thead>
             <tbody>
-			<?php foreach ( $ingredient_matrix as $ing_id => $recipe_amounts ) : ?>
-				<?php
-				$total_amount = array_sum( $recipe_amounts );
-				$ingredient_obj = new Mixmymeals_Ingredient( $ing_id );
-				$nutrition = $ingredient_obj->get_nutrition();
-				$weight_item = floatval( $nutrition['weight_item'] ?? 0 );
+			<?php foreach ( $ingredient_matrix as $ing_id => $data ) :
+				$total_weight = $data['total_weight'];
+				$unit_title   = $data['unit_title'];
+				$unit_weight  = $data['unit_weight'];
+				$total_units  = max( 1, round( $data['total_units'], 2 ) );
 
-				// Berechne benötigte Einheiten
-				$units_needed = 1;
-				$total_display = esc_html( round( $total_amount, 2 ) );
-
-				if ( $weight_item > 0 && $total_amount > 0 ) {
-					$units_needed = ceil( $total_amount / $weight_item );
-					$total_display = esc_html( $units_needed . ' × ' . round( $weight_item ) . ' g' );
+				// Wenn Einheit "Gramm" ist, kein × anzeigen
+				if ( strtolower( $unit_title ) === 'gramm' || strtolower( $unit_title ) === 'g' ) {
+					$total_display = round( $total_weight, 2 ) . ' g';
+				} else {
+					$total_display = $total_units . ' × ' . $unit_title . ' (' . round( $total_weight / max(1, $total_units), 2 ) . ' g)';
 				}
 				?>
                 <tr>
@@ -194,15 +222,24 @@ class Mixmymeals_Shortcodes {
                         </a>
                     </td>
                     <td class="mmm-total-cell" style="font-weight:bold;">
-						<?php echo $total_display; ?>
+						<?php echo esc_html( $total_display ); ?>
                     </td>
-					<?php foreach ( $recipes as $recipe_id => $recipe_title ) : ?>
-                        <td class="mmm-amount-cell">
-							<?php
-							$val = $recipe_amounts[ $recipe_id ] ?? 0;
-							echo $val > 0 ? esc_html( round( $val, 2 ) ) : '-';
-							?>
-                        </td>
+					<?php foreach ( $recipes as $recipe_id => $recipe_title ) :
+						$entry = $data[ $recipe_id ] ?? null;
+						if ( $entry && $entry['amount'] > 0 ) {
+							$amount = round( $entry['amount'], 2 );
+							$unit_t = $entry['unit_title'];
+							$unit_w = $entry['unit_weight'];
+							if ( strtolower( $unit_t ) === 'gramm' || strtolower( $unit_t ) === 'g' ) {
+								$display = round( $amount * $unit_w, 2 ) . ' g';
+							} else {
+								$display = $amount . ' × ' . $unit_t;
+							}
+						} else {
+							$display = '-';
+						}
+						?>
+                        <td class="mmm-amount-cell"><?php echo esc_html( $display ); ?></td>
 					<?php endforeach; ?>
                 </tr>
 			<?php endforeach; ?>
@@ -213,9 +250,13 @@ class Mixmymeals_Shortcodes {
 	}
 
 
+
+
+
+
 	/*
- * Prints all steps of a recipe (linked ingredients etc.) — shows the exact amount entered in the step.
- */
+	* Prints all steps of a recipe (linked ingredients etc.) — shows the exact amount entered in the step.
+	*/
 	/*
  * Prints all steps of a recipe (linked ingredients etc.) — shows the entered amount + weight per unit.
  */
@@ -547,15 +588,37 @@ class Mixmymeals_Shortcodes {
 
 			$recipe = new Mixmymeals_Recipe( $recipe_id );
 			$steps  = $recipe->get_steps();
+			$scale  = max( 1, $meal->get_servings() / max( 1, $recipe->get_servings() ) );
 
 			foreach ( $steps as $step ) {
 				foreach ( $step['ingredients'] ?? [] as $ing ) {
-					if ( empty( $ing['id'] ) || empty( $ing['amount'] ) ) continue;
+					if ( empty( $ing['id'] ) || ! isset( $ing['amount'] ) ) continue;
 
-					$ing_id = intval( $ing['id'] );
-					$amount = floatval( $ing['amount'] );
+					$ing_id    = intval( $ing['id'] );
+					$amount    = floatval( $ing['amount'] ) * $scale;
+					$amount_id = !empty($ing['amount_id']) ? intval($ing['amount_id']) : 0;
 
-					$ingredient_totals[ $ing_id ] = ( $ingredient_totals[ $ing_id ] ?? 0 ) + $amount;
+					$unit_weight = 1;
+					$unit_title  = 'Gramm';
+
+					// Wenn eine Einheit gewählt wurde, ihr Gewicht und Titel abrufen
+					if ( $amount_id ) {
+						$amount_obj = new Mixmymeals_Ingredient_Amount( $amount_id );
+						$unit_weight = max(0.0001, floatval($amount_obj->get_weight()));
+						$unit_title  = $amount_obj->get_title() ?: 'g';
+					}
+
+					if ( ! isset( $ingredient_totals[ $ing_id ] ) ) {
+						$ingredient_totals[ $ing_id ] = [
+							'total_weight' => 0,
+							'total_units'  => 0,
+							'unit_weight'  => $unit_weight,
+							'unit_title'   => $unit_title,
+						];
+					}
+
+					$ingredient_totals[ $ing_id ]['total_weight'] += $amount * $unit_weight;
+					$ingredient_totals[ $ing_id ]['total_units']  += $amount;
 				}
 			}
 		}
@@ -564,39 +627,28 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No ingredients found.', 'mixmymeals' ) . '</p>';
 		}
 
-		ob_start();
-		?>
+		ob_start(); ?>
         <div class="mmm-simple-shopping-list">
             <h3><?php esc_html_e( 'Einkaufsliste', 'mixmymeals' ); ?></h3>
             <ul class="mmm-shopping-list-items">
-				<?php foreach ( $ingredient_totals as $ing_id => $total_amount ) : ?>
-					<?php
-					// Ingredient-Daten abrufen
-					$ing_obj   = new Mixmymeals_Ingredient( $ing_id );
-					$nutrition = $ing_obj->get_nutrition();
-					$weight_item = floatval( $nutrition['weight_item'] ?? 0 );
+				<?php foreach ( $ingredient_totals as $ing_id => $data ) :
+					$unit_weight = $data['unit_weight'];
+					$unit_title  = $data['unit_title'];
+					$total_weight = $data['total_weight'];
+					$total_units  = max(1, round($data['total_units'], 2));
 
-					// Benötigte Anzahl ganzer Gebinde berechnen
-					$units_needed = 1;
-					if ( $weight_item > 0 ) {
-						// Summe in Gramm umrechnen und auf ganze Gebinde runden
-						$units_needed = ceil( $total_amount / 1 ); // amount = Anzahl Einheiten, bereits skaliert
+					// Wenn Einheit "Gramm" ist → nur Gewicht ausgeben
+					if ( strtolower($unit_title) === 'gramm' || strtolower($unit_title) === 'g' ) {
+						$display = round($total_weight, 2) . ' g';
+					} else {
+						$display = $total_units . ' × ' . $unit_title . ' (' . round($total_weight / max(1, $total_units), 2) . ' g)';
 					}
 					?>
                     <li class="mmm-shopping-item">
                         <a href="<?php echo esc_url( get_permalink( $ing_id ) ); ?>" class="mmm-ingredient-link">
 							<?php echo esc_html( get_the_title( $ing_id ) ); ?>
-                        </a>
-
-                        <span class="mmm-ingredient-details">
-						<?php
-						if ( $weight_item > 0 ) {
-							echo esc_html( $units_needed ) . ' × ' . esc_html( round( $weight_item ) ) . ' g';
-						} else {
-							echo esc_html( round( $total_amount ) );
-						}
-						?>
-					</span>
+                        </a>:&nbsp;
+                        <span class="mmm-ingredient-details"><?php echo esc_html( $display ); ?></span>
                     </li>
 				<?php endforeach; ?>
             </ul>
@@ -604,6 +656,7 @@ class Mixmymeals_Shortcodes {
 		<?php
 		return ob_get_clean();
 	}
+
 
 
 }

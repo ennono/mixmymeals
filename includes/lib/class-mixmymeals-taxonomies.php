@@ -15,13 +15,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Mixmymeals_Taxonomies {
 
 	public function __construct() {
-		add_action( 'init', [ $this, 'register_day_taxonomy' ] );
-		add_action( 'init', [ $this, 'register_meal_taxonomy' ] );
+		//add_action( 'init', [ $this, 'register_day_taxonomy' ] );
+		//add_action( 'init', [ $this, 'register_meal_taxonomy' ] );
 	}
 
 	/**
 	 * Registers hierarchical taxonomy for scheduling days (e.g., Monday, Tuesday...).
 	 */
+	/*
 	public function register_day_taxonomy() {
 		$labels = [
 			'name'              => _x( 'Days', 'taxonomy general name', 'mixmymeals' ),
@@ -49,10 +50,12 @@ class Mixmymeals_Taxonomies {
 
 		register_taxonomy( 'mmm_day', [ 'mmm_entry' ], $args );
 	}
+	*/
 
 	/**
 	 * Registers flat taxonomy for meal types (e.g., breakfast, lunch, dinner).
 	 */
+	/*
 	public function register_meal_taxonomy() {
 		$labels = [
 			'name'                       => _x( 'Meals', 'taxonomy general name', 'mixmymeals' ),
@@ -82,4 +85,5 @@ class Mixmymeals_Taxonomies {
 
 		register_taxonomy( 'mmm_meal', [ 'mmm_entry' ], $args );
 	}
+	*/
 }

@@ -22,6 +22,7 @@ class Mixmymeals_Post_Types {
 		add_action( 'init', array( $this, 'register_ingredient_post_type' ) );
 		add_action( 'init', array( $this, 'register_meal_plan_post_type' ) );
 		add_action( 'init', array( $this, 'register_meal_post_type' ) );
+		add_action( 'init', array( $this, 'register_ingredient_amount_post_type' ) );
 	}
 
 	/**
@@ -76,7 +77,7 @@ class Mixmymeals_Post_Types {
 			'show_in_rest'        => false,
 			'supports'            => array( 'title', 'editor' ),
 			'menu_position'       => 30,
-			'menu_icon'           => 'dashicons-portfolio',
+			'menu_icon'           => 'dashicons-media-document',
 		);
 
 		register_post_type( 'mixmymeals_recipe', $recipe_args );
@@ -122,7 +123,7 @@ class Mixmymeals_Post_Types {
 			'publicly_queryable'  => true,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
-			'show_in_menu'        => true,
+			'show_in_menu'        => 'edit.php?post_type=mixmymeals_recipe',
 			'show_in_nav_menus'   => true,
 			'query_var'           => true,
 			'can_export'          => false,
@@ -195,5 +196,40 @@ class Mixmymeals_Post_Types {
 
 		register_post_type( 'mmm_meal', $args );
 	}
+
+	/**
+	 * Register ingredient amount post type (child of ingredient)
+	 */
+	public function register_ingredient_amount_post_type() {
+		$labels = [
+			'name'          => __( 'Ingredient Amounts', 'mixmymeals' ),
+			'singular_name' => __( 'Ingredient Amount', 'mixmymeals' ),
+			'add_new_item'  => __( 'Add New Amount', 'mixmymeals' ),
+			'edit_item'     => __( 'Edit Amount', 'mixmymeals' ),
+			'all_items'     => __( 'Ingredient Amounts', 'mixmymeals' ),
+		];
+
+		$args = [
+			'labels'              => $labels,
+			'public'              => false,              // ❌ Kein Frontend
+			'exclude_from_search' => true,
+			'show_ui'             => false,               // ❌ Nicht sichtbar im Backend
+			'show_in_menu'        => false,              // Wird im Menü nicht gezeigt
+			'show_in_nav_menus'   => false,
+			'show_in_admin_bar'   => false,
+			'capability_type'     => 'post',
+			'map_meta_cap'        => true,
+			'supports'            => [ 'title' ],
+			'hierarchical'        => false,
+			'has_archive'         => false,
+			'publicly_queryable'  => false,
+			'rewrite'             => false,
+			'query_var'           => false,
+			'menu_icon'           => 'dashicons-admin-collapse',
+		];
+
+		register_post_type( 'mmm_ingr_unit', $args );
+	}
+
 
 }

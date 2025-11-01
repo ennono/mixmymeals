@@ -417,12 +417,29 @@ class Mixmymeals {
 			)
 		);
 
-		wp_localize_script( 'mixmymeals-admin', 'mixmymealsRecipes', array_map( function( $r ) {
-			return array( 'ID' => $r->ID, 'post_title' => $r->post_title );
-		}, Mixmymeals_Recipe::get_all_recipes() ) );
+
+		wp_localize_script(
+			'mixmymeals-admin',
+			'mixmymealsRecipes',
+			array_map( function( $r ) {
+				return array( 'ID' => $r->ID, 'post_title' => $r->post_title );
+				}, Mixmymeals_Recipe::get_all_recipes()
+			)
+		);
+
+
+		wp_localize_script(
+			'mixmymeals-admin',
+			'MixMyMealsAmounts', [
+				'ajaxurl'        => admin_url( 'admin-ajax.php' ),
+				'addNonce'       => wp_create_nonce( 'mixmymeals_add_ingr_amount' ),
+				'deleteNonce'    => wp_create_nonce( 'mixmymeals_delete_ingr_amount' ),
+				'confirmDelete'  => __( 'Delete?', 'mixmymeals' ),
+			]
+		);
 
 		// ATTENTION: DO NOT RENAME "mixmymeals_daily_recipes" UNLESS YOU RENAMED THE OPTION in class-mixmymeals-admin-api.php!!!
-		wp_localize_script( 'mixmymeals-admin', 'mixmymeals_recipe_selection_option_name', 'mixmymeals_daily_recipes' );
+		//wp_localize_script( 'mixmymeals-admin', 'mixmymeals_recipe_selection_option_name', 'mixmymeals_daily_recipes' );
 
 	}
 
