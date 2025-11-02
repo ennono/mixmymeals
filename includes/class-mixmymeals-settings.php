@@ -120,6 +120,7 @@ class Mixmymeals_Settings {
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
+					/*
 					'id'          => 'daily_recipes',
 					'label'       => __( 'Daily Recipes', 'mixmymeals' ),
 					'description' => __( 'Recipes for every day.',
@@ -134,16 +135,18 @@ class Mixmymeals_Settings {
 						// "class-mixmymeals.php"!
 						'daily_recipes_callback'
 					),
+					*/
 				),
 			),
 		);
 
+		/*
 		$settings['mixmymeals-advanced'] = array(
 			'title'       => __( 'Members', 'mixmymeals' ),
 			'description' => __( 'Control how the plugin handles user accounts.',
 				'mixmymeals' ),
 			'fields'      => array(
-				/*
+
 				array(
 					'id'          => 'membership_billing_items',
 					'label'       => __( 'Flat rate billing items',
@@ -157,9 +160,11 @@ class Mixmymeals_Settings {
 						'billing_items_callback'
 					),
 				),
-				*/
+
 			),
 		);
+		*/
+
 
 		return apply_filters( $this->parent->_token . '_settings_fields',
 			$settings );

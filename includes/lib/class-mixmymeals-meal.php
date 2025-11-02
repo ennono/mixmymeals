@@ -142,4 +142,9 @@ class Mixmymeals_Meal {
 		update_post_meta( $this->post_id, '_mmm_weekday', $weekday );
 	}
 
+	public function get_date() {
+		return get_post_meta( $this->post_id, 'meal_date', true ); // z.B. Feld 'meal_date'
+	}
+
+
 }

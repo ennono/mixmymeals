@@ -19,8 +19,10 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mixmymeals_scaled_recipe_steps',
 			[ $this, 'scaled_recipe_steps_callback' ] );
 
-		add_shortcode( 'meal_nutrition_table_for_a_sinle_meal',
-			[ $this, 'meal_nutrition_table_for_a_sinle_meal_callback' ] );
+		//add_shortcode( 'meal_nutrition_table_for_a_sinle_meal',
+		//	[ $this, 'meal_nutrition_table_for_a_sinle_meal_callback' ] );
+		add_shortcode( 'meal_nutrition_table_for_a_single_meal', [ $this, 'meal_nutrition_table_for_a_single_meal_callback' ] );
+
 	}
 
 	/**
@@ -32,48 +34,59 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No meal plan found.', 'mixmymeals' ) . '</p>';
 		}
 
+		$meal_plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
+		$start_date = $meal_plan->get_start_date();
+		$end_date   = $meal_plan->get_end_date(); // Muss im Meal-Plan ergänzt werden
+
+		if ( ! $start_date || ! $end_date ) {
+			return '<p>' . esc_html__( 'Start or End date not set.', 'mixmymeals' ) . '</p>';
+		}
+
 		$meals = Mixmymeals_Meal::get_meals_for_plan( $meal_plan_id );
 		if ( empty( $meals ) ) {
 			return '<p>' . esc_html__( 'No meals found in this plan.', 'mixmymeals' ) . '</p>';
 		}
 
-		$weekdays = [
-			'monday'    => __( 'Monday', 'mixmymeals' ),
-			'tuesday'   => __( 'Tuesday', 'mixmymeals' ),
-			'wednesday' => __( 'Wednesday', 'mixmymeals' ),
-			'thursday'  => __( 'Thursday', 'mixmymeals' ),
-			'friday'    => __( 'Friday', 'mixmymeals' ),
-			'saturday'  => __( 'Saturday', 'mixmymeals' ),
-			'sunday'    => __( 'Sunday', 'mixmymeals' ),
-			''          => __( 'No Day assigned', 'mixmymeals' ),
-		];
+		// Alle Tage zwischen Start und Enddatum erzeugen
+		$period = new DatePeriod(
+			new DateTime( $start_date ),
+			new DateInterval('P1D'),
+			( new DateTime( $end_date ) )->modify('+1 day') // Enddatum inklusiv
+		);
 
-		// Nach Wochentag gruppieren
+		$days = [];
+		foreach ( $period as $day ) {
+			$days[ $day->format('Y-m-d') ] = ucfirst( $day->format('l') ); // Wochentag Name
+		}
+
+		// Meals nach Datum gruppieren (hier gehen wir davon aus, dass Meals ein Datum zugeordnet haben)
 		$grouped_meals = [];
 		foreach ( $meals as $meal_post ) {
-			$meal    = new Mixmymeals_Meal( $meal_post->ID );
-			$weekday = $meal->get_weekday();
-			$grouped_meals[ $weekday ][] = $meal;
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+			$meal_date = $meal->get_date(); // Muss im Meal-Objekt ergänzt werden
+			if ( $meal_date && isset( $days[ $meal_date ] ) ) {
+				$grouped_meals[ $meal_date ][] = $meal;
+			}
 		}
 
 		ob_start(); ?>
         <table class="mmm-meal-plan-table">
             <thead>
             <tr>
-				<?php foreach ( $weekdays as $weekday_label ) : ?>
-                    <th><?php echo esc_html( $weekday_label ); ?></th>
+				<?php foreach ( $days as $date => $label ) : ?>
+                    <th><?php echo esc_html( $label ); ?><br><small><?php echo esc_html( date_i18n( get_option('date_format'), strtotime($date) ) ); ?></small></th>
 				<?php endforeach; ?>
             </tr>
             </thead>
             <tbody>
             <tr>
-				<?php foreach ( $weekdays as $weekday_key => $weekday_label ) : ?>
+				<?php foreach ( $days as $date => $label ) : ?>
                     <td class="mmm-meal-day">
-						<?php if ( ! empty( $grouped_meals[ $weekday_key ] ) ) : ?>
-							<?php foreach ( $grouped_meals[ $weekday_key ] as $meal ) :
-								$recipe_id = $meal->get_recipe_id();
+						<?php if ( ! empty( $grouped_meals[ $date ] ) ) : ?>
+							<?php foreach ( $grouped_meals[ $date ] as $meal ) :
+								$recipe_id    = $meal->get_recipe_id();
 								$recipe_title = get_the_title( $recipe_id );
-								$meal_link = get_permalink( $meal->get_id() );
+								$meal_link    = get_permalink( $meal->get_id() );
 								?>
                                 <div class="mmm-meal-item">
                                     <strong class="mmm-meal-title">
@@ -102,6 +115,7 @@ class Mixmymeals_Shortcodes {
 		<?php
 		return ob_get_clean();
 	}
+
 
 	/**
 	 * Einkaufsliste als Matrix (Rezepte × Zutaten)
@@ -437,11 +451,11 @@ class Mixmymeals_Shortcodes {
 
 
 	/**
-	 * Shortcode: Gibt eine Nährwerttabelle für ein Meal aus
-	 * mit Spalten "pro 100 g" und "pro Portion".
+	 * Shortcode: Gibt eine Nährwerttabelle für ein Meal aus (pro Portion).
 	 */
-	public function meal_nutrition_table_for_a_sinle_meal_callback( $atts ) {
+	public function meal_nutrition_table_for_a_single_meal_callback( $atts ) {
 		$post_id = get_the_ID();
+
 		if ( ! $post_id || get_post_type( $post_id ) !== 'mmm_meal' ) {
 			return '<p>' . esc_html__( 'This shortcode can only be used on meal posts.', 'mixmymeals' ) . '</p>';
 		}
@@ -460,112 +474,65 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No steps or ingredients found for this recipe.', 'mixmymeals' ) . '</p>';
 		}
 
-		$servings = max( 1, $meal->get_servings() );
-		$base_servings = max( 1, $recipe->get_servings() );
-		$scale_factor = $servings / $base_servings;
-
-		$rows = [];
-
-		// Ernährungssummen für das gesamte Meal
-		$totals = array_fill_keys( ['calories','fat','carbs','protein','sugar','fiber','salt'], 0 );
-
-		foreach ( $steps as $step ) {
-			foreach ( $step['ingredients'] ?? [] as $ing ) {
-				if ( empty( $ing['id'] ) || empty( $ing['amount'] ) ) continue;
-
-				$ing_obj   = new Mixmymeals_Ingredient( $ing['id'] );
-				$nutrition = $ing_obj->get_nutrition();
-				if ( empty( $nutrition ) ) continue;
-
-				$weight_item = floatval( $nutrition['weight_item'] ?? 100 );
-				if ( $weight_item <= 0 ) $weight_item = 100;
-
-				$amount_scaled = floatval( $ing['amount'] ) * $scale_factor * $weight_item / 100;
-
-				$row = [
-					'id'        => $ing['id'],
-					'name'      => get_the_title( $ing['id'] ),
-					'cal_100'   => floatval( $nutrition['calories_100'] ?? 0 ),
-					'fat_100'   => floatval( $nutrition['fat'] ?? 0 ),
-					'carbs_100' => floatval( $nutrition['carbs'] ?? 0 ),
-					'protein_100' => floatval( $nutrition['protein'] ?? 0 ),
-					'sugar_100' => floatval( $nutrition['sugar'] ?? 0 ),
-					'fiber_100' => floatval( $nutrition['fiber'] ?? 0 ),
-					'salt_100'  => floatval( $nutrition['salt'] ?? 0 ),
-
-					// Skaliert nach Portion
-					'cal_port'   => floatval( $nutrition['calories_100'] ?? 0 ) * $amount_scaled / 100,
-					'fat_port'   => floatval( $nutrition['fat'] ?? 0 ) * $amount_scaled / 100,
-					'carbs_port' => floatval( $nutrition['carbs'] ?? 0 ) * $amount_scaled / 100,
-					'protein_port' => floatval( $nutrition['protein'] ?? 0 ) * $amount_scaled / 100,
-					'sugar_port' => floatval( $nutrition['sugar'] ?? 0 ) * $amount_scaled / 100,
-					'fiber_port' => floatval( $nutrition['fiber'] ?? 0 ) * $amount_scaled / 100,
-					'salt_port'  => floatval( $nutrition['salt'] ?? 0 ) * $amount_scaled / 100,
-				];
-
-				foreach ( ['calories'=>'cal_port','fat'=>'fat_port','carbs'=>'carbs_port','protein'=>'protein_port','sugar'=>'sugar_port','fiber'=>'fiber_port','salt'=>'salt_port'] as $key => $col ) {
-					$totals[$key] += $row[$col];
-				}
-
-				$rows[] = $row;
-			}
-		}
+		// Nährwerte berechnen
+		$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
+		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
 
 		ob_start();
 		?>
         <div class="mmm-meal-nutrition">
-
             <table class="mmm-nutrition-table">
                 <thead>
                 <tr>
-                    <th><?php esc_html_e( 'Ingredient', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Calories (100 g)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Calories (per serving)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Protein (g/serving)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Carbs (g/serving)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Fat (g/serving)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Sugar (g/serving)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Fiber (g/serving)', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Salt (g/serving)', 'mixmymeals' ); ?></th>
+                    <th><?php esc_html_e( 'Nutrition', 'mixmymeals' ); ?></th>
+                    <th><?php esc_html_e( 'per serving', 'mixmymeals' ); ?></th>
+                    <th><?php esc_html_e( 'per 100 g', 'mixmymeals' ); ?></th>
                 </tr>
                 </thead>
                 <tbody>
-				<?php foreach ( $rows as $r ) : ?>
-                    <tr>
-                        <td>
-                            <a href="<?php echo esc_url( get_permalink( $r['id'] ) ); ?>">
-								<?php echo esc_html( $r['name'] ); ?>
-                            </a>
-                        </td>
-                        <td><?php echo esc_html( round( $r['cal_100'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['cal_port'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['protein_port'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['carbs_port'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['fat_port'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['sugar_port'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['fiber_port'], 1 ) ); ?></td>
-                        <td><?php echo esc_html( round( $r['salt_port'], 1 ) ); ?></td>
-                    </tr>
-				<?php endforeach; ?>
-                </tbody>
-                <tfoot>
-                <tr class="mmm-nutrition-total">
-                    <th><?php esc_html_e( 'Total per serving', 'mixmymeals' ); ?></th>
-                    <th>–</th>
-                    <th><?php echo esc_html( round( $totals['calories'], 1 ) ); ?></th>
-                    <th><?php echo esc_html( round( $totals['protein'], 1 ) ); ?></th>
-                    <th><?php echo esc_html( round( $totals['carbs'], 1 ) ); ?></th>
-                    <th><?php echo esc_html( round( $totals['fat'], 1 ) ); ?></th>
-                    <th><?php echo esc_html( round( $totals['sugar'], 1 ) ); ?></th>
-                    <th><?php echo esc_html( round( $totals['fiber'], 1 ) ); ?></th>
-                    <th><?php echo esc_html( round( $totals['salt'], 1 ) ); ?></th>
+                <tr>
+                    <td><?php esc_html_e( 'Calories', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['calories'], 1 ) ); ?> kcal</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['calories'], 1 ) ); ?> kcal</td>
                 </tr>
-                </tfoot>
+                <tr>
+                    <td><?php esc_html_e( 'Protein', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['protein'], 1 ) ); ?> g</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['protein'], 1 ) ); ?> g</td>
+                </tr>
+                <tr>
+                    <td><?php esc_html_e( 'Carbohydrates', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['carbs'], 1 ) ); ?> g</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['carbs'], 1 ) ); ?> g</td>
+                </tr>
+                <tr>
+                    <td><?php esc_html_e( 'Fat', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['fat'], 1 ) ); ?> g</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['fat'], 1 ) ); ?> g</td>
+                </tr>
+                <tr>
+                    <td><?php esc_html_e( 'Sugar', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['sugar'], 1 ) ); ?> g</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['sugar'], 1 ) ); ?> g</td>
+                </tr>
+                <tr>
+                    <td><?php esc_html_e( 'Fiber', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['fiber'], 1 ) ); ?> g</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['fiber'], 1 ) ); ?> g</td>
+                </tr>
+                <tr>
+                    <td><?php esc_html_e( 'Salt', 'mixmymeals' ); ?></td>
+                    <td><?php echo esc_html( round( $nutrition_per_serving['salt'], 2 ) ); ?> g</td>
+                    <td><?php echo esc_html( round( $nutrition_per_100g['salt'], 2 ) ); ?> g</td>
+                </tr>
+                </tbody>
             </table>
         </div>
 		<?php
 		return ob_get_clean();
 	}
+
+
 
 	/*
  * Simple shopping list: Ingredients + rounded number of units to buy.

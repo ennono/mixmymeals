@@ -63,7 +63,7 @@ class Mixmymeals_Post_Meta {
 		$ingredients = Mixmymeals_Ingredient::get_all_ingredients();
 
 		// Portionen-Wert laden oder Default = 1
-		//$servings = get_post_meta( $post->ID, '_mmm_servings', true );
+
 		$servings = $recipe_obj->get_servings();
 		if ( empty( $servings ) ) {
 			$servings = 1;
@@ -349,10 +349,22 @@ class Mixmymeals_Post_Meta {
 		$ingredient_obj = new Mixmymeals_Ingredient( $post->ID );
 		$values = $ingredient_obj->get_nutrition();
 
-		echo '<p><label><strong>' . esc_html__( 'Calories per 100 g', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<input type="number" step="1" min="0" name="rmm_calories_100" value="' . esc_attr( $values['calories_100'] ?? '' ) . '" class="small-text"> kcal</p>';
+		wp_nonce_field( 'rmm_ingredient_meta_box', 'rmm_ingredient_meta_nonce' );
 
-		echo '<hr><h4>' . esc_html__( 'Nutrition values (per 100 g)', 'mixmymeals' ) . '</h4>';
+		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
+
+		// --- Calories ---
+		echo '<tr>';
+		echo '<th scope="row"><label for="rmm_calories_100">' . esc_html__( 'Calories (per 100 g)', 'mixmymeals' ) . '</label></th>';
+		echo '<td><input type="number" step="1" min="0" name="rmm_calories_100" id="rmm_calories_100" value="' . esc_attr( $values['calories_100'] ?? '' ) . '" class="small-text"> <span class="unit">kcal</span></td>';
+		echo '</tr>';
+
+		echo '</tbody></table>';
+
+		echo '<h4 class="mixmymeals-section-title">' . esc_html__( 'Macronutrients (per 100 g)', 'mixmymeals' ) . '</h4>';
+
+		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
+
 		$nutrition = [
 			'fat'     => __( 'Fat (g)', 'mixmymeals' ),
 			'carbs'   => __( 'Carbohydrates (g)', 'mixmymeals' ),
@@ -361,11 +373,17 @@ class Mixmymeals_Post_Meta {
 			'fiber'   => __( 'Fiber (g)', 'mixmymeals' ),
 			'salt'    => __( 'Salt (g)', 'mixmymeals' ),
 		];
+
 		foreach ( $nutrition as $key => $label ) {
-			echo '<p><label><strong>' . esc_html( $label ) . '</strong></label><br>';
-			echo '<input type="number" step="0.1" min="0" name="rmm_' . esc_attr( $key ) . '" value="' . esc_attr( $values[$key] ?? '' ) . '" class="small-text"></p>';
+			echo '<tr>';
+			echo '<th scope="row"><label for="rmm_' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th>';
+			echo '<td><input type="number" step="0.1" min="0" name="rmm_' . esc_attr( $key ) . '" id="rmm_' . esc_attr( $key ) . '" value="' . esc_attr( $values[$key] ?? '' ) . '" class="small-text"></td>';
+			echo '</tr>';
 		}
+
+		echo '</tbody></table>';
 	}
+
 
 	public function save_ingredient_meta( $post_ID ) {
 
@@ -449,140 +467,76 @@ class Mixmymeals_Post_Meta {
 		echo '</div>';
 	}
 
+	/**
+	 * Render the recipe shopping list and nutrition tables.
+	 */
 	private function render_recipe_shopping_list_table( $steps ) {
 
-		$ingredient_totals = [];
-		$ingredient_units  = [];
+		$post_id = get_the_ID();
+		$recipe  = new Mixmymeals_Recipe( $post_id );
 
-		$recipe_obj = new Mixmymeals_Recipe( get_the_ID() );
-		$servings   = max( 1, $recipe_obj->get_servings() );
+		// ---------------------------
+		// Zutaten über Handler abrufen
+		// ---------------------------
+		$ingredients = $recipe->get_ingredients_normalized();
 
-		foreach ( $steps as $step ) {
-			foreach ( $step['ingredients'] ?? [] as $ing ) {
-				if ( empty( $ing['id'] ) || ! isset( $ing['amount'] ) ) continue;
-
-				$ing_id    = intval( $ing['id'] );
-				$amount    = floatval( $ing['amount'] );
-				$amount_id = ! empty( $ing['amount_id'] ) ? intval( $ing['amount_id'] ) : 0;
-
-				$unit_weight = 1;
-				if ( $amount_id ) {
-					$amount_obj  = new Mixmymeals_Ingredient_Amount( $amount_id );
-					$unit_weight = max( 0.0001, floatval( $amount_obj->get_weight() ) );
-				}
-
-				$total_weight = $amount * $unit_weight;
-
-				$ingredient_totals[ $ing_id ] = ( $ingredient_totals[ $ing_id ] ?? 0 ) + $total_weight;
-				$ingredient_units[ $ing_id ]  = [
-					'amount'    => $amount,
-					'amount_id' => $amount_id,
-				];
-			}
-		}
-
-		if ( empty( $ingredient_totals ) ) {
+		if ( empty( $ingredients ) ) {
 			echo '<p>' . esc_html__( 'No ingredient found.', 'mixmymeals' ) . '</p>';
 			return;
 		}
 
-		$totals = array_fill_keys( [ 'calories','fat','carbs','protein','sugar','fiber','salt' ], 0 );
-		$rows   = [];
-		$total_portion_weight = 0;
-
-		foreach ( $ingredient_totals as $ing_id => $total_weight ) {
-			$ing_obj   = new Mixmymeals_Ingredient( $ing_id );
-			$nutrition = $ing_obj->get_nutrition();
-			if ( empty( $nutrition ) ) continue;
-
-			$factor = ( $total_weight / 100 ) / max( 1, $servings );
-
-			$amount_id = $ingredient_units[ $ing_id ]['amount_id'] ?? 0;
-			$display_unit = 'g';
-			if ( $amount_id ) {
-				$amount_obj   = new Mixmymeals_Ingredient_Amount( $amount_id );
-				$unit_title   = $amount_obj->get_title();
-				$display_unit = $unit_title ?: 'g';
-			}
-
-			$display_amount_count = $ingredient_units[ $ing_id ]['amount'] ?? 0;
-			$portion_weight        = $total_weight / max( 1, $servings );
-
-			$total_portion_weight += $portion_weight;
-
-			$rows[] = [
-				'name'         => get_the_title( $ing_id ),
-				'unit'         => $display_unit,
-				'amount_count' => $display_amount_count,
-				'amount'       => round( $portion_weight, 1 ) . ' g',
-				'calories'     => $factor * floatval( $nutrition['calories_100'] ?? 0 ),
-				'fat'          => $factor * floatval( $nutrition['fat'] ?? 0 ),
-				'carbs'        => $factor * floatval( $nutrition['carbs'] ?? 0 ),
-				'protein'      => $factor * floatval( $nutrition['protein'] ?? 0 ),
-				'sugar'        => $factor * floatval( $nutrition['sugar'] ?? 0 ),
-				'fiber'        => $factor * floatval( $nutrition['fiber'] ?? 0 ),
-				'salt'         => $factor * floatval( $nutrition['salt'] ?? 0 ),
-			];
-
-			foreach ( $totals as $key => $_ ) {
-				$totals[ $key ] += $rows[ count( $rows ) - 1 ][ $key ];
-			}
-		}
+		// ---------------------------
+		// Nährwerte aus Recipe-Handler
+		// ---------------------------
+		$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
+		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
 
 		// ---------------------------
-		// Einkaufsliste
+		// Einkaufsliste ausgeben
 		// ---------------------------
 		echo '<h3>' . esc_html__( 'Shopping List', 'mixmymeals' ) . '</h3>';
 		echo '<ul class="mixmymeals-shopping-list" style="list-style:none; padding-left:0; margin:0;">';
 
-		foreach ( $rows as $row ) {
+		foreach ( $ingredients as $ing ) {
 			echo '<li style="padding:4px 0; border-bottom:1px solid #eee;">';
-			echo '<strong>' . esc_html( $row['name'] ) . '</strong> – ';
-			echo esc_html( $row['amount_count'] . '× ' . $row['unit'] . ' (' . $row['amount'] . ')' );
+			echo '<strong>' . esc_html( $ing['name'] ) . '</strong> – ';
+			echo esc_html( $ing['amount'] . '× ' . $ing['unit'] . ' (' . $ing['weight_g'] . ' g)' );
 			echo '</li>';
 		}
 
 		echo '</ul>';
 
 		// ---------------------------
-		// Nährwertangaben (vertikal)
+		// Nährwertangaben (Servings + 100g)
 		// ---------------------------
-		echo '<h3>' . esc_html__( 'Nutrition Details (per Serving)', 'mixmymeals' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Nutrition Facts', 'mixmymeals' ) . '</h3>';
 		echo '<table class="wp-list-table widefat fixed striped">';
-		echo '<tbody>';
+		echo '<thead><tr>';
+		echo '<th>' . esc_html__( 'Nutrient', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'per Serving', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'per 100 g', 'mixmymeals' ) . '</th>';
+		echo '</tr></thead><tbody>';
 
 		$labels = [
-			'portion_weight' => esc_html__( 'Portion Weight (g)', 'mixmymeals' ),
-			'calories'       => esc_html__( 'Calories (kcal)', 'mixmymeals' ),
-			'fat'            => esc_html__( 'Fat (g)', 'mixmymeals' ),
-			'carbs'          => esc_html__( 'Carbohydrates (g)', 'mixmymeals' ),
-			'protein'        => esc_html__( 'Protein (g)', 'mixmymeals' ),
-			'sugar'          => esc_html__( 'Sugar (g)', 'mixmymeals' ),
-			'fiber'          => esc_html__( 'Fiber (g)', 'mixmymeals' ),
-			'salt'           => esc_html__( 'Salt (g)', 'mixmymeals' ),
+			'calories' => __( 'Calories (kcal)', 'mixmymeals' ),
+			'protein'  => __( 'Protein (g)', 'mixmymeals' ),
+			'carbs'    => __( 'Carbohydrates (g)', 'mixmymeals' ),
+			'fat'      => __( 'Fat (g)', 'mixmymeals' ),
+			'sugar'    => __( 'Sugar (g)', 'mixmymeals' ),
+			'fiber'    => __( 'Fiber (g)', 'mixmymeals' ),
+			'salt'     => __( 'Salt (g)', 'mixmymeals' ),
 		];
 
-		// Portion weight
-		echo '<tr>';
-		echo '<th>' . esc_html( $labels['portion_weight'] ) . '</th>';
-		echo '<td>' . esc_html( round( $total_portion_weight, 1 ) ) . '</td>';
-		echo '</tr>';
-
-		// Alle anderen Nährwerte
-		foreach ( $totals as $key => $value ) {
+		foreach ( $labels as $key => $label ) {
 			echo '<tr>';
-			echo '<th>' . esc_html( $labels[ $key ] ) . '</th>';
-			echo '<td>' . esc_html( round( $value, 1 ) ) . '</td>';
+			echo '<th>' . esc_html( $label ) . '</th>';
+			echo '<td>' . esc_html( round( $nutrition_per_serving[$key] ?? 0, 2 ) ) . '</td>';
+			echo '<td>' . esc_html( round( $nutrition_per_100g[$key] ?? 0, 2 ) ) . '</td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
 	}
-
-
-
-
-
 
 
 
@@ -628,18 +582,27 @@ class Mixmymeals_Post_Meta {
 		wp_nonce_field( 'mmm_meal_plan_meta_box', 'mmm_meal_plan_meta_nonce' );
 
 		$meal_plan_obj = new Mixmymeals_Meal_Plan( $post->ID );
-		$start_date = $meal_plan_obj->get_start_date();
+		$start_date    = $meal_plan_obj->get_start_date();
+		$end_date      = $meal_plan_obj->get_end_date();
 
-		echo '<p><label><strong>' . esc_html__( 'Start Date (e.g., Monday)', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<input type="date" name="start_date" value="' . esc_attr( $start_date ) . '" style="width:100%;"></p>';
+		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
 
-		$meal_count = $meal_plan_obj->count_meals();
-		if ( $meal_count > 0 ) {
-			echo '<p>' . esc_html__( 'Meals reach up to', 'mixmymeals' ) . ' ' . date( get_option( 'date_format' ), strtotime($start_date. ' + ' . $meal_count . ' days')) . '.</p>';
-		} else {
-			echo '<p>' . esc_html__( 'No meals attached yet.', 'mixmymeals' ) . '</p>';
-		}
+		// --- Start Date ---
+		echo '<tr>';
+		echo '<th scope="row"><label for="start_date">' . esc_html__( 'Start Date', 'mixmymeals' ) . '</label></th>';
+		echo '<td><input type="date" name="start_date" id="start_date" value="' . esc_attr( $start_date ) . '" class="regular-text"></td>';
+		echo '</tr>';
+
+		// --- End Date ---
+		echo '<tr>';
+		echo '<th scope="row"><label for="end_date">' . esc_html__( 'End Date', 'mixmymeals' ) . '</label></th>';
+		echo '<td><input type="date" name="end_date" id="end_date" value="' . esc_attr( $end_date ) . '" class="regular-text"></td>';
+		echo '</tr>';
+
+		echo '</tbody></table>';
+
 	}
+
 
 	public function save_meal_plan_meta( $post_id ) {
 		if (
@@ -648,12 +611,20 @@ class Mixmymeals_Post_Meta {
 		) {
 			return;
 		}
+
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
+		$meal_plan = new Mixmymeals_Meal_Plan( $post_id );
+
 		if ( isset( $_POST['start_date'] ) ) {
-			update_post_meta( $post_id, 'start_date', sanitize_text_field( $_POST['start_date'] ) );
+			$meal_plan->set_start_date( $_POST['start_date'] );
+		}
+		if ( isset( $_POST['end_date'] ) ) {
+			$meal_plan->set_end_date( $_POST['end_date'] );
 		}
 	}
+
+
 
 	/**
 	 * Meal Metabox: select parent plan, recipe, servings and note.
@@ -678,26 +649,30 @@ class Mixmymeals_Post_Meta {
 		$servings = $meal_obj->get_servings();
 		$note = $meal_obj->get_note();
 		$parent_id = $meal_obj->get_parent_plan_id();
-		$weekday = $meal_obj->get_weekday();
+		$meal_date = $meal_obj->get_date();
 
 		$plans = Mixmymeals_Meal_Plan::get_all_meal_plans();
 		$recipes = Mixmymeals_Recipe::get_all_recipes();
 
 		// --- Meal Plan Auswahl ---
 		echo '<p><label><strong>' . esc_html__( 'Meal Plan (Parent)', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<select name="mmm_parent_id" style="width:100%;">';
+		echo '<select name="mmm_parent_id" id="mmm_parent_id" style="width:100%;">';
 		echo '<option value="">' . esc_html__( '— Select Meal Plan —', 'mixmymeals' ) . '</option>';
 		foreach ( $plans as $plan ) {
+			$start = get_post_meta( $plan->ID, 'start_date', true );
+			$end   = get_post_meta( $plan->ID, 'end_date', true );
 			printf(
-				'<option value="%d" %s>%s</option>',
+				'<option value="%d" data-start="%s" data-end="%s" %s>%s</option>',
 				$plan->ID,
+				esc_attr( $start ),
+				esc_attr( $end ),
 				selected( $parent_id, $plan->ID, false ),
 				esc_html( $plan->post_title )
 			);
 		}
 		echo '</select></p>';
 
-		// --- Rezept Auswahl ---
+		// --- Recipe Auswahl ---
 		echo '<p><label><strong>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</strong></label><br>';
 		echo '<select name="recipe_id" style="width:100%;">';
 		echo '<option value="">' . esc_html__( '— Select Recipe —', 'mixmymeals' ) . '</option>';
@@ -711,29 +686,12 @@ class Mixmymeals_Post_Meta {
 		}
 		echo '</select></p>';
 
-		// --- NEU: Wochentag Auswahl ---
-		$weekdays = [
-			''        => __( '— No Day —', 'mixmymeals' ),
-			'monday'    => __( 'Monday', 'mixmymeals' ),
-			'tuesday'   => __( 'Tuesday', 'mixmymeals' ),
-			'wednesday' => __( 'Wednesday', 'mixmymeals' ),
-			'thursday'  => __( 'Thursday', 'mixmymeals' ),
-			'friday'    => __( 'Friday', 'mixmymeals' ),
-			'saturday'  => __( 'Saturday', 'mixmymeals' ),
-			'sunday'    => __( 'Sunday', 'mixmymeals' ),
-		];
-
-		echo '<p><label><strong>' . esc_html__( 'Weekday (optional)', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<select name="weekday" style="width:100%;">';
-		foreach ( $weekdays as $key => $label ) {
-			printf(
-				'<option value="%s" %s>%s</option>',
-				esc_attr( $key ),
-				selected( $weekday, $key, false ),
-				esc_html( $label )
-			);
-		}
-		echo '</select></p>';
+		// --- Datumsauswahl ---
+		$start_date = $parent_id ? get_post_meta( $parent_id, 'start_date', true ) : '';
+		$end_date   = $parent_id ? get_post_meta( $parent_id, 'end_date', true ) : '';
+		echo '<p><label><strong>' . esc_html__( 'Date (within Meal Plan)', 'mixmymeals' ) . '</strong></label><br>';
+		echo '<input type="date" name="meal_date" id="meal_date" value="' . esc_attr( $meal_date ) . '" min="' . esc_attr( $start_date ) . '" max="' . esc_attr( $end_date ) . '" style="width:100%;">';
+		echo '</p>';
 
 		// --- Portionen ---
 		echo '<p><label><strong>' . esc_html__( 'Servings', 'mixmymeals' ) . '</strong></label><br>';
@@ -743,6 +701,8 @@ class Mixmymeals_Post_Meta {
 		echo '<p><label><strong>' . esc_html__( 'Note (optional)', 'mixmymeals' ) . '</strong></label><br>';
 		echo '<textarea name="note" rows="2" style="width:100%;">' . esc_textarea( $note ) . '</textarea></p>';
 	}
+
+
 
 	public function save_meal_meta( $post_id ) {
 

@@ -200,3 +200,69 @@
     }
 }
 
+/* MixMyMeals Admin Styles
+-------------------------------------------- */
+
+.mixmymeals-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+}
+
+.mixmymeals-meta-table th {
+    text-align: left;
+    width: 40%;
+    vertical-align: middle;
+    font-weight: 600;
+    padding: 6px 0;
+}
+
+.mixmymeals-meta-table td {
+    padding: 6px 0;
+}
+
+.mixmymeals-meta-table input[type="number"] {
+    width: 90px;
+    padding: 3px 6px;
+}
+
+.mixmymeals-meta-table .unit {
+    color: #777;
+    margin-left: 4px;
+}
+
+.mixmymeals-section-title {
+    margin-top: 1em;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid #ccd0d4;
+    padding-bottom: 4px;
+}
+
+/* Meta-Box Tabelle */
+.mixmymeals-meta-table th {
+    width: 150px; /* feste Breite für Labels */
+    padding-right: 10px;
+    vertical-align: top;
+}
+
+.mixmymeals-meta-table td input[type="date"] {
+    max-width: 200px;
+}
+
+/* Info-Text unter der Tabelle */
+.mixmymeals-meta-table + p.description {
+    font-size: 13px;
+    color: #555;
+    margin-top: 5px;
+}
+
+/* Alternierende Zeilenfarben */
+.mixmymeals-meta-table tbody tr:nth-child(odd) {
+    background-color: #f9f9f9;
+}
+
+/* Hover-Effekt */
+.mixmymeals-meta-table tbody tr:hover {
+    background-color: #fffbea;
+}
