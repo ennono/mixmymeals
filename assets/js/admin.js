@@ -71,11 +71,11 @@ jQuery(document).ready(function ($) {
             <h3>Step ${index + 1}</h3>
             <p>
                 <label>Title</label><br>
-                <input name="mixmymeals_recipe_steps[${index}][title]" class="regular-text">
+                <input name="mmm_recipe_steps[${index}][title]" class="regular-text">
             </p>
             <p>
                 <label>Description</label><br>
-                <textarea name="mixmymeals_recipe_steps[${index}][description]" class="large-text"></textarea>
+                <textarea name="mmm_recipe_steps[${index}][description]" class="large-text"></textarea>
             </p>
             <div class="mixmymeals-step-ingredients-wrapper">
                 <div class="mixmymeals-step-ingredients"></div>
@@ -141,11 +141,11 @@ jQuery(document).ready(function ($) {
 
         $template.find("select").attr(
             "name",
-            `mixmymeals_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`
+            `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`
         );
         $template.find("input").attr(
             "name",
-            `mixmymeals_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount]`
+            `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount]`
         );
 
         $container.append($template);

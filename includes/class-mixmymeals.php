@@ -138,48 +138,9 @@ class Mixmymeals {
 		add_filter( 'private_title_format',
 			array( $this, 'change_private_title_prefix' ) );
 
-		// Disable comments for vistors who are not logged in
-		// WARNING: This assumes that the theme uses comments_open/pings_open functions!!
-		// Otherwise, it probably won't work properly.
-        /*
-		add_filter( 'comments_open', array( $this, 'disable_comments' ), 20,
-			2 );
-		add_filter( 'pings_open', array( $this, 'disable_comments' ), 20, 2 );
-		add_filter( 'get_comment_author',
-			array( $this, 'extend_comment_author' ), 20, 3 );
-        */
-
-		// Auto logout pending users immediatly after login
-        /*
-		add_action( 'wp_login', array( $this, 'logout_pending_gardeners' ), 10,
-			2 );
-        */
-
-        // Hide Admin Bar:
+		// Hide Admin Bar:
 		add_filter( 'show_admin_bar', array( $this, 'hide_admin_bar' ) );
 		add_action( 'admin_init', array( $this, 'hide_admin_dashboard' ) );
-
-		//add_action ('save_post', array ($this, 'send_new_post_nofification'), 10, 3);
-        /*
-		add_action( 'transition_post_status',
-			array( $this, 'send_new_post_nofification' ), 10, 3 );
-        */
-
-        /*
-		add_filter( 'the_content',
-			array( $this, 'add_likes_shortcode_to_selected_posttypes' ) );
-
-		add_action( 'wp_footer', array( $this, 'printer_footer_credits' ),
-			100 );
-
-		add_action( 'template_redirect',
-			array( $this, 'redirect_private_post_404_to_login_page' ) );
-
-		add_action( 'wp_trash_post',
-			array( 'Mixmymeals_Plot', 'remove_gardener_assignments' ) );
-		add_action( 'delete_post',
-			array( 'Mixmymeals_Plot', 'remove_gardener_assignments' ) );
-        */
 
 		// Load API for generic admin functions.
 		if ( is_admin() ) {
@@ -237,11 +198,11 @@ class Mixmymeals {
 	 *
 	 * @return Mixmymeals_Userfields
 	 */
-    /*
+	/*
 	public function add_userfields() {
 		return new Mixmymeals_Userfields ();
 	}
-    */
+	*/
 
 	/**
 	 * Wrapper function to add post meta boxes.
@@ -355,7 +316,7 @@ class Mixmymeals {
 			. '.js', array( 'jquery' ), $this->_version, true );
 		wp_enqueue_script( $this->_token . '-admin' );
 
-        /*
+		/*
 		wp_localize_script( $this->_token . '-admin', 'kleingarten_admin',
 			array(
 				'ajaxurl'                         => admin_url( 'admin-ajax.php' ),
@@ -400,13 +361,13 @@ class Mixmymeals {
 					'mixmymeals' ) ),
 			)
 		);
-        */
+		*/
 
-        /*
+		/*
 		wp_enqueue_script( $this->_token . '-admin-color-picker',
 			esc_url( $this->assets_url ) . 'js/' . 'colorpicker.min.js',
 			array( 'wp-color-picker' ), $this->_version, true );
-        */
+		*/
 
 		wp_localize_script(
 			'mixmymeals-admin',
@@ -423,7 +384,7 @@ class Mixmymeals {
 			'mixmymealsRecipes',
 			array_map( function( $r ) {
 				return array( 'ID' => $r->ID, 'post_title' => $r->post_title );
-				}, Mixmymeals_Recipe::get_all_recipes()
+			}, Mixmymeals_Recipe::get_all_recipes()
 			)
 		);
 
@@ -439,7 +400,7 @@ class Mixmymeals {
 		);
 
 		// ATTENTION: DO NOT RENAME "mixmymeals_daily_recipes" UNLESS YOU RENAMED THE OPTION in class-mixmymeals-admin-api.php!!!
-		//wp_localize_script( 'mixmymeals-admin', 'mixmymeals_recipe_selection_option_name', 'mixmymeals_daily_recipes' );
+		//wp_localize_script( 'mixmymeals-admin', 'mmm_recipe_selection_option_name', 'mixmymeals_daily_recipes' );
 
 	}
 
@@ -558,6 +519,17 @@ class Mixmymeals {
 			exit;
 		}
 
+	}
+
+	/**
+	 * Load templates.
+	 *
+	 * @access  public
+	 * @return  object
+	 * @since   1.0.0
+	 */
+	public function load_templates() {
+		return new Mixmymeals_Templates();
 	}
 
 }

@@ -80,7 +80,7 @@ class Mixmymeals_Post_Types {
 			'menu_icon'           => 'dashicons-media-document',
 		);
 
-		register_post_type( 'mixmymeals_recipe', $recipe_args );
+		register_post_type( 'mmm_recipe', $recipe_args );
 	}
 
 	/**
@@ -123,7 +123,7 @@ class Mixmymeals_Post_Types {
 			'publicly_queryable'  => true,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
-			'show_in_menu'        => 'edit.php?post_type=mixmymeals_recipe',
+			'show_in_menu'        => 'edit.php?post_type=mmm_recipe',
 			'show_in_nav_menus'   => true,
 			'query_var'           => true,
 			'can_export'          => false,

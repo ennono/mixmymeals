@@ -84,7 +84,7 @@ class Mixmymeals_Recipe {
 
 		if ( $cache === null ) {
 			$cache = get_posts( array(
-				'post_type'      => 'mixmymeals_recipe',
+				'post_type'      => 'mmm_recipe',
 				'posts_per_page' => - 1,
 				'post_status'    => 'publish',
 				'orderby'        => 'title',

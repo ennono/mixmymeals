@@ -74,7 +74,6 @@ class Mixmymeals_Admin_API {
 
 		switch ( $field['id'] ) {
 
-			/*
 			case 'example':
 				$html .= '<input type="number" name="'
 				         . esc_attr( $option_name ) . '" '
@@ -86,7 +85,6 @@ class Mixmymeals_Admin_API {
 				         . esc_html( $field['description'] )
 				         . '</p>';
 				break;
-			*/
 
 		}
 

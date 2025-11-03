@@ -13,7 +13,7 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mixmymeals_simple_shopping_list_for_a_single_meal_plan',
 			[ $this, 'simple_shopping_list_for_a_single_meal_plan_callback' ] );
 
-		add_shortcode( 'mixmymeals_recipe_steps',
+		add_shortcode( 'mmm_recipe_steps',
 			[ $this, 'recipe_steps_callback' ] );
 
 		add_shortcode( 'mixmymeals_scaled_recipe_steps',

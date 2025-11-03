@@ -120,7 +120,7 @@ class Mixmymeals_Settings {
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
-					/*
+
 					'id'          => 'daily_recipes',
 					'label'       => __( 'Daily Recipes', 'mixmymeals' ),
 					'description' => __( 'Recipes for every day.',
@@ -135,7 +135,7 @@ class Mixmymeals_Settings {
 						// "class-mixmymeals.php"!
 						'daily_recipes_callback'
 					),
-					*/
+					
 				),
 			),
 		);

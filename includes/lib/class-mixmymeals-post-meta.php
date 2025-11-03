@@ -13,8 +13,9 @@ class Mixmymeals_Post_Meta {
 		//add_action( 'add_meta_boxes', [ $this, 'register_plan_entry_metabox' ] );
 		//add_action( 'save_post_' . 'mmm_entry', [ $this, 'save_plan_entry_meta' ] );
 
-		add_action( 'add_meta_boxes_mixmymeals_recipe', [ $this, 'add_recipe_steps_meta_box' ] );
-		add_action( 'save_post_mixmymeals_recipe', [ $this, 'save_recipe_steps_meta_box' ] );
+		add_action( 'add_meta_boxes_mmm_recipe', [ $this, 'add_recipe_steps_meta_box' ] );
+		add_action( 'save_post_mmm_recipe', [ $this, 'save_recipe_steps_meta_box' ] );
+		add_action( 'add_meta_boxes_mmm_recipe', [ $this, 'add_recipe_shopping_list_meta_box' ] );
 
 		add_action( 'add_meta_boxes_mmm_ingredient', [ $this, 'add_ingredient_meta_box' ] );
 		add_action( 'save_post_mmm_ingredient', [ $this,
@@ -27,8 +28,6 @@ class Mixmymeals_Post_Meta {
 		add_action( 'add_meta_boxes_mmm_ingredient', [ $this, 'add_ingredient_amounts_meta_box' ] );
 		add_action( 'wp_ajax_mixmymeals_get_ingredient_units',
 			array( $this, 'ajax_mixmymeals_get_ingredient_units_handler' ) );
-
-		add_action( 'add_meta_boxes_mixmymeals_recipe', [ $this, 'add_recipe_shopping_list_meta_box' ] );
 
 		add_action( 'wp_ajax_mixmymeals_update_shopping_list', [ $this, 'ajax_update_shopping_list' ] );
 
@@ -48,10 +47,10 @@ class Mixmymeals_Post_Meta {
 
 	public function add_recipe_steps_meta_box() {
 		add_meta_box(
-			'mixmymeals_recipe_steps_meta_box',
+			'mmm_recipe_steps_meta_box',
 			__( 'Recipe Steps', 'mixmymeals' ),
 			[ $this, 'render_recipe_steps_meta_box_content' ],
-			'mixmymeals_recipe',
+			'mmm_recipe',
 			'normal',
 			'default'
 		);
@@ -117,11 +116,11 @@ class Mixmymeals_Post_Meta {
 
 		// Title
 		echo '<p><label>' . esc_html__( 'Title', 'mixmymeals' ) . '</label><br>';
-		echo '<input type="text" class="regular-text" name="mixmymeals_recipe_steps[' . $index . '][title]" value="' . esc_attr( $title ) . '"></p>';
+		echo '<input type="text" class="regular-text" name="mmm_recipe_steps[' . $index . '][title]" value="' . esc_attr( $title ) . '"></p>';
 
 		// Description
 		echo '<p><label>' . esc_html__( 'Description', 'mixmymeals' ) . '</label><br>';
-		echo '<textarea rows="3" class="large-text" name="mixmymeals_recipe_steps[' . $index . '][description]">' . esc_textarea( $description ) . '</textarea></p>';
+		echo '<textarea rows="3" class="large-text" name="mmm_recipe_steps[' . $index . '][description]">' . esc_textarea( $description ) . '</textarea></p>';
 
 		// Ingredients
 		echo '<div class="mixmymeals-step-ingredients-wrapper">';
@@ -135,7 +134,7 @@ class Mixmymeals_Post_Meta {
 			echo '<div class="mixmymeals-step-ingredient">';
 
 			// Ingredient select
-			echo '<select name="mixmymeals_recipe_steps[' . $index . '][ingredients][' . $i . '][id]" class="widefat ingredient-select">';
+			echo '<select name="mmm_recipe_steps[' . $index . '][ingredients][' . $i . '][id]" class="widefat ingredient-select">';
 			echo '<option value="">-- ' . esc_html__( 'Select Ingredient', 'mixmymeals' ) . ' --</option>';
 
 			foreach ( $ingredients as $post_ing ) {
@@ -152,10 +151,10 @@ class Mixmymeals_Post_Meta {
 			echo '</select> ';
 
 			// Amount input
-			echo '<input type="number" step="1" min="0" name="mixmymeals_recipe_steps[' . $index . '][ingredients][' . $i . '][amount]" value="' . esc_attr( $amount ) . '" class="small-text" placeholder="Amount"> ';
+			echo '<input type="number" step="1" min="0" name="mmm_recipe_steps[' . $index . '][ingredients][' . $i . '][amount]" value="' . esc_attr( $amount ) . '" class="small-text" placeholder="Amount"> ';
 
 			// Amount/Unit select
-			echo '<select name="mixmymeals_recipe_steps[' . $index . '][ingredients][' . $i . '][amount_id]" class="small-text ingredient-unit-select">';
+			echo '<select name="mmm_recipe_steps[' . $index . '][ingredients][' . $i . '][amount_id]" class="small-text ingredient-unit-select">';
 			$sel_gramm = selected( $selected_amount_id, '', false );
 			echo '<option value="" ' . $sel_gramm . '>' . esc_html__( 'Gramm (g)', 'mixmymeals' ) . '</option>';
 
@@ -194,7 +193,7 @@ class Mixmymeals_Post_Meta {
 		echo '<div class="mixmymeals-step-image">';
 		echo '<label>' . esc_html__( 'Image', 'mixmymeals' ) . '</label><br>';
 		echo '<img class="mixmymeals-image-preview" src="' . esc_url( $image_url ) . '" style="max-width:100px;' . ( $image_url ? '' : 'display:none;' ) . '">';
-		echo '<input type="hidden" name="mixmymeals_recipe_steps[' . $index . '][image]" class="mixmymeals-image-id" value="' . esc_attr( $image_id ) . '"><br>';
+		echo '<input type="hidden" name="mmm_recipe_steps[' . $index . '][image]" class="mixmymeals-image-id" value="' . esc_attr( $image_id ) . '"><br>';
 		echo '<button type="button" class="button mixmymeals-select-image">' . esc_html__( 'Select Image', 'mixmymeals' ) . '</button> ';
 		echo '<button type="button" class="button mixmymeals-remove-image" ' . ( $image_url ? '' : 'style="display:none;"' ) . '>' . esc_html__( 'Remove', 'mixmymeals' ) . '</button>';
 		echo '</div>';
@@ -218,8 +217,8 @@ class Mixmymeals_Post_Meta {
 		}
 
 		// 🟢 Schritte speichern (wie gehabt)
-		if ( isset( $_POST['mixmymeals_recipe_steps'] ) ) {
-			$steps = array_filter( $_POST['mixmymeals_recipe_steps'], function( $step ) {
+		if ( isset( $_POST['mmm_recipe_steps'] ) ) {
+			$steps = array_filter( $_POST['mmm_recipe_steps'], function( $step ) {
 				$title = trim( $step['title'] ?? '' );
 				$desc  = trim( $step['description'] ?? '' );
 				$ingredients = $step['ingredients'] ?? [];
@@ -449,10 +448,10 @@ class Mixmymeals_Post_Meta {
 
 	public function add_recipe_shopping_list_meta_box() {
 		add_meta_box(
-			'mixmymeals_recipe_shopping_list',
+			'mmm_recipe_shopping_list',
 			__( 'Shopping List', 'mixmymeals' ),
 			[ $this, 'render_recipe_shopping_list_meta_box' ],
-			'mixmymeals_recipe',
+			'mmm_recipe',
 			'normal',
 			'default'
 		);
@@ -652,7 +651,7 @@ class Mixmymeals_Post_Meta {
 		$meal_date = $meal_obj->get_date();
 
 		$plans = Mixmymeals_Meal_Plan::get_all_meal_plans();
-		$recipes = Mixmymeals_Recipe::get_all_recipes();
+		$recipes = mmm_recipe::get_all_recipes();
 
 		// --- Meal Plan Auswahl ---
 		echo '<p><label><strong>' . esc_html__( 'Meal Plan (Parent)', 'mixmymeals' ) . '</strong></label><br>';

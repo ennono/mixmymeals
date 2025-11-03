@@ -25,6 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Load plugin class files.
 require_once 'includes/class-mixmymeals.php';
 require_once 'includes/class-mixmymeals-settings.php';
+require_once 'includes/class-mixmymeals-templates.php';
 //require_once 'includes/class-mixmymeals-admin-pages.php';
 
 // Load plugin libraries.
@@ -85,6 +86,5 @@ mixmymeals()->add_taxonomies();
 mixmymeals()->add_shortcodes();
 mixmymeals()->add_post_meta();
 mixmymeals()->integrate_elementor();
-
-
+mixmymeals()->load_templates();
 
