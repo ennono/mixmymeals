@@ -652,7 +652,7 @@ class Mixmymeals_Post_Meta {
 		$meal_date = $meal_obj->get_date();
 
 		$plans = Mixmymeals_Meal_Plan::get_all_meal_plans();
-		$recipes = mmm_recipe::get_all_recipes();
+		$recipes = Mixmymeals_Recipe::get_all_recipes();
 
 		// --- Meal Plan Auswahl ---
 		echo '<p><label><strong>' . esc_html__( 'Meal Plan (Parent)', 'mixmymeals' ) . '</strong></label><br>';

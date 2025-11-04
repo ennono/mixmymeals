@@ -4,6 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Mixmymeals_Shortcodes {
 
 	public function __construct() {
+
 		add_shortcode( 'mixmymeals_all_meals_in_a_single_meal_plan',
 			[ $this, 'all_meals_in_a_plan_callback' ] );
 
@@ -13,15 +14,17 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mixmymeals_simple_shopping_list_for_a_single_meal_plan',
 			[ $this, 'simple_shopping_list_for_a_single_meal_plan_callback' ] );
 
-		add_shortcode( 'mmm_recipe_steps',
+		add_shortcode( 'mixmymeals_steps_for_a_single_recipe',
 			[ $this, 'recipe_steps_callback' ] );
 
-		add_shortcode( 'mixmymeals_scaled_recipe_steps',
+		add_shortcode( 'mixmymeals_scaled_steps_for_a_single_meal',
 			[ $this, 'scaled_recipe_steps_callback' ] );
 
-		//add_shortcode( 'meal_nutrition_table_for_a_sinle_meal',
-		//	[ $this, 'meal_nutrition_table_for_a_sinle_meal_callback' ] );
-		add_shortcode( 'meal_nutrition_table_for_a_single_meal', [ $this, 'meal_nutrition_table_for_a_single_meal_callback' ] );
+		add_shortcode( 'mixmymeals_meal_nutrition_table_for_a_single_meal',
+			[ $this, 'meal_nutrition_table_for_a_single_meal_callback' ] );
+
+		add_shortcode( 'mixmymeals_all_meal_plans',
+			[ $this, 'all_meal_plans_callback' ] );
 
 	}
 
@@ -624,6 +627,69 @@ class Mixmymeals_Shortcodes {
 		return ob_get_clean();
 	}
 
+	/**
+	 * Gibt eine Übersicht aller Meal Plans aus (Titel, Zeitraum, Link)
+	 */
+	public function all_meal_plans_callback( $atts ) {
 
+		$atts = shortcode_atts( [
+			'show_dates' => true,
+			'order'      => 'DESC',
+			'orderby'    => 'date',
+			'limit'      => -1,
+		], $atts, 'mixmymeals_all_meal_plans' );
+
+		$query_args = [
+			'post_type'      => 'mmm_meal_plan',
+			'posts_per_page' => intval( $atts['limit'] ),
+			'post_status'    => 'publish',
+			'orderby'        => sanitize_text_field( $atts['orderby'] ),
+			'order'          => sanitize_text_field( $atts['order'] ),
+		];
+
+		$meal_plans = get_posts( $query_args );
+
+		if ( empty( $meal_plans ) ) {
+			return '<p>' . esc_html__( 'No meal plans found.', 'mixmymeals' ) . '</p>';
+		}
+
+		ob_start();
+		?>
+        <div class="mmm-meal-plan-overview">
+			<?php foreach ( $meal_plans as $plan_post ) :
+				$plan = new Mixmymeals_Meal_Plan( $plan_post->ID );
+				$start = $plan->get_start_date();
+				$end   = $plan->get_end_date();
+				$link  = get_permalink( $plan_post->ID );
+				?>
+                <div class="mmm-meal-plan-card">
+                    <h3 class="mmm-plan-title">
+                        <a href="<?php echo esc_url( $link ); ?>">
+							<?php echo esc_html( get_the_title( $plan_post->ID ) ); ?>
+                        </a>
+                    </h3>
+
+					<?php if ( $atts['show_dates'] && ( $start || $end ) ) : ?>
+                        <div class="mmm-plan-dates">
+							<?php
+							echo esc_html( date_i18n( get_option('date_format'), strtotime( $start ) ) );
+							if ( $end ) {
+								echo ' – ' . esc_html( date_i18n( get_option('date_format'), strtotime( $end ) ) );
+							}
+							?>
+                        </div>
+					<?php endif; ?>
+
+					<?php if ( has_excerpt( $plan_post->ID ) ) : ?>
+                        <div class="mmm-plan-excerpt">
+							<?php echo wpautop( get_the_excerpt( $plan_post->ID ) ); ?>
+                        </div>
+					<?php endif; ?>
+                </div>
+			<?php endforeach; ?>
+        </div>
+		<?php
+		return ob_get_clean();
+	}
 
 }
