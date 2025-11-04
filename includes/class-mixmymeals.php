@@ -521,15 +521,4 @@ class Mixmymeals {
 
 	}
 
-	/**
-	 * Load templates.
-	 *
-	 * @access  public
-	 * @return  object
-	 * @since   1.0.0
-	 */
-	public function load_templates() {
-		return new Mixmymeals_Templates();
-	}
-
 }

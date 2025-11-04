@@ -458,56 +458,54 @@ class Mixmymeals_Post_Meta {
 	}
 
 	public function render_recipe_shopping_list_meta_box( $post ) {
-		$recipe_obj = new Mixmymeals_Recipe( $post->ID );
-		$steps = $recipe_obj->get_steps() ?: [];
-
 		echo '<div id="mixmymeals-shopping-list-container">';
-		$this->render_recipe_shopping_list_table( $steps );
+		$this->render_recipe_shopping_list_table( $post->ID );
 		echo '</div>';
 	}
 
 	/**
 	 * Render the recipe shopping list and nutrition tables.
 	 */
-	private function render_recipe_shopping_list_table( $steps ) {
-
-		$post_id = get_the_ID();
-		$recipe  = new Mixmymeals_Recipe( $post_id );
-
-		// ---------------------------
-		// Zutaten über Handler abrufen
-		// ---------------------------
+	private function render_recipe_shopping_list_table( $post_id ) {
+		$recipe = new Mixmymeals_Recipe( $post_id );
 		$ingredients = $recipe->get_ingredients_normalized();
 
+		// ---------------------------------
+		// Falls keine Zutaten vorhanden
+		// ---------------------------------
 		if ( empty( $ingredients ) ) {
-			echo '<p>' . esc_html__( 'No ingredient found.', 'mixmymeals' ) . '</p>';
+			echo '<p>' . esc_html__( 'Please save the recipe to update the shopping list.', 'mixmymeals' ) . '</p>';
 			return;
 		}
 
-		// ---------------------------
-		// Nährwerte aus Recipe-Handler
-		// ---------------------------
+		// ---------------------------------
+		// Nährwertberechnung
+		// ---------------------------------
 		$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
 		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
 
-		// ---------------------------
-		// Einkaufsliste ausgeben
-		// ---------------------------
+		// ---------------------------------
+		// Einkaufsliste
+		// ---------------------------------
 		echo '<h3>' . esc_html__( 'Shopping List', 'mixmymeals' ) . '</h3>';
 		echo '<ul class="mixmymeals-shopping-list" style="list-style:none; padding-left:0; margin:0;">';
 
 		foreach ( $ingredients as $ing ) {
-			echo '<li style="padding:4px 0; border-bottom:1px solid #eee;">';
-			echo '<strong>' . esc_html( $ing['name'] ) . '</strong> – ';
-			echo esc_html( $ing['amount'] . '× ' . $ing['unit'] . ' (' . $ing['weight_g'] . ' g)' );
-			echo '</li>';
+			printf(
+				'<li style="padding:4px 0; border-bottom:1px solid #eee;">
+				<strong>%s</strong> – %s× %s (%s g)
+			</li>',
+				esc_html( $ing['name'] ),
+				esc_html( $ing['amount'] ),
+				esc_html( $ing['unit'] ),
+				esc_html( $ing['weight_g'] )
+			);
 		}
-
 		echo '</ul>';
 
-		// ---------------------------
-		// Nährwertangaben (Servings + 100g)
-		// ---------------------------
+		// ---------------------------------
+		// Nährwerttabelle
+		// ---------------------------------
 		echo '<h3>' . esc_html__( 'Nutrition Facts', 'mixmymeals' ) . '</h3>';
 		echo '<table class="wp-list-table widefat fixed striped">';
 		echo '<thead><tr>';
@@ -527,17 +525,16 @@ class Mixmymeals_Post_Meta {
 		];
 
 		foreach ( $labels as $key => $label ) {
-			echo '<tr>';
-			echo '<th>' . esc_html( $label ) . '</th>';
-			echo '<td>' . esc_html( round( $nutrition_per_serving[$key] ?? 0, 2 ) ) . '</td>';
-			echo '<td>' . esc_html( round( $nutrition_per_100g[$key] ?? 0, 2 ) ) . '</td>';
-			echo '</tr>';
+			printf(
+				'<tr><th>%s</th><td>%s</td><td>%s</td></tr>',
+				esc_html( $label ),
+				esc_html( round( $nutrition_per_serving[ $key ] ?? 0, 2 ) ),
+				esc_html( round( $nutrition_per_100g[ $key ] ?? 0, 2 ) )
+			);
 		}
 
 		echo '</tbody></table>';
 	}
-
-
 
 	/* ======================================================
 	 *  AJAX UPDATE HANDLER
@@ -545,17 +542,21 @@ class Mixmymeals_Post_Meta {
 	public function ajax_update_shopping_list() {
 		check_ajax_referer( 'mixmymeals_admin_nonce', 'nonce' );
 
-		$steps = isset( $_POST['steps'] ) ? wp_unslash( $_POST['steps'] ) : [];
-		if ( empty( $steps ) || ! is_array( $steps ) ) {
-			wp_send_json_error( 'No steps data.' );
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+
+		if ( ! $post_id ) {
+			wp_send_json_error( 'Missing post_id.' );
 		}
 
 		ob_start();
-		$this->render_recipe_shopping_list_table( $steps );
+		$this->render_recipe_shopping_list_table( $post_id );
 		$html = ob_get_clean();
 
 		wp_send_json_success( [ 'html' => $html ] );
 	}
+
+
+
 
 
 	/* ======================================================
