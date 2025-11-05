@@ -134,16 +134,31 @@ class Mixmymeals_Meal {
 		]);
 	}
 
+	/*
 	public function get_weekday() {
 		return get_post_meta( $this->post_id, '_mmm_weekday', true );
 	}
-
+	*/
+	/*
 	public function set_weekday( $weekday ) {
 		update_post_meta( $this->post_id, '_mmm_weekday', $weekday );
 	}
+	*/
 
 	public function get_date() {
 		return get_post_meta( $this->post_id, 'meal_date', true ); // z.B. Feld 'meal_date'
+	}
+
+	public function set_date( $date ): void {
+
+		if ( ! empty( $date ) ) {
+			$timestamp = strtotime( $date );
+			if ( $timestamp ) {
+				update_post_meta( $this->post_id, 'meal_date', date( 'Y-m-d', $timestamp ) );
+			}
+		} else {
+			delete_post_meta( $this->post_id, 'meal_date' );
+		}
 	}
 
 

@@ -737,8 +737,14 @@ class Mixmymeals_Post_Meta {
 			$meal_obj->set_note( $_POST['note'] );
 		}
 
+		/*
 		if ( isset( $_POST['weekday'] ) ) {
 			$meal_obj->set_weekday( sanitize_text_field( $_POST['weekday'] ) );
+		}
+		*/
+
+		if ( isset( $_POST['meal_date'] ) ) {
+			$meal_obj->set_date( $_POST['meal_date'] );
 		}
 
 		self::$updating_meal_meta = false;
