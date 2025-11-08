@@ -42,10 +42,32 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * Gibt alle Meals eines Meal Plans tabellarisch nach Datum aus.
 	 */
-	public function all_meals_in_a_plan_callback() {
-		$meal_plan_id = get_the_ID();
-		if ( ! $meal_plan_id ) {
-			return '<p>' . esc_html__( 'No meal plan found.', 'mixmymeals' ) . '</p>';
+	public function all_meals_in_a_plan_callback( $atts = [] ) {
+
+		// 🔹 Shortcode-Attribute definieren
+		$atts = shortcode_atts( [
+			'id' => 0, // optional: spezifische Meal Plan ID oder "current"
+		], $atts, 'mixmymeals_all_meals_in_a_plan' );
+
+		// 🔹 ID behandeln
+		$id_attr = strtolower( trim( $atts['id'] ) );
+
+		if ( $id_attr === 'current' ) {
+			// → Aktuell gültigen oder nächsten Plan ermitteln
+			$meal_plan_id = Mixmymeals_Meal_Plan::get_current_plan_id();
+			if ( ! $meal_plan_id ) {
+				return '<p>' . esc_html__( 'No current or upcoming meal plan found.', 'mixmymeals' ) . '</p>';
+			}
+		} else {
+			// → Feste ID oder aktuelle Seite
+			$meal_plan_id = intval( $atts['id'] ) ?: get_the_ID();
+		}
+
+        write_to_log( $meal_plan_id );
+
+		// 🔹 Prüfung: gültiger Meal Plan?
+		if ( ! $meal_plan_id || get_post_type( $meal_plan_id ) !== 'mmm_meal_plan' ) {
+			return '<p>' . esc_html__( 'No valid meal plan found.', 'mixmymeals' ) . '</p>';
 		}
 
 		$meal_plan  = new Mixmymeals_Meal_Plan( $meal_plan_id );
@@ -56,13 +78,13 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'Start or End date not set.', 'mixmymeals' ) . '</p>';
 		}
 
-		// Meals des Plans laden
+		// 🔹 Meals des Plans laden
 		$meals = Mixmymeals_Meal::get_meals_for_plan( $meal_plan_id );
 		if ( empty( $meals ) ) {
 			return '<p>' . esc_html__( 'No meals found in this plan.', 'mixmymeals' ) . '</p>';
 		}
 
-		// Tage zwischen Start und Ende erzeugen
+		// 🔹 Tage zwischen Start und Ende erzeugen
 		$period = new DatePeriod(
 			new DateTime( $start_date ),
 			new DateInterval( 'P1D' ),
@@ -74,22 +96,19 @@ class Mixmymeals_Shortcodes {
 			$days[ $day->format( 'Y-m-d' ) ] = ucfirst( $day->format( 'l' ) );
 		}
 
-		// Meals nach Datum gruppieren
+		// 🔹 Meals nach Datum gruppieren
 		$grouped_meals = [];
 		foreach ( $meals as $meal_post ) {
-			$meal       = new Mixmymeals_Meal( $meal_post->ID );
-			$meal_date  = $meal->get_date();
+			$meal      = new Mixmymeals_Meal( $meal_post->ID );
+			$meal_date = $meal->get_date();
 
-			if ( ! empty( $meal_date ) ) {
-				// nur hinzufügen, wenn das Datum im Zeitraum liegt
-				if ( isset( $days[ $meal_date ] ) ) {
-					$grouped_meals[ $meal_date ][] = $meal;
-				}
+			if ( ! empty( $meal_date ) && isset( $days[ $meal_date ] ) ) {
+				$grouped_meals[ $meal_date ][] = $meal;
 			}
 		}
 
 		ob_start(); ?>
-        <div class="mmm-meal-plan-wrapper">
+        <div class="mmm-meal-plan-wrapper" data-meal-plan-id="<?php echo esc_attr( $meal_plan_id ); ?>">
             <table class="mmm-meal-plan-table">
                 <thead>
                 <tr>
@@ -139,7 +158,6 @@ class Mixmymeals_Shortcodes {
 		<?php
 
 		return ob_get_clean();
-
 	}
 
 

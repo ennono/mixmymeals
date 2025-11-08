@@ -33,6 +33,12 @@ class Mixmymeals_Post_Meta {
 
 		add_action( 'add_meta_boxes_mmm_meal_plan', [ $this, 'register_meal_plan_metabox' ] );
 		add_action( 'save_post_mmm_meal_plan', [ $this, 'save_meal_plan_meta' ] );
+		add_action( 'save_post_mmm_meal_plan', [ $this, 'prevent_overlapping_meal_plans' ], 10, 3 );
+		add_action( 'admin_notices', function() {
+			if ( isset( $_GET['mmm_overlap'] ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $_GET['mmm_overlap'] ) . '</p></div>';
+			}
+		});
 
 		add_action( 'add_meta_boxes_mmm_meal', [ $this, 'register_meal_metabox' ] );
 		add_action( 'save_post_mmm_meal', [ $this, 'save_meal_meta' ] );
@@ -624,6 +630,57 @@ class Mixmymeals_Post_Meta {
 		}
 	}
 
+	public function prevent_overlapping_meal_plans( $post_id, $post, $update ) {
+
+		// Nur im Admin, kein Autosave oder Revision
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+		if ( wp_is_post_revision( $post_id ) ) return;
+		if ( get_post_type( $post_id ) !== 'mmm_meal_plan' ) return;
+
+		$meal_plan_obj = new Mixmymeals_Meal_Plan( $post_id );
+
+		$start_date = $meal_plan_obj->get_start_date();
+		$end_date   = $meal_plan_obj->get_end_date();
+
+		if ( ! $start_date || ! $end_date ) return;
+
+		// Alle anderen Meal Plans holen
+		$args = [
+			'post_type'      => 'mmm_meal_plan',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'post__not_in'   => [ $post_id ],
+		];
+		$plans = get_posts( $args );
+
+		foreach ( $plans as $plan ) {
+			$other_meal_plan_obj = new Mixmymeals_Meal_Plan( $plan->ID );
+			$other_start = $other_meal_plan_obj->get_start_date();
+			$other_end   = $other_meal_plan_obj->get_end_date();
+
+			if ( ! $other_start || ! $other_end ) continue;
+
+			// Prüfen auf Überschneidung
+			if ( ( $start_date <= $other_end ) && ( $end_date >= $other_start ) ) {
+
+				// Beitrag löschen, um doppelte Pläne zu vermeiden
+				//wp_delete_post( $post_id, true );
+
+				// Meal Plan auf Entwurf setzen:
+				$other_meal_plan_obj->set_to_draft();
+
+				// Zurück zum Übersichtsbildschirm mit Warnung
+				wp_safe_redirect(
+					add_query_arg(
+						'mmm_overlap',
+						urlencode( __( 'This meal plan overlaps with another existing plan and was not saved.', 'mixmymeals' ) ),
+						admin_url( 'edit.php?post_type=mmm_meal_plan' )
+					)
+				);
+				exit;
+			}
+		}
+	}
 
 
 	/**
