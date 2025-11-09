@@ -64,13 +64,18 @@ class Mixmymeals_Post_Types {
 			'description'         => __( 'Recipe Description', 'mixmymeals' ),
 			'public'              => true,
 			'publicly_queryable'  => true,
-			'exclude_from_search' => true,
+			'exclude_from_search' => false,
 			'show_ui'             => true,
 			'show_in_menu'        => true,
 			'show_in_nav_menus'   => true,
 			'query_var'           => true,
 			'can_export'          => false,
-			'rewrite'             => false,
+			'rewrite'             => [
+				'slug'       => __( 'recipes', 'mixmymeals' ),
+				'with_front' => false,
+				'feeds'      => false,
+				'pages'      => false,
+			],
 			'capability_type'     => 'post',
 			'has_archive'         => true,
 			'hierarchical'        => false,
@@ -127,7 +132,12 @@ class Mixmymeals_Post_Types {
 			'show_in_nav_menus'   => true,
 			'query_var'           => true,
 			'can_export'          => false,
-			'rewrite'             => false,
+			'rewrite'             => [
+				'slug'       => __( 'ingredients', 'mixmymeals' ),
+				'with_front' => false,
+				'feeds'      => false,
+				'pages'      => false,
+			],
 			'capability_type'     => 'post',
 			'has_archive'         => true,
 			'hierarchical'        => false,
@@ -161,8 +171,14 @@ class Mixmymeals_Post_Types {
 			'show_in_menu' => true,
 			'menu_icon'    => 'dashicons-calendar-alt',
 			'supports'     => [ 'title', 'editor' ],
-			'has_archive'  => false,
+			'has_archive'  => true,
 			'hierarchical' => false,
+			'rewrite'             => [
+				'slug'       => __( 'mealplans', 'mixmymeals' ),
+				'with_front' => false,
+				'feeds'      => false,
+				'pages'      => false,
+			],
 		];
 
 		register_post_type( 'mmm_meal_plan', $args );
@@ -191,7 +207,12 @@ class Mixmymeals_Post_Types {
 			'hierarchical'        => false,
 			'capability_type'     => 'post',
 			'map_meta_cap'        => true,
-			'rewrite'             => false,
+			'rewrite'             => [
+				'slug'       => __( 'mealplans/meals', 'mixmymeals' ),
+				'with_front' => false,
+				'feeds'      => false,
+				'pages'      => false,
+			],
 		];
 
 		register_post_type( 'mmm_meal', $args );
@@ -211,10 +232,10 @@ class Mixmymeals_Post_Types {
 
 		$args = [
 			'labels'              => $labels,
-			'public'              => false,              // ❌ Kein Frontend
+			'public'              => false,
 			'exclude_from_search' => true,
-			'show_ui'             => false,               // ❌ Nicht sichtbar im Backend
-			'show_in_menu'        => false,              // Wird im Menü nicht gezeigt
+			'show_ui'             => false,
+			'show_in_menu'        => false,
 			'show_in_nav_menus'   => false,
 			'show_in_admin_bar'   => false,
 			'capability_type'     => 'post',
@@ -225,7 +246,6 @@ class Mixmymeals_Post_Types {
 			'publicly_queryable'  => false,
 			'rewrite'             => false,
 			'query_var'           => false,
-			'menu_icon'           => 'dashicons-admin-collapse',
 		];
 
 		register_post_type( 'mmm_ingr_unit', $args );

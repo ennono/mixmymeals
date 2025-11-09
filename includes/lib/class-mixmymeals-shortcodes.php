@@ -63,8 +63,6 @@ class Mixmymeals_Shortcodes {
 			$meal_plan_id = intval( $atts['id'] ) ?: get_the_ID();
 		}
 
-        write_to_log( $meal_plan_id );
-
 		// 🔹 Prüfung: gültiger Meal Plan?
 		if ( ! $meal_plan_id || get_post_type( $meal_plan_id ) !== 'mmm_meal_plan' ) {
 			return '<p>' . esc_html__( 'No valid meal plan found.', 'mixmymeals' ) . '</p>';
