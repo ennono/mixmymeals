@@ -64,5 +64,19 @@ class Mixmymeals_Ingredient_Amount {
 	public function delete(): void {
 		wp_delete_post( $this->post_id, true );
 	}
+
+	public function set_sale_unit( bool $is_sale_unit ): void {
+		if ( $is_sale_unit ) {
+			update_post_meta( $this->post_id, '_mmm_is_sale_unit', 1 );
+		} else {
+			delete_post_meta( $this->post_id, '_mmm_is_sale_unit' );
+		}
+	}
+
+	public function is_sale_unit(): bool {
+		return (bool) get_post_meta( $this->post_id, '_mmm_is_sale_unit', true );
+	}
+
+
 }
 

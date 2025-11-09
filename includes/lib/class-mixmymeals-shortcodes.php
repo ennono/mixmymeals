@@ -52,6 +52,7 @@ class Mixmymeals_Shortcodes {
 		// 🔹 ID behandeln
 		$id_attr = strtolower( trim( $atts['id'] ) );
 
+
 		if ( $id_attr === 'current' ) {
 			// → Aktuell gültigen oder nächsten Plan ermitteln
 			$meal_plan_id = Mixmymeals_Meal_Plan::get_current_plan_id();
@@ -59,6 +60,7 @@ class Mixmymeals_Shortcodes {
 				return '<p>' . esc_html__( 'No current or upcoming meal plan found.', 'mixmymeals' ) . '</p>';
 			}
 		} else {
+
 			// → Feste ID oder aktuelle Seite
 			$meal_plan_id = intval( $atts['id'] ) ?: get_the_ID();
 		}
@@ -604,8 +606,17 @@ class Mixmymeals_Shortcodes {
 
 	/*
  * Simple shopping list: Ingredients + rounded number of units to buy.
+ *
+ * Shortcode-Beispiel:
+ * [mmm_simple_shopping_list show_details="false"]
  */
 	public function simple_shopping_list_for_a_single_meal_plan_callback( $atts ) {
+		$atts = shortcode_atts( [
+			'show_details' => 'true', // "false" blendet Detailzeilen aus
+		], $atts, 'mmm_simple_shopping_list' );
+
+		$show_details = filter_var( $atts['show_details'], FILTER_VALIDATE_BOOLEAN );
+
 		$meal_plan_id = get_the_ID();
 		$meals = Mixmymeals_Meal::get_meals_for_plan( $meal_plan_id );
 
@@ -615,7 +626,9 @@ class Mixmymeals_Shortcodes {
 
 		$ingredient_totals = [];
 
-		// Alle Meals durchgehen
+		// ------------------------------------------------------
+		// 1️⃣ Alle Meals und Rezepte durchlaufen
+		// ------------------------------------------------------
 		foreach ( $meals as $meal_post ) {
 			$meal = new Mixmymeals_Meal( $meal_post->ID );
 			$recipe_id = $meal->get_recipe_id();
@@ -623,12 +636,10 @@ class Mixmymeals_Shortcodes {
 
 			$recipe = new Mixmymeals_Recipe( $recipe_id );
 			$steps  = $recipe->get_steps();
-			//$scale  = max( 1, $meal->get_servings() / max( 1, $recipe->get_servings() ) );
 
-            $recipe_servings = max( 1, floatval( $recipe->get_servings() ) );
+			$recipe_servings = max( 1, floatval( $recipe->get_servings() ) );
 			$meal_servings   = max( 0.01, floatval( $meal->get_servings() ) );
 			$scale = $meal_servings / $recipe_servings;
-
 
 			foreach ( $steps as $step ) {
 				foreach ( $step['ingredients'] ?? [] as $ing ) {
@@ -639,26 +650,29 @@ class Mixmymeals_Shortcodes {
 					$amount_id = !empty($ing['amount_id']) ? intval($ing['amount_id']) : 0;
 
 					$unit_weight = 1;
-					$unit_title  = 'Gramm';
+					$unit_title  = 'g';
 
-					// Wenn eine Einheit gewählt wurde, ihr Gewicht und Titel abrufen
 					if ( $amount_id ) {
 						$amount_obj = new Mixmymeals_Ingredient_Amount( $amount_id );
-						$unit_weight = max(0.0001, floatval($amount_obj->get_weight()));
+						$unit_weight = max(0.0001, floatval( $amount_obj->get_weight() ));
 						$unit_title  = $amount_obj->get_title() ?: 'g';
 					}
 
 					if ( ! isset( $ingredient_totals[ $ing_id ] ) ) {
 						$ingredient_totals[ $ing_id ] = [
+							'details'      => [],
 							'total_weight' => 0,
-							'total_units'  => 0,
-							'unit_weight'  => $unit_weight,
-							'unit_title'   => $unit_title,
 						];
 					}
 
+					$ingredient_totals[ $ing_id ]['details'][] = [
+						'amount'      => $amount,
+						'unit_title'  => $unit_title,
+						'unit_weight' => $unit_weight,
+						'recipe_name' => get_the_title( $recipe_id ),
+					];
+
 					$ingredient_totals[ $ing_id ]['total_weight'] += $amount * $unit_weight;
-					$ingredient_totals[ $ing_id ]['total_units']  += $amount;
 				}
 			}
 		}
@@ -667,27 +681,85 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No ingredients found.', 'mixmymeals' ) . '</p>';
 		}
 
+		// ------------------------------------------------------
+		// 2️⃣ Ausgabe: Zusammenfassung + passende Verkaufseinheit
+		// ------------------------------------------------------
 		ob_start(); ?>
         <div class="mmm-simple-shopping-list">
             <ul class="mmm-shopping-list-items">
 				<?php foreach ( $ingredient_totals as $ing_id => $data ) :
-					$unit_weight = $data['unit_weight'];
-					$unit_title  = $data['unit_title'];
-					$total_weight = $data['total_weight'];
-					$total_units  = max(1, round($data['total_units'], 2));
 
-					// Wenn Einheit "Gramm" ist → nur Gewicht ausgeben
-					if ( strtolower($unit_title) === 'gramm' || strtolower($unit_title) === 'g' ) {
-						$display = round($total_weight, 2) . ' g';
+					$ingredient_obj = new Mixmymeals_Ingredient( $ing_id );
+					$total_weight   = $data['total_weight'];
+
+					// Verkaufseinheiten abrufen
+					$sale_units = array_filter( $ingredient_obj->get_units(), function( $unit_post ) {
+						$amount_obj = new Mixmymeals_Ingredient_Amount( $unit_post->ID );
+						return $amount_obj->is_sale_unit();
+					} );
+
+					// Beste Verkaufseinheit bestimmen
+					$best_sale_unit = null;
+					if ( ! empty( $sale_units ) ) {
+						foreach ( $sale_units as $unit_post ) {
+							$amount_obj = new Mixmymeals_Ingredient_Amount( $unit_post->ID );
+							$w = max(0.0001, floatval( $amount_obj->get_weight() ));
+							if ( $w >= $total_weight ) {
+								if ( $best_sale_unit === null || $w < $best_sale_unit['weight'] ) {
+									$best_sale_unit = [
+										'title'  => $amount_obj->get_title(),
+										'weight' => $w,
+									];
+								}
+							}
+						}
+						if ( ! $best_sale_unit ) {
+							usort( $sale_units, function( $a, $b ) {
+								$aw = (new Mixmymeals_Ingredient_Amount( $a->ID ))->get_weight();
+								$bw = (new Mixmymeals_Ingredient_Amount( $b->ID ))->get_weight();
+								return $bw <=> $aw;
+							});
+							$best = new Mixmymeals_Ingredient_Amount( $sale_units[0]->ID );
+							$best_sale_unit = [
+								'title'  => $best->get_title(),
+								'weight' => $best->get_weight(),
+							];
+						}
+					}
+
+					$sale_count = $best_sale_unit ? ceil( $total_weight / $best_sale_unit['weight'] ) : 0;
+
+					// Oberzeile: Hauptverkaufseinheit
+					$main_line = esc_html( get_the_title( $ing_id ) );
+					if ( $best_sale_unit ) {
+						$main_line .= sprintf(
+							', %s× %s (%s g)',
+							$sale_count,
+							esc_html( $best_sale_unit['title'] ),
+							round( $best_sale_unit['weight'], 2 )
+						);
 					} else {
-						$display = $total_units . ' × ' . $unit_title . ' (' . round($total_weight / max(1, $total_units), 2) . ' g)';
+						$main_line .= sprintf(', %s g', round($total_weight, 2));
 					}
 					?>
-                    <li class="mmm-shopping-item">
-                        <a href="<?php echo esc_url( get_permalink( $ing_id ) ); ?>" class="mmm-ingredient-link">
-							<?php echo esc_html( get_the_title( $ing_id ) ); ?>
-                        </a>:&nbsp;
-                        <span class="mmm-ingredient-details"><?php echo esc_html( $display ); ?></span>
+                    <li class="mmm-shopping-item" style="margin-bottom: 8px;">
+                        <strong><?php echo $main_line; ?></strong>
+						<?php if ( $show_details ) : ?>
+                            <ul style="margin: 4px 0 0 16px; list-style: disc;">
+								<?php foreach ( $data['details'] as $detail ) : ?>
+                                    <li>
+										<?php
+										printf(
+											'%s × %s für %s',
+											round( $detail['amount'], 2 ),
+											esc_html( $detail['unit_title'] ),
+											esc_html( $detail['recipe_name'] )
+										);
+										?>
+                                    </li>
+								<?php endforeach; ?>
+                            </ul>
+						<?php endif; ?>
                     </li>
 				<?php endforeach; ?>
             </ul>
@@ -695,6 +767,8 @@ class Mixmymeals_Shortcodes {
 		<?php
 		return ob_get_clean();
 	}
+
+
 
 	/**
 	 * Gibt eine Übersicht aller Meal Plans aus (Titel, Zeitraum, Link)

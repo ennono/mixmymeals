@@ -132,4 +132,31 @@ class Mixmymeals_Ingredient {
 		return $cache;
 	}
 
+	/**
+	 * Gibt alle Mengen (Units) der Zutat zurück.
+	 *
+	 * @param array $args Zusätzliche WP_Query-Argumente (optional).
+	 * @return WP_Post[] Array von WP_Post-Objekten (mmm_ingr_unit).
+	 */
+	public function get_units( array $args = [] ): array {
+
+		if ( ! $this->post_id ) {
+			return [];
+		}
+
+		$defaults = [
+			'post_type'   => 'mmm_ingr_unit',
+			'post_status' => 'any',
+			'post_parent' => $this->post_id,
+			'numberposts' => -1,
+			'orderby'     => 'title',
+			'order'       => 'ASC',
+		];
+
+		$query_args = wp_parse_args( $args, $defaults );
+
+		return get_posts( $query_args );
+
+	}
+
 }
