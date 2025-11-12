@@ -208,7 +208,7 @@ class Mixmymeals_Post_Types {
 			'capability_type'     => 'post',
 			'map_meta_cap'        => true,
 			'rewrite'             => [
-				'slug'       => __( 'mealplans/meals', 'mixmymeals' ),
+				'slug'       => __( 'meals', 'mixmymeals' ),
 				'with_front' => false,
 				'feeds'      => false,
 				'pages'      => false,

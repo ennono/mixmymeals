@@ -798,7 +798,7 @@ class Mixmymeals_Shortcodes {
 
 		ob_start();
 		?>
-        <div class="mmm-meal-plan-overview">
+        <?php //<div class="mmm-meal-plan-overview"> ?>
 			<?php foreach ( $meal_plans as $plan_post ) :
 				$plan   = new Mixmymeals_Meal_Plan( $plan_post->ID );
 				$start  = $plan->get_start_date();
@@ -854,7 +854,7 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
                 </div>
 			<?php endforeach; ?>
-        </div>
+        <?php // </div> ?>
 		<?php
 		return ob_get_clean();
 	}
