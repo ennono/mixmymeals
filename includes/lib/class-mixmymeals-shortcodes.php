@@ -37,6 +37,12 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mixmymeals_all_meal_plans',
 			[ $this, 'all_meal_plans_callback' ] );
 
+		add_shortcode( 'mixmymeals_all_recipes',
+			[ $this, 'all_recipes_callback' ] );
+
+		add_shortcode( 'mixmymeals_all_ingredients',
+			[ $this, 'all_ingredients_callback' ] );
+
 	}
 
 	/**
@@ -301,7 +307,9 @@ class Mixmymeals_Shortcodes {
                 <div class="mmm-step">
                     <div class="mmm-step-header">
 						<?php if ( ! empty( $step['title'] ) ) : ?>
-                            <h3 class="mmm-step-title"><?php echo esc_html( sprintf( __( 'Step %d', 'mixmymeals' ), $index + 1 ) ) . ': ' . esc_html( $step['title'] ); ?></h3>
+                            <h3 class="mmm-step-title">
+								<?php echo esc_html( sprintf( __( 'Step %d', 'mixmymeals' ), $index + 1 ) . ': ' . $step['title'] ); ?>
+                            </h3>
 						<?php endif; ?>
                     </div>
 
@@ -323,27 +331,58 @@ class Mixmymeals_Shortcodes {
 								if ( empty( $ing['id'] ) ) continue;
 
 								$amount = floatval( $ing['amount'] ?? 0 );
-								$ingredient_obj = new Mixmymeals_Ingredient( $ing['id'] );
-								$nutrition = $ingredient_obj->get_nutrition();
-								$weight_item = floatval( $nutrition['weight_item'] ?? 0 );
+
+								// Einheit / Gewicht pro Einheit ermitteln
+								$unit_title = '';
+								$weight_per_unit = 0.0;
+
+								// Falls eine amount_id gesetzt ist
+								$amount_id = ! empty( $ing['amount_id'] ) ? intval( $ing['amount_id'] ) : 0;
+								if ( $amount_id ) {
+									$amt_obj = new Mixmymeals_Ingredient_Amount( $amount_id );
+									$unit_title = $amt_obj->get_title() ?: '';
+									$weight_per_unit = floatval( $amt_obj->get_weight() ); // g pro Einheit
+								}
+
+								// Falls keine amount_id vorhanden: versuche Nutrition-Daten
+								if ( ! $amount_id ) {
+									$ingredient_obj = new Mixmymeals_Ingredient( $ing['id'] );
+									$nutrition = $ingredient_obj->get_nutrition();
+									$weight_per_unit = floatval( $nutrition['weight_item'] ?? 0 );
+									if ( $weight_per_unit > 0 && empty( $unit_title ) ) {
+										$unit_title = __( 'Stück', 'mixmymeals' );
+									}
+								}
 
 								// Anzeigeformatierung
-								$amount_display = ( $amount > 0 )
-									? number_format_i18n( $amount, ( fmod( $amount, 1 ) !== 0.0 ? 2 : 0 ) )
-									: '';
+								$decimals = ( floor( $amount ) != $amount ) ? 2 : 0;
+								$display_amount = $amount > 0 ? number_format_i18n( $amount, $decimals ) : '';
 
-								$weight_display = $weight_item > 0 ? sprintf( __( '%s g', 'mixmymeals' ), number_format_i18n( $weight_item, 0 ) ) : '';
+								$total_weight = ( $weight_per_unit > 0 && $amount > 0 )
+									? (float) round( $weight_per_unit * $amount, 2 )
+									: 0.0;
 
-								// Kombinierte Ausgabe (z. B. "2 × 500 g" oder nur "1")
-								$amount_text = trim( $amount_display . ( $weight_display ? ' × ' . $weight_display : '' ) );
 								?>
                                 <li>
                                     <a class="mmm-ingredient-name" href="<?php echo esc_url( get_permalink( $ing['id'] ) ); ?>">
 										<?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
                                     </a>
-									<?php if ( $amount_text ) : ?>
+
+									<?php if ( $display_amount ) : ?>
                                         <span class="mmm-ingredient-amount">
-										(<?php echo esc_html( $amount_text ); ?>)
+										(<?php
+											// Beispielausgabe: (1,50 × Stück = 250 g — 375,00 g)
+											echo esc_html( $display_amount );
+											if ( $unit_title ) {
+												echo esc_html( ' × ' . $unit_title );
+											}
+											if ( $weight_per_unit > 0 ) {
+												echo esc_html( ' = ' . number_format_i18n( $weight_per_unit, 0 ) . ' g' );
+											}
+											if ( $total_weight > 0 ) {
+												echo esc_html( ' — ' . number_format_i18n( $total_weight, 2 ) . ' g' );
+											}
+											?>)
 									</span>
 									<?php endif; ?>
                                 </li>
@@ -798,7 +837,7 @@ class Mixmymeals_Shortcodes {
 
 		ob_start();
 		?>
-        <?php //<div class="mmm-meal-plan-overview"> ?>
+        <div class="mmm-meal-plan-overview">
 			<?php foreach ( $meal_plans as $plan_post ) :
 				$plan   = new Mixmymeals_Meal_Plan( $plan_post->ID );
 				$start  = $plan->get_start_date();
@@ -854,10 +893,167 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
                 </div>
 			<?php endforeach; ?>
-        <?php // </div> ?>
+        </div>
 		<?php
 		return ob_get_clean();
 	}
+
+	/**
+	 * Gibt eine Übersicht aller Zutaten aus (Titel, Menge optional, Link, optional Autor & Datum)
+	 * Shortcode: [mixmymeals_all_ingredients show_dates="true" order="ASC" orderby="title" limit="-1"]
+	 */
+	public function all_ingredients_callback( $atts ) {
+
+		$atts = shortcode_atts( [
+			'show_dates' => true,
+			'order'      => 'ASC',
+			'orderby'    => 'title',
+			'limit'      => -1,
+		], $atts, 'mixmymeals_all_ingredients' );
+
+		$query_args = [
+			'post_type'      => 'mmm_ingredient',
+			'posts_per_page' => intval( $atts['limit'] ),
+			'post_status'    => 'publish',
+			'orderby'        => sanitize_text_field( $atts['orderby'] ),
+			'order'          => sanitize_text_field( $atts['order'] ),
+		];
+
+		$ingredients = get_posts( $query_args );
+
+		if ( empty( $ingredients ) ) {
+			return '<p>' . esc_html__( 'No ingredients found.', 'mixmymeals' ) . '</p>';
+		}
+
+		ob_start();
+		?>
+        <div class="mmm-ingredient-overview">
+			<?php foreach ( $ingredients as $ingredient_post ) : ?>
+				<?php
+				$link   = get_permalink( $ingredient_post->ID );
+				$title  = get_the_title( $ingredient_post->ID );
+				$thumb  = get_the_post_thumbnail( $ingredient_post->ID, 'medium', [ 'class' => 'mmm-ingredient-thumb' ] );
+				$date   = get_the_date( '', $ingredient_post );
+				$author = get_the_author_meta( 'display_name', $ingredient_post->post_author );
+
+				// Beispiel: zusätzliche Meta-Daten (z. B. Einheit oder Standardgewicht)
+				$unit   = get_post_meta( $ingredient_post->ID, '_mmm_default_unit', true );
+				$weight = get_post_meta( $ingredient_post->ID, '_mmm_default_weight', true );
+				?>
+                <div class="mmm-ingredient-card">
+					<?php if ( $thumb ) : ?>
+                        <div class="mmm-ingredient-thumb-wrap">
+                            <a href="<?php echo esc_url( $link ); ?>">
+								<?php echo $thumb; ?>
+                            </a>
+                        </div>
+					<?php endif; ?>
+
+                    <h3 class="mmm-ingredient-title">
+                        <a href="<?php echo esc_url( $link ); ?>">
+							<?php echo esc_html( $title ); ?>
+                        </a>
+                    </h3>
+
+					<?php if ( $unit || $weight ) : ?>
+                        <div class="mmm-ingredient-meta">
+							<?php if ( $unit ) : ?>
+                                <span class="mmm-ingredient-unit"><?php echo esc_html( $unit ); ?></span>
+							<?php endif; ?>
+							<?php if ( $weight ) : ?>
+                                <span class="mmm-ingredient-weight">(<?php echo esc_html( $weight ); ?> g)</span>
+							<?php endif; ?>
+                        </div>
+					<?php endif; ?>
+
+					<?php if ( $atts['show_dates'] ) : ?>
+                        <div class="mmm-ingredient-author-date">
+                            <span class="mmm-ingredient-author"><?php echo esc_html( $author ); ?></span>
+                            <span class="mmm-ingredient-date">/ <?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $date ) ) ); ?></span>
+                        </div>
+					<?php endif; ?>
+
+                    <div class="mmm-ingredient-excerpt">
+						<?php echo wp_kses_post( wp_trim_words( get_the_excerpt( $ingredient_post->ID ), 20 ) ); ?>
+                    </div>
+                </div>
+			<?php endforeach; ?>
+        </div>
+		<?php
+		return ob_get_clean();
+	}
+
+
+	/**
+	 * Gibt eine Übersicht aller Rezepte aus (Titel, Link, optional Autor & Datum)
+	 * Shortcode: [mixmymeals_all_recipes show_dates="true" order="DESC" orderby="date" limit="-1"]
+	 */
+	public function all_recipes_callback( $atts ) {
+
+		$atts = shortcode_atts( [
+			'show_dates' => true,
+			'order'      => 'DESC',
+			'orderby'    => 'date',
+			'limit'      => -1,
+		], $atts, 'mixmymeals_all_recipes' );
+
+		$query_args = [
+			'post_type'      => 'mmm_recipe',
+			'posts_per_page' => intval( $atts['limit'] ),
+			'post_status'    => 'publish',
+			'orderby'        => sanitize_text_field( $atts['orderby'] ),
+			'order'          => sanitize_text_field( $atts['order'] ),
+		];
+
+		$recipes = get_posts( $query_args );
+
+		if ( empty( $recipes ) ) {
+			return '<p>' . esc_html__( 'No recipes found.', 'mixmymeals' ) . '</p>';
+		}
+
+		ob_start();
+		?>
+        <div class="mmm-recipe-overview">
+			<?php foreach ( $recipes as $recipe_post ) : ?>
+				<?php
+				$link   = get_permalink( $recipe_post->ID );
+				$title  = get_the_title( $recipe_post->ID );
+				$thumb  = get_the_post_thumbnail( $recipe_post->ID, 'medium', [ 'class' => 'mmm-recipe-thumb' ] );
+				$date   = get_the_date( '', $recipe_post );
+				$author = get_the_author_meta( 'display_name', $recipe_post->post_author );
+				?>
+                <div class="mmm-recipe-card">
+					<?php if ( $thumb ) : ?>
+                        <div class="mmm-recipe-thumb-wrap">
+                            <a href="<?php echo esc_url( $link ); ?>">
+								<?php echo $thumb; ?>
+                            </a>
+                        </div>
+					<?php endif; ?>
+
+                    <h3 class="mmm-recipe-title">
+                        <a href="<?php echo esc_url( $link ); ?>">
+							<?php echo esc_html( $title ); ?>
+                        </a>
+                    </h3>
+
+					<?php if ( $atts['show_dates'] ) : ?>
+                        <div class="mmm-recipe-meta">
+                            <span class="mmm-recipe-author"><?php echo esc_html( $author ); ?></span>
+                            <span class="mmm-recipe-date">/ <?php echo esc_html( date_i18n( get_option('date_format'), strtotime( $date ) ) ); ?></span>
+                        </div>
+					<?php endif; ?>
+
+                    <div class="mmm-recipe-excerpt">
+						<?php echo wp_kses_post( wp_trim_words( get_the_excerpt( $recipe_post->ID ), 20 ) ); ?>
+                    </div>
+                </div>
+			<?php endforeach; ?>
+        </div>
+		<?php
+		return ob_get_clean();
+	}
+
 
 
 	/**
