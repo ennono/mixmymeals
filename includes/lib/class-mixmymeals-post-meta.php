@@ -1,73 +1,169 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 class Mixmymeals_Post_Meta {
 
 	// Flags to prevent endless loops:
-	private static bool $updating_meal_meta = false;
+	private static bool $updating_meal_meta        = false;
 	private static bool $updating_ingr_amount_meta = false;
 
 
 	public function __construct() {
 
-		//add_action( 'add_meta_boxes', [ $this, 'register_plan_entry_metabox' ] );
-		//add_action( 'save_post_' . 'mmm_entry', [ $this, 'save_plan_entry_meta' ] );
+		// add_action( 'add_meta_boxes', [ $this, 'register_plan_entry_metabox' ] );
+		// add_action( 'save_post_' . 'mmm_entry', [ $this, 'save_plan_entry_meta' ] );
 
-		add_action( 'add_meta_boxes_mmm_recipe', [ $this, 'add_recipe_steps_meta_box' ] );
-		add_action( 'save_post_mmm_recipe', [ $this, 'save_recipe_steps_meta_box' ] );
-		add_action( 'add_meta_boxes_mmm_recipe', [ $this, 'add_recipe_shopping_list_meta_box' ] );
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'add_recipe_steps_meta_box' )
+		);
+		add_action(
+			'save_post_mmm_recipe',
+			array( $this, 'save_recipe_steps_meta_box' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'add_recipe_details_meta_box' )
+		);
+		add_action(
+			'save_post_mmm_recipe',
+			array( $this, 'save_recipe_details_meta_box' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'add_recipe_priority_meta_box' )
+		);
+		add_action(
+			'save_post_mmm_recipe',
+			array( $this, 'save_recipe_priority_meta_box' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'add_recipe_shopping_list_meta_box' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'add_equipment_meta_box' )
+		);
 
-		add_action( 'add_meta_boxes_mmm_ingredient', [ $this, 'add_ingredient_meta_box' ] );
-		add_action( 'save_post_mmm_ingredient', [ $this,
-		                                          'save_ingredient_meta'
-		] );
+		add_action(
+			'add_meta_boxes_mmm_ingredient',
+			array( $this, 'add_ingredient_meta_box' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_ingredient',
+			array( $this, 'add_ingredient_price_meta_box' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_ingredient',
+			array( $this, 'add_ingredient_diet_meta_box' )
+		);
+		add_action(
+			'save_post_mmm_ingredient',
+			array(
+				$this,
+				'save_ingredient_meta',
+			)
+		);
+		add_action(
+			'save_post_mmm_ingredient',
+			array( $this, 'save_ingredient_price_meta' )
+		);
+		add_action(
+			'save_post_mmm_ingredient',
+			array( $this, 'save_ingredient_diet_meta' )
+		);
+		add_action(
+			'save_post_mmm_recipe',
+			array(
+				$this,
+				'save_equipment_metabox',
+			)
+		);
 
-		add_action( 'add_meta_boxes_mmm_ingr_unit', [ $this, 'add_ingr_amount_meta_box' ] );
-		add_action( 'save_post_mmm_ingr_unit', [ $this, 'save_ingr_amount_meta' ] );
-		add_action( 'add_meta_boxes_mmm_ingr_unit', [ $this, 'add_ingr_amount_parent_meta_box' ] );
-		add_action( 'add_meta_boxes_mmm_ingredient', [ $this, 'add_ingredient_amounts_meta_box' ] );
-		add_action( 'wp_ajax_mixmymeals_get_ingredient_units',
-			array( $this, 'ajax_mixmymeals_get_ingredient_units_handler' ) );
+        /*
+		add_action(
+			'add_meta_boxes_mmm_ingr_unit',
+			array( $this, 'add_ingr_amount_meta_box' )
+		);
+        */
+        /*
+		add_action(
+			'save_post_mmm_ingr_unit',
+			array( $this, 'save_ingr_amount_meta' )
+		);
+        */
+        /*
+		add_action(
+			'add_meta_boxes_mmm_ingr_unit',
+			array( $this, 'add_ingr_amount_parent_meta_box' )
+		);
+        */
+		add_action(
+			'add_meta_boxes_mmm_ingredient',
+			array( $this, 'add_ingredient_amounts_meta_box' )
+		);
+		add_action(
+			'wp_ajax_mixmymeals_get_ingredient_units',
+			array( $this, 'ajax_mixmymeals_get_ingredient_units_handler' )
+		);
 
-		add_action( 'wp_ajax_mixmymeals_update_shopping_list', [ $this, 'ajax_update_shopping_list' ] );
+		add_action(
+			'wp_ajax_mixmymeals_update_shopping_list',
+			array( $this, 'ajax_update_shopping_list' )
+		);
 
-		add_action( 'add_meta_boxes_mmm_meal_plan', [ $this, 'register_meal_plan_metabox' ] );
-		add_action( 'save_post_mmm_meal_plan', [ $this, 'save_meal_plan_meta' ] );
+		add_action(
+			'add_meta_boxes_mmm_meal_plan',
+			array( $this, 'register_meal_plan_days_metabox' )
+		);
+		add_action(
+			'save_post_mmm_meal_plan',
+			array( $this, 'save_meal_plan_days_meta' )
+		);
+		/*
 		add_action( 'save_post_mmm_meal_plan', [ $this, 'prevent_overlapping_meal_plans' ], 10, 3 );
 		add_action( 'admin_notices', function() {
 			if ( isset( $_GET['mmm_overlap'] ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $_GET['mmm_overlap'] ) . '</p></div>';
 			}
 		});
+		*/
 
-		add_action( 'add_meta_boxes_mmm_meal', [ $this, 'register_meal_metabox' ] );
-		add_action( 'save_post_mmm_meal', [ $this, 'save_meal_meta' ] );
-		add_action( 'add_meta_boxes_mmm_meal_plan', [ $this, 'add_meal_plan_overview_meta_box' ] );
-
-	}
-
-	/* ======================================================
-	 *  RECIPE META BOX
-	 * ====================================================== */
-
-	public function add_recipe_steps_meta_box() {
-		add_meta_box(
-			'mmm_recipe_steps_meta_box',
-			__( 'Recipe Steps', 'mixmymeals' ),
-			[ $this, 'render_recipe_steps_meta_box_content' ],
-			'mmm_recipe',
-			'normal',
-			'default'
+		add_action(
+			'add_meta_boxes_mmm_meal',
+			array( $this, 'register_meal_metabox' )
+		);
+		add_action( 'save_post_mmm_meal', array( $this, 'save_meal_meta' ) );
+		add_action(
+			'add_meta_boxes_mmm_meal_plan',
+			array( $this, 'add_meal_plan_overview_meta_box' )
 		);
 	}
 
-	public function render_recipe_steps_meta_box_content( $post ) {
+	/*
+	======================================================
+	 *  RECIPE META BOX
+	 * ====================================================== */
+
+	public function add_recipe_steps_meta_box(): void {
+		add_meta_box(
+			'mmm_recipe_steps_meta_box',
+			__( 'Recipe Steps', 'mixmymeals' ),
+			array( $this, 'render_recipe_steps_meta_box_content' ),
+			'mmm_recipe',
+			'normal'
+		);
+	}
+
+	public function render_recipe_steps_meta_box_content( WP_Post $post ): void {
 		$recipe_obj  = new Mixmymeals_Recipe( $post->ID );
-		$steps       = $recipe_obj->get_steps() ?: [];
+		$steps       = $recipe_obj->get_steps() ?: array();
 		$ingredients = Mixmymeals_Ingredient::get_all_ingredients();
 
 		// Portionen-Wert laden oder Default = 1
-
 		$servings = $recipe_obj->get_servings();
 		if ( empty( $servings ) ) {
 			$servings = 1;
@@ -75,30 +171,47 @@ class Mixmymeals_Post_Meta {
 
 		echo '<div class="mixmymeals-recipe-meta">';
 
+		// --- Nonce-Feld für diese Meta-Box ---
+		wp_nonce_field(
+			'mmm_recipe_steps_meta_box_action',
+			'mmm_recipe_steps_meta_box_nonce'
+		);
+
 		// --- Feld für Anzahl der Portionen ---
 		echo '<div class="mixmymeals-servings-field" style="margin-bottom:1em;">';
-		echo '<label for="mmm_servings" style="font-weight:bold;">' . esc_html__( 'Servings (Portionen):', 'mixmymeals' ) . '</label><br />';
-		echo '<input type="number" min="1" step="1" name="mmm_servings" id="mmm_servings" value="' . esc_attr( $servings ) . '" style="width:80px; text-align:right;" />';
+		echo '<label for="mmm_servings" style="font-weight:bold;">'
+			. esc_html__( 'Servings', 'mixmymeals' )
+			. ':</label><br />';
+		echo '<input type="number" min="1" step="1" name="mmm_servings" id="mmm_servings" value="'
+			. esc_attr( $servings )
+			. '" style="width:80px; text-align:right;" />';
 		echo '</div>';
 
 		// --- Schritte-Editor ---
 		echo '<div class="mixmymeals-recipe-steps">';
-		if ( empty( $steps ) ) $steps[] = [];
+		if ( empty( $steps ) ) {
+			$steps[] = array();
+		}
 
 		foreach ( $steps as $index => $step ) {
 			$this->render_step_row( $index, $step, $ingredients );
 		}
 		echo '</div>';
 
-		echo '<p><button type="button" id="mixmymeals-add-step" class="button button-secondary">+ ' . esc_html__( 'Add Step', 'mixmymeals' ) . '</button></p>';
+		echo '<p><button type="button" id="mixmymeals-add-step" class="button button-secondary">+ '
+			. esc_html__( 'Add Step', 'mixmymeals' ) . '</button></p>';
 
 		// --- Template für neue Zutaten (JS) ---
 		echo '<div id="mixmymeals-ingredient-template" style="display:none;">';
 		echo '<div class="mixmymeals-step-ingredient">';
 		echo '<select class="widefat">';
-		echo '<option value="">-- ' . esc_html__( 'Select Ingredient', 'mixmymeals' ) . ' --</option>';
+		echo '<option value="">-- ' . esc_html__(
+			'Select Ingredient',
+			'mixmymeals'
+		) . ' --</option>';
 		foreach ( $ingredients as $ing ) {
-			echo '<option value="' . esc_attr( $ing->ID ) . '">' . esc_html( $ing->post_title ) . '</option>';
+			echo '<option value="' . esc_attr( $ing->ID ) . '">'
+				. esc_html( $ing->post_title ) . '</option>';
 		}
 		echo '</select> ';
 		echo '<input type="number" step="0.1" min="0" class="small-text" placeholder="Amount">';
@@ -108,79 +221,132 @@ class Mixmymeals_Post_Meta {
 		echo '</div>';
 	}
 
-
-	private function render_step_row( $index, $step, $ingredients ) {
+	private function render_step_row( int $index, array $step, array $ingredients ): void {
 		$title            = $step['title'] ?? '';
 		$description      = $step['description'] ?? '';
-		$image_id         = isset( $step['image'] ) ? intval( $step['image'] ) : 0;
-		$image_url        = $image_id ? wp_get_attachment_image_url( $image_id, 'thumbnail' ) : '';
-		$step_ingredients = $step['ingredients'] ?? [ ['id' => '', 'amount' => '', 'amount_id' => ''] ];
+		$image_id         = isset( $step['image'] ) ? intval( $step['image'] )
+			: 0;
+		$image_url        = $image_id ? wp_get_attachment_image_url( $image_id ) : '';
+		$step_ingredients = $step['ingredients'] ?? array(
+			array(
+				'id'        => '',
+				'amount'    => '',
+				'amount_id' => '',
+			),
+		);
 
-		echo '<div class="mixmymeals-step-row" data-step="' . esc_attr( $index ) . '">';
-		echo '<h3>' . esc_html( sprintf( __( 'Step %d', 'mixmymeals' ), $index + 1 ) ) . '</h3>';
+		echo '<div class="mixmymeals-step-row" data-step="' . esc_attr( $index )
+			. '">';
+		// translators: Number of step
+		echo '<h3>' . esc_html(
+			sprintf(
+				__( 'Step %d', 'mixmymeals' ),
+				$index + 1
+			)
+		) . '</h3>';
 
 		// Title
-		echo '<p><label>' . esc_html__( 'Title', 'mixmymeals' ) . '</label><br>';
-		echo '<input type="text" class="regular-text" name="mmm_recipe_steps[' . $index . '][title]" value="' . esc_attr( $title ) . '"></p>';
+		echo '<p><label>' . esc_html__( 'Title', 'mixmymeals' )
+			. '</label><br>';
+		echo '<input type="text" class="regular-text" name="mmm_recipe_steps['
+			. absint( $index ) . '][title]" value="' . esc_attr( $title )
+			. '"></p>';
 
 		// Description
-		echo '<p><label>' . esc_html__( 'Description', 'mixmymeals' ) . '</label><br>';
-		echo '<textarea rows="3" class="large-text" name="mmm_recipe_steps[' . $index . '][description]">' . esc_textarea( $description ) . '</textarea></p>';
+		echo '<p><label>' . esc_html__( 'Description', 'mixmymeals' )
+			. '</label><br>';
+		echo '<textarea rows="3" class="large-text" name="mmm_recipe_steps['
+			. absint( $index ) . '][description]">'
+			. esc_textarea( $description ) . '</textarea></p>';
 
 		// Ingredients
 		echo '<div class="mixmymeals-step-ingredients-wrapper">';
 		echo '<div class="mixmymeals-step-ingredients">';
 
 		foreach ( $step_ingredients as $i => $ing ) {
-			$ing_id = $ing['id'] ?? '';
-			$amount = $ing['amount'] ?? '';
+			$ing_id             = $ing['id'] ?? '';
+			$amount             = $ing['amount'] ?? '';
 			$selected_amount_id = $ing['amount_id'] ?? '';
 
 			echo '<div class="mixmymeals-step-ingredient">';
 
 			// Ingredient select
-			echo '<select name="mmm_recipe_steps[' . $index . '][ingredients][' . $i . '][id]" class="widefat ingredient-select">';
-			echo '<option value="">-- ' . esc_html__( 'Select Ingredient', 'mixmymeals' ) . ' --</option>';
+			echo '<select name="mmm_recipe_steps[' . absint( $index )
+				. '][ingredients][' . absint( $i )
+				. '][id]" class="widefat ingredient-select">';
+			echo '<option value="">-- ' . esc_html__(
+				'Select Ingredient',
+				'mixmymeals'
+			) . ' --</option>';
 
 			foreach ( $ingredients as $post_ing ) {
+				//$ingredient_obj = new Mixmymeals_Ingredient( $post_ing->ID );
+
 				$ingredient_obj = new Mixmymeals_Ingredient( $post_ing->ID );
+
+				if ( ! $ingredient_obj->is_valid() ) {
+					continue;
+				}
+
 				$nutrition      = $ingredient_obj->get_nutrition();
 				$weight_item    = floatval( $nutrition['weight_item'] ?? 0 );
-				$weight_label   = $weight_item > 0 ? ' (' . $weight_item . ' g)' : '';
-				$sel = selected( $ing_id, $post_ing->ID, false );
+				$weight_label   = $weight_item > 0 ? ' (' . $weight_item . ' g)'
+					: '';
+				$sel            = selected( $ing_id, $post_ing->ID, false );
 
-				echo '<option value="' . esc_attr( $post_ing->ID ) . '" ' . $sel . '>' .
-				     esc_html( $post_ing->post_title . $weight_label ) .
-				     '</option>';
+				echo '<option value="' . absint( $post_ing->ID ) . '" '
+					. esc_attr( $sel ) . '>' .
+					esc_html( $post_ing->post_title . $weight_label ) .
+					'</option>';
 			}
 			echo '</select> ';
 
 			// Amount input
-			echo '<input type="number" step="1" min="0" name="mmm_recipe_steps[' . $index . '][ingredients][' . $i . '][amount]" value="' . esc_attr( $amount ) . '" class="small-text" placeholder="Amount"> ';
+			echo '<input type="number" step="0.1" min="0" name="mmm_recipe_steps['
+				. absint( $index ) . '][ingredients][' . absint( $i )
+				. '][amount]" value="' . esc_attr( $amount )
+				. '" class="small-text" placeholder="Amount"> ';
 
 			// Amount/Unit select
-			echo '<select name="mmm_recipe_steps[' . $index . '][ingredients][' . $i . '][amount_id]" class="small-text ingredient-unit-select">';
+			echo '<select name="mmm_recipe_steps[' . absint( $index )
+				. '][ingredients][' . absint( $i )
+				. '][amount_id]" class="small-text ingredient-unit-select">';
 			$sel_gramm = selected( $selected_amount_id, '', false );
-			echo '<option value="" ' . $sel_gramm . '>' . esc_html__( 'Gramm (g)', 'mixmymeals' ) . '</option>';
+			echo '<option value="" ' . esc_attr( $sel_gramm ) . '>'
+				. esc_html__( 'Gramm (g)', 'mixmymeals' ) . '</option>';
 
-			if ( $ing_id ) {
-				$amounts = get_posts([
-					'post_type'   => 'mmm_ingr_unit',
-					'post_status' => 'any',
-					'post_parent' => intval( $ing_id ),
-					'numberposts' => -1,
-					'orderby'     => 'title',
-					'order'       => 'ASC',
-				]);
+			//if ( $ing_id ) {
+			if ( $ing_id && Mixmymeals_Ingredient::exists_by_id( $ing_id ) ) {
+				$amounts = get_posts(
+					array(
+						'post_type'   => 'mmm_ingr_unit',
+						'post_status' => 'any',
+						'post_parent' => intval( $ing_id ),
+						'numberposts' => - 1,
+						'orderby'     => 'title',
+						'order'       => 'ASC',
+					)
+				);
 
 				foreach ( $amounts as $amt_post ) {
-					$amount_obj = new Mixmymeals_Ingredient_Amount( $amt_post->ID );
+					$amount_obj
+							= new Mixmymeals_Ingredient_Amount( $amt_post->ID );
 					$weight     = $amount_obj->get_weight();
-					$sel_amt    = selected( $selected_amount_id, $amt_post->ID, false );
+					$sel_amt    = selected(
+						$selected_amount_id,
+						$amt_post->ID,
+						false
+					);
 
-					echo '<option value="' . esc_attr( $amt_post->ID ) . '" ' . $sel_amt . '>' .
-					     esc_html( $amount_obj->get_title() . ( $weight ? ' (' . $weight . ' g)' : '' ) ) .
-					     '</option>';
+					echo '<option value="' . absint( $amt_post->ID ) . '" '
+						. esc_attr( $sel_amt ) . '>' .
+						esc_html(
+							$amount_obj->get_title() . ( $weight ? ' ('
+																			. $weight
+																			. ' g)'
+								: '' )
+						) .
+						'</option>';
 				}
 			}
 			echo '</select> ';
@@ -191,77 +357,285 @@ class Mixmymeals_Post_Meta {
 		}
 
 		echo '</div>';
-		echo '<button type="button" class="button mixmymeals-add-ingredient">+ ' . esc_html__( 'Add Ingredient', 'mixmymeals' ) . '</button>';
+		echo '<button type="button" class="button mixmymeals-add-ingredient">+ '
+			. esc_html__( 'Add Ingredient', 'mixmymeals' ) . '</button>';
 		echo '</div>';
 
 		// Image
 		echo '<div class="mixmymeals-step-image">';
 		echo '<label>' . esc_html__( 'Image', 'mixmymeals' ) . '</label><br>';
-		echo '<img class="mixmymeals-image-preview" src="' . esc_url( $image_url ) . '" style="max-width:100px;' . ( $image_url ? '' : 'display:none;' ) . '">';
-		echo '<input type="hidden" name="mmm_recipe_steps[' . $index . '][image]" class="mixmymeals-image-id" value="' . esc_attr( $image_id ) . '"><br>';
-		echo '<button type="button" class="button mixmymeals-select-image">' . esc_html__( 'Select Image', 'mixmymeals' ) . '</button> ';
-		echo '<button type="button" class="button mixmymeals-remove-image" ' . ( $image_url ? '' : 'style="display:none;"' ) . '>' . esc_html__( 'Remove', 'mixmymeals' ) . '</button>';
+		echo '<img class="mixmymeals-image-preview" src="'
+			. esc_url( $image_url ) . '" style="max-width:100px;'
+			. ( $image_url ? '' : 'display:none;' ) . '">';
+		echo '<input type="hidden" name="mmm_recipe_steps[' . absint( $index )
+			. '][image]" class="mixmymeals-image-id" value="'
+			. esc_attr( $image_id ) . '"><br>';
+		echo '<button type="button" class="button mixmymeals-select-image">'
+			. esc_html__( 'Select Image', 'mixmymeals' ) . '</button> ';
+		echo '<button type="button" class="button mixmymeals-remove-image" '
+			. ( $image_url ? '' : 'style="display:none;"' ) . '>'
+			. esc_html__( 'Remove', 'mixmymeals' ) . '</button>';
 		echo '</div>';
 
-		echo '<p class="mixmymeals-step-actions"><a href="#" class="mixmymeals-delete-step">' . esc_html__( 'Delete Step', 'mixmymeals' ) . '</a></p>';
+		echo '<p class="mixmymeals-step-actions"><a href="#" class="mixmymeals-delete-step">'
+			. esc_html__( 'Delete Step', 'mixmymeals' ) . '</a></p>';
 		echo '<hr></div>';
 	}
 
+	public function add_recipe_details_meta_box(): void {
+		add_meta_box(
+			'mmm_recipe_deatils_meta_box',
+			__( 'Details', 'mixmymeals' ),
+			array( $this, 'render_recipe_details_meta_box_content' ),
+			'mmm_recipe',
+			'side'
+		);
+	}
 
+	public function render_recipe_details_meta_box_content( WP_Post $post ): void {
 
+		// Nonce für Sicherheit
+		wp_nonce_field( 'mmm_recipe_details_nonce', 'mmm_recipe_details_nonce_field' );
 
-	public function save_recipe_steps_meta_box( $post_ID ) {
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
-		if ( ! current_user_can( 'edit_post', $post_ID ) ) return;
+		$recipe           = new Mixmymeals_Recipe( $post->ID );
+		$preparation_time = $recipe->get_preparation_time();
+		?>
+		<p>
+			<label for="mmm_preparation_time">
+				<?php esc_html_e( 'Preparation Time (Minutes)', 'mixmymeals' ); ?>
+			</label>
+		</p>
+		<p>
+			<input
+				type="number"
+				id="mmm_preparation_time"
+				name="mmm_preparation_time"
+				value="<?php echo esc_attr( $preparation_time ); ?>"
+				min="0"
+				step="1"
+				style="width:100%;"
+			/>
+		</p>
+		<?php
+	}
 
-		$recipe_obj = new Mixmymeals_Recipe( $post_ID );
+	public function save_recipe_details_meta_box( int $post_ID ): void {
 
-		// 🟢 Portionen speichern
-		if ( isset( $_POST['mmm_servings'] ) ) {
-			$recipe_obj->set_servings( floatval( $_POST['mmm_servings'] ) );
+		// Nonce prüfen
+		if (
+			! isset( $_POST['mmm_recipe_details_nonce_field'] ) ||
+			! wp_verify_nonce(
+				$_POST['mmm_recipe_details_nonce_field'],
+				'mmm_recipe_details_nonce'
+			)
+		) {
+			return;
 		}
 
-		// 🟢 Schritte speichern (wie gehabt)
-		if ( isset( $_POST['mmm_recipe_steps'] ) ) {
-			$steps = array_filter( $_POST['mmm_recipe_steps'], function( $step ) {
-				$title = trim( $step['title'] ?? '' );
-				$desc  = trim( $step['description'] ?? '' );
-				$ingredients = $step['ingredients'] ?? [];
-				return !( empty( $title ) && empty( $desc ) && empty( array_filter( $ingredients, fn($i) => !empty($i['id']) && !empty($i['amount']) ) ) );
-			});
+		// Autosave / Revision / Rechte prüfen
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( wp_is_post_revision( $post_ID ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+
+		// Wert speichern
+		if ( isset( $_POST['mmm_preparation_time'] ) ) {
+			$recipe = new Mixmymeals_Recipe( $post_ID );
+			$recipe->set_preparation_time( $_POST['mmm_preparation_time'] );
+		}
+	}
+
+	public function add_recipe_priority_meta_box(): void {
+		add_meta_box(
+			'mmm_recipe_priority_meta_box',
+			__( 'Priority', 'mixmymeals' ),
+			array( $this, 'render_recipe_priority_meta_box_content' ),
+			'mmm_recipe',
+			'side'
+		);
+	}
+
+	public function render_recipe_priority_meta_box_content( WP_Post $post ): void {
+		wp_nonce_field( 'mmm_recipe_priority_nonce', 'mmm_recipe_priority_nonce_field' );
+		$recipe   = new Mixmymeals_Recipe( $post->ID );
+		$priority = $recipe->get_priority();
+		?>
+		<p>
+			<input
+				type="number"
+				id="mmm_priority"
+				name="mmm_priority"
+				value="<?php echo esc_attr( $priority ); ?>"
+				min="0"
+				step="1"
+				style="width:80px;"
+			/>
+		</p>
+		<p><small><?php esc_html_e( 'Lower value = image shown first per day.', 'mixmymeals' ); ?></small></p>
+		<?php
+	}
+
+	public function save_recipe_priority_meta_box( int $post_ID ): void {
+		if (
+			! isset( $_POST['mmm_recipe_priority_nonce_field'] ) ||
+			! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST['mmm_recipe_priority_nonce_field'] ) ),
+				'mmm_recipe_priority_nonce'
+			)
+		) {
+			return;
+		}
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( wp_is_post_revision( $post_ID ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+		if ( isset( $_POST['mmm_priority'] ) ) {
+			$recipe = new Mixmymeals_Recipe( $post_ID );
+			$recipe->set_priority( absint( wp_unslash( $_POST['mmm_priority'] ) ) );
+		}
+	}
+
+	public function save_recipe_steps_meta_box( int $post_ID ): void {
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+
+		// Nonce prüfen
+		if ( ! isset( $_POST['mmm_recipe_steps_meta_box_nonce'] ) ) {
+			return;
+		}
+
+		$nonce
+			= sanitize_text_field( wp_unslash( $_POST['mmm_recipe_steps_meta_box_nonce'] ) );
+		if ( ! wp_verify_nonce( $nonce, 'mmm_recipe_steps_meta_box_action' ) ) {
+			return;
+		}
+
+		$recipe_obj = new Mixmymeals_Recipe( $post_ID );
+		write_to_log( $recipe_obj );
+
+		// Portionen speichern
+		if ( isset( $_POST['mmm_servings'] ) ) {
+			$recipe_obj->set_servings( floatval( wp_unslash( $_POST['mmm_servings'] ) ) );
+		}
+
+		if ( isset( $_POST['mmm_recipe_steps'] )
+			&& is_array( $_POST['mmm_recipe_steps'] ) ) {
+
+			$sanitized_post_array = array_map(
+				function ( $step ) {
+					return array(
+						'title'       => sanitize_text_field(
+							wp_unslash(
+								$step['title']
+																			??
+																			''
+							)
+						),
+						'description' => sanitize_text_field(
+							wp_unslash(
+								$step['description']
+																			??
+																			''
+							)
+						),
+						'ingredients' => array_map(
+							function ( $ingredient ) {
+								return array(
+									'id'     => isset( $ingredient['id'] )
+										? intval( wp_unslash( $ingredient['id'] ) )
+										: 0,
+									'amount' => isset( $ingredient['amount'] )
+										? floatval( wp_unslash( $ingredient['amount'] ) )
+										: 0,
+									'amount_id' => isset( $ingredient['amount_id'] )
+										? intval( wp_unslash( $ingredient['amount_id'] ) )
+										: 0,
+								);
+							},
+							$step['ingredients'] ?? array()
+						),
+					);
+				},
+				// THIS IS PERFECTLY SANITIZED ABOVE!
+				wp_unslash( $_POST['mmm_recipe_steps'] )
+			);
+
+			// Leere Schritte herausfiltern
+			$steps = array_filter(
+				$sanitized_post_array,
+				function ( $step ) {
+					$hasTitle       = ! empty( $step['title'] );
+					$hasDescription = ! empty( $step['description'] );
+					$hasIngredients = ! empty(
+						array_filter(
+							$step['ingredients'],
+							fn( $i ) => ! empty( $i['id'] )
+										&& ! empty( $i['amount'] )
+						)
+					);
+
+					return $hasTitle || $hasDescription || $hasIngredients;
+				}
+			);
+
 			$recipe_obj->set_steps( $steps );
 		} else {
 			$recipe_obj->purge_steps();
 		}
+
 	}
 
 
-	/* ======================================================
- *  MEAL PLAN META BOX (Overview of linked meals)
- * ====================================================== */
+	/*
+	======================================================
+	*  MEAL PLAN META BOX (Overview of linked meals)
+	* ====================================================== */
 
-	public function add_meal_plan_overview_meta_box() {
+	public function add_meal_plan_overview_meta_box(): void {
 		add_meta_box(
 			'mixmymeals_plan_overview_box',
 			__( 'Meal Overview', 'mixmymeals' ),
-			[ $this, 'render_meal_plan_overview_meta_box' ],
+			array( $this, 'render_meal_plan_overview_meta_box' ),
 			'mmm_meal_plan',
-			'normal',
-			'default'
+			'normal'
 		);
 	}
 
-	public function render_meal_plan_overview_meta_box( $post ) {
-		$meals = get_children( [
-			'post_parent' => $post->ID,
-			'post_type'   => 'mmm_meal',
-			'post_status' => 'any',
-			'orderby'     => 'menu_order',
-			'order'       => 'ASC',
-		] );
+	public function render_meal_plan_overview_meta_box( WP_Post $post ): void {
+		$meals = get_children(
+			array(
+				'post_parent' => $post->ID,
+				'post_type'   => 'mmm_meal',
+				'post_status' => 'any',
+				'orderby'     => 'menu_order',
+				'order'       => 'ASC',
+			)
+		);
 
 		if ( empty( $meals ) ) {
-			echo '<p>' . esc_html__( 'No meals linked to this plan yet.', 'mixmymeals' ) . '</p>';
+			echo '<p>' . esc_html__(
+				'No meals linked to this plan yet.',
+				'mixmymeals'
+			) . '</p>';
+
 			return;
 		}
 
@@ -269,7 +643,8 @@ class Mixmymeals_Post_Meta {
 		echo '<thead><tr>
 		<th>' . esc_html__( 'Meal', 'mixmymeals' ) . '</th>
 		<th>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</th>
-		<th style="text-align:right;">' . esc_html__( 'Servings', 'mixmymeals' ) . '</th>
+		<th style="text-align:right;">' . esc_html__( 'Servings', 'mixmymeals' )
+			. '</th>
 	</tr></thead><tbody>';
 
 		foreach ( $meals as $meal ) {
@@ -284,17 +659,26 @@ class Mixmymeals_Post_Meta {
 			$recipe_link = get_edit_post_link( $recipe_id );
 
 			echo '<tr>';
-			echo '<td>' . esc_html( $meal->post_title ?: sprintf( __( 'Meal #%d', 'mixmymeals' ), $meal->ID ) ) . '</td>';
+			// translators: Meal ID
+			echo '<td>' . esc_html(
+				$meal->post_title
+				?: sprintf( __( 'Meal #%d', 'mixmymeals' ), $meal->ID )
+			)
+				. '</td>';
 
 			echo '<td>';
 			if ( $recipe_link ) {
-				echo '<a href="' . esc_url( $recipe_link ) . '" target="_blank"><strong>' . esc_html( get_the_title( $recipe_id ) ) . '</strong></a>';
+				echo '<a href="' . esc_url( $recipe_link )
+					. '" target="_blank"><strong>'
+					. esc_html( get_the_title( $recipe_id ) )
+					. '</strong></a>';
 			} else {
 				echo esc_html( get_the_title( $recipe_id ) );
 			}
 			echo '</td>';
 
-			echo '<td style="text-align:right;">' . esc_html( $servings ) . '</td>';
+			echo '<td style="text-align:right;">' . esc_html( $servings )
+				. '</td>';
 			echo '</tr>';
 		}
 
@@ -334,91 +718,126 @@ class Mixmymeals_Post_Meta {
 	*/
 
 
-	/* ======================================================
+	/*
+	======================================================
 	 *  INGREDIENT META BOX
 	 * ====================================================== */
 
-	public function add_ingredient_meta_box() {
+	public function add_ingredient_meta_box(): void {
 		add_meta_box(
 			'mixmymeals_ingredient_meta_box',
 			__( 'Nutrition Facts', 'mixmymeals' ),
-			[ $this, 'render_ingredient_meta_box_content' ],
+			array( $this, 'render_ingredient_meta_box_content' ),
 			'mmm_ingredient',
-			'side',
-			'default'
+			'side'
 		);
 	}
 
-	public function render_ingredient_meta_box_content( $post ) {
+	public function render_ingredient_meta_box_content( WP_Post $post ): void {
 		$ingredient_obj = new Mixmymeals_Ingredient( $post->ID );
-		$values = $ingredient_obj->get_nutrition();
+		$values         = $ingredient_obj->get_nutrition();
 
-		wp_nonce_field( 'rmm_ingredient_meta_box', 'rmm_ingredient_meta_nonce' );
+		wp_nonce_field(
+			'rmm_ingredient_meta_box',
+			'rmm_ingredient_meta_nonce'
+		);
 
 		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
 
 		// --- Calories ---
 		echo '<tr>';
-		echo '<th scope="row"><label for="rmm_calories_100">' . esc_html__( 'Calories (per 100 g)', 'mixmymeals' ) . '</label></th>';
-		echo '<td><input type="number" step="1" min="0" name="rmm_calories_100" id="rmm_calories_100" value="' . esc_attr( $values['calories_100'] ?? '' ) . '" class="small-text"> <span class="unit">kcal</span></td>';
+		echo '<th scope="row"><label for="rmm_calories_100">'
+			. esc_html__( 'Calories (per 100 g)', 'mixmymeals' )
+			. '</label></th>';
+		echo '<td><input type="number" step="1" min="0" name="rmm_calories_100" id="rmm_calories_100" value="'
+			. esc_attr( $values['calories_100'] ?? '' )
+			. '" class="small-text"> <span class="unit">kcal</span></td>';
 		echo '</tr>';
 
 		echo '</tbody></table>';
 
-		echo '<h4 class="mixmymeals-section-title">' . esc_html__( 'Macronutrients (per 100 g)', 'mixmymeals' ) . '</h4>';
+		echo '<h4 class="mixmymeals-section-title">'
+			. esc_html__( 'Macronutrients (per 100 g)', 'mixmymeals' )
+			. '</h4>';
 
 		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
 
-		$nutrition = [
+		$nutrition = array(
 			'fat'     => __( 'Fat (g)', 'mixmymeals' ),
 			'carbs'   => __( 'Carbohydrates (g)', 'mixmymeals' ),
 			'protein' => __( 'Protein (g)', 'mixmymeals' ),
 			'sugar'   => __( 'Sugar (g)', 'mixmymeals' ),
 			'fiber'   => __( 'Fiber (g)', 'mixmymeals' ),
 			'salt'    => __( 'Salt (g)', 'mixmymeals' ),
-		];
+		);
 
 		foreach ( $nutrition as $key => $label ) {
 			echo '<tr>';
-			echo '<th scope="row"><label for="rmm_' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th>';
-			echo '<td><input type="number" step="0.01" min="0" name="rmm_' . esc_attr( $key ) . '" id="rmm_' . esc_attr( $key ) . '" value="' . esc_attr( $values[$key] ?? '' ) . '" class="small-text"></td>';
+			echo '<th scope="row"><label for="rmm_' . esc_attr( $key ) . '">'
+				. esc_html( $label ) . '</label></th>';
+			echo '<td><input type="number" step="0.01" min="0" name="rmm_'
+				. esc_attr( $key ) . '" id="rmm_' . esc_attr( $key )
+				. '" value="' . esc_attr( $values[ $key ] ?? '' )
+				. '" class="small-text"></td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
 	}
 
-
-	public function save_ingredient_meta( $post_ID ) {
+	public function save_ingredient_meta( int $post_ID ): void {
 
 		// Sicherheitsprüfungen
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
-		if ( ! current_user_can( 'edit_post', $post_ID ) ) return;
-		if ( ! isset( $_POST['mmm_ingredient_amounts_meta_nonce'] ) || ! wp_verify_nonce( $_POST['mmm_ingredient_amounts_meta_nonce'], 'mmm_ingredient_amounts_meta_box' ) ) {
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+		if (
+			! isset( $_POST['mmm_ingredient_amounts_meta_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_amounts_meta_nonce'] ) ),
+				'mmm_ingredient_amounts_meta_box'
+			)
+		) {
 			return;
 		}
 
 		// ----------------- Nutrition -----------------
-		$data = [
-			'calories_100' => $_POST['rmm_calories_100'] ?? '',
-			'fat'          => $_POST['rmm_fat'] ?? '',
-			'carbs'        => $_POST['rmm_carbs'] ?? '',
-			'protein'      => $_POST['rmm_protein'] ?? '',
-			'sugar'        => $_POST['rmm_sugar'] ?? '',
-			'fiber'        => $_POST['rmm_fiber'] ?? '',
-			'salt'         => $_POST['rmm_salt'] ?? '',
-		];
+		$data = array(
+			'calories_100' => isset( $_POST['rmm_calories_100'] )
+				? floatval( wp_unslash( $_POST['rmm_calories_100'] ) ) : '',
+			'fat'          => isset( $_POST['rmm_fat'] )
+				? floatval( wp_unslash( $_POST['rmm_fat'] ) ) : '',
+			'carbs'        => isset( $_POST['rmm_carbs'] )
+				? floatval( wp_unslash( $_POST['rmm_carbs'] ) ) : '',
+			'protein'      => isset( $_POST['rmm_protein'] )
+				? floatval( wp_unslash( $_POST['rmm_protein'] ) ) : '',
+			'sugar'        => isset( $_POST['rmm_sugar'] )
+				? floatval( wp_unslash( $_POST['rmm_sugar'] ) ) : '',
+			'fiber'        => isset( $_POST['rmm_fiber'] )
+				? floatval( wp_unslash( $_POST['rmm_fiber'] ) ) : '',
+			'salt'         => isset( $_POST['rmm_salt'] )
+				? floatval( wp_unslash( $_POST['rmm_salt'] ) ) : '',
+		);
 
 		$ingredient_obj = new Mixmymeals_Ingredient( $post_ID );
 		$ingredient_obj->set_nutrition( $data );
 
 		// ----------------- Ingredient Amounts -----------------
-		if ( isset( $_POST['mmm_ingredient_amounts'] ) && is_array( $_POST['mmm_ingredient_amounts'] ) ) {
-			foreach ( $_POST['mmm_ingredient_amounts'] as $id => $amount_data ) {
+		if ( isset( $_POST['mmm_ingredient_amounts'] )
+			&& is_array( $_POST['mmm_ingredient_amounts'] ) ) {
+			$amounts
+				= wp_unslash( $_POST['mmm_ingredient_amounts'] ); // 🟢 Array unslashen
+
+			foreach ( $amounts as $id => $amount_data ) {
+				$id = sanitize_key( $id ); // ID absichern
 
 				// Bestehende Menge
 				if ( $id !== 'new' ) {
-					$amount_obj = new Mixmymeals_Ingredient_Amount( intval( $id ) );
+					$amount_obj
+						= new Mixmymeals_Ingredient_Amount( intval( $id ) );
 
 					// Löschen
 					if ( ! empty( $amount_data['delete'] ) ) {
@@ -426,171 +845,211 @@ class Mixmymeals_Post_Meta {
 						continue;
 					}
 
+					// Titel aktualisieren
+					if ( isset( $amount_data['title'] ) ) {
+						$title = sanitize_text_field( $amount_data['title'] );
+						$amount_obj->set_title( $title );
+					}
+
 					// Gewicht aktualisieren
 					if ( isset( $amount_data['weight'] ) ) {
 						$amount_obj->set_weight( floatval( $amount_data['weight'] ) );
 					}
 
-					// Verkaufseinheit setzen
-					$is_sale_unit = ! empty( $amount_data['sale_unit'] );
-					$amount_obj->set_sale_unit( $is_sale_unit );
+					// Unteilbarkeit setzen
+					$is_indivisible = ! empty( $amount_data['indivisible'] );
+					$amount_obj->set_indivisible( $is_indivisible );
 
 				} else {
 					// Neue Menge anlegen
 					if ( ! empty( $amount_data['title'] ) ) {
-						$amount_obj = Mixmymeals_Ingredient_Amount::create( $post_ID, $amount_data['title'] );
+						$title      = sanitize_text_field( $amount_data['title'] );
+						$amount_obj
+								= Mixmymeals_Ingredient_Amount::create(
+									$post_ID,
+									$title
+								);
 
 						if ( isset( $amount_data['weight'] ) ) {
 							$amount_obj->set_weight( floatval( $amount_data['weight'] ) );
 						}
 
-						// Verkaufseinheit setzen
-						if ( isset( $amount_data['sale_unit'] ) ) {
-							$amount_obj->set_sale_unit( true );
-						}
+						// Unteilbarkeit setzen
+						$amount_obj->set_indivisible( ! empty( $amount_data['indivisible'] ) );
 					}
 				}
 			}
 		}
 	}
 
-	/* ======================================================
+	/*
+	======================================================
 	 *  SHOPPING LIST META BOX
 	 * ====================================================== */
 
-	public function add_recipe_shopping_list_meta_box() {
+	public function add_recipe_shopping_list_meta_box(): void {
 		add_meta_box(
 			'mmm_recipe_shopping_list',
 			__( 'Shopping List', 'mixmymeals' ),
-			[ $this, 'render_recipe_shopping_list_meta_box' ],
+			array( $this, 'render_recipe_shopping_list_meta_box' ),
 			'mmm_recipe',
-			'normal',
-			'default'
+			'normal'
 		);
 	}
 
-	public function render_recipe_shopping_list_meta_box( $post ) {
+	public function render_recipe_shopping_list_meta_box( WP_Post $post ): void {
 		echo '<div id="mixmymeals-shopping-list-container">';
 		$this->render_recipe_shopping_list_table( $post->ID );
 		echo '</div>';
 	}
 
 	/**
-	 * Render the recipe shopping list and nutrition tables.
+	 * Render the recipe shopping list and nutrition tables (Admin meta / vergleichbares).
+	 *
+	 * - Aggregiert mehrfach vorkommende Zutaten und summiert Gewicht.
+	 * - Gibt den Gesamtbedarf je Zutat aus:
+	 *   "Zutatname, 750 g"
+	 *   - Untereinträge: "2 × EL (30 g)" etc. (Unit fallback: "g")
+	 *
+	 * @param   int $post_id  Recipe post ID
+	 *
+	 * @return void (echo)
 	 */
-	private function render_recipe_shopping_list_table( $post_id ) {
-		$recipe = new Mixmymeals_Recipe( $post_id );
+	private function render_recipe_shopping_list_table( int $post_id ): void {
+		$recipe      = new Mixmymeals_Recipe( $post_id );
 		$ingredients = $recipe->get_ingredients_normalized();
 
 		// ---------------------------------
 		// Falls keine Zutaten vorhanden
 		// ---------------------------------
 		if ( empty( $ingredients ) ) {
-			echo '<p>' . esc_html__( 'Please save the recipe to update the shopping list.', 'mixmymeals' ) . '</p>';
+			echo '<p>'
+				. esc_html__(
+					'Please save the recipe to update the shopping list.',
+					'mixmymeals'
+				) . '</p>';
+
 			return;
 		}
 
 		// ---------------------------------
 		// Zutaten aggregieren (mehrfache Vorkommen summieren)
 		// ---------------------------------
-		$ingredient_totals = [];
+		$ingredient_totals = array();
 
 		foreach ( $ingredients as $ing ) {
-			if ( empty( $ing['id'] ) ) continue;
 
-			$ing_id      = intval( $ing['id'] );
-			$weight_g    = floatval( $ing['weight_g'] ?? 0 );
-			$amount      = floatval( $ing['amount'] ?? 0 );
-			$unit_title  = $ing['unit'] ?? '';
+            /*
+			if ( empty( $ing['id'] ) ) {
+				continue;
+			}
+            */
+			$ing_id = intval( $ing['id'] );
+			if ( ! $ing_id || ! Mixmymeals_Ingredient::exists_by_id( $ing_id ) ) {
+				continue;
+			}
+
+			$ing_id          = intval( $ing['id'] );
+			$weight_g        = floatval(
+				$ing['weight_g'] ??
+										0
+			); // Gewicht dieses Auftretens in g
+			$amount          = floatval(
+				$ing['amount'] ??
+										0
+			);   // Menge (z.B. 2, 0.5)
+			$unit_title_raw  = trim(
+				strval(
+					$ing['unit'] ??
+											''
+				)
+			); // z.B. "EL", kann leer sein
 			$ingredient_name = $ing['name'] ?? get_the_title( $ing_id );
 
+			// Fallback: wenn Einheit leer, später "g" verwenden — für Eintrag anzeigen wir Einheit "g"
+			$unit_title = $unit_title_raw;
+
 			if ( ! isset( $ingredient_totals[ $ing_id ] ) ) {
-				$ingredient_totals[ $ing_id ] = [
-					'name'        => $ingredient_name,
-					'total_weight'=> 0,
-					'entries'     => [],
-				];
+				$ingredient_totals[ $ing_id ] = array(
+					'name'         => $ingredient_name,
+					'total_weight' => 0.0,
+					'entries'      => array(),
+					// einzelne Vorkommen: amount, unit, weight
+				);
 			}
 
 			$ingredient_totals[ $ing_id ]['total_weight'] += $weight_g;
-			$ingredient_totals[ $ing_id ]['entries'][] = [
+			$ingredient_totals[ $ing_id ]['entries'][]     = array(
 				'amount' => $amount,
-				'unit'   => $unit_title,
-				'weight' => $weight_g,
-			];
+				'unit'   => $unit_title,   // raw, eventuell ''
+				'weight' => $weight_g,     // in g
+			);
 		}
 
 		// ---------------------------------
-		// Einkaufsliste
+		// Einkaufsliste ausgeben
 		// ---------------------------------
 		echo '<h3>' . esc_html__( 'Shopping List', 'mixmymeals' ) . '</h3>';
 		echo '<ul class="mixmymeals-shopping-list" style="list-style:none; padding-left:0; margin:0;">';
 
 		foreach ( $ingredient_totals as $ing_id => $data ) {
-			$ingredient_obj = new Mixmymeals_Ingredient( $ing_id );
-			$total_weight   = $data['total_weight'];
+
+			$total_weight    = (float) $data['total_weight']; // in g
 			$ingredient_name = $data['name'];
 
-			// Verkaufseinheiten abrufen
-			$sale_units = [];
-			foreach ( $ingredient_obj->get_units() as $unit_post ) {
-				$amount_obj = new Mixmymeals_Ingredient_Amount( $unit_post->ID );
-				if ( $amount_obj->is_sale_unit() ) {
-					$sale_units[] = $amount_obj;
-				}
-			}
+			// Hauptzeile: Name + Gesamtbedarf in Gramm
+			$main_line = '<a href="' . get_edit_post_link( $ing_id ) . '">'
+						. esc_html( $ingredient_name ) . '</a>';
+			$main_line .= sprintf(
+				', %s g',
+				esc_html( number_format_i18n( $total_weight, 2 ) )
+			);
 
-			// Beste Verkaufseinheit bestimmen
-			$sale_info = '';
-			if ( ! empty( $sale_units ) && $total_weight > 0 ) {
-				$best_unit = null;
-				$best_diff = null;
-
-				foreach ( $sale_units as $amount_obj ) {
-					$unit_weight = floatval( $amount_obj->get_weight() );
-					if ( $unit_weight <= 0 ) continue;
-
-					$packs = ceil( $total_weight / $unit_weight );
-					$diff  = abs( ($packs * $unit_weight) - $total_weight );
-
-					if ( $best_unit === null || $diff < $best_diff ) {
-						$best_unit = [
-							'title'  => $amount_obj->get_title(),
-							'weight' => $unit_weight,
-							'packs'  => $packs,
-						];
-						$best_diff = $diff;
-					}
-				}
-
-				if ( $best_unit ) {
-					$sale_info = sprintf(
-						' → %d× %s (%sg)',
-						$best_unit['packs'],
-						esc_html( $best_unit['title'] ),
-						esc_html( $best_unit['weight'] )
-					);
-				}
-			}
-
-			// Ausgabe Hauptzeile
+			// Ausgabe Hauptzeile + Unterliste öffnen
 			printf(
-				'<li style="padding:6px 0; border-bottom:1px solid #eee;">
-				<strong>%s</strong>, insgesamt %s g%s
-				<ul style="margin:4px 0 0 16px; list-style:disc;">',
-				esc_html( $ingredient_name ),
-				esc_html( round( $total_weight, 2 ) ),
-				$sale_info
+				'<li style="padding:6px 0; border-bottom:1px solid #eee;"><strong>%s</strong>',
+				wp_kses_post( $main_line )
 			);
 
 			// Untereinträge (mehrfache Vorkommen)
+			echo '<ul style="margin:6px 0 0 18px; list-style:disc;">';
+
 			foreach ( $data['entries'] as $entry ) {
-				printf(
-					'<li>%s × %s (%s g)</li>',
-					esc_html( $entry['amount'] ),
-					esc_html( $entry['unit'] ),
-					esc_html( round( $entry['weight'], 2 ) )
+				$entry_amount = floatval( $entry['amount'] );
+				// Formatierte Anzeige der Menge (keine unnötigen Nachkommastellen)
+				$decimals       = ( floor( $entry_amount ) != $entry_amount )
+					? 2 : 0;
+				$display_amount = $entry_amount > 0
+					? number_format_i18n( $entry_amount, $decimals ) : '';
+
+				// Einheit mit Fallback
+				$unit = trim( strval( $entry['unit'] ?? '' ) );
+				if ( $unit === '' ) {
+					$unit = 'g';
+				}
+
+				$entry_weight = floatval( $entry['weight'] ?? 0 );
+
+				// Gewicht formatieren
+				$display_weight = number_format_i18n(
+					round( $entry_weight, 2 ),
+					2
 				);
+
+				if ( $unit != 'g' ) {
+					printf(
+						'<li>%s × %s (%s g)</li>',
+						esc_html( $display_amount ?: '0' ),
+						esc_html( $unit ),
+						esc_html( $display_weight )
+					);
+				} else {
+					printf(
+						'<li>%s g (%s g)</li>',
+						esc_html( $display_amount ?: '0' ),
+						esc_html( $display_amount ?: '0' )
+					);
+				}
 			}
 
 			echo '</ul></li>';
@@ -599,7 +1058,7 @@ class Mixmymeals_Post_Meta {
 		echo '</ul>';
 
 		// ---------------------------------
-		// Nährwerttabelle
+		// Nährwerttabelle (unchanged)
 		// ---------------------------------
 		$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
 		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
@@ -612,7 +1071,7 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'per 100 g', 'mixmymeals' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
-		$labels = [
+		$labels = array(
 			'calories' => __( 'Calories (kcal)', 'mixmymeals' ),
 			'protein'  => __( 'Protein (g)', 'mixmymeals' ),
 			'carbs'    => __( 'Carbohydrates (g)', 'mixmymeals' ),
@@ -620,7 +1079,7 @@ class Mixmymeals_Post_Meta {
 			'sugar'    => __( 'Sugar (g)', 'mixmymeals' ),
 			'fiber'    => __( 'Fiber (g)', 'mixmymeals' ),
 			'salt'     => __( 'Salt (g)', 'mixmymeals' ),
-		];
+		);
 
 		foreach ( $labels as $key => $label ) {
 			printf(
@@ -635,10 +1094,11 @@ class Mixmymeals_Post_Meta {
 	}
 
 
-	/* ======================================================
+	/*
+	======================================================
 	 *  AJAX UPDATE HANDLER
 	 * ====================================================== */
-	public function ajax_update_shopping_list() {
+	public function ajax_update_shopping_list(): void {
 		check_ajax_referer( 'mixmymeals_admin_nonce', 'nonce' );
 
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
@@ -651,78 +1111,126 @@ class Mixmymeals_Post_Meta {
 		$this->render_recipe_shopping_list_table( $post_id );
 		$html = ob_get_clean();
 
-		wp_send_json_success( [ 'html' => $html ] );
+		wp_send_json_success( array( 'html' => $html ) );
 	}
 
 
 
 
 
-	/* ======================================================
-    *  MEAL PLAN & MEAL META BOXES
-    * ====================================================== */
+	/*
+	======================================================
+	*  MEAL PLAN & MEAL META BOXES
+	* ====================================================== */
 
 	/**
 	 * Meal Plan Metabox: start date for the week.
 	 */
-	public function register_meal_plan_metabox() {
+	public function register_meal_plan_days_metabox(): void {
 		add_meta_box(
-			'mmm_meal_plan_meta_box',
+			'mmm_meal_plan_days_meta_box',
 			__( 'Meal Plan Settings', 'mixmymeals' ),
-			[ $this, 'render_meal_plan_start_date_metabox' ],
+			array( $this, 'render_meal_plan_days_metabox' ),
 			'mmm_meal_plan',
-			'side',
-			'default'
+			'side'
 		);
 	}
 
-	public function render_meal_plan_start_date_metabox( $post ) {
+	public function render_meal_plan_days_metabox( WP_Post $post ): void {
 
 		wp_nonce_field( 'mmm_meal_plan_meta_box', 'mmm_meal_plan_meta_nonce' );
 
 		$meal_plan_obj = new Mixmymeals_Meal_Plan( $post->ID );
-		$start_date    = $meal_plan_obj->get_start_date();
-		$end_date      = $meal_plan_obj->get_end_date();
+		$start_day     = $meal_plan_obj->get_start_day();
+		$end_day       = $meal_plan_obj->get_end_day();
+
+		// Übersetzbare Wochentage
+		$weekdays = array(
+			1 => __( 'Monday', 'mixmymeals' ),
+			2 => __( 'Tuesday', 'mixmymeals' ),
+			3 => __( 'Wednesday', 'mixmymeals' ),
+			4 => __( 'Thursday', 'mixmymeals' ),
+			5 => __( 'Friday', 'mixmymeals' ),
+			6 => __( 'Saturday', 'mixmymeals' ),
+			7 => __( 'Sunday', 'mixmymeals' ),
+		);
 
 		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
 
-		// --- Start Date ---
+		// --- Start Day ---
 		echo '<tr>';
-		echo '<th scope="row"><label for="start_date">' . esc_html__( 'Start Date', 'mixmymeals' ) . '</label></th>';
-		echo '<td><input type="date" name="start_date" id="start_date" value="' . esc_attr( $start_date ) . '" class="regular-text"></td>';
+		echo '<th scope="row"><label for="start_day">'
+			. esc_html__( 'Start Weekday', 'mixmymeals' ) . '</label></th>';
+		echo '<td><select name="start_day" id="start_day" class="regular-text">';
+
+		foreach ( $weekdays as $value => $label ) {
+			echo '<option value="' . esc_attr( $value ) . '" '
+				. selected( $start_day, $value, false ) . '>'
+				. esc_html( $label ) . '</option>';
+		}
+
+		echo '</select></td>';
 		echo '</tr>';
 
-		// --- End Date ---
+		// --- End Day ---
 		echo '<tr>';
-		echo '<th scope="row"><label for="end_date">' . esc_html__( 'End Date', 'mixmymeals' ) . '</label></th>';
-		echo '<td><input type="date" name="end_date" id="end_date" value="' . esc_attr( $end_date ) . '" class="regular-text"></td>';
+		echo '<th scope="row"><label for="end_day">'
+			. esc_html__( 'End Weekday', 'mixmymeals' ) . '</label></th>';
+		echo '<td><select name="end_day" id="end_day" class="regular-text">';
+
+		foreach ( $weekdays as $value => $label ) {
+			echo '<option value="' . esc_attr( $value ) . '" '
+				. selected( $end_day, $value, false ) . '>'
+				. esc_html( $label ) . '</option>';
+		}
+
+		echo '</select></td>';
 		echo '</tr>';
 
 		echo '</tbody></table>';
-
 	}
 
 
-	public function save_meal_plan_meta( $post_id ) {
+	public function save_meal_plan_days_meta( int $post_id ): void {
+
 		if (
-			! isset( $_POST['mmm_meal_plan_meta_nonce'] ) ||
-			! wp_verify_nonce( $_POST['mmm_meal_plan_meta_nonce'], 'mmm_meal_plan_meta_box' )
+			! isset( $_POST['mmm_meal_plan_meta_nonce'] )
+			||
+			! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST['mmm_meal_plan_meta_nonce'] ) ),
+				'mmm_meal_plan_meta_box'
+			)
 		) {
 			return;
 		}
 
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
 
 		$meal_plan = new Mixmymeals_Meal_Plan( $post_id );
 
+		// --- Datum speichern (falls weiterhin vorhanden) ---
 		if ( isset( $_POST['start_date'] ) ) {
-			$meal_plan->set_start_date( $_POST['start_date'] );
+			$meal_plan->set_start_date( absint( wp_unslash( $_POST['start_date'] ) ) );
 		}
+
 		if ( isset( $_POST['end_date'] ) ) {
-			$meal_plan->set_end_date( $_POST['end_date'] );
+			$meal_plan->set_end_date( absint( wp_unslash( $_POST['end_date'] ) ) );
+		}
+
+		// --- Start-Wochentag speichern ---
+		if ( isset( $_POST['start_day'] ) ) {
+			$meal_plan->set_start_day( intval( $_POST['start_day'] ) );
+		}
+
+		// --- End-Wochentag speichern ---
+		if ( isset( $_POST['end_day'] ) ) {
+			$meal_plan->set_end_day( intval( $_POST['end_day'] ) );
 		}
 	}
 
+	/*
 	public function prevent_overlapping_meal_plans( $post_id, $post, $update ) {
 
 		// Nur im Admin, kein Autosave oder Revision
@@ -774,147 +1282,293 @@ class Mixmymeals_Post_Meta {
 			}
 		}
 	}
-
+	*/
 
 	/**
-	 * Meal Metabox: select parent plan, recipe, servings and note.
+	 * Meal Metabox: select parent plan, recipe and servings.
 	 */
-	public function register_meal_metabox() {
+	public function register_meal_metabox(): void {
 		add_meta_box(
 			'mmm_meal_meta_box',
 			__( 'Meal Details', 'mixmymeals' ),
-			[ $this, 'render_meal_metabox' ],
+			array( $this, 'render_meal_metabox' ),
 			'mmm_meal',
-			'normal',
-			'default'
+			'normal'
 		);
 	}
 
-	public function render_meal_metabox( $post ) {
+	public function render_meal_metabox( WP_Post $post ): void {
+
 		wp_nonce_field( 'mmm_meal_meta_box', 'mmm_meal_meta_nonce' );
 
 		$meal_obj = new Mixmymeals_Meal( $post->ID );
 
 		$recipe_id = $meal_obj->get_recipe_id();
-		$servings = $meal_obj->get_servings();
-		$note = $meal_obj->get_note();
+		$servings  = $meal_obj->get_servings();
+		//$note      = $meal_obj->get_note();
 		$parent_id = $meal_obj->get_parent_plan_id();
-		$meal_date = $meal_obj->get_date();
+		$meal_day  = $meal_obj->get_day(); // NEU
+		$type      = $meal_obj->get_type();
 
-		$plans = Mixmymeals_Meal_Plan::get_all_meal_plans();
+		$plans   = Mixmymeals_Meal_Plan::get_all_meal_plans();
 		$recipes = Mixmymeals_Recipe::get_all_recipes();
 
-		// --- Meal Plan Auswahl ---
-		echo '<p><label><strong>' . esc_html__( 'Meal Plan (Parent)', 'mixmymeals' ) . '</strong></label><br>';
+		// -------------------------------------
+		// Meal-Plan Auswahl
+		// -------------------------------------
+		echo '<p><label><strong>' . esc_html__(
+			'Meal Plan (Parent)',
+			'mixmymeals'
+		) . '</strong></label><br>';
 		echo '<select name="mmm_parent_id" id="mmm_parent_id" style="width:100%;">';
-		echo '<option value="">' . esc_html__( '— Select Meal Plan —', 'mixmymeals' ) . '</option>';
+		echo '<option value="">' . esc_html__(
+			'— Select Meal Plan —',
+			'mixmymeals'
+		) . '</option>';
+
 		foreach ( $plans as $plan ) {
-			$start = get_post_meta( $plan->ID, 'start_date', true );
-			$end   = get_post_meta( $plan->ID, 'end_date', true );
+
+			$plan_obj  = new Mixmymeals_Meal_Plan( $plan->ID );
+			$start_day = $plan_obj->get_start_day();
+			$end_day   = $plan_obj->get_end_day();
+
 			printf(
-				'<option value="%d" data-start="%s" data-end="%s" %s>%s</option>',
-				$plan->ID,
-				esc_attr( $start ),
-				esc_attr( $end ),
+				'<option value="%d" data-start="%d" data-end="%d" %s>%s</option>',
+				absint( $plan->ID ),
+				absint( $start_day ),
+				absint( $end_day ),
 				selected( $parent_id, $plan->ID, false ),
 				esc_html( $plan->post_title )
 			);
 		}
+
 		echo '</select></p>';
 
-		// --- Recipe Auswahl ---
-		echo '<p><label><strong>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</strong></label><br>';
+		// -------------------------------------
+		// Rezept-Auswahl
+		// -------------------------------------
+		echo '<p><label><strong>' . esc_html__( 'Recipe', 'mixmymeals' )
+			. '</strong></label><br>';
 		echo '<select name="recipe_id" style="width:100%;">';
-		echo '<option value="">' . esc_html__( '— Select Recipe —', 'mixmymeals' ) . '</option>';
+		echo '<option value="">' . esc_html__(
+			'— Select Recipe —',
+			'mixmymeals'
+		) . '</option>';
+
 		foreach ( $recipes as $recipe ) {
 			printf(
 				'<option value="%d" %s>%s</option>',
-				$recipe->ID,
+				absint( $recipe->ID ),
 				selected( $recipe_id, $recipe->ID, false ),
 				esc_html( $recipe->post_title )
 			);
 		}
+
 		echo '</select></p>';
 
-		// --- Datumsauswahl ---
-		$start_date = $parent_id ? get_post_meta( $parent_id, 'start_date', true ) : '';
-		$end_date   = $parent_id ? get_post_meta( $parent_id, 'end_date', true ) : '';
-		echo '<p><label><strong>' . esc_html__( 'Date (within Meal Plan)', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<input type="date" name="meal_date" id="meal_date" value="' . esc_attr( $meal_date ) . '" min="' . esc_attr( $start_date ) . '" max="' . esc_attr( $end_date ) . '" style="width:100%;">';
-		echo '</p>';
+		// -------------------------------------
+		// Meal Type
+		// -------------------------------------
+		echo '<p><label><strong>' . esc_html__( 'Type', 'mixmymeals' )
+			. '</strong></label><br>';
+		echo '<select name="meal_type" style="width:100%;">';
 
-		// --- Portionen ---
-		echo '<p><label><strong>' . esc_html__( 'Servings', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<input type="number" name="servings" value="' . esc_attr( $servings ?: 1 ) . '" min="1" step="1" style="width:100px;"></p>';
+		echo '<option value="">— ' . esc_html__( 'Select Type', 'mixmymeals' )
+			. ' —</option>';
 
-		// --- Notiz ---
-		echo '<p><label><strong>' . esc_html__( 'Note (optional)', 'mixmymeals' ) . '</strong></label><br>';
-		echo '<textarea name="note" rows="2" style="width:100%;">' . esc_textarea( $note ) . '</textarea></p>';
+		$types = array(
+			'breakfast' => esc_html__( 'Breakfast', 'mixmymeals' ),
+			'lunch'     => esc_html__( 'Lunch', 'mixmymeals' ),
+			'dinner'    => esc_html__( 'Dinner', 'mixmymeals' ),
+			'snack'     => esc_html__( 'Snack', 'mixmymeals' ),
+			'other'     => esc_html__( 'Other', 'mixmymeals' ),
+		);
+
+		foreach ( $types as $value => $label ) {
+			printf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( $value ),
+				selected( $type, $value, false ),
+				esc_html( $label )
+			);
+		}
+
+		echo '</select></p>';
+
+		// -------------------------------------
+		// Wochentag statt Datum
+		// -------------------------------------
+
+		$days = array(
+			1 => esc_html__( 'Monday', 'mixmymeals' ),
+			2 => esc_html__( 'Tuesday', 'mixmymeals' ),
+			3 => esc_html__( 'Wednesday', 'mixmymeals' ),
+			4 => esc_html__( 'Thursday', 'mixmymeals' ),
+			5 => esc_html__( 'Friday', 'mixmymeals' ),
+			6 => esc_html__( 'Saturday', 'mixmymeals' ),
+			7 => esc_html__( 'Sunday', 'mixmymeals' ),
+		);
+
+		$plan_start = $parent_id ? intval(
+			get_post_meta(
+				$parent_id,
+				'start_day',
+				true
+			)
+		) : 1;
+		write_to_log( $plan_start );
+		$plan_end = $parent_id ? intval(
+			get_post_meta(
+				$parent_id,
+				'end_day',
+				true
+			)
+		) : 7;
+		write_to_log( $plan_end );
+
+		echo '<p><label><strong>' . esc_html__(
+			'Day (within Meal Plan)',
+			'mixmymeals'
+		) . '</strong></label><br>';
+		echo '<select name="meal_day" id="meal_day" style="width:100%;">';
+
+		echo '<option value="">— ' . esc_html__( 'Select Day', 'mixmymeals' )
+			. ' —</option>';
+
+		foreach ( $days as $num => $label ) {
+
+			$in_range = false;
+
+			if ( $plan_start <= $plan_end ) {
+				// Normaler Bereich
+				$in_range = ( $num >= $plan_start && $num <= $plan_end );
+			} else {
+				// Überlauf-Bereich (z.B. Freitag bis Dienstag)
+				$in_range = ( $num >= $plan_start || $num <= $plan_end );
+			}
+
+			if ( ! $in_range ) {
+				continue;
+			}
+
+			printf(
+				'<option value="%d" %s>%s</option>',
+				absint( $num ),
+				selected( $meal_day, $num, false ),
+				esc_html( $label )
+			);
+		}
+
+		echo '</select></p>';
+
+		// -------------------------------------
+		// Portionen
+		// -------------------------------------
+		echo '<p><label><strong>' . esc_html__( 'Servings', 'mixmymeals' )
+			. '</strong></label><br>';
+		echo '<input type="number" name="servings" value="'
+			. esc_attr( $servings ?: 1 )
+			. '" min="1" step="1" style="width:100px;"></p>';
+
+		// -------------------------------------
+		// Notiz
+		// -------------------------------------
+        /*
+		echo '<p><label><strong>' . esc_html__(
+			'Note (optional)',
+			'mixmymeals'
+		) . '</strong></label><br>';
+		echo '<textarea name="note" rows="2" style="width:100%;">'
+			. esc_textarea( $note ) . '</textarea></p>';
+        */
 	}
 
+	public function save_meal_meta( int $post_id ): void {
 
-
-	public function save_meal_meta( $post_id ) {
-
-		if ( self::$updating_meal_meta ) return;
+		if ( self::$updating_meal_meta ) {
+			return;
+		}
 		self::$updating_meal_meta = true;
 
 		if (
-			! isset( $_POST['mmm_meal_meta_nonce'] ) ||
-			! wp_verify_nonce( $_POST['mmm_meal_meta_nonce'], 'mmm_meal_meta_box' )
+			! isset( $_POST['mmm_meal_meta_nonce'] )
+			||
+			! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST['mmm_meal_meta_nonce'] ) ),
+				'mmm_meal_meta_box'
+			)
 		) {
+			// write_to_log( sanitize_text_field( wp_unslash( $_POST['mmm_meal_meta_nonce']  ) ) );
 			return;
 		}
 
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
-		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
 
 		$meal_obj = new Mixmymeals_Meal( $post_id );
 
 		if ( isset( $_POST['mmm_parent_id'] ) ) {
-			$meal_obj->set_parent_plan_id( $_POST['mmm_parent_id'] );
+			$meal_obj->set_parent_plan_id( absint( wp_unslash( $_POST['mmm_parent_id'] ) ) );
 		}
 
 		if ( isset( $_POST['recipe_id'] ) ) {
-			$meal_obj->set_recipe_id( $_POST['recipe_id'] );
+			$meal_obj->set_recipe_id( absint( wp_unslash( $_POST['recipe_id'] ) ) );
 		}
 
 		if ( isset( $_POST['servings'] ) ) {
-			$meal_obj->set_servings( $_POST['servings'] );
+			$meal_obj->set_servings( floatval( wp_unslash( $_POST['servings'] ) ) );
 		}
 
+        /*
 		if ( isset( $_POST['note'] ) ) {
-			$meal_obj->set_note( $_POST['note'] );
+			$meal_obj->set_note( sanitize_text_field( wp_unslash( $_POST['note'] ) ) );
 		}
+        */
+
+		// -----------------------
+		// NEU: Wochentag speichern
+		// -----------------------
+		if ( isset( $_POST['meal_day'] ) ) {
+			$meal_obj->set_day( absint( wp_unslash( $_POST['meal_day'] ) ) );
+		}
+
+		if ( isset( $_POST['meal_type'] ) ) {
+			$meal_obj->set_type( sanitize_text_field( wp_unslash( $_POST['meal_type'] ) ) );
+		}
+
 
 		/*
-		if ( isset( $_POST['weekday'] ) ) {
-			$meal_obj->set_weekday( sanitize_text_field( $_POST['weekday'] ) );
-		}
-		*/
-
 		if ( isset( $_POST['meal_date'] ) ) {
 			$meal_obj->set_date( $_POST['meal_date'] );
 		}
+		*/
 
 		self::$updating_meal_meta = false;
 	}
 
-	/* ======================================================
- *  INGREDIENT AMOUNT META BOX
- * ====================================================== */
 
+	/*
+	======================================================
+	*  INGREDIENT AMOUNT META BOX
+	* ====================================================== */
+
+    /*
 	public function add_ingr_amount_meta_box() {
 		add_meta_box(
 			'mmm_ingr_unit_meta_box',
 			__( 'Weight per Unit', 'mixmymeals' ),
-			[ $this, 'render_ingr_amount_meta_box_content' ],
+			array( $this, 'render_ingr_amount_meta_box_content' ),
 			'mmm_ingr_unit',
-			'side',
-			'default'
+			'side'
 		);
 	}
+    */
 
+    /*
 	public function render_ingr_amount_meta_box_content( $post ) {
 		wp_nonce_field( 'mmm_ingr_unit_meta_box', 'mmm_ingr_unit_meta_nonce' );
 
@@ -924,38 +1578,55 @@ class Mixmymeals_Post_Meta {
 		// Gewicht über Getter holen
 		$weight = $amount_obj->get_weight();
 
-		echo '<p><label for="mmm_ingr_unit_weight"><strong>' . esc_html__( 'Weight per Unit (g)', 'mixmymeals' ) . '</strong></label></p>';
-		echo '<input type="number" step="0.1" min="0" name="mmm_ingr_unit_weight" id="mmm_ingr_unit_weight" value="' . esc_attr( $weight ) . '" style="width:100%;" />';
-		echo '<p class="description">' . esc_html__( 'e.g. 1 TL = 5 g, 1 EL = 15 g, 1 Pcs. = 120 g.', 'mixmymeals' ) . '</p>';
+		echo '<p><label for="mmm_ingr_unit_weight"><strong>'
+			. esc_html__( 'Weight per Unit (g)', 'mixmymeals' )
+			. '</strong></label></p>';
+		echo '<input type="number" step="0.1" min="0" name="mmm_ingr_unit_weight" id="mmm_ingr_unit_weight" value="'
+			. esc_attr( $weight ) . '" style="width:100%;" />';
+		echo '<p class="description">'
+			. esc_html__(
+				'e.g. 1 TL = 5 g, 1 EL = 15 g, 1 Pcs. = 120 g.',
+				'mixmymeals'
+			) . '</p>';
 	}
+    */
 
-
+    /*
 	public function save_ingr_amount_meta( $post_id ) {
 
-		// 🛑 Endlosschleife verhindern
-		if ( self::$updating_ingr_amount_meta ) return;
+		// Endlosschleife verhindern
+		if ( self::$updating_ingr_amount_meta ) {
+			return;
+		}
 		self::$updating_ingr_amount_meta = true;
 
-		// 🧩 Sicherheits-Checks
+		// Sicherheits-Checks
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			self::$updating_ingr_amount_meta = false;
+
 			return;
 		}
 
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			self::$updating_ingr_amount_meta = false;
+
 			return;
 		}
 
 		if (
-			! isset( $_POST['mmm_ingr_unit_meta_nonce'] ) ||
-			! wp_verify_nonce( $_POST['mmm_ingr_unit_meta_nonce'], 'mmm_ingr_unit_meta_box' )
+			! isset( $_POST['mmm_ingr_unit_meta_nonce'] )
+			||
+			! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST['mmm_ingr_unit_meta_nonce'] ) ),
+				'mmm_ingr_unit_meta_box'
+			)
 		) {
 			self::$updating_ingr_amount_meta = false;
+
 			return;
 		}
 
-		// 🟢 Objekt laden
+		// Objekt laden
 		$amount_obj = new Mixmymeals_Ingredient_Amount( $post_id );
 
 		// Gewicht speichern
@@ -965,31 +1636,39 @@ class Mixmymeals_Post_Meta {
 
 		// Parent Ingredient speichern (zweite Meta Box)
 		if (
-			isset( $_POST['mmm_ingr_unit_parent_meta_nonce'] ) &&
-			wp_verify_nonce( $_POST['mmm_ingr_unit_parent_meta_nonce'], 'mmm_ingr_unit_parent_meta_box' ) &&
-			isset( $_POST['mmm_ingr_parent_id'] )
+			isset( $_POST['mmm_ingr_unit_parent_meta_nonce'] )
+			&& wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST['mmm_ingr_unit_parent_meta_nonce'] ) ),
+				'mmm_ingr_unit_parent_meta_box'
+			)
+			&& isset( $_POST['mmm_ingr_parent_id'] )
 		) {
 			$amount_obj->set_parent_ingredient_id( intval( $_POST['mmm_ingr_parent_id'] ) );
 		}
 
-		// 🔚 Flag wieder zurücksetzen
+		// Flag wieder zurücksetzen
 		self::$updating_ingr_amount_meta = false;
 	}
+    */
 
-
+    /*
 	public function add_ingr_amount_parent_meta_box() {
 		add_meta_box(
 			'mmm_ingr_unit_parent_meta_box',
 			__( 'Linked Ingredient', 'mixmymeals' ),
-			[ $this, 'render_ingr_amount_parent_meta_box_content' ],
+			array( $this, 'render_ingr_amount_parent_meta_box_content' ),
 			'mmm_ingr_unit',
-			'side',
-			'default'
+			'side'
 		);
 	}
+    */
 
+    /*
 	public function render_ingr_amount_parent_meta_box_content( $post ) {
-		wp_nonce_field( 'mmm_ingr_unit_parent_meta_box', 'mmm_ingr_unit_parent_meta_nonce' );
+		wp_nonce_field(
+			'mmm_ingr_unit_parent_meta_box',
+			'mmm_ingr_unit_parent_meta_nonce'
+		);
 
 		$amount_obj = new Mixmymeals_Ingredient_Amount( $post->ID );
 		$parent_id  = $amount_obj->get_parent_ingredient_id();
@@ -997,14 +1676,17 @@ class Mixmymeals_Post_Meta {
 		// Liste aller Zutaten laden
 		$ingredients = Mixmymeals_Ingredient::get_all_ingredients();
 
-		echo '<p><label for="mmm_ingr_parent_id"><strong>' . esc_html__( 'Linked Ingredient', 'mixmymeals' ) . ':</strong></label></p>';
+		echo '<p><label for="mmm_ingr_parent_id"><strong>'
+			. esc_html__( 'Linked Ingredient', 'mixmymeals' )
+			. ':</strong></label></p>';
 		echo '<select name="mmm_ingr_parent_id" id="mmm_ingr_parent_id" style="width:100%;">';
-		echo '<option value="">- ' . esc_html__( 'Select', 'mixmymeals' ) . ' -</option>';
+		echo '<option value="">- ' . esc_html__( 'Select', 'mixmymeals' )
+			. ' -</option>';
 
 		foreach ( $ingredients as $ing ) {
 			printf(
 				'<option value="%d" %s>%s</option>',
-				$ing->ID,
+				absint( $ing->ID ),
 				selected( $parent_id, $ing->ID, false ),
 				esc_html( $ing->post_title )
 			);
@@ -1015,26 +1697,177 @@ class Mixmymeals_Post_Meta {
 		if ( $parent_id ) {
 			$parent_link = get_edit_post_link( $parent_id );
 			if ( $parent_link ) {
-				echo '<p><a href="' . esc_url( $parent_link ) . '" target="_blank">' .
-				     esc_html__( 'Open Ingredient', 'mixmymeals' ) . ' ↗</a></p>';
+				echo '<p><a href="' . esc_url( $parent_link )
+					. '" target="_blank">' .
+					esc_html__( 'Open Ingredient', 'mixmymeals' )
+					. ' ↗</a></p>';
 			}
 		}
 	}
+    */
 
-	public function add_ingredient_amounts_meta_box() {
+	public function add_ingredient_price_meta_box(): void {
 		add_meta_box(
-			'mmm_ingredient_amounts_meta_box',
-			__( 'Units', 'mixmymeals' ),
-			[ $this, 'render_ingredient_amounts_meta_box_content' ],
+			'mmm_ingredient_price_meta_box',
+			__( 'Price', 'mixmymeals' ),
+			array( $this, 'render_ingredient_price_meta_box_content' ),
 			'mmm_ingredient',
-			'normal',
-			'default'
+			'side'
 		);
 	}
 
-	public function render_ingredient_amounts_meta_box_content( $post ) {
+	public function render_ingredient_price_meta_box_content( WP_Post $post ): void {
+		wp_nonce_field( 'mmm_ingredient_price_meta_box', 'mmm_ingredient_price_meta_nonce' );
 
-		wp_nonce_field( 'mmm_ingredient_amounts_meta_box', 'mmm_ingredient_amounts_meta_nonce' );
+		$ingredient = new Mixmymeals_Ingredient( $post->ID );
+		$price      = $ingredient->get_price_per_100g();
+		$currency   = get_option( 'mixmymeals_currency', '€' );
+		?>
+		<p>
+			<label for="mmm_price_per_100g">
+				<?php
+				// translators: %s = currency symbol
+				printf( esc_html__( 'Price per 100 g (%s)', 'mixmymeals' ), esc_html( $currency ) );
+				?>
+			</label>
+		</p>
+		<p>
+			<input
+				type="number"
+				id="mmm_price_per_100g"
+				name="mmm_price_per_100g"
+				value="<?php echo esc_attr( $price > 0 ? $price : '' ); ?>"
+				step="0.001"
+				min="0"
+				placeholder="0.00"
+				style="width:100%;"
+			/>
+		</p>
+		<?php
+	}
+
+	public function save_ingredient_price_meta( int $post_ID ): void {
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+		if (
+			! isset( $_POST['mmm_ingredient_price_meta_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_price_meta_nonce'] ) ),
+				'mmm_ingredient_price_meta_box'
+			)
+		) {
+			return;
+		}
+
+		$ingredient = new Mixmymeals_Ingredient( $post_ID );
+		$price      = isset( $_POST['mmm_price_per_100g'] )
+			? floatval( wp_unslash( $_POST['mmm_price_per_100g'] ) )
+			: 0.0;
+		$ingredient->set_price_per_100g( $price );
+	}
+
+	/**
+	 * Registers the "Diet Type" meta box for ingredients.
+	 */
+	public function add_ingredient_diet_meta_box(): void {
+		add_meta_box(
+			'mmm_ingredient_diet_meta_box',
+			__( 'Diet Type', 'mixmymeals' ),
+			array( $this, 'render_ingredient_diet_meta_box_content' ),
+			'mmm_ingredient',
+			'side'
+		);
+	}
+
+	/**
+	 * Renders the "Diet Type" meta box for ingredients.
+	 *
+	 * @param WP_Post $post The current post object.
+	 */
+	public function render_ingredient_diet_meta_box_content( WP_Post $post ): void {
+		wp_nonce_field( 'mmm_ingredient_diet_meta_box', 'mmm_ingredient_diet_meta_nonce' );
+
+		$ingredient = new Mixmymeals_Ingredient( $post->ID );
+		$diet_type  = $ingredient->get_diet_type();
+
+		$options = [
+			''             => __( 'Not specified', 'mixmymeals' ),
+			'vegetarian'   => __( 'Vegetarian', 'mixmymeals' ),
+			'vegan'        => __( 'Vegan', 'mixmymeals' ),
+		];
+		?>
+		<p>
+			<label for="mmm_diet_type"><?php esc_html_e( 'Diet Type', 'mixmymeals' ); ?></label>
+		</p>
+		<p>
+			<select id="mmm_diet_type" name="mmm_diet_type" style="width:90%;">
+				<?php foreach ( $options as $value => $label ) : ?>
+					<option value="<?php echo esc_attr( $value ); ?>"
+						<?php selected( $diet_type, $value ); ?>>
+						<?php echo esc_html( $label ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Saves the diet type meta value for an ingredient.
+	 *
+	 * @param int $post_ID The post ID.
+	 */
+	public function save_ingredient_diet_meta( int $post_ID ): void {
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+		if (
+			! isset( $_POST['mmm_ingredient_diet_meta_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_diet_meta_nonce'] ) ),
+				'mmm_ingredient_diet_meta_box'
+			)
+		) {
+			return;
+		}
+
+		$allowed   = [ '', 'vegetarian', 'vegan' ];
+		$diet_type = sanitize_text_field( wp_unslash( $_POST['mmm_diet_type'] ?? '' ) );
+
+		if ( ! in_array( $diet_type, $allowed, true ) ) {
+			$diet_type = '';
+		}
+
+		if ( $diet_type === '' ) {
+			delete_post_meta( $post_ID, '_mmm_diet_type' );
+		} else {
+			update_post_meta( $post_ID, '_mmm_diet_type', $diet_type );
+		}
+	}
+
+	public function add_ingredient_amounts_meta_box(): void {
+		add_meta_box(
+			'mmm_ingredient_amounts_meta_box',
+			__( 'Units', 'mixmymeals' ),
+			array( $this, 'render_ingredient_amounts_meta_box_content' ),
+			'mmm_ingredient',
+			'normal'
+		);
+	}
+
+	public function render_ingredient_amounts_meta_box_content( WP_Post $post ): void {
+
+		wp_nonce_field(
+			'mmm_ingredient_amounts_meta_box',
+			'mmm_ingredient_amounts_meta_nonce'
+		);
 
 		$ingredient = new Mixmymeals_Ingredient( $post->ID );
 		$units      = $ingredient->get_units();
@@ -1045,8 +1878,9 @@ class Mixmymeals_Post_Meta {
 		echo '<thead>';
 		echo '<tr>';
 		echo '<th>' . esc_html__( 'Title', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Used', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Weight', 'mixmymeals' ) . '</th>';
-		echo '<th>' . esc_html__( 'Sales Unit', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Indivisible', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
 		echo '</tr>';
 		echo '</thead>';
@@ -1055,23 +1889,44 @@ class Mixmymeals_Post_Meta {
 		// Bestehende Mengen
 		if ( ! empty( $units ) ) {
 			foreach ( $units as $unit ) {
-				$amount = new Mixmymeals_Ingredient_Amount( $unit->ID );
-				$is_sale_unit = $amount->is_sale_unit(); // ✅ über Handler-Methode
+
+				$amount  = new Mixmymeals_Ingredient_Amount( $unit->ID );
+
+				if ( ! $amount->is_valid() ) {
+					continue; // Skip if unit is invalid.
+				}
+
+				$is_indivisible = $amount->is_indivisible();
+				$usage_count = $amount->get_amount_usage_count();
 
 				echo '<tr data-id="' . esc_attr( $unit->ID ) . '">';
 
 				// Titel
-				echo '<td>' . esc_html( $amount->get_title() ) . '</td>';
+				//echo '<td>' . esc_html( $amount->get_title() ) . '</td>';
+				echo '<td>';
+				echo '<input type="text" 
+                    name="mmm_ingredient_amounts[' . esc_attr( $unit->ID ) . '][title]" 
+                    value="' . esc_attr( $amount->get_title() ) . '" 
+                    class="regular-text">';
+				echo '</td>';
+
+                // Nutzung
+				echo '<td>' . esc_html( $usage_count ) . '</td>';
 
 				// Gewicht als Input-Feld
 				echo '<td>';
-				echo '<input type="number" step="0.01" min="0" name="mmm_ingredient_amounts[' . esc_attr( $unit->ID ) . '][weight]" value="' . esc_attr( $amount->get_weight() ) . '" class="small-text">';
+				echo '<input type="number" step="0.01" min="0" name="mmm_ingredient_amounts['
+					. esc_attr( $unit->ID ) . '][weight]" value="'
+					. esc_attr( $amount->get_weight() )
+					. '" class="small-text">';
 				echo '</td>';
 
-				// Verkaufseinheit Checkbox
+                // Chekbox für Teilbarkeit
 				echo '<td>';
 				echo '<label>';
-				echo '<input type="checkbox" name="mmm_ingredient_amounts[' . esc_attr( $unit->ID ) . '][sale_unit]" value="1" ' . checked( $is_sale_unit, true, false ) . '> ';
+				echo '<input type="checkbox" name="mmm_ingredient_amounts['
+				     . esc_attr( $unit->ID ) . '][indivisible]" value="1" '
+				     . checked( $is_indivisible, true, false ) . '> ';
 				echo esc_html__( 'Yes', 'mixmymeals' );
 				echo '</label>';
 				echo '</td>';
@@ -1079,7 +1934,8 @@ class Mixmymeals_Post_Meta {
 				// Löschen-Checkbox
 				echo '<td>';
 				echo '<label>';
-				echo '<input type="checkbox" name="mmm_ingredient_amounts[' . esc_attr( $unit->ID ) . '][delete]" value="1"> ';
+				echo '<input type="checkbox" name="mmm_ingredient_amounts['
+					. esc_attr( $unit->ID ) . '][delete]" value="1"> ';
 				echo esc_html__( 'Delete', 'mixmymeals' );
 				echo '</label>';
 				echo '</td>';
@@ -1091,13 +1947,18 @@ class Mixmymeals_Post_Meta {
 		// Neue Menge Zeile
 		echo '<tr class="new-ingredient-amount">';
 		echo '<td>';
-		echo '<input type="text" name="mmm_ingredient_amounts[new][title]" placeholder="' . esc_attr__( 'New Amount', 'mixmymeals' ) . '" class="regular-text">';
+		echo '<input type="text" name="mmm_ingredient_amounts[new][title]" placeholder="'
+			. esc_attr__( 'New Amount', 'mixmymeals' )
+			. '" class="regular-text">';
 		echo '</td>';
+        echo '<td>';
+		echo '<em>' . esc_html__( '–', 'mixmymeals' ) . '</em>';
+        echo '</td>';
 		echo '<td>';
 		echo '<input type="number" step="0.01" min="0" name="mmm_ingredient_amounts[new][weight]" value="" class="small-text">';
 		echo '</td>';
 		echo '<td>';
-		echo '<input type="checkbox" name="mmm_ingredient_amounts[new][sale_unit]" value="1"> ';
+		echo '<input type="checkbox" name="mmm_ingredient_amounts[new][indivisible]" value="1"> ';
 		echo esc_html__( 'Yes', 'mixmymeals' );
 		echo '</td>';
 		echo '<td>';
@@ -1111,30 +1972,34 @@ class Mixmymeals_Post_Meta {
 	}
 
 
-
-	function ajax_mixmymeals_get_ingredient_units_handler() {
+	public function ajax_mixmymeals_get_ingredient_units_handler(): void {
 
 		check_ajax_referer( 'mixmymeals_admin_nonce', 'nonce' );
 
 		$ingredient_id = intval( $_POST['ingredient_id'] ?? 0 );
 		if ( ! $ingredient_id ) {
-			wp_send_json_error( [ 'message' => 'Invalid ingredient ID' ] );
+			wp_send_json_error( array( 'message' => 'Invalid ingredient ID' ) );
 		}
 
 		// Hole alle Mengen-Einheiten zu dieser Zutat
-		$amounts = get_posts([
-			'post_type'   => 'mmm_ingr_unit',
-			'post_status' => 'any',
-			'post_parent' => $ingredient_id,
-			'numberposts' => -1,
-			'orderby'     => 'title',
-			'order'       => 'ASC',
-		]);
+		$amounts = get_posts(
+			array(
+				'post_type'   => 'mmm_ingr_unit',
+				'post_status' => 'any',
+				'post_parent' => $ingredient_id,
+				'numberposts' => - 1,
+				'orderby'     => 'title',
+				'order'       => 'ASC',
+			)
+		);
 
 		// Baue Dropdown
 		ob_start();
 		echo '<select class="small-text ingredient-unit-select" name="">';
-		echo '<option value="">' . esc_html__( 'Gramm (Standard)', 'mixmymeals' ) . '</option>';
+		echo '<option value="">' . esc_html__(
+			'Gramm (Standard)',
+			'mixmymeals'
+		) . '</option>';
 
 		foreach ( $amounts as $amt_post ) {
 			$amount_obj = new Mixmymeals_Ingredient_Amount( $amt_post->ID );
@@ -1152,7 +2017,87 @@ class Mixmymeals_Post_Meta {
 		echo '</select>';
 		$html = ob_get_clean();
 
-		wp_send_json_success( [ 'html' => $html ] );
+		wp_send_json_success( array( 'html' => $html ) );
+	}
+
+	public function add_equipment_meta_box(): void {
+		add_meta_box(
+			'mmm_equipment_box',
+			__('Required Equipment', 'mixmymeals'),
+			[$this, 'render_equipment_meta_box_content'], // oder 'mmm_render_equipment_metabox'
+			'mmm_recipe', // dein CPT für Rezepte
+			'side',
+			'default'
+		);
+	}
+
+	public function save_equipment_metabox( int $post_id ): void {
+		if (!isset($_POST['mmm_equipment_nonce']) ||
+		    !wp_verify_nonce($_POST['mmm_equipment_nonce'], 'mmm_equipment_save')) {
+			return;
+		}
+		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+			return;
+		}
+		if (!current_user_can('edit_post', $post_id)) {
+			return;
+		}
+
+		$equipment = isset($_POST['mmm_equipment']) ? array_map('intval', $_POST['mmm_equipment']) : [];
+		//update_post_meta($post_id, '_mmm_equipment', $equipment);
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		$recipe->set_equipment( $_POST['mmm_equipment'] ?? [] );
+	}
+
+	public function render_equipment_meta_box_content( WP_Post $post ): void {
+
+		// Sicherheits-Nonce
+		wp_nonce_field( 'mmm_equipment_save', 'mmm_equipment_nonce' );
+
+		// Bisher gespeicherte IDs abrufen
+		//$saved_equipment = get_post_meta( $post->ID, '_mmm_equipment', true );
+		$recipe = new Mixmymeals_Recipe( $post->ID );
+		//$saved_equipment = get_post_meta( $post->ID, '_mmm_equipment', true );
+		$saved_equipment = $recipe->get_equipment();
+		if ( ! is_array( $saved_equipment ) ) {
+			$saved_equipment = [];
+		}
+
+		// Alle Equipment-Posts laden
+		$equipment = get_posts( [
+			'post_type'      => 'mmm_equipment',
+			'posts_per_page' => -1,
+			'post_status'    => 'publish',
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		] );
+
+		echo '<p>' . esc_html__( 'Select equipment needed for this recipe:', 'mixmymeals' ) . '</p>';
+
+		// Wenn keine Equipment-Posts existieren → Hinweis mit Link
+		if ( empty( $equipment ) ) {
+			$link = admin_url( 'post-new.php?post_type=mmm_equipment' );
+			echo '<p>'
+			     . esc_html__( 'No equipment available yet.', 'mixmymeals' )
+			     . ' <a href="' . esc_url( $link ) . '">'
+			     . esc_html__( 'Create new equipment', 'mixmymeals' )
+			     . '</a></p>';
+			return;
+		}
+
+		echo '<ul style="max-height:200px; overflow:auto;">';
+
+		foreach ( $equipment as $piece_of_equipment ) {
+			$checked = in_array( $piece_of_equipment->ID, $saved_equipment ) ? 'checked' : '';
+			printf(
+				'<li><label><input type="checkbox" name="mmm_equipment[]" value="%d" %s> %s</label></li>',
+				esc_attr( $piece_of_equipment->ID ),
+				$checked,
+				esc_html( get_the_title( $piece_of_equipment ) )
+			);
+		}
+
+		echo '</ul>';
 	}
 
 }

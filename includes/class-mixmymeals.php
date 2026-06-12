@@ -38,14 +38,6 @@ class Mixmymeals {
 	public $settings = null;
 
 	/**
-	 * Admin pages class object
-	 *
-	 * @var     object
-	 * @access  public
-	 */
-	//public $admin_pages = null;
-
-	/**
 	 * The version number.
 	 *
 	 * @var     string
@@ -104,11 +96,10 @@ class Mixmymeals {
 	/**
 	 * Constructor funtion.
 	 *
-	 * @param   string  $file     File constructor.
-	 * @param   string  $version  Plugin version.
+	 * @param   string $file     File constructor.
+	 * @param   string $version  Plugin version.
 	 */
-	public function __construct( string $file = '', string $version = '0.0.1'
-	) {
+	public function __construct( string $file = '', string $version = '0.0.1' ) {
 		$this->_version = $version;
 		$this->_token   = 'mixmymeals';
 
@@ -116,8 +107,14 @@ class Mixmymeals {
 		$this->file       = $file;
 		$this->dir        = dirname( $this->file );
 		$this->assets_dir = trailingslashit( $this->dir ) . 'assets';
-		$this->assets_url = esc_url( trailingslashit( plugins_url( '/assets/',
-			$this->file ) ) );
+		$this->assets_url = esc_url(
+			trailingslashit(
+				plugins_url(
+					'/assets/',
+					$this->file
+				)
+			)
+		);
 
 		$this->script_suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? ''
 			: '.min';
@@ -129,18 +126,14 @@ class Mixmymeals {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
 		// Load admin JS & CSS.
-		add_action( 'admin_enqueue_scripts',
-			array( $this, 'admin_enqueue_scripts' ) );
-		add_action( 'admin_enqueue_scripts',
-			array( $this, 'admin_enqueue_styles' ) );
-
-		// Remove "Private" prefix
-		add_filter( 'private_title_format',
-			array( $this, 'change_private_title_prefix' ) );
-
-		// Hide Admin Bar:
-		add_filter( 'show_admin_bar', array( $this, 'hide_admin_bar' ) );
-		add_action( 'admin_init', array( $this, 'hide_admin_dashboard' ) );
+		add_action(
+			'admin_enqueue_scripts',
+			array( $this, 'admin_enqueue_scripts' )
+		);
+		add_action(
+			'admin_enqueue_scripts',
+			array( $this, 'admin_enqueue_styles' )
+		);
 
 		// Load API for generic admin functions.
 		if ( is_admin() ) {
@@ -151,6 +144,12 @@ class Mixmymeals {
 		$this->load_plugin_textdomain();
 		add_action( 'init', array( $this, 'load_localisation' ), 0 );
 
+		add_action( 'wp_login', function( $user_login, $user ) {
+			$cart = new Mixmymeals_Cart();
+			$cart->merge_guest_cart_into_user( $user->ID );
+		}, 10, 2 );
+
+
 	}
 
 	/**
@@ -160,16 +159,21 @@ class Mixmymeals {
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function load_plugin_textdomain() {
+	public function load_plugin_textdomain(): void {
 		$domain = 'mixmymeals';
 
 		$locale = apply_filters( 'plugin_locale', get_locale(), $domain );
 
-		load_textdomain( $domain,
+		load_textdomain(
+			$domain,
 			WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale
-			. '.mo' );
-		load_plugin_textdomain( $domain, false,
-			dirname( plugin_basename( $this->file ) ) . '/lang/' );
+			. '.mo'
+		);
+		load_plugin_textdomain(
+			$domain,
+			false,
+			dirname( plugin_basename( $this->file ) ) . '/lang/'
+		);
 	}
 
 	/**
@@ -177,15 +181,16 @@ class Mixmymeals {
 	 *
 	 * Ensures only one instance of Mixmymeals is loaded or can be loaded.
 	 *
-	 * @param   string  $file     File instance.
-	 * @param   string  $version  Version parameter.
+	 * @param   string $file     File instance.
+	 * @param   string $version  Version parameter.
 	 *
 	 * @return Object Mixmymeals instance
 	 * @static
 	 */
 	public static function instance(
-		string $file = '', string $version = '0.0.1'
-	) {
+		string $file = '',
+		string $version = '0.0.1'
+	): static {
 		if ( is_null( self::$_instance ) ) {
 			self::$_instance = new self( $file, $version );
 		}
@@ -194,49 +199,58 @@ class Mixmymeals {
 	}
 
 	/**
-	 * Wrapper function to add custom user fields.
-	 *
-	 * @return Mixmymeals_Userfields
-	 */
-	/*
-	public function add_userfields() {
-		return new Mixmymeals_Userfields ();
-	}
-	*/
-
-	/**
 	 * Wrapper function to add post meta boxes.
 	 *
 	 * @return Mixmymeals_Post_Meta
 	 */
-	public function add_post_meta() {
-		return new Mixmymeals_Post_Meta ();
+	public function add_post_meta(): Mixmymeals_Post_Meta {
+		return new Mixmymeals_Post_Meta();
 	}
 
 	/**
-	 * Wrapper function to add custom user roles.
+	 * Instantiates the REST API class (meta registration + custom routes).
 	 *
-	 * @return Mixmymeals_User_Roles
+	 * @return Mixmymeals_Rest_Api
 	 */
-	public function add_user_roles() {
-		return new Mixmymeals_User_Roles ();
+	public function add_rest_api(): Mixmymeals_Rest_Api {
+		return new Mixmymeals_Rest_Api();
 	}
 
+	/**
+	 * Instantiates the cleanup class (WP-Cron based deletion of orphaned
+	 * meals and old uncategorized meal plans).
+	 *
+	 * @return Mixmymeals_Cleanup
+	 */
+	public function add_cleanup(): Mixmymeals_Cleanup {
+		return new Mixmymeals_Cleanup( $this->file );
+	}
 
-	public function add_post_types() {
+	/**
+	 * Instantiates the post types class.
+	 *
+	 * @return Mixmymeals_Post_Types
+	 */
+	public function add_post_types(): Mixmymeals_Post_Types {
 		return new Mixmymeals_Post_Types();
 	}
 
-	public function add_taxonomies() {
+	/**
+	 * Instantiates the taxonomies class.
+	 *
+	 * @return Mixmymeals_Taxonomies
+	 */
+	public function add_taxonomies(): Mixmymeals_Taxonomies {
 		return new Mixmymeals_Taxonomies();
 	}
 
-	public function add_shortcodes() {
+	/**
+	 * Instantiates the shortcodes class.
+	 *
+	 * @return Mixmymeals_Shortcodes
+	 */
+	public function add_shortcodes(): Mixmymeals_Shortcodes {
 		return new Mixmymeals_Shortcodes();
-	}
-
-	public function integrate_elementor() {
-		return new Mixmymeals_Elementor_Integration();
 	}
 
 	/**
@@ -246,13 +260,32 @@ class Mixmymeals {
 	 * @return void
 	 * @since   1.0.0
 	 */
-	public function enqueue_styles() {
+	public function enqueue_styles(): void {
 
-		wp_register_style( $this->_token . '-frontend',
-			esc_url( $this->assets_url ) . 'css/frontend.css', array(),
-			$this->_version );
+		wp_register_style(
+			$this->_token . '-frontend',
+			esc_url( $this->assets_url ) . 'css/frontend.css',
+			array(),
+			$this->_version
+		);
 		wp_enqueue_style( $this->_token . '-frontend' );
 
+		// Essensplan-Redesign: Design-System + Schriften nur auf der
+		// Plan-Detailansicht laden.
+		if ( is_singular( 'mmm_meal_plan' ) ) {
+			wp_enqueue_style(
+				$this->_token . '-plan-fonts',
+				'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap',
+				array(),
+				null // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+			);
+			wp_enqueue_style(
+				$this->_token . '-plan-system',
+				esc_url( $this->assets_url ) . 'css/system.css',
+				array( $this->_token . '-frontend' ),
+				$this->_version
+			);
+		}
 	}
 
 	/**
@@ -262,39 +295,72 @@ class Mixmymeals {
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function enqueue_scripts() {
-		wp_register_script( $this->_token . '-frontend',
+	public function enqueue_scripts(): void {
+
+		wp_register_script(
+			$this->_token . '-frontend',
 			esc_url( $this->assets_url ) . 'js/frontend' . $this->script_suffix
-			. '.js', array( 'jquery' ), $this->_version, true );
+			. '.js',
+			array( 'jquery' ),
+			$this->_version,
+			array( 'in_footer' => true )
+		);
 		wp_enqueue_script( $this->_token . '-frontend' );
 
-		/*
 		wp_localize_script( $this->_token . '-frontend', 'mixmymeals',
 			array(
-				'ajaxurl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'mixmymeals-likes-ajax-nonce' ),
+				'ajax_url'               => admin_url( 'admin-ajax.php' ),
+				'nonce'                  => wp_create_nonce( 'mmm_frontend_nonce' ),
+				'confirm_load_into_cart' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),
+				'planner_dialog'         => array(
+					'title'    => __( 'Plan this recipe as a meal', 'mixmymeals' ),
+					'servings' => __( 'Servings', 'mixmymeals' ),
+					'type'     => __( 'Meal type', 'mixmymeals' ),
+					'day'      => __( 'Day', 'mixmymeals' ),
+					'no_type'  => __( 'No type', 'mixmymeals' ),
+					'no_day'   => __( 'No day', 'mixmymeals' ),
+					'submit'   => __( 'Add to Planner', 'mixmymeals' ),
+					'cancel'   => __( 'Cancel', 'mixmymeals' ),
+					'types'    => Mixmymeals_Meal::get_plaintext_meal_type_map(),
+					'days'     => array(
+						1 => __( 'Monday', 'mixmymeals' ),
+						2 => __( 'Tuesday', 'mixmymeals' ),
+						3 => __( 'Wednesday', 'mixmymeals' ),
+						4 => __( 'Thursday', 'mixmymeals' ),
+						5 => __( 'Friday', 'mixmymeals' ),
+						6 => __( 'Saturday', 'mixmymeals' ),
+						7 => __( 'Sunday', 'mixmymeals' ),
+					),
+				),
+				'cook_mode'              => array(
+					/* translators: %1$s: current step number, %2$s: total number of steps */
+					'step_of' => __( 'Step %1$s of %2$s', 'mixmymeals' ),
+					'exit'    => __( 'Exit', 'mixmymeals' ),
+					'prev'    => __( 'Back', 'mixmymeals' ),
+					'next'    => __( 'Next', 'mixmymeals' ),
+					'done'    => __( 'Done', 'mixmymeals' ),
+				),
 			)
 		);
-		*/
 
 	}
 
 	/**
 	 * Admin enqueue style.
 	 *
-	 * @param   string  $hook  Hook parameter.
+	 * @param   string $hook  Hook parameter.
 	 *
 	 * @return void
 	 */
-	public function admin_enqueue_styles( string $hook = '' ) {
+	public function admin_enqueue_styles( string $hook = '' ): void {
 
-		//wp_enqueue_style( 'wp-color-picker' );
-
-		wp_register_style( $this->_token . '-admin',
-			esc_url( $this->assets_url ) . 'css/admin.css', array(),
-			$this->_version );
+		wp_register_style(
+			$this->_token . '-admin',
+			esc_url( $this->assets_url ) . 'css/admin.css',
+			array(),
+			$this->_version
+		);
 		wp_enqueue_style( $this->_token . '-admin' );
-
 	}
 
 	/**
@@ -302,105 +368,58 @@ class Mixmymeals {
 	 *
 	 * @access  public
 	 *
-	 * @param   string  $hook  Hook parameter.
+	 * @param   string $hook  Hook parameter.
 	 *
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function admin_enqueue_scripts( string $hook = '' ) {
-		//wp_enqueue_media();
+	public function admin_enqueue_scripts( string $hook = '' ): void {
+		wp_enqueue_media();
 		global $post;
 
-		wp_register_script( $this->_token . '-admin',
+		wp_register_script(
+			$this->_token . '-admin',
 			esc_url( $this->assets_url ) . 'js/admin' . $this->script_suffix
-			. '.js', array( 'jquery' ), $this->_version, true );
-		wp_enqueue_script( $this->_token . '-admin' );
-
-		/*
-		wp_localize_script( $this->_token . '-admin', 'kleingarten_admin',
-			array(
-				'ajaxurl'                         => admin_url( 'admin-ajax.php' ),
-				'nonce'                           => wp_create_nonce( 'kleingarten-admin-ajax-nonce' ),
-				'trans_active'                    => esc_html( __( 'Active',
-					'mixmymeals' ) ),
-				'trans_deactivate'                => esc_html( __( 'Deactivate',
-					'mixmymeals' ) ),
-				'trans_delete'                    => esc_html( __( 'Delete',
-					'mixmymeals' ) ),
-				'trans_token'                     => esc_html( __( 'Token',
-					'mixmymeals' ) ),
-				'trans_status'                    => esc_html( __( 'Status',
-					'mixmymeals' ) ),
-				'trans_action'                    => esc_html( __( 'Action',
-					'mixmymeals' ) ),
-				'trans_remove'                    => esc_html( __( 'Remove',
-					'mixmymeals' ) ),
-				'trans_eg_water'                  => esc_html( __( 'e.g. Water',
-					'mixmymeals' ) ),
-				'trans_eg_l'                      => esc_html( __( 'e.g. l',
-					'mixmymeals' ) ),
-				'trans_eg_245'                    => esc_html( __( 'e.g. 2.45',
-					'mixmymeals' ) ),
-				'trans_eg_at_least_one_row'       => esc_html( __( 'There must be at least one row.',
-					'mixmymeals' ) ),
-				'trans_all_plots'                 => esc_html( __( 'All Plots',
-					'mixmymeals' ) ),
-				'trans_individual_plots'          => esc_html( __( 'Individual Plots',
-					'mixmymeals' ) ),
-				'trans_all_gardeners'             => esc_html( __( 'All gardeners',
-					'mixmymeals' ) ),
-				'trans_individual_gardeners'      => esc_html( __( 'Individual members',
-					'mixmymeals' ) ),
-				'trans_eg_m3'                     => esc_html( __( 'e.g. m3',
-					'mixmymeals' ) ),
-				'trans_eg_150'                    => esc_html( __( 'e.g. 150',
-					'mixmymeals' ) ),
-				'trans_eg_123456'                 => esc_html( __( 'e.g. 123456',
-					'mixmymeals' ) ),
-				'trans_error_on_loading_item_row' => esc_html( __( 'Could not load items. Reloading page might help.',
-					'mixmymeals' ) ),
-			)
+			. '.js',
+			array( 'jquery' ),
+			$this->_version,
+			array( 'in_footer' => true )
 		);
-		*/
-
-		/*
-		wp_enqueue_script( $this->_token . '-admin-color-picker',
-			esc_url( $this->assets_url ) . 'js/' . 'colorpicker.min.js',
-			array( 'wp-color-picker' ), $this->_version, true );
-		*/
+		wp_enqueue_script( $this->_token . '-admin' );
 
 		wp_localize_script(
 			'mixmymeals-admin',
 			'mixmymealsAdmin',
 			array(
-				'ajaxurl' => admin_url('admin-ajax.php'),
-				'nonce'   => wp_create_nonce('mixmymeals_admin_nonce'),
+				'ajaxurl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'mixmymeals_admin_nonce' ),
 			)
 		);
-
 
 		wp_localize_script(
 			'mixmymeals-admin',
 			'mixmymealsRecipes',
-			array_map( function( $r ) {
-				return array( 'ID' => $r->ID, 'post_title' => $r->post_title );
-			}, Mixmymeals_Recipe::get_all_recipes()
+			array_map(
+				function ( $r ) {
+					return array(
+						'ID'         => $r->ID,
+						'post_title' => $r->post_title,
+					);
+				},
+				Mixmymeals_Recipe::get_all_recipes()
 			)
 		);
 
-
 		wp_localize_script(
 			'mixmymeals-admin',
-			'MixMyMealsAmounts', [
-				'ajaxurl'        => admin_url( 'admin-ajax.php' ),
-				'addNonce'       => wp_create_nonce( 'mixmymeals_add_ingr_amount' ),
-				'deleteNonce'    => wp_create_nonce( 'mixmymeals_delete_ingr_amount' ),
-				'confirmDelete'  => __( 'Delete?', 'mixmymeals' ),
-			]
+			'MixMyMealsAmounts',
+			array(
+				'ajaxurl'       => admin_url( 'admin-ajax.php' ),
+				'addNonce'      => wp_create_nonce( 'mixmymeals_add_ingr_amount' ),
+				'deleteNonce'   => wp_create_nonce( 'mixmymeals_delete_ingr_amount' ),
+				'confirmDelete' => __( 'Delete?', 'mixmymeals' ),
+			)
 		);
-
-		// ATTENTION: DO NOT RENAME "mixmymeals_daily_recipes" UNLESS YOU RENAMED THE OPTION in class-mixmymeals-admin-api.php!!!
-		//wp_localize_script( 'mixmymeals-admin', 'mmm_recipe_selection_option_name', 'mixmymeals_daily_recipes' );
 
 	}
 
@@ -410,30 +429,44 @@ class Mixmymeals {
 	 * @access  public
 	 * @return  void
 	 */
-	public function load_localisation() {
-		load_plugin_textdomain( 'mixmymeals', false,
-			dirname( plugin_basename( $this->file ) ) . '/lang/' );
+	public function load_localisation(): void {
+		load_plugin_textdomain(
+			'mixmymeals',
+			false,
+			dirname( plugin_basename( $this->file ) ) . '/lang/'
+		);
 	}
 
 	/**
 	 * Cloning is forbidden.
-	 *
 	 */
-	public function __clone() {
-		_doing_it_wrong( __FUNCTION__,
-			esc_html( __( 'Cloning of MixMyMeals is forbidden',
-				'mixmymeals' ) ), esc_attr( $this->_version ) );
-
+	public function __clone(): void {
+		_doing_it_wrong(
+			__FUNCTION__,
+			esc_html(
+				__(
+					'Cloning of MixMyMeals is forbidden',
+					'mixmymeals'
+				)
+			),
+			esc_attr( $this->_version )
+		);
 	}
 
 	/**
 	 * Unserializing instances of this class is forbidden.
-	 *
 	 */
-	public function __wakeup() {
-		_doing_it_wrong( __FUNCTION__,
-			esc_html( __( 'Unserializing instances of MixMyMeals is forbidden',
-				'mixmymeals' ) ), esc_attr( $this->_version ) );
+	public function __wakeup(): void {
+		_doing_it_wrong(
+			__FUNCTION__,
+			esc_html(
+				__(
+					'Unserializing instances of MixMyMeals is forbidden',
+					'mixmymeals'
+				)
+			),
+			esc_attr( $this->_version )
+		);
 	}
 
 	/**
@@ -443,7 +476,7 @@ class Mixmymeals {
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function install() {
+	public function install(): void {
 		$this->_log_version_number();
 	}
 
@@ -453,19 +486,8 @@ class Mixmymeals {
 	 * @access  public
 	 * @return  void
 	 */
-	private function _log_version_number() { //phpcs:ignore
+	private function _log_version_number(): void { //phpcs:ignore
 		update_option( $this->_token . '_version', $this->_version );
-	}
-
-	/**
-	 * Change "Private" prefix
-	 *
-	 * @access  public
-	 * @return  string Custom prefix
-	 */
-	public function change_private_title_prefix() {
-		// translators: Post title
-		return __( 'For members only: %s', 'mixmymeals' );
 	}
 
 	/**
@@ -474,11 +496,11 @@ class Mixmymeals {
 	 * @access  public
 	 * @return  bool
 	 */
-	public function hide_admin_bar() {
+	public function hide_admin_bar(): bool {
 
 		// Hide admin bar for specific roles.
 		// Native WordPress roles will still be shown the bar.
-		$roles = [ 'kleingarten_pending', 'kleingarten_allotment_gardener' ];
+		$roles = array( 'mixmymeals_meal_mixer', 'mixmymeals_pending_meal_mixer' );
 
 		$response = false;
 
@@ -490,7 +512,6 @@ class Mixmymeals {
 			if ( ! $isMatching ) {
 				$response = true;
 			}
-
 		}
 
 		return $response;
@@ -503,15 +524,17 @@ class Mixmymeals {
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function hide_admin_dashboard() {
+	public function hide_admin_dashboard(): void {
 
 		if ( is_admin() && ! current_user_can( 'administrator' )
-		     // Calling admin page but being no admin?
-		     && ! ( defined( 'DOING_AJAX' ) && DOING_AJAX )
-		     // Not doing AJAX stuff?
-		     && isset( $_SERVER['PHP_SELF'] )
-		     && ! str_contains( sanitize_urL( wp_unslash( $_SERVER['PHP_SELF'] ) ),
-				'admin-post.php' )     // Not just using admin-post.php for form processing?
+			// Calling admin page but being no admin?
+			&& ! ( defined( 'DOING_AJAX' ) && DOING_AJAX )
+			// Not doing AJAX stuff?
+			&& isset( $_SERVER['PHP_SELF'] )
+			&& ! str_contains(
+				sanitize_urL( wp_unslash( $_SERVER['PHP_SELF'] ) ),
+				'admin-post.php'
+			)     // Not just using admin-post.php for form processing?
 		) {
 
 			// Then redirect to homepage. /wp-admin is not the right place for you.
@@ -520,5 +543,6 @@ class Mixmymeals {
 		}
 
 	}
+
 
 }

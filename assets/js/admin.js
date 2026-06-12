@@ -1,11 +1,39 @@
 jQuery(document).ready(function ($) {
-    console.log("mixmymeals admin.js initialized");
-
     /* ===========================
        GLOBAL AJAX SETTINGS
     ============================ */
     const ajaxUrl = window.mixmymealsAdmin?.ajaxurl || window.ajaxurl || '/wp-admin/admin-ajax.php';
     const ajaxNonce = window.mixmymealsAdmin?.nonce || '';
+
+    /* ===========================
+       DYNAMIC MEAL DATE SELECTION
+       — dependent on selected Meal Plan
+    ============================ */
+    const $mealPlanSelect = $("#mmm_parent_id");
+    const $mealDateInput = $("#meal_date");
+
+    const updateMealDateLimits = () => {
+        const $selected = $mealPlanSelect.find("option:selected");
+        const start = $selected.data("start");
+        const end = $selected.data("end");
+
+        if (start && end) {
+            $mealDateInput.attr("min", start).attr("max", end);
+
+            // Aktuelles Datum validieren
+            const currentDate = $mealDateInput.val();
+            if (currentDate < start || currentDate > end) {
+                $mealDateInput.val(start);
+            }
+        } else {
+            $mealDateInput.removeAttr("min").removeAttr("max");
+        }
+    };
+
+    // Initial setzen
+    updateMealDateLimits();
+    // Bei Änderung des Meal Plans
+    $mealPlanSelect.on("change", updateMealDateLimits);
 
     /* ===========================
        CALORIE CALCULATION
@@ -93,7 +121,9 @@ jQuery(document).ready(function ($) {
 
         $clone.find("input, textarea, select").each(function () {
             const name = $(this).attr("name");
-            if (name) $(this).attr("name", name.replace(/\d+/, index));
+            //if (name) $(this).attr("name", name.replace(/\d+/, index));
+            if (name) $(this).attr("name", name.replace(/mmm_recipe_steps\[\d+\]/, `mmm_recipe_steps[${index}]`));
+
         });
     };
 
@@ -109,7 +139,7 @@ jQuery(document).ready(function ($) {
         if ($rows.length > 0) resetStepFields($clone, newIndex);
         $container.append($clone);
 
-        updateShoppingList();
+        showShoppingListSaveNotice();
     });
 
     $(document).on("click", ".mixmymeals-delete-step", function (e) {
@@ -125,12 +155,68 @@ jQuery(document).ready(function ($) {
             });
         });
 
-        updateShoppingList();
+        showShoppingListSaveNotice();
     });
 
     /* ===========================
        INGREDIENT HANDLING
     ============================ */
+    /* ===========================
+   DRAG & DROP SORTING (STEPS)
+=========================== */
+
+    const $stepsContainer = $(".mixmymeals-recipe-steps");
+
+    if ($stepsContainer.length) {
+        $stepsContainer.sortable({
+            handle: "h3",
+            placeholder: "mixmymeals-step-placeholder",
+            items: "> .mixmymeals-step-row",
+            tolerance: "pointer",
+            update: function () {
+                reindexSteps();
+                showShoppingListSaveNotice();
+            }
+        });
+    }
+
+    /* Reindex nach Sortierung */
+    function reindexSteps() {
+        $stepsContainer.find(".mixmymeals-step-row").each(function (stepIndex) {
+
+            const $step = $(this);
+
+            // Step Nummer im Titel
+            $step.find("h3").text("Step " + (stepIndex + 1));
+
+            // data-step setzen
+            $step.attr("data-step", stepIndex);
+
+            // ALLE Felder updaten (inkl. Ingredients!)
+            $step.find("input, textarea, select").each(function () {
+                let name = $(this).attr("name");
+                if (!name) return;
+
+                // Nur den ersten Index ersetzen (Step Index)
+                name = name.replace(/mmm_recipe_steps\[\d+\]/, `mmm_recipe_steps[${stepIndex}]`);
+
+                $(this).attr("name", name);
+            });
+
+            // Ingredients neu indexieren (wichtig!)
+            $step.find(".mixmymeals-step-ingredient").each(function (ingredientIndex) {
+                $(this).find("input, select").each(function () {
+                    let name = $(this).attr("name");
+                    if (!name) return;
+
+                    name = name.replace(/\[ingredients\]\[\d+\]/, `[ingredients][${ingredientIndex}]`);
+                    $(this).attr("name", name);
+                });
+            });
+
+        });
+    }
+
     $(document).on("click", ".mixmymeals-add-ingredient", function () {
         const $step = $(this).closest(".mixmymeals-step-row");
         const $container = $step.find(".mixmymeals-step-ingredients");
@@ -139,60 +225,32 @@ jQuery(document).ready(function ($) {
         const stepIndex = $step.data("step");
         const ingredientIndex = $container.find(".mixmymeals-step-ingredient").length;
 
-        $template.find("select").attr(
-            "name",
-            `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`
-        );
-        $template.find("input").attr(
-            "name",
-            `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount]`
-        );
+        $template.find("select")
+            .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`)
+            .addClass("ingredient-select");
+
+        $template.find("input")
+            .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount]`);
 
         $container.append($template);
-        updateShoppingList();
+        showShoppingListSaveNotice();
     });
 
     $(document).on("click", ".mixmymeals-remove-ingredient", function () {
         $(this).closest(".mixmymeals-step-ingredient").remove();
-        updateShoppingList();
+        showShoppingListSaveNotice();
     });
 
     /* ===========================
-       LIVE SHOPPING LIST UPDATE
+       DYNAMIC UNIT SELECT (AMOUNTS)
     ============================ */
-    const updateShoppingList = () => {
-        const steps = [];
+    $(document).on("change", ".mixmymeals-step-ingredient select.ingredient-select", function () {
+        const $ingredientSelect = $(this);
+        const ingredientId = $ingredientSelect.val();
+        const $container = $ingredientSelect.closest(".mixmymeals-step-ingredient");
 
-        $(".mixmymeals-step-row").each(function () {
-            const $step = $(this);
-            const stepData = {
-                title: $step.find("input[name*='[title]']").val() || "",
-                description: $step.find("textarea[name*='[description]']").val() || "",
-                ingredients: [],
-            };
-
-            $step.find(".mixmymeals-step-ingredient").each(function () {
-                const $ing = $(this);
-                const id = $ing.find("select").val();
-                const amount = $ing.find("input").val();
-                if (id && amount) {
-                    stepData.ingredients.push({ id, amount });
-                }
-            });
-
-            if (
-                stepData.title ||
-                stepData.description ||
-                stepData.ingredients.length > 0
-            ) {
-                steps.push(stepData);
-            }
-        });
-
-        if (!steps.length) {
-            $("#mixmymeals-shopping-list-container").html(
-                "<p>No ingredients selected.</p>"
-            );
+        if (!ingredientId) {
+            $container.find(".ingredient-unit-select").remove();
             return;
         }
 
@@ -200,38 +258,138 @@ jQuery(document).ready(function ($) {
             url: ajaxUrl,
             method: "POST",
             data: {
-                action: "mixmymeals_update_shopping_list",
+                action: "mixmymeals_get_ingredient_units",
                 nonce: ajaxNonce,
-                steps,
-            },
-            beforeSend: function () {
-                $("#mixmymeals-shopping-list-container").html(
-                    "<p>Updating shopping list...</p>"
-                );
+                ingredient_id: ingredientId
             },
             success: function (response) {
                 if (response.success && response.data.html) {
-                    $("#mixmymeals-shopping-list-container").html(response.data.html);
+                    $container.find(".ingredient-unit-select").remove();
+                    const $unitSelect = $(response.data.html).insertAfter($container.find("input.small-text"));
+
+                    const $stepRow = $container.closest(".mixmymeals-step-row");
+                    const stepIndex = $stepRow.data("step");
+                    const ingredientIndex = $container.index();
+                    $unitSelect.attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount_id]`)
+                        .addClass("ingredient-unit-select");
                 } else {
-                    console.error("Shopping list update failed:", response);
-                    $("#mixmymeals-shopping-list-container").html(
-                        "<p>Could not update shopping list.</p>"
-                    );
+                    console.warn("No units found for ingredient", ingredientId);
                 }
             },
             error: function (xhr, status, error) {
-                console.error("AJAX error:", status, error, xhr.responseText);
-                $("#mixmymeals-shopping-list-container").html(
-                    "<p>Error loading shopping list.</p>"
-                );
-            },
+                console.error("Error loading units:", error, xhr.responseText);
+            }
         });
+    });
+
+    /* ===========================
+       SHOPPING LIST NOTICE
+    ============================ */
+    const showShoppingListSaveNotice = () => {
+        const $container = $("#mixmymeals-shopping-list-container");
+        $container.html('<p><em>Bitte speichern, um die Einkaufsliste zu aktualisieren.</em></p>');
     };
 
-    // Trigger Updates when ingredient values change
     $(document).on(
         "input change",
-        ".mixmymeals-step-ingredient select, .mixmymeals-step-ingredient input",
-        updateShoppingList
+        ".mixmymeals-step-ingredient select, .mixmymeals-step-ingredient input, #_mmm_servings",
+        showShoppingListSaveNotice
     );
+
+    /* ===========================
+       DAILY RECIPES – FLEXIBLE MEALS PER DAY
+    ============================ */
+    $(document).on("click", ".mixmymeals-add-meal", function (e) {
+        e.preventDefault();
+        const $day = $(this).closest(".mixmymeals-day");
+        const $mealsContainer = $day.find(".mixmymeals-meals");
+
+        const year = $day.data("year");
+        const month = $day.data("month");
+        const day = $day.data("day");
+        const mealIndex = $mealsContainer.find(".mixmymeals-meal").length;
+
+        const $mealRow = $(`
+            <div class="mixmymeals-meal">
+                <select class="mixmymeals-recipe-select" name="${window.mixmymeals_option_name}[${year}][${month}][${day}][${mealIndex}][recipe_id]">
+                    <option value="">— Select Recipe —</option>
+                </select>
+                <input type="number" min="1" step="1" placeholder="Portions" class="mixmymeals-portions-input"
+                    name="${window.mixmymeals_option_name}[${year}][${month}][${day}][${mealIndex}][portions]" />
+                <button type="button" class="button mixmymeals-remove-meal">×</button>
+            </div>
+        `);
+
+        if (window.mixmymealsRecipes && Array.isArray(window.mixmymealsRecipes)) {
+            window.mixmymealsRecipes.forEach(r => {
+                $mealRow.find("select").append($("<option>", { value: r.ID, text: r.post_title }));
+            });
+        }
+
+        $mealsContainer.append($mealRow);
+    });
+
+    $(document).on("click", ".mixmymeals-remove-meal", function (e) {
+        e.preventDefault();
+        $(this).closest(".mixmymeals-meal").remove();
+    });
+
+    /* ===========================
+    SHOPPING LIST HANDLING
+    — ausgeblendet bei Änderungen
+    ============================ */
+    const $shoppingListContainer = $("#mixmymeals-shopping-list-container");
+
+    // Funktion zum Verstecken & Hinweis anzeigen
+    const hideShoppingListOnChange = () => {
+        if ($shoppingListContainer.length) {
+            $shoppingListContainer
+                .html('<p><em>Bitte speichern, um die Einkaufsliste zu aktualisieren.</em></p>')
+                .css({
+                    opacity: 0.7,
+                    fontStyle: "italic"
+                });
+        }
+    };
+
+    // Auf Änderungen an Zutaten, Einheiten, Mengen oder Portionen reagieren
+    $(document).on(
+        "input change",
+        ".mixmymeals-step-ingredient select, .mixmymeals-step-ingredient input, #mmm_servings",
+        hideShoppingListOnChange
+    );
+
+    /* ===========================
+    MEDIA SELECTOR HANDLING
+    ============================ */
+    $('.select-media-button').on('click', function (e) {
+        e.preventDefault();
+
+        const targetField = $('#' + $(this).data('target'));
+
+        // Create a new frame for each click
+        const mediaFrame = wp.media({
+            title: 'Bild auswählen',
+            button: { text: 'Übernehmen' },
+            multiple: false
+        });
+
+        mediaFrame.on('select', function () {
+            const attachment = mediaFrame.state().get('selection').first().toJSON();
+
+            // Write ID into hidden field
+            targetField.val(attachment.id);
+
+            // Replace preview
+            const wrapper = targetField.closest('.media-field-wrapper');
+            wrapper.find('.media-preview').remove();
+
+            wrapper.prepend(
+                '<img src="' + attachment.sizes.thumbnail.url + '" class="media-preview" style="max-width:120px; display:block; margin-bottom:10px;" />'
+            );
+        });
+
+        mediaFrame.open();
+    });
+
 });

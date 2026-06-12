@@ -4,21 +4,7 @@
 
 /* === Overall Layout ====================================================== */
 
-.mixmymeals-daily-recipes {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
 /* Year Container */
-.mixmymeals-year {
-    background: #fff;
-    border: 1px solid #dcdcde;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    padding: 16px 20px;
-}
 
 .mixmymeals-year > h3 {
     font-size: 15px;
@@ -30,14 +16,6 @@
 }
 
 /* === Collapsible Month Styling ========================================== */
-
-.mixmymeals-month {
-    margin-top: 10px;
-    border: 1px solid #e1e1e1;
-    border-radius: 6px;
-    background: #f9fafb;
-    overflow: hidden;
-}
 
 .mixmymeals-month summary {
     cursor: pointer;
@@ -76,31 +54,7 @@
 
 /* === Compact Calendar Grid ============================================== */
 
-.mixmymeals-month-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 8px;
-    padding: 10px;
-    background: #fff;
-}
-
 /* === Day Card ============================================================ */
-
-.mixmymeals-day {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 6px 8px;
-    font-size: 12px;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.03);
-    transition: all 0.15s ease;
-}
-
-.mixmymeals-day:hover {
-    border-color: #bcd8f2;
-    box-shadow: 0 2px 4px rgba(34,113,177,0.1);
-    background: #f7fbff;
-}
 
 .mixmymeals-day h5 {
     margin: 0 0 4px;
@@ -110,12 +64,6 @@
 }
 
 /* === Meals within a Day ================================================== */
-
-.mixmymeals-meals {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
 
 .mixmymeals-meal {
     display: flex;
@@ -157,13 +105,6 @@
 
 /* === Portions Field ====================================================== */
 
-.mixmymeals-portions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 2px;
-}
-
 .mixmymeals-portions label {
     font-size: 11px;
     color: #666;
@@ -190,9 +131,6 @@
 /* === Responsive Adjustments ============================================= */
 
 @media (max-width: 782px) {
-    .mixmymeals-month-content {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    }
 
     .mixmymeals-meal select,
     .mixmymeals-portions input[type="number"] {
@@ -224,11 +162,6 @@
 .mixmymeals-meta-table input[type="number"] {
     width: 90px;
     padding: 3px 6px;
-}
-
-.mixmymeals-meta-table .unit {
-    color: #777;
-    margin-left: 4px;
 }
 
 .mixmymeals-section-title {
@@ -266,3 +199,194 @@
 .mixmymeals-meta-table tbody tr:hover {
     background-color: #fffbea;
 }
+
+/* ==========================================================================
+   MixMyMeals – Recipe Steps Meta Box (WP Admin Style)
+   ========================================================================== */
+
+.mixmymeals-recipe-meta {
+    margin-top: 10px;
+}
+
+/* === Servings Field ===================================================== */
+
+.mixmymeals-servings-field label {
+    display: inline-block;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.mixmymeals-servings-field input[type="number"] {
+    width: 80px;
+    text-align: right;
+}
+
+/* === Step Container ===================================================== */
+
+.mixmymeals-step-row {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+}
+
+.mixmymeals-step-row h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+/* === Inputs ============================================================= */
+
+.mixmymeals-step-row label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2c3338;
+}
+
+.mixmymeals-step-row input[type="text"],
+.mixmymeals-step-row textarea,
+.mixmymeals-step-row select {
+    width: 100%;
+    margin-top: 3px;
+}
+
+/* === Ingredients ======================================================== */
+
+.mixmymeals-step-ingredients-wrapper {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f6f7f7;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.mixmymeals-step-ingredients {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Single ingredient row */
+.mixmymeals-step-ingredient {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.mixmymeals-step-ingredient select.widefat {
+    flex: 1;
+    min-width: 180px;
+}
+
+.mixmymeals-step-ingredient input.small-text {
+    width: 80px;
+    text-align: right;
+}
+
+.mixmymeals-step-ingredient .ingredient-unit-select {
+    width: 130px;
+}
+
+/* Buttons */
+.mixmymeals-step-ingredient .button {
+    flex-shrink: 0;
+}
+
+/* Add Ingredient Button */
+.mixmymeals-add-ingredient {
+    margin-top: 8px;
+}
+
+/* === Image Section ====================================================== */
+
+.mixmymeals-step-image {
+    margin-top: 12px;
+}
+
+.mixmymeals-step-image img {
+    display: block;
+    margin-bottom: 6px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    background: #fff;
+}
+
+/* === Step Actions ======================================================= */
+
+.mixmymeals-step-actions {
+    margin-top: 10px;
+}
+
+.mixmymeals-delete-step {
+    color: #b32d2e;
+    text-decoration: none;
+}
+
+.mixmymeals-delete-step:hover {
+    color: #8a2424;
+    text-decoration: underline;
+}
+
+/* === Divider ============================================================ */
+
+.mixmymeals-step-row hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin-top: 12px;
+}
+
+/* === Add Step Button ==================================================== */
+
+#mixmymeals-add-step {
+    margin-top: 8px;
+}
+
+/* === Responsive ========================================================= */
+
+@media (max-width: 782px) {
+
+    .mixmymeals-step-ingredient {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mixmymeals-step-ingredient input.small-text,
+    .mixmymeals-step-ingredient .ingredient-unit-select {
+        width: 100%;
+    }
+}
+
+.mixmymeals-step-placeholder {
+    border: 2px dashed #2271b1;
+    background: #f0f6fc;
+    height: 80px;
+    margin-bottom: 14px;
+    border-radius: 6px;
+}
+
+.mixmymeals-meta-table input[type="text"] {
+    width: 100%;
+    max-width: 220px;
+}
+
+/* === Diet Type Meta Box ================================================= */
+
+#mmm_diet_type {
+    border-radius: 3px;
+    border: 1px solid #ccd0d4;
+    padding: 4px 6px;
+    font-size: 13px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#mmm_diet_type:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+

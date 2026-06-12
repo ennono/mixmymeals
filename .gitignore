@@ -5,14 +5,18 @@
 
 # Ignore compiled files
 *.class
-*.php~  # temporäre Dateien von manchen Editoren
+# temporäre Dateien von manchen Editoren
+*.php~
 
 # === Composer ===
-/vendor/               # Composer-Abhängigkeiten
-composer.lock          # Optional, wenn du keine festen Versionen tracken willst
+# Composer-Abhängigkeiten
+/vendor/
+# Optional, wenn du keine festen Versionen tracken willst
+composer.lock
 
 # === PhpStorm ===
-.idea/                 # PhpStorm-Projektdateien
+# PhpStorm-Projektdateien
+.idea/
 workspace.xml
 
 # === macOS-Systemdateien ===
@@ -33,3 +37,6 @@ workspace.xml
 
 # === Coverage Reports ===
 /coverage/
+
+# === WP-CLI Binary ===
+wp-cli.phar

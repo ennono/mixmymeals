@@ -1,0 +1,447 @@
+{
+  "plugin": "MixMyMeals",
+  "version": "1.4.3",
+  "text_domain": "mixmymeals",
+  "description": "Datenmodell des MixMyMeals WordPress-Plugins: Post Types, Meta-Felder, Taxonomien und Beziehungen.",
+
+  "post_types": {
+    "mmm_recipe": {
+      "label": "Recipe",
+      "class": "Mixmymeals_Recipe",
+      "public": true,
+      "has_archive": true,
+      "slug_option": "mixmymeals_recipe_slug",
+      "supports": ["title", "editor", "thumbnail", "excerpt"],
+      "meta": {
+        "_rmm_steps": {
+          "type": "array (serialized)",
+          "description": "Alle Rezept-Schritte als serialisiertes PHP-Array.",
+          "structure": {
+            "each_step": {
+              "title": "string",
+              "description": "string",
+              "image": "int (attachment ID, 0 wenn kein Bild)",
+              "ingredients": {
+                "each_ingredient": {
+                  "id": "int — Post-ID des mmm_ingredient",
+                  "amount": "float — Menge in Einheit (nicht Gramm)",
+                  "amount_id": "int — Post-ID der mmm_ingr_unit (0 = Gramm direkt)"
+                }
+              }
+            }
+          }
+        },
+        "_mmm_servings": {
+          "type": "float",
+          "description": "Anzahl der Portionen für das Rezept (min. 1).",
+          "getter": "get_servings()",
+          "setter": "set_servings(float)"
+        },
+        "_mmm_preparation_time": {
+          "type": "int",
+          "description": "Zubereitungszeit in Minuten.",
+          "getter": "get_preparation_time()",
+          "setter": "set_preparation_time($minutes)"
+        },
+        "_mmm_equipment": {
+          "type": "array (int[])",
+          "description": "Array von Post-IDs der zugehörigen mmm_equipment-Posts.",
+          "getter": "get_equipment()",
+          "setter": "set_equipment(array $ids)"
+        }
+      },
+      "taxonomies": ["mmm_recipe_category", "mmm_recipe_tag"],
+      "computed": {
+        "nutrition_per_serving": "calculate_nutrition_per_serving() — keys: calories, fat, carbs, protein, sugar, fiber, salt",
+        "nutrition_per_100g": "calculate_nutrition_per_100g()",
+        "cost_per_serving": "calculate_cost_per_serving()",
+        "diet_type": "get_diet_type() — 'vegan', 'vegetarian' oder '' (abgeleitet aus Zutaten)"
+      }
+    },
+
+    "mmm_ingredient": {
+      "label": "Ingredient",
+      "class": "Mixmymeals_Ingredient",
+      "public": false,
+      "publicly_queryable": false,
+      "has_archive": false,
+      "supports": ["title", "editor", "thumbnail"],
+      "meta": {
+        "_rmm_calories_100": {
+          "type": "float",
+          "description": "Kalorien pro 100 g."
+        },
+        "_rmm_fat": {
+          "type": "float",
+          "description": "Fett pro 100 g in Gramm."
+        },
+        "_rmm_carbs": {
+          "type": "float",
+          "description": "Kohlenhydrate pro 100 g in Gramm."
+        },
+        "_rmm_protein": {
+          "type": "float",
+          "description": "Protein pro 100 g in Gramm."
+        },
+        "_rmm_sugar": {
+          "type": "float",
+          "description": "Zucker pro 100 g in Gramm."
+        },
+        "_rmm_fiber": {
+          "type": "float",
+          "description": "Ballaststoffe pro 100 g in Gramm."
+        },
+        "_rmm_salt": {
+          "type": "float",
+          "description": "Salz pro 100 g in Gramm."
+        },
+        "_rmm_weight_item": {
+          "type": "float",
+          "description": "Gewicht eines typischen Stücks in Gramm (z. B. ein Ei = 60 g)."
+        },
+        "_mmm_default_unit": {
+          "type": "string",
+          "description": "Standard-Einheitenbezeichnung für dieses Ingredient."
+        },
+        "_mmm_price_per_100g": {
+          "type": "float",
+          "description": "Preis pro 100 g in der konfigurierten Währung.",
+          "getter": "get_price_per_100g()",
+          "setter": "set_price_per_100g(float)"
+        },
+        "_mmm_diet_type": {
+          "type": "string",
+          "description": "Diät-Klassifikation: 'vegan', 'vegetarian' oder '' (leer = keine Einschränkung).",
+          "getter": "get_diet_type()"
+        }
+      },
+      "taxonomies": ["mmm_ingredient_category"],
+      "children": {
+        "post_type": "mmm_ingr_unit",
+        "relation": "post_parent",
+        "description": "Einheiten-Posts gehören via post_parent zu einem Ingredient."
+      }
+    },
+
+    "mmm_ingr_unit": {
+      "label": "Ingredient Amount / Unit",
+      "class": "Mixmymeals_Ingredient_Amount",
+      "public": false,
+      "show_ui": false,
+      "hierarchical": true,
+      "description": "Repräsentiert eine Maßeinheit einer Zutat (z. B. 'Dose', 'TL', 'Stück'). Wird als Kind-Post eines mmm_ingredient angelegt.",
+      "parent_relation": {
+        "field": "post_parent",
+        "parent_post_type": "mmm_ingredient"
+      },
+      "title": "Name der Einheit (z. B. 'Esslöffel', 'Dose 400 g')",
+      "meta": {
+        "_mmm_ingr_unit_weight": {
+          "type": "float",
+          "description": "Gewicht dieser Einheit in Gramm (z. B. 1 Dose = 400 g).",
+          "getter": "get_weight()",
+          "setter": "set_weight(float)"
+        },
+        "_mmm_is_sale_unit": {
+          "type": "bool (1 oder nicht gesetzt)",
+          "description": "Markiert diese Einheit als bevorzugte Einkaufseinheit für die Einkaufsliste.",
+          "getter": "is_sale_unit()",
+          "setter": "set_sale_unit(bool)"
+        },
+        "_mmm_is_indivisible": {
+          "type": "bool (1 oder nicht gesetzt)",
+          "description": "Wenn true, wird die skalierte Menge auf die nächste ganze Zahl gerundet (min. 1).",
+          "getter": "is_indivisible()",
+          "setter": "set_indivisible(bool)"
+        }
+      }
+    },
+
+    "mmm_meal_plan": {
+      "label": "Meal Plan",
+      "class": "Mixmymeals_Meal_Plan",
+      "public": true,
+      "has_archive": true,
+      "slug_option": "mixmymeals_meal_plan_slug",
+      "supports": ["title", "editor"],
+      "meta": {
+        "start_day": {
+          "type": "int (1–7)",
+          "description": "Starttag des Plans. 1 = Montag, 7 = Sonntag.",
+          "getter": "get_start_day()",
+          "setter": "set_start_day(int)"
+        },
+        "end_day": {
+          "type": "int (1–7)",
+          "description": "Endtag des Plans. Kann kleiner als start_day sein (Wochenüberschreitung, z. B. Sa–Di).",
+          "getter": "get_end_day()",
+          "setter": "set_end_day(int)"
+        }
+      },
+      "taxonomies": ["mmm_meal_plan_category", "mmm_meal_plan_tag"],
+      "children": {
+        "post_type": "mmm_meal",
+        "relation": "post_parent",
+        "description": "Mahlzeiten-Posts gehören via post_parent zu einem Meal Plan."
+      }
+    },
+
+    "mmm_meal": {
+      "label": "Meal",
+      "class": "Mixmymeals_Meal",
+      "public": true,
+      "has_archive": false,
+      "slug_option": "mixmymeals_meal_slug",
+      "show_in_menu": "edit.php?post_type=mmm_meal_plan",
+      "supports": ["title"],
+      "description": "Repräsentiert eine einzelne Mahlzeit innerhalb eines Meal Plans.",
+      "parent_relation": {
+        "field": "post_parent",
+        "parent_post_type": "mmm_meal_plan"
+      },
+      "meta": {
+        "recipe_id": {
+          "type": "int",
+          "description": "Post-ID des zugehörigen mmm_recipe.",
+          "getter": "get_recipe_id()",
+          "setter": "set_recipe_id(int)"
+        },
+        "servings": {
+          "type": "int (min. 1)",
+          "description": "Anzahl der Portionen für diese Mahlzeit (kann von Rezept-Portionen abweichen).",
+          "getter": "get_servings()",
+          "setter": "set_servings(int)"
+        },
+        "mmm_meal_type": {
+          "type": "string",
+          "description": "Mahlzeitentyp.",
+          "allowed_values": ["breakfast", "lunch", "dinner", "snack", "other"],
+          "getter": "get_type()",
+          "setter": "set_type(string)"
+        },
+        "_mmm_day": {
+          "type": "int (1–7)",
+          "description": "Wochentag der Mahlzeit innerhalb des Plans. 1 = Montag, 7 = Sonntag.",
+          "getter": "get_day()",
+          "setter": "set_day(int)"
+        }
+      }
+    },
+
+    "mmm_equipment": {
+      "label": "Equipment",
+      "class": "Mixmymeals_Equipment",
+      "public": false,
+      "show_ui": true,
+      "has_archive": false,
+      "supports": ["title", "editor", "thumbnail"],
+      "description": "Küchengeräte. Werden via _mmm_equipment-Meta an Rezepte geknüpft.",
+      "meta": {}
+    }
+  },
+
+  "taxonomies": {
+    "mmm_recipe_category": {
+      "label": "Recipe Category",
+      "post_types": ["mmm_recipe"],
+      "hierarchical": true,
+      "public": true,
+      "slug_option": "mixmymeals_recipe_category_slug",
+      "description": "Kategorisierung von Rezepten (z. B. 'Vegan', 'Suppen'). Wird auch für Diät-Typ-Ableitung verwendet."
+    },
+    "mmm_recipe_tag": {
+      "label": "Recipe Tag",
+      "post_types": ["mmm_recipe"],
+      "hierarchical": false,
+      "public": false
+    },
+    "mmm_ingredient_category": {
+      "label": "Ingredient Category",
+      "post_types": ["mmm_ingredient"],
+      "hierarchical": false,
+      "public": false,
+      "description": "Gruppierung für die Einkaufsliste (z. B. 'Gemüse', 'Milchprodukte')."
+    },
+    "mmm_meal_plan_category": {
+      "label": "Meal Plan Category",
+      "post_types": ["mmm_meal_plan"],
+      "hierarchical": true,
+      "public": true,
+      "slug_option": "mixmymeals_meal_plan_category_slug"
+    },
+    "mmm_meal_plan_tag": {
+      "label": "Meal Plan Tag",
+      "post_types": ["mmm_meal_plan"],
+      "hierarchical": false,
+      "public": false
+    }
+  },
+
+  "relationships": [
+    {
+      "from": "mmm_recipe",
+      "to": "mmm_ingredient",
+      "via": "_rmm_steps[*].ingredients[*].id",
+      "type": "many-to-many",
+      "description": "Ein Rezept referenziert Zutaten in jedem Schritt über die Ingredient-Post-ID."
+    },
+    {
+      "from": "mmm_recipe",
+      "to": "mmm_ingr_unit",
+      "via": "_rmm_steps[*].ingredients[*].amount_id",
+      "type": "many-to-many",
+      "description": "Jede Zutatenangabe in einem Rezept-Schritt referenziert optional eine Einheit (mmm_ingr_unit). Fehlt amount_id oder ist 0, gilt die Menge direkt als Gramm."
+    },
+    {
+      "from": "mmm_recipe",
+      "to": "mmm_equipment",
+      "via": "_mmm_equipment (array of IDs)",
+      "type": "many-to-many",
+      "description": "Ein Rezept kann mehrere Geräte benötigen."
+    },
+    {
+      "from": "mmm_ingredient",
+      "to": "mmm_ingr_unit",
+      "via": "post_parent",
+      "type": "one-to-many",
+      "description": "Ein Ingredient hat beliebig viele Einheiten als Kind-Posts."
+    },
+    {
+      "from": "mmm_meal_plan",
+      "to": "mmm_meal",
+      "via": "post_parent",
+      "type": "one-to-many",
+      "description": "Ein Meal Plan enthält Mahlzeiten als Kind-Posts."
+    },
+    {
+      "from": "mmm_meal",
+      "to": "mmm_recipe",
+      "via": "recipe_id (post meta)",
+      "type": "many-to-one",
+      "description": "Jede Mahlzeit verweist auf genau ein Rezept."
+    }
+  ],
+
+  "key_algorithms": {
+    "ingredient_scaling": {
+      "method": "Mixmymeals_Recipe::get_ingredients_scaled(float $scale)",
+      "description": "Skaliert alle Zutaten eines Rezepts um den Faktor $scale. Bei is_indivisible=true wird auf ganze Zahl gerundet (min. 1). Gibt weight_g = amount * unit_weight zurück. Falls keine Einheit, ist amount direkt Gramm.",
+      "usage": "Wird für Nährwertberechnung und Einkaufsliste verwendet."
+    },
+    "shopping_list": {
+      "method": "Mixmymeals_Meal_Plan::calc_shopping_list()",
+      "description": "Iteriert alle Mahlzeiten des Plans. Pro Mahlzeit: scale = meal_servings / recipe_servings, dann get_ingredients_scaled($scale). Summiert weight_g pro Ingredient-ID. Gruppiert nach mmm_ingredient_category."
+    },
+    "diet_type_derivation": {
+      "recipe": "Mixmymeals_Recipe::get_diet_type() — 'vegan' wenn alle Zutaten vegan, 'vegetarian' wenn alle vegan/vegetarian, sonst ''.",
+      "meal_plan": "Mixmymeals_Meal_Plan::get_diet_type() — prüft Rezept-Kategorienamen ('vegan', 'vegetarisch', 'vegetarian')."
+    },
+    "weekday_logic": {
+      "description": "Meal Plan start_day und end_day sind 1–7 (1=Mo). Wenn start_day > end_day, überschreitet der Plan Sonntag (z. B. start=6, end=2 = Sa bis Di). Mixmymeals_Meal_Plan::contains_weekday() berücksichtigt diesen Überlauf."
+    }
+  },
+
+  "cart": {
+    "description": "Frontend-Warenkorb für das Zusammenstellen eines Meal Plans.",
+    "storage": {
+      "logged_in": "User Meta: mixmymeals_cart (user_id)",
+      "anonymous": "WP Transient: mixmymeals_cart_{uuid} (UUID im Cookie mixmymeals_cart_uuid)"
+    },
+    "merge_on_login": "Gast-Warenkorb wird beim Login in den Nutzer-Warenkorb gemergt.",
+    "item_structure": {
+      "recipe_id": "int — Post-ID des mmm_recipe",
+      "servings": "int — gewünschte Portionen",
+      "type": "string — Mahlzeitentyp (breakfast/lunch/dinner/snack/other)",
+      "day": "int|null — Wochentag (1–7) oder null"
+    },
+    "max_items_option": "mixmymeals_max_items_in_cart"
+  },
+
+  "rest_api": {
+    "note": "Alle Post Types haben show_in_rest: true. Alle custom Meta-Felder sind mit register_post_meta() registriert und damit per WP REST API lesbar und schreibbar. Schreibzugriffe erfordern edit_posts-Capability (z. B. via Application Password).",
+    "authentication": "WordPress Application Passwords (seit WP 5.6 eingebaut). Anlegen unter: WP-Admin → Benutzer → Profil → Anwendungspasswörter. HTTP Basic Auth im Request-Header: Authorization: Basic base64(user:app-password).",
+    "post_types": {
+      "mmm_recipe": {
+        "endpoint": "/wp-json/wp/v2/mmm_recipe",
+        "meta_via_rest": ["_mmm_servings", "_mmm_preparation_time", "_mmm_equipment", "_rmm_steps"]
+      },
+      "mmm_ingredient": {
+        "endpoint": "/wp-json/wp/v2/mmm_ingredient",
+        "note": "publicly_queryable: false — Lesen erfordert Authentifizierung.",
+        "meta_via_rest": ["_rmm_calories_100", "_rmm_fat", "_rmm_carbs", "_rmm_protein", "_rmm_sugar", "_rmm_fiber", "_rmm_salt", "_rmm_weight_item", "_mmm_price_per_100g", "_mmm_diet_type", "_mmm_default_unit"]
+      },
+      "mmm_ingr_unit": {
+        "endpoint": "/wp-json/wp/v2/mmm_ingr_unit",
+        "note": "post_parent (Ingredient-ID) ist im Response enthalten (hierarchical: true).",
+        "meta_via_rest": ["_mmm_ingr_unit_weight", "_mmm_is_sale_unit", "_mmm_is_indivisible"]
+      },
+      "mmm_meal_plan": {
+        "endpoint": "/wp-json/wp/v2/mmm_meal_plan",
+        "meta_via_rest": ["start_day", "end_day"]
+      },
+      "mmm_meal": {
+        "endpoint": "/wp-json/wp/v2/mmm_meal",
+        "note": "post_parent enthält die Meal-Plan-ID.",
+        "meta_via_rest": ["recipe_id", "servings", "mmm_meal_type", "_mmm_day"]
+      },
+      "mmm_equipment": {
+        "endpoint": "/wp-json/wp/v2/mmm_equipment",
+        "meta_via_rest": []
+      }
+    },
+    "taxonomies": {
+      "mmm_recipe_category":    { "endpoint": "/wp-json/wp/v2/mmm_recipe_category",    "accessible_via_rest": true },
+      "mmm_recipe_tag":         { "endpoint": "/wp-json/wp/v2/mmm_recipe_tag",          "accessible_via_rest": true },
+      "mmm_ingredient_category":{ "endpoint": "/wp-json/wp/v2/mmm_ingredient_category", "accessible_via_rest": true },
+      "mmm_meal_plan_category": { "endpoint": "/wp-json/wp/v2/mmm_meal_plan_category",  "accessible_via_rest": true },
+      "mmm_meal_plan_tag":      { "endpoint": "/wp-json/wp/v2/mmm_meal_plan_tag",       "accessible_via_rest": true }
+    },
+    "custom_endpoints": {
+      "GET /wp-json/mixmymeals/v1/meal-plans/{id}/shopping-list": {
+        "description": "Berechnete Einkaufsliste für einen Meal Plan. Gruppiert nach mmm_ingredient_category.",
+        "auth_required": false,
+        "response_structure": {
+          "type": "array",
+          "items": {
+            "category": "string",
+            "items": {
+              "ingredient_id": "int",
+              "ingredient_name": "string",
+              "total_weight_g": "float",
+              "details": {
+                "recipe_name": "string",
+                "amount": "float",
+                "unit": "string",
+                "weight_g": "float"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "settings_options": {
+    "prefix": "mixmymeals_",
+    "options": {
+      "mixmymeals_currency": "Währungssymbol (Standard: €)",
+      "mixmymeals_public_mode": "'on' oder '' — Erlaubt Besuchern, Pläne zu publizieren",
+      "mixmymeals_published_meal_plans_per_hour_limit": "int — Max. publizierbare Pläne pro Stunde für Besucher",
+      "mixmymeals_save_meal_plans_published_by_visitors_as_draft": "'on' oder '' — Besucherpläne als Entwurf speichern",
+      "mixmymeals_page_id_to_redirect_if_new_plan_is_draft": "int — Weiterleitungs-Page-ID nach Entwurfs-Speicherung",
+      "mixmymeals_placeholder_image_id": "int — Attachment-ID des Platzhalterbilds",
+      "mixmymeals_recipe_slug": "string — URL-Prefix für Rezepte",
+      "mixmymeals_recipe_category_slug": "string — URL-Prefix für Rezept-Kategorien",
+      "mixmymeals_recipe_disclaimer_text": "string — Disclaimer-Text für Rezepte",
+      "mixmymeals_all_recipes_description": "string — Beschreibung für Rezept-Archiv",
+      "mixmymeals_all_ingredients_description": "string — Beschreibung für Zutaten-Archiv",
+      "mixmymeals_meal_slug": "string — URL-Prefix für Mahlzeiten",
+      "mixmymeals_meal_plan_slug": "string — URL-Prefix für Meal Plans",
+      "mixmymeals_meal_plan_category_slug": "string — URL-Prefix für Meal-Plan-Kategorien",
+      "mixmymeals_max_items_in_cart": "int — Max. Einträge im Warenkorb (0 = unbegrenzt)",
+      "mixmymeals_individual_tab_label": "string — Label des 'Individual'-Tabs im Meal-Plan-Switcher",
+      "mixmymeals_all_meal_plans_description": "string — Beschreibung für Meal-Plan-Archiv",
+      "mixmymeals_individual_meal_plans_description": "string — Beschreibung für individuelle Meal Plans"
+    }
+  }
+}

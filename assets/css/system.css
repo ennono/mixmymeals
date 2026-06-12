@@ -1,0 +1,214 @@
+/* ============================================================
+   MixMyMeals — Essensplan Design System („Stopf nicht!"-Redesign)
+   Adaptiert aus dem Design-Handoff: Klassen mit mmm-Prefix,
+   Tokens mit --mmm-Prefix. Wird nur auf der Essensplan-Ansicht
+   geladen (siehe Mixmymeals::enqueue_styles).
+   Schriften: Fredoka (Display) + Nunito Sans (Text), via Google Fonts.
+   Header/App-Bar: nicht hier — Astra-Header wird im Child-Theme gestylt.
+   ============================================================ */
+
+:root{
+  /* --- Brand & Akzente --- */
+  --mmm-green-700:#3F6F1E;
+  --mmm-green-600:#5C9E2E;
+  --mmm-green-500:#74B73E;
+  --mmm-green-100:#E7F2D8;
+  --mmm-green-50: #F3F8EA;
+
+  --mmm-carrot-600:#D2622C;
+  --mmm-carrot-500:#E8743B;
+  --mmm-carrot-100:#FBE6DB;
+
+  /* --- Neutrale (warm getönt) --- */
+  --mmm-ink:#2C2A24;
+  --mmm-ink-2:#6B665B;
+  --mmm-ink-3:#9A9485;
+  --mmm-cream:#FBF8F1;
+  --mmm-cream-2:#F4EFE4;
+  --mmm-surface:#FFFFFF;
+  --mmm-line:#ECE6D9;
+  --mmm-line-2:#E0D9C9;
+
+  /* --- Radius --- */
+  --mmm-r-sm:10px;
+  --mmm-r:16px;
+  --mmm-r-lg:22px;
+  --mmm-r-pill:999px;
+
+  /* --- Schatten (md statt "shadow", um Kollision mit Theme-Token zu vermeiden) --- */
+  --mmm-shadow-sm:0 1px 2px rgba(44,42,36,.05), 0 2px 6px rgba(44,42,36,.05);
+  --mmm-shadow-md:0 2px 4px rgba(44,42,36,.04), 0 10px 28px rgba(44,42,36,.07);
+  --mmm-shadow-lg:0 8px 16px rgba(44,42,36,.06), 0 24px 60px rgba(44,42,36,.12);
+
+  /* --- Typo --- */
+  --mmm-font-display:"Fredoka", system-ui, sans-serif;
+  --mmm-font-text:"Nunito Sans", system-ui, sans-serif;
+
+  /* --- Spacing-Skala (4er) --- */
+  --mmm-s1:4px; --mmm-s2:8px; --mmm-s3:12px; --mmm-s4:16px; --mmm-s5:20px;
+  --mmm-s6:24px; --mmm-s8:32px; --mmm-s10:40px; --mmm-s12:48px; --mmm-s16:64px;
+
+  --mmm-maxw:980px;
+}
+
+body{
+  font-family:var(--mmm-font-text);
+  color:var(--mmm-ink);
+  background:var(--mmm-cream);
+  font-size:16px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+
+.mmm-plan-page a{color:var(--mmm-green-600); text-decoration:none;}
+.mmm-plan-page a:hover{color:var(--mmm-green-700);}
+
+/* ============================================================
+   1 · PAGE / LAYOUT
+   ============================================================ */
+.mmm-plan-page{max-width:var(--mmm-maxw); margin:0 auto; padding:var(--mmm-s8) var(--mmm-s6) var(--mmm-s16); box-sizing:border-box;}
+.mmm-plan-page *, .mmm-plan-page *::before, .mmm-plan-page *::after{box-sizing:border-box;}
+
+.mmm-breadcrumb{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--mmm-ink-3); font-weight:700; margin-bottom:var(--mmm-s6);}
+.mmm-breadcrumb a{color:var(--mmm-ink-2);}
+.mmm-breadcrumb a:hover{color:var(--mmm-green-700);}
+.mmm-breadcrumb .mmm-breadcrumb__sep{color:var(--mmm-line-2);}
+
+/* ============================================================
+   2 · BUTTONS
+   ============================================================ */
+.mmm-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--mmm-s2);
+  font-family:var(--mmm-font-text); font-weight:800; font-size:15px;
+  padding:11px 18px; border-radius:var(--mmm-r-pill);
+  border:1.5px solid transparent; cursor:pointer; white-space:nowrap;
+  transition:transform .12s ease, background .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.mmm-btn:active{transform:translateY(1px);}
+.mmm-btn svg{width:18px; height:18px;}
+.mmm-btn--primary{background:var(--mmm-green-600); color:#fff; box-shadow:0 6px 16px rgba(92,158,46,.28);}
+.mmm-btn--primary:hover{background:var(--mmm-green-700); color:#fff;}
+.mmm-btn--accent{background:var(--mmm-carrot-500); color:#fff; box-shadow:0 6px 16px rgba(232,116,59,.26);}
+.mmm-btn--accent:hover{background:var(--mmm-carrot-600); color:#fff;}
+.mmm-btn--ghost{background:var(--mmm-surface); color:var(--mmm-ink-2); border-color:var(--mmm-line-2);}
+.mmm-btn--ghost:hover{border-color:var(--mmm-green-500); color:var(--mmm-green-700); background:var(--mmm-green-50);}
+.mmm-btn--sm{padding:8px 14px; font-size:14px;}
+
+/* ============================================================
+   3 · CHIPS / TAGS / BADGES
+   ============================================================ */
+.mmm-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 12px; border-radius:var(--mmm-r-pill);
+  background:var(--mmm-cream-2); color:var(--mmm-ink-2);
+  font-weight:700; font-size:13.5px; line-height:1; white-space:nowrap;
+}
+.mmm-chip svg{width:15px; height:15px; color:var(--mmm-ink-3);}
+.mmm-chip--stat{background:var(--mmm-surface); border:1px solid var(--mmm-line); color:var(--mmm-ink);}
+.mmm-chip--stat svg{color:var(--mmm-green-600);}
+.mmm-chip--price{color:var(--mmm-carrot-600);}
+.mmm-chip--price svg{color:var(--mmm-carrot-500);}
+
+.mmm-tag{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:5px 10px; border-radius:8px;
+  background:var(--mmm-green-50); color:var(--mmm-green-700);
+  font-weight:700; font-size:12.5px; line-height:1; white-space:nowrap;
+}
+.mmm-tag::before{content:""; width:7px; height:7px; border-radius:2px; background:var(--mmm-green-500);}
+.mmm-tag--neutral{background:var(--mmm-cream-2); color:var(--mmm-ink-2);}
+.mmm-tag--neutral::before{background:var(--mmm-ink-3);}
+
+.mmm-badge{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 11px; border-radius:var(--mmm-r-pill);
+  font-weight:800; font-size:12.5px; line-height:1;
+  background:var(--mmm-green-600); color:#fff;
+}
+.mmm-badge::before{content:""; width:7px; height:7px; border-radius:50%; background:#fff;}
+
+/* ============================================================
+   4 · PLAN-HERO
+   ============================================================ */
+.mmm-plan-hero{
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg, var(--mmm-green-50) 0%, var(--mmm-cream) 60%);
+  border:1px solid var(--mmm-line);
+  border-radius:var(--mmm-r-lg);
+  padding:var(--mmm-s8);
+  box-shadow:var(--mmm-shadow-sm);
+}
+.mmm-plan-hero__blob{position:absolute; right:-40px; top:-50px; width:230px; height:230px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--mmm-green-100), transparent 70%); pointer-events:none; z-index:0;}
+.mmm-plan-hero h1{margin:0 0 var(--mmm-s4); font-family:var(--mmm-font-display); font-weight:600; font-size:clamp(34px,5vw,48px); color:var(--mmm-green-700); letter-spacing:-.01em; line-height:1.1; position:relative; z-index:1;}
+.mmm-plan-hero__meta{display:flex; flex-wrap:wrap; gap:var(--mmm-s2); margin-bottom:var(--mmm-s5); position:relative; z-index:1;}
+.mmm-plan-hero__actions{display:flex; flex-wrap:wrap; gap:var(--mmm-s3); position:relative;}
+
+/* ---------- Section-Heading ---------- */
+.mmm-section-head{display:flex; align-items:center; gap:var(--mmm-s3); margin:var(--mmm-s12) 0 var(--mmm-s5);}
+.mmm-section-head h2{margin:0; font-family:var(--mmm-font-display); font-weight:600; font-size:28px; color:var(--mmm-ink);}
+.mmm-section-head__line{flex:1; height:2px; background:var(--mmm-line); border-radius:2px;}
+
+/* ============================================================
+   5 · TAGES-RAIL & REZEPT-KARTE
+   ============================================================ */
+.mmm-plan-day{position:relative; padding-left:var(--mmm-s8); margin-bottom:var(--mmm-s6);}
+.mmm-plan-day::before{content:""; position:absolute; left:9px; top:8px; bottom:-26px; width:3px; border-radius:3px; background:var(--mmm-line);}
+.mmm-plan-day:last-child::before{display:none;}
+.mmm-plan-day__dot{position:absolute; left:0; top:6px; width:21px; height:21px; border-radius:50%; background:var(--mmm-surface); border:3px solid var(--mmm-green-500);}
+.mmm-plan-day--today .mmm-plan-day__dot{background:var(--mmm-green-500); box-shadow:0 0 0 4px var(--mmm-green-100);}
+.mmm-plan-day__head{display:flex; align-items:baseline; gap:var(--mmm-s3); flex-wrap:wrap; margin-bottom:var(--mmm-s3);}
+.mmm-plan-day__name{font-family:var(--mmm-font-display); font-weight:600; font-size:21px; color:var(--mmm-ink);}
+.mmm-plan-day__meal{font-size:14px; color:var(--mmm-ink-2); font-weight:700; white-space:nowrap;}
+.mmm-plan-day__kcal{font-size:14px; color:var(--mmm-ink-3); font-weight:700; white-space:nowrap;}
+.mmm-plan-day__sub{display:flex; align-items:baseline; gap:var(--mmm-s3); margin:var(--mmm-s3) 0 var(--mmm-s2);}
+
+.mmm-recipe-card{
+  display:grid; grid-template-columns:124px 1fr; gap:var(--mmm-s5);
+  background:var(--mmm-surface); border:1px solid var(--mmm-line);
+  border-radius:var(--mmm-r); padding:var(--mmm-s4);
+  box-shadow:var(--mmm-shadow-sm);
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s;
+}
+.mmm-recipe-card + .mmm-recipe-card,
+.mmm-plan-day__sub + .mmm-recipe-card{margin-top:var(--mmm-s3);}
+.mmm-recipe-card:hover{transform:translateY(-2px); box-shadow:var(--mmm-shadow-md); border-color:var(--mmm-line-2);}
+.mmm-recipe-card__media{width:124px; height:124px; border-radius:12px; overflow:hidden; background:var(--mmm-cream-2);}
+.mmm-recipe-card__media img{width:100%; height:100%; object-fit:cover; display:block;}
+.mmm-recipe-card__media--empty{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--mmm-ink-3); text-align:center; padding:8px;}
+.mmm-recipe-card__media--empty img{width:54px; height:auto; opacity:.85; filter:grayscale(.15);}
+.mmm-recipe-card__media--empty span{font-size:11px; font-weight:700; line-height:1.2;}
+
+.mmm-recipe-card__body{min-width:0; display:flex; flex-direction:column; gap:var(--mmm-s3); padding:var(--mmm-s1) var(--mmm-s2) var(--mmm-s1) 0;}
+.mmm-recipe-card__title{font-family:var(--mmm-font-display); font-weight:500; font-size:19px; color:var(--mmm-ink); margin:0; line-height:1.2;}
+.mmm-recipe-card:hover .mmm-recipe-card__title{color:var(--mmm-green-700);}
+.mmm-recipe-card__meta{display:flex; flex-wrap:wrap; gap:var(--mmm-s2);}
+.mmm-recipe-card__tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:auto;}
+
+/* ============================================================
+   6 · NÄHRWERT-ÜBERSICHT
+   ============================================================ */
+.mmm-nutri-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--mmm-s4); margin-bottom:var(--mmm-s5);}
+.mmm-nutri-stat{background:var(--mmm-surface); border:1px solid var(--mmm-line); border-radius:var(--mmm-r); padding:var(--mmm-s5); box-shadow:var(--mmm-shadow-sm);}
+.mmm-nutri-stat__k{font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--mmm-ink-3);}
+.mmm-nutri-stat__v{font-family:var(--mmm-font-display); font-weight:600; font-size:30px; color:var(--mmm-green-700); line-height:1.1; margin-top:6px;}
+.mmm-nutri-stat__u{font-size:13px; color:var(--mmm-ink-2); font-weight:700;}
+
+.mmm-nutri-table{width:100%; border-collapse:separate; border-spacing:0; background:var(--mmm-surface); border:1px solid var(--mmm-line); border-radius:var(--mmm-r); overflow:hidden; box-shadow:var(--mmm-shadow-sm);}
+.mmm-nutri-table thead th{background:var(--mmm-green-700); color:#fff; font-family:var(--mmm-font-text); font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:.05em; padding:14px var(--mmm-s5); text-align:right;}
+.mmm-nutri-table thead th:first-child{text-align:left;}
+.mmm-nutri-table td{padding:13px var(--mmm-s5); text-align:right; font-weight:700; color:var(--mmm-ink); border-top:1px solid var(--mmm-line);}
+.mmm-nutri-table td:first-child{text-align:left; color:var(--mmm-ink-2); font-weight:800;}
+.mmm-nutri-table tbody tr:nth-child(even){background:var(--mmm-green-50);}
+.mmm-nutri-table tbody tr:hover{background:var(--mmm-green-100);}
+
+/* ============================================================
+   7 · RESPONSIVE
+   ============================================================ */
+@media (max-width:640px){
+  .mmm-plan-page{padding:var(--mmm-s5) var(--mmm-s4) var(--mmm-s12);}
+  .mmm-plan-hero{padding:var(--mmm-s5);}
+  .mmm-recipe-card{grid-template-columns:84px 1fr; gap:var(--mmm-s4); padding:var(--mmm-s3);}
+  .mmm-recipe-card__media{width:84px; height:84px;}
+  .mmm-nutri-stats{grid-template-columns:repeat(2,1fr); gap:var(--mmm-s3);}
+  .mmm-section-head h2{font-size:23px;}
+}

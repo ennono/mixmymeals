@@ -1,9 +1,8 @@
 /**
- * Kleingarten Plugin js settings.
+ * MixMyMeals Plugin js settings.
  *
- *  @package Kleingarten Plugin/Settings
+ *  @package MixMyMeals Plugin/Settings
  */
 
-jQuery(document).ready(
-
+jQuery( document ).ready(
 );

@@ -1,0 +1,82 @@
+.mmm-plan-day-list {
+    min-height: 80px;
+    padding: 0.5em;
+    background: color-mix(in srgb, var(--mmm-primary) 4%, transparent);
+    border-radius: var(--ast-border-radius);
+}
+.mmm-plan-day-list.drop-target {
+    background: color-mix(in srgb, var(--mmm-primary) 12%, transparent);
+}
+
+/* ==========================================================
+   Einplanen-Dialog (Planner Dialog) – Struktur.
+   Optik (Radius, Schatten, Abstände) liegt im Theme.
+   ========================================================== */
+.mmm-planner-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+}
+
+.mmm-planner-dialog {
+    background: #fff;
+    width: min(90vw, 360px);
+}
+
+.mmm-planner-dialog label {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.mmm-planner-dialog label input,
+.mmm-planner-dialog label select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    box-sizing: border-box;
+}
+
+.mmm-planner-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+/* ==========================================================
+   Kochmodus (Cook Mode) – Struktur.
+   Optik liegt im Theme.
+   ========================================================== */
+body.mmm-cook-mode-open {
+    overflow: hidden;
+}
+
+.mmm-cook-mode {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+}
+
+.mmm-cook-mode-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mmm-cook-mode-step {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.mmm-cook-mode-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}

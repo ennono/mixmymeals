@@ -1,5 +1,634 @@
-/**
- * Kleingarten Plugin js.
- *
- *  @package Kleingarten Plugin/JS
- */
+jQuery(function ($) {
+
+    /* ==========================================================
+       AJAX HELPER
+       ========================================================== */
+    function mmmPost(action, data) {
+        return $.ajax({
+            url: mixmymeals.ajax_url,
+            method: 'POST',
+            dataType: 'json',
+            data: Object.assign({
+                action: action,
+                nonce: mixmymeals.nonce
+            }, data || {})
+        });
+    }
+
+    /* ==========================================================
+       UI HELPERS
+       ========================================================== */
+    function mmmFlashText($el, text, ms) {
+        if (!$el || !$el.length) return;
+        const old = $el.text();
+        $el.text(text);
+        setTimeout(function () {
+            // nur zurücksetzen, wenn sich der Text nicht zwischenzeitlich geändert hat
+            if ($el.text() === text) $el.text(old);
+        }, ms || 1200);
+    }
+
+    function mmmShowInlineMessage($el, text, type) {
+        if (!$el || !$el.length) return;
+
+        $el.text(text || '');
+        $el.removeClass('mmm-msg--ok mmm-msg--error');
+
+        if (type === 'ok') $el.addClass('mmm-msg--ok');
+        if (type === 'error') $el.addClass('mmm-msg--error');
+    }
+
+    function mmmShowCartBadgeError() {
+        const badges = $('.mmm-cart-badge');
+        if (!badges.length) return;
+
+        badges.each(function () {
+            const badge = $(this);
+            const oldText = badge.text();
+
+            badge.text('✕');
+            badge.addClass('mmm-cart-badge--error');
+
+            setTimeout(function () {
+                badge.text(oldText);
+                badge.removeClass('mmm-cart-badge--error');
+            }, 900);
+        });
+    }
+
+    /**
+     * Zentrale Fehlerbehandlung:
+     * - nutzt response.data.code
+     * - zeigt je nach code UI (Badge X / Inline Message)
+     * - alert() nur als Fallback
+     */
+    function mmmHandleAjaxError(response, opts) {
+        opts = opts || {};
+        const data = (response && response.data) ? response.data : {};
+        const code = data.code || '';
+        const message = data.message || opts.fallbackMessage || 'Error.';
+
+        // 1) Spezifische Codes -> spezifische UI
+        if (code === 'cart_limit_reached') {
+            mmmShowCartBadgeError();
+            if (opts.inlineEl) mmmShowInlineMessage(opts.inlineEl, message, 'error');
+            return;
+        }
+
+        if (code === 'rate_limit' || code === 'too_many_requests') {
+            // Rate limit: lieber inline als alert
+            if (opts.inlineEl) {
+                mmmShowInlineMessage(opts.inlineEl, message, 'error');
+            } else {
+                mmmShowCartBadgeError(); // wenigstens ein Signal
+            }
+            return;
+        }
+
+        if (code === 'login_required') {
+            if (opts.inlineEl) {
+                mmmShowInlineMessage(opts.inlineEl, message, 'error');
+            } else {
+                // kein hard alert, aber fallback wenn nix da ist:
+                alert(message);
+            }
+            return;
+        }
+
+        if (code === 'invalid_items' || code === 'validation_failed') {
+            if (opts.inlineEl) {
+                mmmShowInlineMessage(opts.inlineEl, message, 'error');
+                return;
+            }
+        }
+
+        // 2) Wenn wir eine Inline-Box haben, nutze die
+        if (opts.inlineEl) {
+            mmmShowInlineMessage(opts.inlineEl, message, 'error');
+            return;
+        }
+
+        // 3) Fallback (nur wenn wirklich nichts Besseres möglich ist)
+        alert(message);
+    }
+
+    function mmmHandleRequestFail(xhr, opts) {
+        opts = opts || {};
+        let json = null;
+        try { json = xhr.responseJSON; } catch (e) {}
+
+        // Wenn WP json error payload liefert, normal behandeln
+        if (json && typeof json === 'object') {
+            mmmHandleAjaxError(json, opts);
+            return;
+        }
+
+        // echter Netzwerk-/Serverfehler ohne JSON
+        const msg = opts.failMessage || 'Request failed.';
+        if (opts.inlineEl) {
+            mmmShowInlineMessage(opts.inlineEl, msg, 'error');
+            return;
+        }
+        // fallback
+        alert(msg);
+    }
+
+    /* ==========================================================
+       CART BADGE
+       ========================================================== */
+    mmmUpdateCartBadge();
+
+    /* ==========================================================
+       ADD TO CART (Einplanen-Dialog)
+       ========================================================== */
+    function mmmClosePlannerDialog() {
+        const backdrop = $('.mmm-planner-dialog-backdrop');
+        if (backdrop.length) {
+            $(document).off('keydown.mmmPlanner');
+            backdrop.remove();
+        }
+    }
+
+    function mmmOpenPlannerDialog(recipeId, defaultServings) {
+        const labels = mixmymeals.planner_dialog || {};
+        const types = labels.types || {};
+        const days = labels.days || {};
+
+        mmmClosePlannerDialog();
+
+        let typeOptions = '<option value="">' + (labels.no_type || '—') + '</option>';
+        Object.keys(types).forEach(function (key) {
+            typeOptions += '<option value="' + key + '">' + types[key] + '</option>';
+        });
+
+        let dayOptions = '<option value="">' + (labels.no_day || '—') + '</option>';
+        Object.keys(days).forEach(function (key) {
+            dayOptions += '<option value="' + key + '">' + days[key] + '</option>';
+        });
+
+        const backdrop = $(
+            '<div class="mmm-planner-dialog-backdrop">' +
+                '<div class="mmm-planner-dialog" role="dialog" aria-modal="true">' +
+                    '<h4>' + (labels.title || '') + '</h4>' +
+                    '<label>' + (labels.servings || '') +
+                        '<input type="number" min="1" class="mmm-planner-dialog-servings" value="' + defaultServings + '">' +
+                    '</label>' +
+                    '<label>' + (labels.type || '') +
+                        '<select class="mmm-planner-dialog-type">' + typeOptions + '</select>' +
+                    '</label>' +
+                    '<label>' + (labels.day || '') +
+                        '<select class="mmm-planner-dialog-day">' + dayOptions + '</select>' +
+                    '</label>' +
+                    '<div class="mmm-msg mmm-planner-dialog-msg"></div>' +
+                    '<div class="mmm-planner-dialog-actions">' +
+                        '<button type="button" class="mmm-planner-dialog-cancel">' + (labels.cancel || '') + '</button>' +
+                        '<button type="button" class="mmm-planner-dialog-submit">' + (labels.submit || '') + '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>'
+        );
+
+        $('body').append(backdrop);
+        backdrop.find('.mmm-planner-dialog-servings').trigger('focus');
+
+        backdrop.on('click', function (e) {
+            if (e.target === this) mmmClosePlannerDialog();
+        });
+        backdrop.find('.mmm-planner-dialog-cancel').on('click', mmmClosePlannerDialog);
+        $(document).on('keydown.mmmPlanner', function (e) {
+            if (e.key === 'Escape') mmmClosePlannerDialog();
+        });
+
+        backdrop.find('.mmm-planner-dialog-submit').on('click', function () {
+            const msgBox = backdrop.find('.mmm-planner-dialog-msg');
+
+            mmmPost('mmm_add_to_cart', {
+                recipe_id: recipeId,
+                servings: parseInt(backdrop.find('.mmm-planner-dialog-servings').val(), 10) || 1,
+                type: backdrop.find('.mmm-planner-dialog-type').val() || '',
+                day: backdrop.find('.mmm-planner-dialog-day').val() || null
+            })
+                .done(function (response) {
+                    if (response && response.success) {
+                        mmmUpdateCartBadge();
+                        mmmClosePlannerDialog();
+                        return;
+                    }
+                    mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error.' });
+                })
+                .fail(function (xhr) {
+                    mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
+                });
+        });
+    }
+
+    $(document).on('click', '.mmm-recipe-actions__item--cart', function (e) {
+        e.preventDefault();
+        const btn = $(this);
+        mmmOpenPlannerDialog(btn.data('recipe-id'), parseInt(btn.data('servings'), 10) || 1);
+    });
+
+    /* ==========================================================
+       COOK MODE (Kochmodus)
+       ========================================================== */
+    let mmmWakeLock = null;
+
+    function mmmReleaseWakeLock() {
+        if (mmmWakeLock) {
+            try { mmmWakeLock.release(); } catch (err) {}
+            mmmWakeLock = null;
+        }
+    }
+
+    function mmmCloseCookMode() {
+        const overlay = $('.mmm-cook-mode');
+        if (overlay.length) {
+            $(document).off('keydown.mmmCookMode');
+            overlay.remove();
+            $('body').removeClass('mmm-cook-mode-open');
+            mmmReleaseWakeLock();
+        }
+    }
+
+    function mmmOpenCookMode() {
+        const steps = $('.mmm-recipe-steps .mmm-step');
+        if (!steps.length) return;
+
+        const labels = mixmymeals.cook_mode || {};
+        let current = 0;
+
+        mmmCloseCookMode();
+
+        const overlay = $(
+            '<div class="mmm-cook-mode">' +
+                '<div class="mmm-cook-mode-bar">' +
+                    '<span class="mmm-cook-mode-progress"></span>' +
+                    '<button type="button" class="mmm-cook-mode-exit">' + (labels.exit || '✕') + '</button>' +
+                '</div>' +
+                '<div class="mmm-cook-mode-step"></div>' +
+                '<div class="mmm-cook-mode-nav">' +
+                    '<button type="button" class="mmm-cook-mode-prev">' + (labels.prev || '') + '</button>' +
+                    '<button type="button" class="mmm-cook-mode-next">' + (labels.next || '') + '</button>' +
+                '</div>' +
+            '</div>'
+        );
+
+        function renderStep() {
+            const total = steps.length;
+            const progress = (labels.step_of || '%1$s / %2$s')
+                .replace('%1$s', current + 1)
+                .replace('%2$s', total);
+            overlay.find('.mmm-cook-mode-progress').text(progress);
+            overlay.find('.mmm-cook-mode-step').empty().append($(steps[current]).clone());
+            overlay.find('.mmm-cook-mode-prev').prop('disabled', current === 0);
+            overlay.find('.mmm-cook-mode-next').text(
+                current === total - 1 ? (labels.done || '') : (labels.next || '')
+            );
+        }
+
+        overlay.find('.mmm-cook-mode-exit').on('click', mmmCloseCookMode);
+        overlay.find('.mmm-cook-mode-prev').on('click', function () {
+            if (current > 0) { current--; renderStep(); }
+        });
+        overlay.find('.mmm-cook-mode-next').on('click', function () {
+            if (current < steps.length - 1) {
+                current++;
+                renderStep();
+            } else {
+                mmmCloseCookMode();
+            }
+        });
+        $(document).on('keydown.mmmCookMode', function (e) {
+            if (e.key === 'Escape') mmmCloseCookMode();
+            if (e.key === 'ArrowRight') overlay.find('.mmm-cook-mode-next').trigger('click');
+            if (e.key === 'ArrowLeft') overlay.find('.mmm-cook-mode-prev').trigger('click');
+        });
+
+        $('body').addClass('mmm-cook-mode-open').append(overlay);
+        renderStep();
+
+        // Display anlassen, solange gekocht wird (wo unterstützt)
+        if (navigator.wakeLock && navigator.wakeLock.request) {
+            navigator.wakeLock.request('screen').then(function (lock) {
+                mmmWakeLock = lock;
+            }).catch(function () {});
+        }
+    }
+
+    $(document).on('click', '.mmm-cook-mode-start', function (e) {
+        e.preventDefault();
+        mmmOpenCookMode();
+    });
+
+    /* ==========================================================
+       DRAG & DROP
+       ========================================================== */
+    let draggedItem = null;
+
+    $(document).on('dragstart', '.mmm-plan-item', function (e) {
+        draggedItem = this;
+        $(this).addClass('dragging');
+        e.originalEvent.dataTransfer.setData('text/plain', 'dummy');
+        e.originalEvent.dataTransfer.effectAllowed = 'move';
+    });
+
+    $(document).on('dragend', '.mmm-plan-item', function () {
+        $(this).removeClass('dragging');
+        draggedItem = null;
+    });
+
+    $(document).on('dragover', '.mmm-plan-day-list, .mmm-plan-item', function (e) {
+        if (!draggedItem) return;
+        e.preventDefault();
+        $(this).closest('.mmm-plan-day-list').addClass('drop-target');
+    });
+
+    $(document).on('dragleave', '.mmm-plan-day-list', function () {
+        $(this).removeClass('drop-target');
+    });
+
+    $(document).on('drop', '.mmm-plan-day-list, .mmm-plan-item', function (e) {
+        e.preventDefault();
+        if (!draggedItem) return;
+
+        const targetList = $(this).hasClass('mmm-plan-day-list')
+            ? this
+            : $(this).closest('.mmm-plan-day-list')[0];
+
+        $(targetList).removeClass('drop-target');
+        targetList.appendChild(draggedItem);
+
+        const newDay = $(targetList).data('day-list');
+        const index = $(draggedItem).data('index');
+
+        $(draggedItem).attr('data-day', newDay);
+
+        mmmSavePlanChange({
+            index: index,
+            field: 'day',
+            value: newDay
+        });
+    });
+
+    /* ==========================================================
+       REMOVE CART ITEM
+       ========================================================== */
+    $(document).on('click', '.mmm-plan-item-remove', function (e) {
+        e.preventDefault();
+
+        const btn = $(this);
+        const item = btn.closest('.mmm-plan-item');
+        const index = item.data('index');
+
+        item.css('opacity', 0.5);
+
+        mmmPost('mmm_remove_cart_item', { index: index })
+            .done(function (response) {
+                if (response && response.success) {
+                    item.slideUp(200, function () {
+                        item.remove();
+                        mmmUpdateCartBadge();
+                    });
+                    return;
+                }
+
+                // hier lieber leise/inline? du hast keine Box => fallback alert
+                item.css('opacity', 1);
+                mmmHandleAjaxError(response, { fallbackMessage: 'Error while removing item.' });
+            })
+            .fail(function (xhr) {
+                item.css('opacity', 1);
+                mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
+            });
+    });
+
+    /* ==========================================================
+       CLEAR CART
+       ========================================================== */
+    $(document).on('click', '.mmm-clear-cart-link', function (e) {
+        e.preventDefault();
+
+        const link = $(this);
+        const msgBox = link.next('.mmm-clear-cart-message');
+        mmmShowInlineMessage(msgBox, 'Clearing...', 'ok');
+
+        mmmPost('mmm_clear_cart', {})
+            .done(function (response) {
+                if (response && response.success) {
+                    mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Planner cleared.', 'ok');
+                    mmmUpdateCartBadge();
+                    $('.mmm-plan-item').slideUp(200, function () {
+                        $(this).remove();
+                    });
+                    return;
+                }
+
+                mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error while clearing the planner.' });
+            })
+            .fail(function (xhr) {
+                mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
+            });
+    });
+
+    /* ==========================================================
+       CREATE MEAL PLAN (Read directly from DOM)
+       ========================================================== */
+    $('.mmm-create-meal-plan-link').on('click', function (e) {
+        e.preventDefault();
+
+        const msgBox = $('.mmm-create-meal-plan-message');
+        mmmShowInlineMessage(msgBox, '', '');
+
+        const items = [];
+        $('.mmm-plan-item').each(function () {
+            const el = $(this);
+            items.push({
+                recipe_id: el.data('recipe-id'),
+                servings: el.find('.mmm-plan-item-servings').val(),
+                type: el.find('.mmm-plan-item-type').val(),
+                note: el.find('.mmm-plan-item-note').val(),
+                day: el.data('day') || null
+            });
+        });
+
+        mmmShowInlineMessage(msgBox, 'Creating...', 'ok');
+
+        mmmPost('mmm_create_meal_plan', { items: items })
+            .done(function (response) {
+                if (response && response.success) {
+                    mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Meal Plan created!', 'ok');
+
+                    if (response.data && response.data.redirect_url) {
+                        window.location.href = response.data.redirect_url;
+                    }
+                    return;
+                }
+
+                // hier wollen wir praktisch NIE alert -> inline
+                mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error while creating meal plan.' });
+            })
+            .fail(function (xhr) {
+                mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
+            });
+    });
+
+    /* ==========================================================
+       UPDATE CART ITEM (silent)
+       ========================================================== */
+    $(document).on('change', '.mmm-cart-item input, .mmm-cart-item select', function () {
+        const itemEl = $(this).closest('.mmm-cart-item');
+        const index = itemEl.data('index');
+        const servings = itemEl.find('.mmm-servings').val() || 1;
+        const type = itemEl.find('.mmm-type').val() || '';
+        const note = itemEl.find('.mmm-note').val() || '';
+        const day = itemEl.find('.mmm-day').val() || null;
+
+        mmmPost('mmm_update_cart_item', {
+            index: index,
+            servings: servings,
+            type: type,
+            note: note,
+            day: day
+        })
+            .done(function (response) {
+                if (!response || !response.success) {
+                    // silent, aber im dev console sichtbar
+                    console.warn('Update failed', response);
+                }
+            })
+            .fail(function () {
+                console.warn('Request failed (update_cart_item)');
+            });
+    });
+
+    /* ==========================================================
+       LOAD PLAN INTO CART
+       ========================================================== */
+    $(document).on('click', '.mmm-meal-plan-actions__item--load-into-cart', function (e) {
+        e.preventDefault();
+
+        if (!confirm(mixmymeals.confirm_load_into_cart || 'The planner will be cleared and replaced with this meal plan. Continue?')) return;
+
+        const btn = $(this);
+        const mealPlanId = btn.data('meal-plan-id');
+        const redirectUrl = btn.data('redirect-url');
+
+        mmmPost('mmm_load_plan_into_cart', { meal_plan_id: mealPlanId })
+            .done(function (response) {
+                if (response && response.success) {
+                    mmmUpdateCartBadge();
+                    if (redirectUrl) {
+                        window.location.href = redirectUrl;
+                    }
+                    return;
+                }
+                mmmHandleAjaxError(response, { fallbackMessage: 'Error loading plan into the planner.' });
+            })
+            .fail(function (xhr) {
+                mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
+            });
+    });
+
+    /* ==========================================================
+       PDF BUTTON
+       ========================================================== */
+    $(document).on('click', '.mmm-meal-plan-actions__item--print', function (e) {
+        e.preventDefault();
+
+        const mealPlanId = $(this).data('meal-plan-id');
+        if (!mealPlanId) return;
+
+        const url = mixmymeals.ajax_url + '?action=mmm_generate_pdf&meal_plan_id=' + mealPlanId;
+        window.open(url, '_blank');
+    });
+
+    /* ==========================================================
+       HELPER FUNCTIONS
+       ========================================================== */
+    function mmmSavePlanChange(change) {
+        const payload = { index: change.index };
+        payload[change.field] = change.value;
+
+        mmmPost('mmm_update_cart_item', payload)
+            .done(function (response) {
+                if (!response || !response.success) {
+                    console.warn('Failed to save cart change', response);
+                }
+            })
+            .fail(function () {
+                console.warn('Request failed while saving cart change');
+            });
+    }
+
+    function mmmUpdateCartBadge() {
+
+        const badges = $('.mmm-cart-badge');
+        if (!badges.length) return;
+
+        // HARD RESET
+        badges.text('…');
+
+        mmmPost('mmm_get_cart_count', {})
+            .done(function (response) {
+                if (!response || !response.success) return;
+
+                const count = response.data.count;
+
+                badges.each(function () {
+                    const badge = $(this);
+                    const singular = badge.data('label-singular') || '';
+                    const plural = badge.data('label-plural') || '';
+                    badge.text(count + (count === 1 ? singular : plural));
+                });
+            })
+            .fail(function () {
+                // optional
+            });
+    }
+
+    /* ==========================================================
+   MEAL NUTRITION CALCULATOR
+   ========================================================== */
+
+    function mmmMealCalcUpdate(container, grams) {
+        const totalWeight = parseFloat(container.dataset.totalWeight || 1);
+        const factor = grams / totalWeight;
+
+        const calc = (val) => (val * factor).toFixed(1);
+
+        container.querySelector(".mmmm-meal-nutrition-calculator-cal").textContent = calc(container.dataset.calories);
+        container.querySelector(".mmmm-meal-nutrition-calculator-fat").textContent = calc(container.dataset.fat);
+        container.querySelector(".mmmm-meal-nutrition-calculator-carbs").textContent = calc(container.dataset.carbs);
+        container.querySelector(".mmmm-meal-nutrition-calculator-protein").textContent = calc(container.dataset.protein);
+        container.querySelector(".mmmm-meal-nutrition-calculator-sugar").textContent = calc(container.dataset.sugar);
+        container.querySelector(".mmmm-meal-nutrition-calculator-fiber").textContent = calc(container.dataset.fiber);
+    }
+
+    document.addEventListener("input", function (e) {
+
+        if (e.target.classList.contains("mmmm-meal-nutrition-calculator-grams")) {
+            const container = e.target.closest(".mmmm-meal-nutrition-calculator");
+            if (!container) return;
+
+            const grams = parseFloat(e.target.value) || 0;
+
+            const slider = container.querySelector(".mmmm-meal-nutrition-calculator-grams-slider");
+            if (slider) slider.value = grams;
+
+            mmmMealCalcUpdate(container, grams);
+        }
+
+        if (e.target.classList.contains("mmmm-meal-nutrition-calculator-grams-slider")) {
+            const container = e.target.closest(".mmmm-meal-nutrition-calculator");
+            if (!container) return;
+
+            const grams = parseFloat(e.target.value) || 0;
+
+            const input = container.querySelector(".mmmm-meal-nutrition-calculator-grams");
+            if (input) input.value = grams;
+
+            mmmMealCalcUpdate(container, grams);
+        }
+    });
+
+});
