@@ -269,23 +269,6 @@ class Mixmymeals {
 			$this->_version
 		);
 		wp_enqueue_style( $this->_token . '-frontend' );
-
-		// Essensplan-Redesign: Design-System + Schriften nur auf der
-		// Plan-Detailansicht laden.
-		if ( is_singular( 'mmm_meal_plan' ) ) {
-			wp_enqueue_style(
-				$this->_token . '-plan-fonts',
-				'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap',
-				array(),
-				null // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
-			);
-			wp_enqueue_style(
-				$this->_token . '-plan-system',
-				esc_url( $this->assets_url ) . 'css/system.css',
-				array( $this->_token . '-frontend' ),
-				$this->_version
-			);
-		}
 	}
 
 	/**
