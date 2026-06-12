@@ -151,16 +151,16 @@ body{
 /* ============================================================
    5 · TAGES-RAIL & REZEPT-KARTE
    ============================================================ */
-.mmm-plan-day{position:relative; padding-left:var(--mmm-s8); margin-bottom:var(--mmm-s6);}
-.mmm-plan-day::before{content:""; position:absolute; left:9px; top:8px; bottom:-26px; width:3px; border-radius:3px; background:var(--mmm-line);}
-.mmm-plan-day:last-child::before{display:none;}
-.mmm-plan-day__dot{position:absolute; left:0; top:6px; width:21px; height:21px; border-radius:50%; background:var(--mmm-surface); border:3px solid var(--mmm-green-500);}
-.mmm-plan-day--today .mmm-plan-day__dot{background:var(--mmm-green-500); box-shadow:0 0 0 4px var(--mmm-green-100);}
-.mmm-plan-day__head{display:flex; align-items:baseline; gap:var(--mmm-s3); flex-wrap:wrap; margin-bottom:var(--mmm-s3);}
-.mmm-plan-day__name{font-family:var(--mmm-font-display); font-weight:600; font-size:21px; color:var(--mmm-ink);}
-.mmm-plan-day__meal{font-size:14px; color:var(--mmm-ink-2); font-weight:700; white-space:nowrap;}
-.mmm-plan-day__kcal{font-size:14px; color:var(--mmm-ink-3); font-weight:700; white-space:nowrap;}
-.mmm-plan-day__sub{display:flex; align-items:baseline; gap:var(--mmm-s3); margin:var(--mmm-s3) 0 var(--mmm-s2);}
+.mmm-rail-day{position:relative; padding-left:var(--mmm-s8); margin-bottom:var(--mmm-s6);}
+.mmm-rail-day::before{content:""; position:absolute; left:9px; top:8px; bottom:-26px; width:3px; border-radius:3px; background:var(--mmm-line);}
+.mmm-rail-day:last-child::before{display:none;}
+.mmm-rail-day__dot{position:absolute; left:0; top:6px; width:21px; height:21px; border-radius:50%; background:var(--mmm-surface); border:3px solid var(--mmm-green-500);}
+.mmm-rail-day--today .mmm-rail-day__dot{background:var(--mmm-green-500); box-shadow:0 0 0 4px var(--mmm-green-100);}
+.mmm-rail-day__head{display:flex; align-items:baseline; gap:var(--mmm-s3); flex-wrap:wrap; margin-bottom:var(--mmm-s3);}
+.mmm-rail-day__name{font-family:var(--mmm-font-display); font-weight:600; font-size:21px; color:var(--mmm-ink);}
+.mmm-rail-day__meal{font-size:14px; color:var(--mmm-ink-2); font-weight:700; white-space:nowrap;}
+.mmm-rail-day__kcal{font-size:14px; color:var(--mmm-ink-3); font-weight:700; white-space:nowrap;}
+.mmm-rail-day__sub{display:flex; align-items:baseline; gap:var(--mmm-s3); margin:var(--mmm-s3) 0 var(--mmm-s2);}
 
 .mmm-recipe-card{
   display:grid; grid-template-columns:124px 1fr; gap:var(--mmm-s5);
@@ -170,7 +170,7 @@ body{
   transition:transform .15s ease, box-shadow .15s ease, border-color .15s;
 }
 .mmm-recipe-card + .mmm-recipe-card,
-.mmm-plan-day__sub + .mmm-recipe-card{margin-top:var(--mmm-s3);}
+.mmm-rail-day__sub + .mmm-recipe-card{margin-top:var(--mmm-s3);}
 .mmm-recipe-card:hover{transform:translateY(-2px); box-shadow:var(--mmm-shadow-md); border-color:var(--mmm-line-2);}
 .mmm-recipe-card__media{width:124px; height:124px; border-radius:12px; overflow:hidden; background:var(--mmm-cream-2);}
 .mmm-recipe-card__media img{width:100%; height:100%; object-fit:cover; display:block;}
@@ -211,4 +211,14 @@ body{
   .mmm-recipe-card__media{width:84px; height:84px;}
   .mmm-nutri-stats{grid-template-columns:repeat(2,1fr); gap:var(--mmm-s3);}
   .mmm-section-head h2{font-size:23px;}
+}
+
+/* ============================================================
+   8 · ASTRA-INTEGRATION
+   Astras eigene Breadcrumb ausblenden — der Hero bringt eine
+   designte Breadcrumb mit (Datei lädt nur auf der Plan-Ansicht).
+   ============================================================ */
+.ast-breadcrumbs-wrapper,
+.ast-breadcrumbs {
+    display: none;
 }

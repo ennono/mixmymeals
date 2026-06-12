@@ -1028,7 +1028,7 @@ class Mixmymeals_Shortcodes {
 		$this->render_icon_sprite();
 		?>
 
-        <div class="mmm-plan-days"
+        <div class="mmm-plan-rail"
              data-meal-plan-id="<?php echo esc_attr( $meal_plan_id ); ?>">
 
 			<?php foreach ( $days as $day_number ) : ?>
@@ -1051,20 +1051,20 @@ class Mixmymeals_Shortcodes {
 				$single_meal = ( count( $day_meals ) === 1 );
 				?>
 
-                <div class="mmm-plan-day<?php echo $day_number === $today ? ' mmm-plan-day--today' : ''; ?>">
-                    <span class="mmm-plan-day__dot"></span>
+                <div class="mmm-rail-day<?php echo $day_number === $today ? ' mmm-rail-day--today' : ''; ?>">
+                    <span class="mmm-rail-day__dot"></span>
 
-                    <div class="mmm-plan-day__head">
-                        <span class="mmm-plan-day__name"><?php echo esc_html( $weekday_labels[ $day_number ] ); ?></span>
+                    <div class="mmm-rail-day__head">
+                        <span class="mmm-rail-day__name"><?php echo esc_html( $weekday_labels[ $day_number ] ); ?></span>
 						<?php if ( $day_number === $today ) : ?>
                             <span class="mmm-badge"><?php esc_html_e( 'Today', 'mixmymeals' ); ?></span>
 						<?php endif; ?>
 						<?php if ( $single_meal ) :
 							$head_info = $this->get_meal_head_info( $day_meals[0] );
 							?>
-                            <span class="mmm-plan-day__meal"><?php echo esc_html( $day_meals[0]['type_label'] ); ?></span>
+                            <span class="mmm-rail-day__meal"><?php echo esc_html( $day_meals[0]['type_label'] ); ?></span>
 							<?php if ( $head_info ) : ?>
-                                <span class="mmm-plan-day__kcal"><?php echo esc_html( $head_info ); ?></span>
+                                <span class="mmm-rail-day__kcal"><?php echo esc_html( $head_info ); ?></span>
 							<?php endif; ?>
 						<?php endif; ?>
                     </div>
@@ -1077,10 +1077,10 @@ class Mixmymeals_Shortcodes {
 						if ( ! $single_meal ) :
 							$head_info = $this->get_meal_head_info( $entry );
 							?>
-                            <div class="mmm-plan-day__sub">
-                                <span class="mmm-plan-day__meal"><?php echo esc_html( $entry['type_label'] ); ?></span>
+                            <div class="mmm-rail-day__sub">
+                                <span class="mmm-rail-day__meal"><?php echo esc_html( $entry['type_label'] ); ?></span>
 								<?php if ( $head_info ) : ?>
-                                    <span class="mmm-plan-day__kcal"><?php echo esc_html( $head_info ); ?></span>
+                                    <span class="mmm-rail-day__kcal"><?php echo esc_html( $head_info ); ?></span>
 								<?php endif; ?>
                             </div>
 						<?php endif; ?>
