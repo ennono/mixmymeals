@@ -103,6 +103,12 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_meal_plan_hero',
 			[ $this, 'mmm_meal_plan_hero_callback' ] );
 
+		add_shortcode( 'mmm_recipe_hero',
+			[ $this, 'mmm_recipe_hero_callback' ] );
+
+		add_shortcode( 'mmm_meal_hero',
+			[ $this, 'mmm_meal_hero_callback' ] );
+
 		add_shortcode( 'mmm_meta_for_a_single_meal_plan',
 			[ $this, 'mmm_meta_for_a_single_meal_plan_callback' ] );
 
@@ -2971,6 +2977,8 @@ class Mixmymeals_Shortcodes {
             <symbol id="mmm-i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
             <symbol id="mmm-i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 3-9 9"/><path d="M21 3 14 21l-3-7-7-3z"/></symbol>
             <symbol id="mmm-i-derive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5V14a4 4 0 0 0 4 4h5.5"/></symbol>
+            <symbol id="mmm-i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2 3 5 5 5 9a5 5 0 0 1-10 0c0-1.6.7-2.8 1.5-3.6C9 9.5 10 8 9.5 6 11 6.5 12 4.5 12 3Z"/></symbol>
+            <symbol id="mmm-i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
         </svg>
 		<?php
 	}
@@ -3110,6 +3118,226 @@ class Mixmymeals_Shortcodes {
                         data-redirect-url="<?php echo esc_attr( $atts['cart_url'] ); ?>">
                     <svg><use href="#mmm-i-derive"/></svg><?php esc_html_e( 'Adjust', 'mixmymeals' ); ?>
                 </button>
+            </div>
+        </section>
+		<?php
+
+		return ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_hero].
+	 * Renders breadcrumb, title, meta chips, excerpt and the
+	 * add-to-planner action for the current recipe.
+	 *
+	 * @return string
+	 */
+	public function mmm_recipe_hero_callback(): string {
+
+		$recipe_id = get_the_ID();
+
+		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( $recipe_id );
+
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		$title    = get_the_title( $recipe_id );
+		$servings = (int) $recipe->get_servings();
+		$cost     = $recipe->calculate_cost_per_serving();
+		$currency = get_option( 'mixmymeals_currency', '€' );
+
+		$nutrition = $recipe->calculate_nutrition_per_serving();
+		$kcal      = (int) round( $nutrition['calories'] ?? 0 );
+
+		$prep_minutes     = $recipe->get_preparation_time();
+		$prep_time_string = '';
+		if ( $prep_minutes > 0 ) {
+			if ( $prep_minutes < 60 ) {
+				$prep_time_string = sprintf( '%s min', number_format_i18n( $prep_minutes ) );
+			} else {
+				$hours            = floor( $prep_minutes / 60 );
+				$minutes          = $prep_minutes % 60;
+				$prep_time_string = sprintf( '%s h', number_format_i18n( $hours ) );
+				if ( $minutes > 0 ) {
+					$prep_time_string .= ' ' . sprintf( '%s min', number_format_i18n( $minutes ) );
+				}
+			}
+		}
+
+		$archive_url   = get_post_type_archive_link( 'mmm_recipe' );
+		$post_type_obj = get_post_type_object( 'mmm_recipe' );
+		$archive_label = $post_type_obj ? $post_type_obj->labels->name : '';
+
+		ob_start();
+
+		$this->render_icon_sprite();
+		?>
+        <nav class="mmm-breadcrumb">
+            <a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'mixmymeals' ); ?></a>
+            <span class="mmm-breadcrumb__sep">/</span>
+			<?php if ( $archive_url && $archive_label ) : ?>
+                <a href="<?php echo esc_url( $archive_url ); ?>"><?php echo esc_html( $archive_label ); ?></a>
+                <span class="mmm-breadcrumb__sep">/</span>
+			<?php endif; ?>
+            <span><?php echo esc_html( $title ); ?></span>
+        </nav>
+
+        <section class="mmm-plan-hero">
+            <div class="mmm-plan-hero__blob"></div>
+            <h1><?php echo esc_html( $title ); ?></h1>
+
+            <div class="mmm-plan-hero__meta">
+				<?php if ( $servings ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-users"/></svg><?php
+						printf(
+							'%d %s',
+							$servings,
+							1 === $servings
+								? esc_html__( 'Serving', 'mixmymeals' )
+								: esc_html__( 'Servings', 'mixmymeals' )
+						);
+						?></span>
+				<?php endif; ?>
+				<?php if ( $prep_time_string ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-clock"/></svg><?php echo esc_html( $prep_time_string ); ?></span>
+				<?php endif; ?>
+				<?php if ( $kcal > 0 ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-flame"/></svg><?php echo esc_html( number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' ) ); ?></span>
+				<?php endif; ?>
+				<?php if ( $cost > 0 ) : ?>
+                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><svg><use href="#mmm-i-price"/></svg><?php
+						printf(
+							/* translators: %s: formatted average cost incl. currency */
+							esc_html__( 'Ø %s / serving', 'mixmymeals' ),
+							esc_html( number_format_i18n( $cost, 2 ) . ' ' . $currency )
+						);
+						?></span>
+				<?php endif; ?>
+            </div>
+
+			<?php if ( has_excerpt( $recipe_id ) ) : ?>
+                <p class="mmm-plan-hero__lead"><?php echo esc_html( get_the_excerpt( $recipe_id ) ); ?></p>
+			<?php endif; ?>
+
+            <div class="mmm-plan-hero__actions">
+                <button type="button"
+                        class="mmm-btn mmm-btn--primary mmm-recipe-actions__item--cart"
+                        data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
+                        data-servings="<?php echo esc_attr( max( 1, $servings ) ); ?>">
+                    <svg><use href="#mmm-i-plus"/></svg><?php esc_html_e( 'Add to Planner', 'mixmymeals' ); ?>
+                </button>
+            </div>
+        </section>
+		<?php
+
+		return ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_meal_hero].
+	 * Renders breadcrumb, title, meta chips and actions (cooking mode,
+	 * back to plan) for the current meal.
+	 *
+	 * @return string
+	 */
+	public function mmm_meal_hero_callback(): string {
+
+		$meal_id = get_the_ID();
+
+		if ( ! $meal_id || get_post_type( $meal_id ) !== 'mmm_meal' ) {
+			return '';
+		}
+
+		$meal      = new Mixmymeals_Meal( $meal_id );
+		$title     = get_the_title( $meal_id );
+		$recipe_id = (int) $meal->get_recipe_id();
+		$recipe    = new Mixmymeals_Recipe( $recipe_id );
+
+		$weekday_labels = [
+			1 => __( 'Monday', 'mixmymeals' ),
+			2 => __( 'Tuesday', 'mixmymeals' ),
+			3 => __( 'Wednesday', 'mixmymeals' ),
+			4 => __( 'Thursday', 'mixmymeals' ),
+			5 => __( 'Friday', 'mixmymeals' ),
+			6 => __( 'Saturday', 'mixmymeals' ),
+			7 => __( 'Sunday', 'mixmymeals' ),
+		];
+
+		$day        = (int) $meal->get_day();
+		$day_label  = $weekday_labels[ $day ] ?? '';
+		$type_map   = Mixmymeals_Meal::get_plaintext_meal_type_map();
+		$type_label = $type_map[ $meal->get_type() ] ?? '';
+		$servings   = (int) $meal->get_servings();
+
+		$kcal = 0;
+		if ( $recipe->is_valid() ) {
+			$nutrition = $recipe->calculate_nutrition_per_serving();
+			$kcal      = (int) round( $nutrition['calories'] ?? 0 );
+		}
+
+		$has_steps = $recipe->is_valid() && ! empty( $recipe->get_steps() );
+
+		$plan_id    = (int) wp_get_post_parent_id( $meal_id );
+		$plan_url   = $plan_id ? get_permalink( $plan_id ) : '';
+		$plan_title = $plan_id ? get_the_title( $plan_id ) : '';
+
+		ob_start();
+
+		$this->render_icon_sprite();
+		?>
+        <nav class="mmm-breadcrumb">
+            <a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'mixmymeals' ); ?></a>
+            <span class="mmm-breadcrumb__sep">/</span>
+			<?php if ( $plan_url && $plan_title ) : ?>
+                <a href="<?php echo esc_url( $plan_url ); ?>"><?php echo esc_html( $plan_title ); ?></a>
+                <span class="mmm-breadcrumb__sep">/</span>
+			<?php endif; ?>
+            <span><?php echo esc_html( $title ); ?></span>
+        </nav>
+
+        <section class="mmm-plan-hero">
+            <div class="mmm-plan-hero__blob"></div>
+            <h1><?php echo esc_html( $title ); ?></h1>
+
+            <div class="mmm-plan-hero__meta">
+				<?php if ( $day_label ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-calendar"/></svg><?php echo esc_html( $day_label ); ?></span>
+				<?php endif; ?>
+				<?php if ( $type_label ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-book"/></svg><?php echo esc_html( $type_label ); ?></span>
+				<?php endif; ?>
+				<?php if ( $servings ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-users"/></svg><?php
+						printf(
+							'%d %s',
+							$servings,
+							1 === $servings
+								? esc_html__( 'Serving', 'mixmymeals' )
+								: esc_html__( 'Servings', 'mixmymeals' )
+						);
+						?></span>
+				<?php endif; ?>
+				<?php if ( $kcal > 0 ) : ?>
+                    <span class="mmm-chip mmm-chip--stat"><svg><use href="#mmm-i-flame"/></svg><?php echo esc_html( number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' ) ); ?></span>
+				<?php endif; ?>
+            </div>
+
+            <div class="mmm-plan-hero__actions">
+				<?php if ( $has_steps ) : ?>
+                    <button type="button" class="mmm-btn mmm-btn--primary mmm-cook-mode-start">
+                        <svg><use href="#mmm-i-flame"/></svg><?php esc_html_e( 'Start cooking mode', 'mixmymeals' ); ?>
+                    </button>
+				<?php endif; ?>
+				<?php if ( $plan_url && $plan_title ) : ?>
+                    <a class="mmm-btn mmm-btn--ghost" href="<?php echo esc_url( $plan_url ); ?>">
+                        <svg><use href="#mmm-i-calendar"/></svg><?php echo esc_html( __( 'Back to', 'mixmymeals' ) . ' ' . $plan_title ); ?>
+                    </a>
+				<?php endif; ?>
             </div>
         </section>
 		<?php
