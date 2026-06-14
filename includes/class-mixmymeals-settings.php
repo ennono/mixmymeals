@@ -62,6 +62,12 @@ class Mixmymeals_Settings {
 		// Register plugin settings.
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 
+		// Handle the "send test e-mail" button on the E-Mail tab.
+		add_action( 'wp_ajax_mmm_send_test_email', array( $this, 'ajax_send_test_email' ) );
+
+		// Handle the "clear send log" button on the E-Mail tab.
+		add_action( 'wp_ajax_mmm_clear_mail_log', array( $this, 'ajax_clear_mail_log' ) );
+
 		// Add settings page to menu.
 		add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
 
@@ -384,6 +390,95 @@ class Mixmymeals_Settings {
 						'cleanup_min_age_days_callback'
 					),
 				),
+				array(
+					'id'          => 'cleanup_report_enabled',
+					'label'       => __( 'Cleanup Report', 'mixmymeals' ),
+					'description' => __( 'E-mail a summary after each cleanup run (only when something was deleted).',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'cleanup_report_enabled_callback'
+					),
+				),
+				array(
+					'id'          => 'cleanup_report_recipient',
+					'label'       => __( 'Report Recipient', 'mixmymeals' ),
+					'description' => __( 'Address the cleanup report is sent to. Leave empty to use the site admin e-mail.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => get_option( 'admin_email' ),
+					'callback'    => array(
+						$this,
+						'cleanup_report_recipient_callback'
+					),
+				),
+			),
+		);
+
+		$settings['mixmymeals-email'] = array(
+			'title'       => __( 'E-Mail', 'mixmymeals' ),
+			'description' => __( 'Sender identity and privacy options for e-mails sent by the plugin.',
+				'mixmymeals' ),
+			'fields'      => array(
+				array(
+					'id'          => 'mail_from_name',
+					'label'       => __( 'Sender Name', 'mixmymeals' ),
+					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => get_bloginfo( 'name' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'mail_from_email',
+					'label'       => __( 'Sender Address', 'mixmymeals' ),
+					'description' => __( 'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => 'no-reply@example.com',
+					'callback'    => array(
+						$this,
+						'mail_from_email_callback'
+					),
+				),
+				array(
+					'id'          => 'mail_footer',
+					'label'       => __( 'E-Mail Footer', 'mixmymeals' ),
+					'description' => __( 'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'archive_description_callback'
+					),
+				),
+				array(
+					'id'          => 'mail_suppression_list',
+					'label'       => __( 'Suppression List', 'mixmymeals' ),
+					'description' => __( 'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'mail_suppression_list_callback'
+					),
+				),
+				array(
+					'id'          => 'mail_log_enabled',
+					'label'       => __( 'Send Log', 'mixmymeals' ),
+					'description' => __( 'Keep a log of sent e-mails (recipient, subject, status — no message content).',
+						'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'mail_log_enabled_callback'
+					),
+				),
 			),
 		);
 
@@ -680,11 +775,232 @@ class Mixmymeals_Settings {
 		         . "\n";
 		$html .= '</p>' . "\n";
 		$html .= '</form>' . "\n";
+
+		// Mailer test box + send log: only on the E-Mail tab (first tab is default).
+		$active_tab = '' !== $tab ? $tab : (string) array_key_first( $this->settings );
+		if ( 'mixmymeals-email' === $active_tab ) {
+			$html .= $this->render_test_email_box();
+			$html .= $this->render_mail_log();
+		}
+
 		$html .= '</div>' . "\n";
 		$html .= '</div>' . "\n";
 		$html .= '</div>' . "\n";
 
 		echo $html; //phpcs:ignore
+	}
+
+	/**
+	 * Builds the "send a test e-mail" box shown on the E-Mail settings tab.
+	 *
+	 * The button triggers an AJAX request handled by ajax_send_test_email();
+	 * it is intentionally outside the options.php form.
+	 *
+	 * @return string
+	 */
+	private function render_test_email_box(): string {
+
+		$admin_email = (string) get_option( 'admin_email' );
+
+		$html  = '<hr />' . "\n";
+		$html .= '<h3>' . esc_html__( 'Send a test e-mail', 'mixmymeals' ) . '</h3>' . "\n";
+		$html .= '<p class="description">'
+		         . esc_html__( 'Sends a test message with the current sender settings. Save your changes first.', 'mixmymeals' )
+		         . '</p>' . "\n";
+		$html .= '<p>';
+		$html .= '<input type="email" id="mmm-test-email-to" class="regular-text" value="'
+		         . esc_attr( $admin_email ) . '" placeholder="' . esc_attr( $admin_email ) . '" /> ';
+		$html .= '<button type="button" class="button" id="mmm-send-test-email" data-nonce="'
+		         . esc_attr( wp_create_nonce( 'mmm_send_test_email' ) ) . '">'
+		         . esc_html__( 'Send test e-mail', 'mixmymeals' ) . '</button>';
+		$html .= '</p>' . "\n";
+		$html .= '<p id="mmm-test-email-result" aria-live="polite"></p>' . "\n";
+
+		return $html;
+	}
+
+	/**
+	 * AJAX handler for the "send test e-mail" button.
+	 *
+	 * Capability- and nonce-checked. Sends a forced, transactional test message
+	 * through Mixmymeals_Mailer and reports the result as JSON.
+	 *
+	 * @return void
+	 */
+	public function ajax_send_test_email(): void {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'You are not allowed to do this.', 'mixmymeals' ) ),
+				403
+			);
+		}
+
+		check_ajax_referer( 'mmm_send_test_email', 'nonce' );
+
+		if ( ! class_exists( 'Mixmymeals_Mailer' ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'The mailer is not available.', 'mixmymeals' ) ),
+				500
+			);
+		}
+
+		$to = isset( $_POST['to'] )
+			? sanitize_email( wp_unslash( $_POST['to'] ) ) //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+			: '';
+
+		if ( '' === $to || ! is_email( $to ) ) {
+			$to = (string) get_option( 'admin_email' );
+		}
+
+		$site_name = wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES );
+		$when      = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
+
+		$body  = '<h1>' . esc_html__( 'Test e-mail', 'mixmymeals' ) . '</h1>';
+		$body .= '<p>' . esc_html(
+			sprintf(
+				/* translators: %s: site name. */
+				__( 'This is a test message from %s.', 'mixmymeals' ),
+				$site_name
+			)
+		) . '</p>';
+		$body .= '<p>' . esc_html(
+			sprintf(
+				/* translators: %s: date and time the test was sent. */
+				__( 'Sent on %s. If you can read this, the mailer is working.', 'mixmymeals' ),
+				$when
+			)
+		) . '</p>';
+
+		$subject = sprintf(
+			/* translators: %s: site name. */
+			__( '[%s] Test e-mail', 'mixmymeals' ),
+			$site_name
+		);
+
+		$sent = Mixmymeals_Mailer::send_template(
+			$to,
+			$subject,
+			$body,
+			array(),
+			array(
+				'inline'        => true,
+				'layout'        => 'layout.html',
+				'transactional' => true,
+				'force'         => true,
+			)
+		);
+
+		if ( $sent ) {
+			wp_send_json_success(
+				array(
+					/* translators: %s: recipient e-mail address. */
+					'message' => sprintf( __( 'Test e-mail sent to %s.', 'mixmymeals' ), $to ),
+				)
+			);
+		}
+
+		wp_send_json_error(
+			array(
+				'message' => __( 'wp_mail() reported a failure. Please check your server / SMTP configuration.', 'mixmymeals' ),
+			),
+			500
+		);
+	}
+
+	/**
+	 * Builds the send-log table shown on the E-Mail settings tab.
+	 *
+	 * @return string
+	 */
+	private function render_mail_log(): string {
+
+		if ( ! class_exists( 'Mixmymeals_Mail_Log' ) ) {
+			return '';
+		}
+
+		$entries = Mixmymeals_Mail_Log::get_entries();
+
+		$html  = '<hr />' . "\n";
+		$html .= '<h3>' . esc_html__( 'Send log', 'mixmymeals' ) . '</h3>' . "\n";
+
+		if ( ! Mixmymeals_Mail_Log::is_enabled() ) {
+			$html .= '<p class="description">'
+			         . esc_html__( 'Logging is currently disabled. Enable “Send Log” above and save to start recording.', 'mixmymeals' )
+			         . '</p>' . "\n";
+		}
+
+		if ( empty( $entries ) ) {
+			$html .= '<p class="description">'
+			         . esc_html__( 'No e-mails logged yet.', 'mixmymeals' )
+			         . '</p>' . "\n";
+
+			return $html;
+		}
+
+		$date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+
+		$html .= '<table class="widefat striped" id="mmm-mail-log-table" style="max-width:880px;margin-top:8px;">' . "\n";
+		$html .= '<thead><tr>'
+		         . '<th>' . esc_html__( 'Date', 'mixmymeals' ) . '</th>'
+		         . '<th>' . esc_html__( 'Recipient', 'mixmymeals' ) . '</th>'
+		         . '<th>' . esc_html__( 'Subject', 'mixmymeals' ) . '</th>'
+		         . '<th>' . esc_html__( 'Status', 'mixmymeals' ) . '</th>'
+		         . '</tr></thead><tbody>' . "\n";
+
+		foreach ( $entries as $entry ) {
+
+			$time    = isset( $entry['time'] ) ? (int) $entry['time'] : 0;
+			$when    = $time ? wp_date( $date_format, $time ) : '—';
+			$to      = isset( $entry['to'] ) ? (string) $entry['to'] : '';
+			$subject = isset( $entry['subject'] ) ? (string) $entry['subject'] : '';
+			$is_sent = isset( $entry['status'] ) && 'sent' === $entry['status'];
+
+			$badge = $is_sent
+				? '<span style="color:#3F6F1E;font-weight:600;">' . esc_html__( 'Sent', 'mixmymeals' ) . '</span>'
+				: '<span style="color:#D2622C;font-weight:600;">' . esc_html__( 'Failed', 'mixmymeals' ) . '</span>';
+
+			$html .= '<tr>'
+			         . '<td>' . esc_html( $when ) . '</td>'
+			         . '<td>' . esc_html( $to ) . '</td>'
+			         . '<td>' . esc_html( $subject ) . '</td>'
+			         . '<td>' . $badge . '</td>'
+			         . '</tr>' . "\n";
+		}
+
+		$html .= '</tbody></table>' . "\n";
+
+		$html .= '<p>';
+		$html .= '<button type="button" class="button" id="mmm-clear-mail-log" data-nonce="'
+		         . esc_attr( wp_create_nonce( 'mmm_clear_mail_log' ) ) . '">'
+		         . esc_html__( 'Clear log', 'mixmymeals' ) . '</button> ';
+		$html .= '<span id="mmm-clear-mail-log-result" aria-live="polite"></span>';
+		$html .= '</p>' . "\n";
+
+		return $html;
+	}
+
+	/**
+	 * AJAX handler for the "clear send log" button.
+	 *
+	 * @return void
+	 */
+	public function ajax_clear_mail_log(): void {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'You are not allowed to do this.', 'mixmymeals' ) ),
+				403
+			);
+		}
+
+		check_ajax_referer( 'mmm_clear_mail_log', 'nonce' );
+
+		if ( class_exists( 'Mixmymeals_Mail_Log' ) ) {
+			Mixmymeals_Mail_Log::clear();
+		}
+
+		wp_send_json_success( array( 'message' => __( 'Send log cleared.', 'mixmymeals' ) ) );
 	}
 
 	/**
@@ -838,6 +1154,31 @@ class Mixmymeals_Settings {
 	}
 
 	/**
+	 * Sanitizes the cleanup-report checkbox setting.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function cleanup_report_enabled_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the cleanup-report recipient address.
+	 *
+	 * Returns '' for empty/invalid input so the cleanup falls back to the
+	 * site admin e-mail.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string A valid e-mail address or ''.
+	 */
+	public function cleanup_report_recipient_callback( mixed $input ): string {
+		$email = sanitize_email( (string) $input );
+
+		return ( '' !== $email && is_email( $email ) ) ? $email : '';
+	}
+
+	/**
 	 * Sanitizes the redirect page ID setting for draft-saved visitor plans.
 	 *
 	 * @param mixed $input Raw input value.
@@ -845,6 +1186,53 @@ class Mixmymeals_Settings {
 	 */
 	public function page_id_to_redirect_if_new_plan_is_draft_callback( mixed $input ): int {
 		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the e-mail sender address setting.
+	 *
+	 * Returns '' for empty/invalid input so Mixmymeals_Mailer falls back to
+	 * its domain-based default.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string A valid e-mail address or ''.
+	 */
+	public function mail_from_email_callback( mixed $input ): string {
+		$email = sanitize_email( (string) $input );
+
+		return ( '' !== $email && is_email( $email ) ) ? $email : '';
+	}
+
+	/**
+	 * Sanitizes the send-log checkbox setting.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function mail_log_enabled_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the suppression (opt-out) list textarea into an array of
+	 * unique, valid, lower-cased e-mail addresses.
+	 *
+	 * @param mixed $input Raw input value (newline/comma/semicolon separated).
+	 * @return string[] Clean address list.
+	 */
+	public function mail_suppression_list_callback( mixed $input ): array {
+		$lines = preg_split( '/[\r\n,;]+/', (string) $input );
+		$clean = array();
+
+		foreach ( (array) $lines as $line ) {
+			$email = strtolower( sanitize_email( trim( (string) $line ) ) );
+
+			if ( '' !== $email && is_email( $email ) ) {
+				$clean[ $email ] = $email;
+			}
+		}
+
+		return array_values( $clean );
 	}
 
 }

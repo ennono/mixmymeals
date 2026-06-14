@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="x-apple-disable-message-reformatting">
+	<title>{{ site_name }}</title>
+	<style>
+		body { margin: 0; padding: 0; background-color: #FBF8F1; }
+		.mmm-mail-wrap { width: 100%; background-color: #FBF8F1; padding: 24px 0; }
+		.mmm-mail-card {
+			width: 100%; max-width: 600px; margin: 0 auto;
+			background-color: #FFFFFF; border: 1px solid #ECE6D9;
+			border-radius: 16px; overflow: hidden;
+			font-family: "Nunito Sans", Helvetica, Arial, sans-serif;
+			color: #2C2A24;
+		}
+		.mmm-mail-header {
+			padding: 24px 32px;
+			background: linear-gradient(135deg, #F3F8EA 0%, #FBF8F1 60%);
+			border-bottom: 1px solid #ECE6D9;
+		}
+		.mmm-mail-brand {
+			margin: 0; font-family: "Fredoka", Helvetica, Arial, sans-serif;
+			font-size: 22px; font-weight: 600; color: #3F6F1E;
+		}
+		.mmm-mail-body { padding: 32px; font-size: 16px; line-height: 1.55; }
+		.mmm-mail-body h1, .mmm-mail-body h2 {
+			font-family: "Fredoka", Helvetica, Arial, sans-serif; color: #3F6F1E;
+		}
+		.mmm-mail-body a { color: #5C9E2E; }
+		.mmm-mail-footer {
+			padding: 20px 32px; border-top: 1px solid #ECE6D9;
+			font-size: 12px; line-height: 1.5; color: #9A9485; text-align: center;
+		}
+		.mmm-mail-footer a { color: #6B665B; }
+	</style>
+</head>
+<body>
+	<div class="mmm-mail-wrap">
+		<div class="mmm-mail-card">
+			<div class="mmm-mail-header">
+				<p class="mmm-mail-brand">{{ site_name }}</p>
+			</div>
+			<div class="mmm-mail-body">
+				{{ content }}
+			</div>
+			<div class="mmm-mail-footer">
+				<p>&copy; {{ year }} <a href="{{ site_url }}">{{ site_name }}</a></p>
+				<p>{{ footer_note }}</p>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

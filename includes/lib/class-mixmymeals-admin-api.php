@@ -100,6 +100,7 @@ class Mixmymeals_Admin_API {
 			case 'all_ingredients_description':
 			case 'all_meal_plans_description':
 			case 'individual_meal_plans_description':
+			case 'mail_footer':
 
 				$editor_id    = esc_attr( $field['id'] );
 				$editor_name  = esc_attr( $option_name );
@@ -128,6 +129,7 @@ class Mixmymeals_Admin_API {
 			case 'recipe_slug':
 			case 'currency':
 			case 'individual_tab_label':
+			case 'mail_from_name':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 				         . '" type="text" name="' . esc_attr( $option_name )
 				         . '" placeholder="'
@@ -158,6 +160,8 @@ class Mixmymeals_Admin_API {
 				break;
 
 			case 'enable_cleanup':
+			case 'cleanup_report_enabled':
+			case 'mail_log_enabled':
 			case 'public_mode':
 				$checked = '';
 				if ( $data && 'on' === $data ) {
@@ -236,6 +240,27 @@ class Mixmymeals_Admin_API {
 				         . esc_html( $field['description'] )
 				         . '</label></p>';
 
+				break;
+
+			case 'mail_from_email':
+			case 'cleanup_report_recipient':
+				$html .= '<input id="' . esc_attr( $field['id'] )
+				         . '" type="email" name="' . esc_attr( $option_name )
+				         . '" placeholder="'
+				         . esc_attr( $field['placeholder'] ) . '" value="'
+				         . esc_attr( $data ) . '" class="regular-text" /><p class="description">'
+				         . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'mail_suppression_list':
+				$list  = is_array( $data ) ? $data : array();
+				$html .= '<textarea id="' . esc_attr( $field['id'] )
+				         . '" rows="6" cols="60" name="'
+				         . esc_attr( $option_name ) . '" placeholder="'
+				         . esc_attr( $field['placeholder'] ) . '">'
+				         . esc_textarea( implode( "\n", $list ) )
+				         . '</textarea><p class="description">'
+				         . esc_html( $field['description'] ) . '</p>';
 				break;
 
 

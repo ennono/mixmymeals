@@ -1,0 +1,33 @@
+<!--
+	Example body template for Mixmymeals_Mailer::send_template().
+
+	Use with a layout:
+	Mixmymeals_Mailer::send_template(
+		$to,
+		'Hallo {{ name }}, willkommen bei {{ site_name }}',
+		'example.html',
+		array(
+			'name'        => $user_name,   // escaped via esc_html
+			'intro_html'  => $rich_intro,  // trusted rich text via wp_kses_post
+			'cta_url'     => $link,        // escaped via esc_url
+			'cta_label'   => 'Zum Essensplan',
+			'footer_note' => 'Du erhältst diese E-Mail, weil du einen Essensplan erstellt hast.',
+		),
+		array( 'layout' => 'layout.html' )
+	);
+
+	Placeholder escaping by key suffix: *_url → esc_url, *_html → wp_kses_post,
+	otherwise esc_html. Unknown placeholders are removed.
+-->
+<h1>Hallo {{ name }}!</h1>
+
+<p>{{ intro_html }}</p>
+
+<p>
+	<a href="{{ cta_url }}"
+	   style="display:inline-block;padding:11px 18px;border-radius:999px;background:#5C9E2E;color:#ffffff;font-weight:800;text-decoration:none;">
+		{{ cta_label }}
+	</a>
+</p>
+
+<p>Guten Appetit!<br>{{ site_name }}</p>

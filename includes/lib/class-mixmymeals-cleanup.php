@@ -71,6 +71,32 @@ class Mixmymeals_Cleanup {
 	}
 
 	/**
+	 * Whether the cleanup report e-mail is enabled in the settings.
+	 *
+	 * @return bool
+	 */
+	public static function is_report_enabled(): bool {
+		return 'on' === get_option( 'mixmymeals_cleanup_report_enabled', '' );
+	}
+
+	/**
+	 * Recipient address for the cleanup report. Falls back to the site admin
+	 * e-mail when no valid address is configured.
+	 *
+	 * @return string
+	 */
+	public static function get_report_recipient(): string {
+
+		$email = sanitize_email( (string) get_option( 'mixmymeals_cleanup_report_recipient', '' ) );
+
+		if ( '' !== $email && is_email( $email ) ) {
+			return $email;
+		}
+
+		return (string) get_option( 'admin_email' );
+	}
+
+	/**
 	 * Maximum number of deletions per post type and cron run.
 	 *
 	 * @return int
@@ -128,6 +154,107 @@ class Mixmymeals_Cleanup {
 				)
 			);
 		}
+
+		$this->maybe_send_report( $deleted_plans, $deleted_meals );
+	}
+
+	/**
+	 * Sends the cleanup summary as an e-mail when the report is enabled.
+	 *
+	 * By default the report is skipped when nothing was deleted (filterable via
+	 * 'mixmymeals_cleanup_report_when_empty'). It is sent through
+	 * Mixmymeals_Mailer as a forced, transactional admin/ops message (bypasses
+	 * the suppression list) wrapped in the branded layout.
+	 *
+	 * @param int $deleted_plans Number of deleted meal plans.
+	 * @param int $deleted_meals Number of deleted orphaned meals.
+	 *
+	 * @return void
+	 */
+	private function maybe_send_report( int $deleted_plans, int $deleted_meals ): void {
+
+		if ( ! self::is_report_enabled() ) {
+			return;
+		}
+
+		$total = $deleted_plans + $deleted_meals;
+
+		/**
+		 * Filters whether the report is also sent when nothing was deleted.
+		 *
+		 * @param bool $send_when_empty Default false (skip empty reports).
+		 */
+		if ( $total < 1 && ! apply_filters( 'mixmymeals_cleanup_report_when_empty', false ) ) {
+			return;
+		}
+
+		if ( ! class_exists( 'Mixmymeals_Mailer' ) ) {
+			return;
+		}
+
+		$recipient = self::get_report_recipient();
+
+		if ( '' === $recipient ) {
+			return;
+		}
+
+		$site_name = wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES );
+		$when      = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
+		$min_age   = self::get_min_age_days();
+
+		$body  = '<h1>' . esc_html__( 'Cleanup report', 'mixmymeals' ) . '</h1>';
+		$body .= '<p>' . esc_html(
+			sprintf(
+				/* translators: %s: date and time of the cleanup run. */
+				__( 'Cleanup run on %s.', 'mixmymeals' ),
+				$when
+			)
+		) . '</p><ul>';
+		$body .= '<li>' . esc_html(
+			sprintf(
+				/* translators: %d: number of deleted meal plans. */
+				_n( '%d meal plan deleted', '%d meal plans deleted', $deleted_plans, 'mixmymeals' ),
+				$deleted_plans
+			)
+		) . '</li>';
+		$body .= '<li>' . esc_html(
+			sprintf(
+				/* translators: %d: number of deleted orphaned meals. */
+				_n( '%d orphaned meal deleted', '%d orphaned meals deleted', $deleted_meals, 'mixmymeals' ),
+				$deleted_meals
+			)
+		) . '</li></ul>';
+		$body .= '<p>' . esc_html(
+			sprintf(
+				/* translators: %d: minimum age in days. */
+				_n(
+					'Only items older than %d day are removed.',
+					'Only items older than %d days are removed.',
+					$min_age,
+					'mixmymeals'
+				),
+				$min_age
+			)
+		) . '</p>';
+
+		$subject = sprintf(
+			/* translators: %s: site name. */
+			__( '[%s] Cleanup report', 'mixmymeals' ),
+			$site_name
+		);
+
+		Mixmymeals_Mailer::send_template(
+			$recipient,
+			$subject,
+			$body,
+			array(),
+			array(
+				'inline'        => true,
+				'layout'        => 'layout.html',
+				'transactional' => true,
+				'force'         => true,
+			)
+		);
 	}
 
 	/**

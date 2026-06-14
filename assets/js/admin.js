@@ -392,4 +392,71 @@ jQuery(document).ready(function ($) {
         mediaFrame.open();
     });
 
+    /* ===========================
+       MAILER TEST BUTTON (E-Mail tab)
+    ============================ */
+    $(document).on('click', '#mmm-send-test-email', function () {
+        const $btn = $(this);
+        const $result = $('#mmm-test-email-result');
+        const to = $('#mmm-test-email-to').val();
+
+        $btn.prop('disabled', true);
+        $result.css('color', '').text('…');
+
+        $.ajax({
+            url: ajaxUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'mmm_send_test_email',
+                nonce: $btn.data('nonce'),
+                to: to
+            }
+        }).done(function (response) {
+            const msg = (response && response.data && response.data.message) ? response.data.message : '';
+            if (response && response.success) {
+                $result.css('color', '#3F6F1E').text(msg || 'OK');
+            } else {
+                $result.css('color', '#D2622C').text(msg || 'Error.');
+            }
+        }).fail(function (xhr) {
+            let msg = 'Request failed.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                msg = xhr.responseJSON.data.message;
+            }
+            $result.css('color', '#D2622C').text(msg);
+        }).always(function () {
+            $btn.prop('disabled', false);
+        });
+    });
+
+    /* ===========================
+       MAILER SEND LOG — CLEAR
+    ============================ */
+    $(document).on('click', '#mmm-clear-mail-log', function () {
+        const $btn = $(this);
+        const $result = $('#mmm-clear-mail-log-result');
+
+        $btn.prop('disabled', true);
+        $result.css('color', '').text('…');
+
+        $.ajax({
+            url: ajaxUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'mmm_clear_mail_log',
+                nonce: $btn.data('nonce')
+            }
+        }).done(function (response) {
+            const msg = (response && response.data && response.data.message) ? response.data.message : '';
+            $result.css('color', '#3F6F1E').text(msg || 'OK');
+            $('#mmm-mail-log-table tbody').empty();
+        }).fail(function () {
+            $result.css('color', '#D2622C').text('Request failed.');
+        }).always(function () {
+            $btn.prop('disabled', false);
+        });
+    });
+
 });

@@ -43,6 +43,8 @@ require_once 'includes/lib/class-mixmymeals-equipment.php';
 require_once 'includes/lib/class-mixmymeals-pdf-builder.php';
 require_once 'includes/lib/class-mixmymeals-rest-api.php';
 require_once 'includes/lib/class-mixmymeals-cleanup.php';
+require_once 'includes/lib/class-mixmymeals-mail-log.php';
+require_once 'includes/lib/class-mixmymeals-mailer.php';
 
 
 /**
