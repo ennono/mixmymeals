@@ -130,6 +130,7 @@ class Mixmymeals_Admin_API {
 			case 'currency':
 			case 'individual_tab_label':
 			case 'mail_from_name':
+			case 'subscription_privacy_url':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 				         . '" type="text" name="' . esc_attr( $option_name )
 				         . '" placeholder="'
@@ -162,6 +163,8 @@ class Mixmymeals_Admin_API {
 			case 'enable_cleanup':
 			case 'cleanup_report_enabled':
 			case 'mail_log_enabled':
+			case 'subscriptions_enabled':
+			case 'subscription_log_ip':
 			case 'public_mode':
 				$checked = '';
 				if ( $data && 'on' === $data ) {
@@ -263,6 +266,19 @@ class Mixmymeals_Admin_API {
 				         . esc_html( $field['description'] ) . '</p>';
 				break;
 
+			case 'subscription_pending_hours':
+			case 'subscription_retention_days':
+				$html .= '<input type="number" min="1" name="' . esc_attr( $option_name )
+				         . '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
+				         . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data )
+				         . '" /><p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'subscription_schedule':
+				$rows  = is_array( $data ) ? $data : array();
+				$html .= $this->render_subscription_schedule_field( $option_name, $rows, (string) $field['description'] );
+				break;
+
 
 		}
 
@@ -275,5 +291,85 @@ class Mixmymeals_Admin_API {
 		echo $html; //phpcs:ignore
 
 		return true;
+	}
+
+	/**
+	 * Renders the repeatable subscription sending-schedule rows (weekday + time
+	 * + template) plus an "Add row" control and a clone prototype.
+	 *
+	 * @param string $option_name Base option name.
+	 * @param array  $rows        Existing rows.
+	 * @param string $description Field description.
+	 *
+	 * @return string
+	 */
+	private function render_subscription_schedule_field( string $option_name, array $rows, string $description ): string {
+
+		$days = array(
+			1 => __( 'Monday', 'mixmymeals' ),
+			2 => __( 'Tuesday', 'mixmymeals' ),
+			3 => __( 'Wednesday', 'mixmymeals' ),
+			4 => __( 'Thursday', 'mixmymeals' ),
+			5 => __( 'Friday', 'mixmymeals' ),
+			6 => __( 'Saturday', 'mixmymeals' ),
+			7 => __( 'Sunday', 'mixmymeals' ),
+		);
+
+		$templates = class_exists( 'Mixmymeals_Subscriptions' )
+			? Mixmymeals_Subscriptions::builtin_templates()
+			: array();
+
+		if ( class_exists( 'Mixmymeals_Mailer' ) ) {
+			foreach ( (array) glob( Mixmymeals_Mailer::templates_dir() . '*.html' ) as $file ) {
+				$base = basename( (string) $file );
+				if ( 'layout.html' === $base ) {
+					continue;
+				}
+				$templates[ 'file:' . $base ] = $base;
+			}
+		}
+
+		$build_row = static function ( $index, array $row ) use ( $option_name, $days, $templates ): string {
+
+			$cur_day  = isset( $row['day'] ) ? (int) $row['day'] : 1;
+			$cur_time = isset( $row['time'] ) ? (string) $row['time'] : '08:00';
+			$cur_tpl  = isset( $row['template'] ) ? (string) $row['template'] : '';
+
+			$name = esc_attr( $option_name . '[' . $index . ']' );
+
+			$day_opts = '';
+			foreach ( $days as $d => $label ) {
+				$day_opts .= '<option value="' . esc_attr( $d ) . '"' . selected( $cur_day, $d, false ) . '>' . esc_html( $label ) . '</option>';
+			}
+
+			$tpl_opts = '';
+			foreach ( $templates as $id => $label ) {
+				$tpl_opts .= '<option value="' . esc_attr( $id ) . '"' . selected( $cur_tpl, $id, false ) . '>' . esc_html( $label ) . '</option>';
+			}
+
+			return '<tr class="mmm-schedule-row">'
+				. '<td><select name="' . $name . '[day]">' . $day_opts . '</select></td>'
+				. '<td><input type="time" name="' . $name . '[time]" value="' . esc_attr( $cur_time ) . '"></td>'
+				. '<td><select name="' . $name . '[template]">' . $tpl_opts . '</select></td>'
+				. '<td><button type="button" class="button mmm-schedule-remove" aria-label="' . esc_attr__( 'Remove row', 'mixmymeals' ) . '">×</button></td>'
+				. '</tr>';
+		};
+
+		$body = '';
+		foreach ( array_values( $rows ) as $i => $row ) {
+			$body .= $build_row( $i, is_array( $row ) ? $row : array() );
+		}
+
+		$html  = '<table class="widefat" id="mmm-schedule-table" style="max-width:680px;"><thead><tr>'
+			. '<th>' . esc_html__( 'Weekday', 'mixmymeals' ) . '</th>'
+			. '<th>' . esc_html__( 'Time', 'mixmymeals' ) . '</th>'
+			. '<th>' . esc_html__( 'Template', 'mixmymeals' ) . '</th>'
+			. '<th></th></tr></thead><tbody>' . $body . '</tbody></table>';
+		$html .= '<p><button type="button" class="button" id="mmm-schedule-add">'
+			. esc_html__( 'Add row', 'mixmymeals' ) . '</button></p>';
+		$html .= '<script type="text/html" id="mmm-schedule-row-tpl">' . $build_row( '__INDEX__', array() ) . '</script>';
+		$html .= '<p class="description">' . esc_html( $description ) . '</p>';
+
+		return $html;
 	}
 }

@@ -41,6 +41,10 @@ class Mixmymeals_Shortcodes {
 			'mmm_thumbnails_of_meals_in_a_single_meal_plan_callback'
 		] );
 
+		// Meal plan subscription form (logic in Mixmymeals_Subscriptions):
+		add_shortcode( 'mmm_meal_plan_subscribe',
+			[ $this, 'mmm_meal_plan_subscribe_callback' ] );
+
 		add_action( 'pre_get_posts',
 			array( $this, 'filter_meal_plan_archive_by_url_parameter' ) );
 
@@ -232,6 +236,19 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Shortcode [mmm_meal_plan_subscribe]: meal plan subscribe form.
+	 * Delegates to Mixmymeals_Subscriptions::render_form().
+	 *
+	 * @param array|string $atts Shortcode attributes (plan_id).
+	 * @return string
+	 */
+	public function mmm_meal_plan_subscribe_callback( $atts = [] ): string {
+		return class_exists( 'Mixmymeals_Subscriptions' )
+			? Mixmymeals_Subscriptions::render_form( $atts )
+			: '';
+	}
+
+	/**
 	 * Shortcode [mmm_thumbnails_of_meals_in_a_single_meal_plan].
 	 * Returns a row of unique recipe thumbnails for the current meal plan.
 	 *
@@ -304,7 +321,7 @@ class Mixmymeals_Shortcodes {
 			}
 		}
 
-		$output = '<div class="mmm-mealplan-thumbs" style="display:flex; gap:6px; flex-wrap:wrap;">';
+		$output = '<div class="mmm-mealplan-thumbs">';
 
 		ksort( $best_recipe_per_day );
 
@@ -319,7 +336,6 @@ class Mixmymeals_Shortcodes {
 				$recipe_id,
 				'thumbnail',
 				[
-					'style'   => 'width:60px;height:60px;object-fit:cover;border-radius:6px;',
 					'loading' => 'lazy',
 					'alt'     => get_the_title( $recipe_id ),
 				]
@@ -1390,7 +1406,7 @@ class Mixmymeals_Shortcodes {
 	 * @param float $total_weight Total weight in grams.
 	 * @return string E.g. "3× Stück + 150 g (≈ 405 g)".
 	 */
-	private function build_needed_amount_string( array $units, float $total_weight ): string {
+	public static function build_needed_amount_string( array $units, float $total_weight ): string {
 
 		$piece_parts = [];
 		$loose_grams = 0.0;
@@ -2493,7 +2509,16 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_create_meal_plan_ajax_callback(): void {
 
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'mmm_frontend_nonce' ) ) {
+			wp_send_json_error(
+				[
+					'code'    => 'session_expired',
+					'message' => __( 'Your session has expired. Please reload the page.', 'mixmymeals' ),
+				],
+				403
+			);
+		}
 
 		$public_mode = (string) get_option( 'mixmymeals_public_mode', '' )
 		               === 'on';
@@ -2664,7 +2689,9 @@ class Mixmymeals_Shortcodes {
 			$meal->set_servings( ! empty( $item['servings'] )
 				? (int) $item['servings'] : 1 );
 			$meal->set_type( $item['type'] ?? '' );
-			$meal->set_day( isset( $item['day'] ) ? (int) $item['day'] : null );
+			if ( isset( $item['day'] ) ) {
+				$meal->set_day( (int) $item['day'] );
+			}
 		}
 
 		// Find out where to redirect now:

@@ -227,6 +227,16 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Instantiates the meal plan subscriptions class (CPT, double opt-in,
+	 * token endpoints and the drip-sending WP-Cron event).
+	 *
+	 * @return Mixmymeals_Subscriptions
+	 */
+	public function add_subscriptions(): Mixmymeals_Subscriptions {
+		return new Mixmymeals_Subscriptions( $this->file );
+	}
+
+	/**
 	 * Instantiates the JSON importer classes (admin import pages for
 	 * ingredients and recipes plus the AI reference REST route).
 	 *

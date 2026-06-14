@@ -459,4 +459,20 @@ jQuery(document).ready(function ($) {
         });
     });
 
+    /* ===========================
+       SUBSCRIPTION SCHEDULE ROWS
+    ============================ */
+    let mmmScheduleIndex = $('#mmm-schedule-table tbody tr').length;
+
+    $(document).on('click', '#mmm-schedule-add', function () {
+        const tpl = $('#mmm-schedule-row-tpl').html();
+        if (!tpl) return;
+        const html = tpl.replace(/__INDEX__/g, mmmScheduleIndex++);
+        $('#mmm-schedule-table tbody').append(html);
+    });
+
+    $(document).on('click', '.mmm-schedule-remove', function () {
+        $(this).closest('tr').remove();
+    });
+
 });

@@ -482,6 +482,68 @@ class Mixmymeals_Settings {
 			),
 		);
 
+		$settings['mixmymeals-subscriptions'] = array(
+			'title'       => __( 'Subscriptions', 'mixmymeals' ),
+			'description' => __( 'Let visitors subscribe to a meal plan and receive day e-mails (double opt-in).',
+				'mixmymeals' ),
+			'fields'      => array(
+				array(
+					'id'          => 'subscriptions_enabled',
+					'label'       => __( 'Enable Subscriptions', 'mixmymeals' ),
+					'description' => __( 'Allow visitors to subscribe to meal plans and run the sending schedule.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscriptions_enabled_callback' ),
+				),
+				array(
+					'id'          => 'subscription_schedule',
+					'label'       => __( 'Sending Schedule', 'mixmymeals' ),
+					'description' => __( 'Global plan: which template goes out on which weekday and time. The content adapts to the subscribed plan; only weekdays that are part of a plan are sent.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_schedule_callback' ),
+				),
+				array(
+					'id'          => 'subscription_privacy_url',
+					'label'       => __( 'Privacy Policy URL', 'mixmymeals' ),
+					'description' => __( 'Linked from the consent checkbox on the subscribe form.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => 'https://…',
+					'callback'    => array( $this, 'subscription_privacy_url_callback' ),
+				),
+				array(
+					'id'          => 'subscription_pending_hours',
+					'label'       => __( 'Confirmation Window (hours)', 'mixmymeals' ),
+					'description' => __( 'Unconfirmed subscriptions are deleted after this many hours.',
+						'mixmymeals' ),
+					'default'     => 48,
+					'placeholder' => '48',
+					'callback'    => array( $this, 'subscription_pending_hours_callback' ),
+				),
+				array(
+					'id'          => 'subscription_retention_days',
+					'label'       => __( 'Retention (days)', 'mixmymeals' ),
+					'description' => __( 'Completed/unsubscribed records are deleted after this many days.',
+						'mixmymeals' ),
+					'default'     => 365,
+					'placeholder' => '365',
+					'callback'    => array( $this, 'subscription_retention_days_callback' ),
+				),
+				array(
+					'id'          => 'subscription_log_ip',
+					'label'       => __( 'Store Consent IP', 'mixmymeals' ),
+					'description' => __( 'Also store the IP address as part of the consent record (optional).',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_log_ip_callback' ),
+				),
+			),
+		);
+
 		return apply_filters(
 			$this->parent->_token . '_settings_fields',
 			$settings
@@ -1233,6 +1295,104 @@ class Mixmymeals_Settings {
 		}
 
 		return array_values( $clean );
+	}
+
+	/**
+	 * Sanitizes the subscriptions enable checkbox.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function subscriptions_enabled_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the store-consent-IP checkbox.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function subscription_log_ip_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the privacy policy URL.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string
+	 */
+	public function subscription_privacy_url_callback( mixed $input ): string {
+		return esc_url_raw( trim( (string) $input ) );
+	}
+
+	/**
+	 * Sanitizes the confirmation window (hours).
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_pending_hours_callback( mixed $input ): int {
+		$h = absint( $input );
+		return $h > 0 ? $h : 48;
+	}
+
+	/**
+	 * Sanitizes the retention (days).
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_retention_days_callback( mixed $input ): int {
+		$d = absint( $input );
+		return $d > 0 ? $d : 365;
+	}
+
+	/**
+	 * Sanitizes the global sending schedule into a clean list of rows.
+	 *
+	 * @param mixed $input Raw posted rows (array of day/time/template).
+	 * @return array[] array{ day:int, time:string, template:string }
+	 */
+	public function subscription_schedule_callback( mixed $input ): array {
+
+		if ( ! is_array( $input ) ) {
+			return array();
+		}
+
+		$builtin = class_exists( 'Mixmymeals_Subscriptions' )
+			? array_keys( Mixmymeals_Subscriptions::builtin_templates() )
+			: array( 'builtin:meals', 'builtin:shopping' );
+
+		$clean = array();
+
+		foreach ( $input as $row ) {
+
+			$day = isset( $row['day'] ) ? (int) $row['day'] : 0;
+			if ( $day < 1 || $day > 7 ) {
+				continue;
+			}
+
+			$time = isset( $row['time'] ) ? trim( (string) $row['time'] ) : '';
+			if ( ! preg_match( '/^([01]?\d|2[0-3]):[0-5]\d$/', $time ) ) {
+				continue;
+			}
+
+			$template = isset( $row['template'] ) ? sanitize_text_field( $row['template'] ) : '';
+			$is_file  = (bool) preg_match( '/^file:[A-Za-z0-9._-]+\.html$/', $template );
+			if ( ! in_array( $template, $builtin, true ) && ! $is_file ) {
+				continue;
+			}
+
+			$clean[] = array(
+				'day'      => $day,
+				'time'     => $time,
+				'template' => $template,
+			);
+		}
+
+		return $clean;
 	}
 
 }

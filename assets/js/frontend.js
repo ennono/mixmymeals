@@ -442,12 +442,16 @@ jQuery(function ($) {
         const items = [];
         $('.mmm-plan-item').each(function () {
             const el = $(this);
+            // Read the day from the item's current container, not from a
+            // data-day attribute on the <li> (which is only present after a
+            // drag). data-day-list is 0 for the unassigned list, 1–7 for days.
+            const dayList = parseInt(el.closest('.mmm-plan-day-list').attr('data-day-list'), 10);
             items.push({
                 recipe_id: el.data('recipe-id'),
                 servings: el.find('.mmm-plan-item-servings').val(),
                 type: el.find('.mmm-plan-item-type').val(),
                 note: el.find('.mmm-plan-item-note').val(),
-                day: el.data('day') || null
+                day: (dayList >= 1 && dayList <= 7) ? dayList : null
             });
         });
 
@@ -629,6 +633,46 @@ jQuery(function ($) {
 
             mmmMealCalcUpdate(container, grams);
         }
+    });
+
+    /* ==========================================================
+       MEAL PLAN SUBSCRIBE
+       ========================================================== */
+    $(document).on('submit', '.mmm-subscribe-form', function (e) {
+        e.preventDefault();
+
+        const $form = $(this);
+        const $msg = $form.find('.mmm-subscribe-message');
+        const $btn = $form.find('.mmm-subscribe-submit');
+
+        if (!$form.find('.mmm-subscribe-agree').is(':checked')) {
+            return;
+        }
+
+        $btn.prop('disabled', true);
+
+        mmmPost('mmm_subscribe', {
+            nonce: $btn.data('nonce'),
+            plan_id: $form.data('plan-id'),
+            email: $form.find('.mmm-subscribe-email').val(),
+            name: $form.find('.mmm-subscribe-name').val(),
+            agree: '1'
+        })
+            .done(function (response) {
+                if (response && response.success) {
+                    mmmShowInlineMessage($msg, (response.data && response.data.message) || '', 'ok');
+                    const el = $form.get(0);
+                    if (el) el.reset();
+                    return;
+                }
+                mmmHandleAjaxError(response, { inlineEl: $msg, fallbackMessage: 'Could not subscribe.' });
+            })
+            .fail(function (xhr) {
+                mmmHandleRequestFail(xhr, { inlineEl: $msg, failMessage: 'Request failed.' });
+            })
+            .always(function () {
+                $btn.prop('disabled', false);
+            });
     });
 
 });
