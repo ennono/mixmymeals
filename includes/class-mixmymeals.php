@@ -227,6 +227,17 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Instantiates the JSON importer classes (admin import pages for
+	 * ingredients and recipes plus the AI reference REST route).
+	 *
+	 * @return void
+	 */
+	public function add_importer(): void {
+		new Mixmymeals_Ingredient_Importer();
+		new Mixmymeals_Recipe_Importer();
+	}
+
+	/**
 	 * Instantiates the post types class.
 	 *
 	 * @return Mixmymeals_Post_Types

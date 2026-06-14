@@ -45,6 +45,7 @@ require_once 'includes/lib/class-mixmymeals-rest-api.php';
 require_once 'includes/lib/class-mixmymeals-cleanup.php';
 require_once 'includes/lib/class-mixmymeals-mail-log.php';
 require_once 'includes/lib/class-mixmymeals-mailer.php';
+require_once 'includes/lib/class-mixmymeals-importer.php';
 
 
 /**
@@ -88,3 +89,4 @@ mixmymeals()->add_shortcodes();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();
+mixmymeals()->add_importer();
