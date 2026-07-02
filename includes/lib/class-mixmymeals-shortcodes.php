@@ -1111,7 +1111,7 @@ class Mixmymeals_Shortcodes {
 
 					<?php if ( ! empty( $step['description'] ) ) : ?>
                         <div class="mmm-step-description">
-							<?php echo esc_html( $step['description'] ); ?>
+							<?php echo wp_kses_post( $step['description'] ); ?>
                         </div>
 					<?php endif; ?>
 
@@ -1961,7 +1961,7 @@ class Mixmymeals_Shortcodes {
 
 					<?php if ( ! empty( $step['description'] ) ) : ?>
                         <div class="mmm-step-description">
-							<?php echo esc_html( $step['description'] ); ?>
+							<?php echo wp_kses_post( $step['description'] ); ?>
                         </div>
 					<?php endif; ?>
 
@@ -4272,7 +4272,7 @@ class Mixmymeals_Shortcodes {
 							<?php endif; ?>
 
 							<?php if ( ! empty( $step['description'] ) ) : ?>
-                                <p><?php echo esc_html( $step['description'] ); ?></p>
+                                <div class="mmm-step-description"><?php echo wp_kses_post( $step['description'] ); ?></div>
 							<?php endif; ?>
 
 							<?php if ( $show_step_ingredients && ! empty( $step['ingredients'] ) ) : ?>

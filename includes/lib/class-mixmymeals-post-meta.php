@@ -252,10 +252,13 @@ class Mixmymeals_Post_Meta {
 			. absint( $index ) . '][title]" value="' . esc_attr( $title )
 			. '"></p>';
 
-		// Description
+		// Description. A slim TinyMCE editor is attached to this textarea in
+		// admin.js via the wp.editor API. The id must be unique (one editor per
+		// step) and the marker class lets the JS find the step editors.
 		echo '<p><label>' . esc_html__( 'Description', 'mixmymeals' )
 			. '</label><br>';
-		echo '<textarea rows="3" class="large-text" name="mmm_recipe_steps['
+		echo '<textarea rows="3" class="large-text mmm-step-description" id="mmm_step_desc_'
+			. absint( $index ) . '" name="mmm_recipe_steps['
 			. absint( $index ) . '][description]">'
 			. esc_textarea( $description ) . '</textarea></p>';
 
@@ -568,7 +571,7 @@ class Mixmymeals_Post_Meta {
 																			''
 							)
 						),
-						'description' => sanitize_text_field(
+						'description' => wp_kses_post(
 							wp_unslash(
 								$step['description']
 																			??

@@ -92,6 +92,47 @@ jQuery(document).ready(function ($) {
     });
 
     /* ===========================
+       STEP DESCRIPTION EDITOR (slim TinyMCE via wp.editor)
+    ============================ */
+    let mmmStepEditorUid = 0;
+
+    const mmmStepEditorSettings = {
+        tinymce: {
+            wpautop: true,
+            // The Visual tab needs its plugins loaded, otherwise buttons like
+            // bullist/numlist (lists) and link (wplink) do nothing.
+            plugins: "lists paste tabfocus wordpress wpautoresize wpeditimage wpemoji wplink wptextpattern",
+            toolbar1: "bold italic bullist numlist link unlink",
+            menubar: false,
+            statusbar: false,
+            branding: false,
+        },
+        quicktags: { buttons: "strong,em,ul,ol,li,link" },
+        mediaButtons: false,
+    };
+
+    // Attach a slim editor to a step description <textarea>. Assigns a unique
+    // id when the textarea has none (e.g. a freshly cloned row).
+    function mmmInitStepEditor(el) {
+        const $ta = $(el);
+        if (!$ta.length || !window.wp || !wp.editor || !wp.editor.initialize) return;
+        let id = $ta.attr("id");
+        if (!id) {
+            id = "mmm_step_desc_new_" + (mmmStepEditorUid++);
+            $ta.attr("id", id);
+        }
+        wp.editor.initialize(id, mmmStepEditorSettings);
+    }
+
+    // Tear an editor down (writes its content back to the textarea first).
+    function mmmRemoveStepEditor(el) {
+        const id = $(el).attr("id");
+        if (id && window.wp && wp.editor && wp.editor.remove) {
+            wp.editor.remove(id);
+        }
+    }
+
+    /* ===========================
        STEP HANDLING
     ============================ */
     const createEmptyStep = (index) => $(`
@@ -103,7 +144,7 @@ jQuery(document).ready(function ($) {
             </p>
             <p>
                 <label>Description</label><br>
-                <textarea name="mmm_recipe_steps[${index}][description]" class="large-text"></textarea>
+                <textarea name="mmm_recipe_steps[${index}][description]" class="large-text mmm-step-description"></textarea>
             </p>
             <div class="mixmymeals-step-ingredients-wrapper">
                 <div class="mixmymeals-step-ingredients"></div>
@@ -132,19 +173,39 @@ jQuery(document).ready(function ($) {
         const $rows = $container.find(".mixmymeals-step-row");
         const newIndex = $rows.length;
 
-        const $clone = $rows.length === 0
-            ? createEmptyStep(0)
-            : $rows.last().clone();
+        if ($rows.length === 0) {
+            const $clone = createEmptyStep(0);
+            $container.append($clone);
+            mmmInitStepEditor($clone.find(".mmm-step-description"));
+        } else {
+            const $last = $rows.last();
+            // Tear the editor down before cloning so we clone a clean textarea,
+            // not a broken duplicate TinyMCE iframe.
+            mmmRemoveStepEditor($last.find(".mmm-step-description"));
 
-        if ($rows.length > 0) resetStepFields($clone, newIndex);
-        $container.append($clone);
+            const $clone = $last.clone();
+            resetStepFields($clone, newIndex);
+            // The clone inherited the source's editor id; drop it so it gets a
+            // fresh, unique one on init.
+            $clone.find(".mmm-step-description").removeAttr("id");
+            $container.append($clone);
+
+            // Rebuild the source editor and initialize the new one.
+            mmmInitStepEditor($last.find(".mmm-step-description"));
+            mmmInitStepEditor($clone.find(".mmm-step-description"));
+        }
 
         showShoppingListSaveNotice();
     });
 
     $(document).on("click", ".mixmymeals-delete-step", function (e) {
         e.preventDefault();
-        $(this).closest(".mixmymeals-step-row").remove();
+        const $row = $(this).closest(".mixmymeals-step-row");
+        // Remove the editor instance before dropping the row so TinyMCE does not
+        // leak an orphaned instance. Remaining rows keep their (stable) editor
+        // ids; only the field names below are reindexed.
+        mmmRemoveStepEditor($row.find(".mmm-step-description"));
+        $row.remove();
 
         $(".mixmymeals-step-row").each(function (i) {
             $(this).attr("data-step", i);
@@ -173,12 +234,72 @@ jQuery(document).ready(function ($) {
             placeholder: "mixmymeals-step-placeholder",
             items: "> .mixmymeals-step-row",
             tolerance: "pointer",
+            start: function () {
+                // Moving a row's DOM node breaks its TinyMCE iframe, so tear all
+                // step editors down for the drag and rebuild them on stop.
+                $stepsContainer.find(".mmm-step-description").each(function () {
+                    mmmRemoveStepEditor(this);
+                });
+            },
             update: function () {
                 reindexSteps();
                 showShoppingListSaveNotice();
+            },
+            stop: function () {
+                $stepsContainer.find(".mmm-step-description").each(function () {
+                    mmmInitStepEditor(this);
+                });
             }
         });
     }
+
+    function mmmInitAllStepEditors() {
+        $(".mixmymeals-recipe-steps .mmm-step-description").each(function () {
+            mmmInitStepEditor(this);
+        });
+    }
+
+    // Initialize the editors for the step rows rendered on page load.
+    //
+    // In the block editor, classic meta boxes are relocated into the Gutenberg
+    // meta-box area *after* the page loads. Initializing TinyMCE before that
+    // move leaves the iframe with a null selection: it can be focused but you
+    // cannot type into it. So wait until the meta boxes report as initialized
+    // (their DOM has reached its final location) before creating the editors.
+    //
+    // In the classic editor there is no such store, so fall back to waiting for
+    // window load, by which time window.tinymce is defined.
+    function mmmBootStepEditors() {
+        const editPost = window.wp && wp.data && wp.data.select("core/edit-post");
+
+        if (editPost && typeof editPost.areMetaBoxesInitialized === "function") {
+            if (editPost.areMetaBoxesInitialized()) {
+                mmmInitAllStepEditors();
+                return;
+            }
+            const unsubscribe = wp.data.subscribe(function () {
+                if (wp.data.select("core/edit-post").areMetaBoxesInitialized()) {
+                    unsubscribe();
+                    mmmInitAllStepEditors();
+                }
+            });
+            return;
+        }
+
+        if (window.tinymce) {
+            mmmInitAllStepEditors();
+        } else {
+            $(window).on("load", mmmInitAllStepEditors);
+        }
+    }
+
+    mmmBootStepEditors();
+
+    $(document).on("submit", "form#post", function () {
+        if (window.tinymce) {
+            window.tinymce.triggerSave();
+        }
+    });
 
     /* Reindex nach Sortierung */
     function reindexSteps() {
