@@ -192,7 +192,7 @@ class Mixmymeals_Post_Types {
 			'has_archive'         => true,
 			'hierarchical'        => false,
 			'show_in_rest'        => true,  // Important for loading Gutenberg which prevents issues with dropping recipe steps on saving without title.
-			'supports'            => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
+			'supports'            => array( 'title', 'editor', 'thumbnail', 'excerpt', 'comments' ),
 			'menu_position'       => 30,
 			'menu_icon'           => 'dashicons-clipboard',
 		);
@@ -286,23 +286,23 @@ class Mixmymeals_Post_Types {
 		$ingredient_args = array(
 			'labels'              => $ingredient_labels,
 			'public'              => true,
-			'publicly_queryable'  => false,
-			'exclude_from_search' => true,
+			'publicly_queryable'  => true,
+			'exclude_from_search' => false,
 			'show_ui'             => true,
 			'show_in_menu'        => true,
-			'show_in_nav_menus'   => false,
+			'show_in_nav_menus'   => true,
 			'query_var'           => true,
 			'can_export'          => false,
 			'rewrite'             => array(
-				'slug'       => __( 'ingredients', 'mixmymeals' ),
+				'slug'       => get_option( 'mixmymeals_ingredient_slug', 'ingredients' ),
 				'with_front' => false,
 				'feeds'      => false,
 			),
 			'capability_type'     => 'post',
-			'has_archive'         => false,
+			'has_archive'         => true,
 			'hierarchical'        => false,
 			'show_in_rest'        => true,
-			'supports'            => array( 'title', 'editor', 'thumbnail' ),
+			'supports'            => array( 'title', 'editor' ),
 			'menu_position'       => 30,
 			'menu_icon'           => 'dashicons-carrot',
 		);
@@ -330,7 +330,7 @@ class Mixmymeals_Post_Types {
 			'show_in_menu' => true,
 			'show_in_rest' => true,
 			'menu_icon'    => 'dashicons-calendar-alt',
-			'supports'     => array( 'title', 'editor' ),
+			'supports'     => array( 'title', 'editor', 'excerpt' ),
 			'has_archive'  => true,
 			'hierarchical' => false,
 			'rewrite'      => array(

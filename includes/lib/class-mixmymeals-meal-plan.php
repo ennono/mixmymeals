@@ -507,7 +507,16 @@ class Mixmymeals_Meal_Plan {
 		return $ingredients_by_cat;
 	}
 	*/
-	public function calc_shopping_list( bool $sort_by_category = true ): array {
+
+	/**
+	 * Aggregates the plan's ingredient needs, grouped by category.
+	 *
+	 * @param bool     $sort_by_category Group the result by ingredient category.
+	 * @param int|null $day              When set (1-7), only include meals on that
+	 *                                   plan weekday; otherwise the whole plan.
+	 * @return array
+	 */
+	public function calc_shopping_list( bool $sort_by_category = true, ?int $day = null ): array {
 
 		$meals = $this->get_meals();
 
@@ -519,7 +528,12 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $meals as $meal_post ) {
 
-			$meal      = new Mixmymeals_Meal( $meal_post->ID );
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+
+			if ( null !== $day && (int) $meal->get_day() !== $day ) {
+				continue;
+			}
+
 			$recipe_id = $meal->get_recipe_id();
 
 			if ( ! $recipe_id ) {

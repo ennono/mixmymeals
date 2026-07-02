@@ -269,7 +269,28 @@ class Mixmymeals_Mailer {
 	 */
 	public static function send_template( $to, string $subject, string $template, array $vars = array(), array $args = array() ): bool {
 
-		$vars   = array_merge( self::default_vars(), $vars );
+		$vars = array_merge( self::default_vars(), $vars );
+
+		// Build a ready-to-render unsubscribe note from whichever unsubscribe URL
+		// is available, so every layout can surface a visible opt-out link without
+		// emitting an empty link in mails that have none (e.g. confirmations).
+		if ( empty( $vars['unsubscribe_html'] ) ) {
+			$unsub_url = '';
+			if ( ! empty( $vars['unsubscribe_url'] ) ) {
+				$unsub_url = (string) $vars['unsubscribe_url'];
+			} elseif ( ! empty( $args['unsubscribe_url'] ) ) {
+				$unsub_url = (string) $args['unsubscribe_url'];
+			}
+
+			$vars['unsubscribe_html'] = '' !== $unsub_url
+				? sprintf(
+					'<p><a href="%s">%s</a></p>',
+					esc_url( $unsub_url ),
+					esc_html__( 'Unsubscribe from these e-mails', 'mixmymeals' )
+				)
+				: '';
+		}
+
 		$inline = ! empty( $args['inline'] );
 		$raw    = $inline ? $template : self::load_template( $template );
 
@@ -287,7 +308,14 @@ class Mixmymeals_Mailer {
 		if ( $is_html && '' !== $layout ) {
 
 			$inner = self::render( $raw, $vars, true );
-			$shell = self::load_template( $layout );
+
+			// Optional admin-defined block appended to the content (e.g. a legal
+			// note on every subscription mail). Already-sanitized trusted HTML.
+			if ( ! empty( $args['append_html'] ) ) {
+				$inner .= (string) $args['append_html'];
+			}
+
+			$shell = self::load_layout( $layout, $inline ? '' : $template );
 
 			if ( '' !== trim( $shell ) ) {
 				// Inject the trusted inner body verbatim into {{ content }} first,
@@ -311,6 +339,10 @@ class Mixmymeals_Mailer {
 			}
 		} else {
 			$body = self::render( $raw, $vars, $is_html );
+
+			if ( $is_html && ! empty( $args['append_html'] ) ) {
+				$body .= (string) $args['append_html'];
+			}
 		}
 
 		$subject = self::render( $subject, $vars, false );
@@ -318,7 +350,7 @@ class Mixmymeals_Mailer {
 		$args['html']         = $is_html;
 		$args['trusted_html'] = $is_html;
 
-		unset( $args['inline'], $args['layout'] );
+		unset( $args['inline'], $args['layout'], $args['append_html'] );
 
 		return self::send( $to, $subject, $body, $args );
 	}
@@ -394,6 +426,35 @@ class Mixmymeals_Mailer {
 	}
 
 	/**
+	 * Loads the layout for a template. A template in a subfolder prefers a
+	 * layout.html from that same subfolder; if there is none it falls back to the
+	 * base emails folder, and finally the plugin default (each resolution still
+	 * honours the theme → plugin override order).
+	 *
+	 * @param string $layout   Layout file name (e.g. "layout.html").
+	 * @param string $template Selected template path ('' for inline markup).
+	 * @return string Layout contents, or '' if none found.
+	 */
+	private static function load_layout( string $layout, string $template ): string {
+
+		if ( '' === $layout ) {
+			return '';
+		}
+
+		if ( '' !== $template ) {
+			$sub = trim( str_replace( '\\', '/', dirname( $template ) ), '/' );
+			if ( '' !== $sub && '.' !== $sub ) {
+				$shell = self::load_template( $sub . '/' . $layout );
+				if ( '' !== trim( $shell ) ) {
+					return $shell;
+				}
+			}
+		}
+
+		return self::load_template( $layout );
+	}
+
+	/**
 	 * Resolves a template file path, allowing theme overrides at
 	 * <theme>/mixmymeals/emails/<name> before falling back to the plugin.
 	 *
@@ -446,20 +507,98 @@ class Mixmymeals_Mailer {
 	}
 
 	/**
-	 * Sanitizes a template file name and enforces an allowed extension.
+	 * Lists available e-mail template paths (relative, including subfolders such
+	 * as "summer/each-day.html"), looking in the active theme's
+	 * mixmymeals/emails/ directory (child and parent) as well as the plugin's own
+	 * templates/emails/ directory. The shared layout.html is omitted everywhere.
 	 *
-	 * basename() defeats path traversal; the pattern restricts characters and
-	 * the extension to .html/.htm/.txt.
+	 * @return string[] Sorted, unique template paths.
+	 */
+	public static function list_templates(): array {
+
+		$dirs = array(
+			trailingslashit( get_stylesheet_directory() ) . 'mixmymeals/emails/',
+			trailingslashit( get_template_directory() ) . 'mixmymeals/emails/',
+			self::templates_dir(),
+		);
+
+		$names = array();
+
+		foreach ( $dirs as $dir ) {
+			foreach ( self::scan_templates( $dir, $dir ) as $rel ) {
+				$names[ $rel ] = $rel;
+			}
+		}
+
+		ksort( $names, SORT_NATURAL | SORT_FLAG_CASE );
+
+		return array_values( $names );
+	}
+
+	/**
+	 * Recursively collects *.html template paths under $dir, relative to $base
+	 * (so subfolders yield e.g. "summer/each-day.html"). The shared layout.html
+	 * is skipped at every level.
 	 *
-	 * @param string $name Raw template name.
+	 * @param string $base Directory the returned paths are relative to (trailing-slashed).
+	 * @param string $dir  Directory currently being scanned (trailing-slashed).
+	 * @return string[]
+	 */
+	private static function scan_templates( string $base, string $dir ): array {
+
+		$found = array();
+
+		foreach ( (array) glob( $dir . '*', GLOB_NOSORT ) as $path ) {
+
+			if ( is_dir( $path ) ) {
+				$found = array_merge( $found, self::scan_templates( $base, trailingslashit( $path ) ) );
+				continue;
+			}
+
+			if ( ! preg_match( '/\.html$/i', (string) $path ) || 'layout.html' === basename( (string) $path ) ) {
+				continue;
+			}
+
+			$found[] = ltrim( substr( (string) $path, strlen( $base ) ), '/' );
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Sanitizes a (possibly sub-foldered) template name and enforces an allowed
+	 * extension. Forward slashes are kept so templates may live in subfolders
+	 * (e.g. "summer/each-day.html"); ".." and absolute/empty segments are
+	 * rejected to prevent path traversal.
 	 *
-	 * @return string Safe name, or '' if invalid.
+	 * @param string $name Raw template name (relative path).
+	 *
+	 * @return string Safe relative path, or '' if invalid.
 	 */
 	private static function sanitize_template_name( string $name ): string {
 
-		$name = basename( trim( $name ) );
+		$name = ltrim( trim( str_replace( '\\', '/', $name ) ), '/' );
 
-		return preg_match( '/^[A-Za-z0-9._-]+\.(html|htm|txt)$/', $name ) ? $name : '';
+		if ( '' === $name || str_contains( $name, '..' ) ) {
+			return '';
+		}
+
+		$segments = explode( '/', $name );
+		$last     = count( $segments ) - 1;
+
+		foreach ( $segments as $i => $seg ) {
+			if ( '' === $seg ) {
+				return '';
+			}
+			$ok = ( $i === $last )
+				? (bool) preg_match( '/^[A-Za-z0-9._-]+\.(html|htm|txt)$/', $seg )
+				: (bool) preg_match( '/^[A-Za-z0-9._-]+$/', $seg );
+			if ( ! $ok ) {
+				return '';
+			}
+		}
+
+		return implode( '/', $segments );
 	}
 
 	/**

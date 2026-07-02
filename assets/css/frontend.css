@@ -4,6 +4,15 @@
     background: color-mix(in srgb, var(--mmm-primary) 4%, transparent);
     border-radius: var(--ast-border-radius);
 }
+
+/* Per-day start selector – structural basics (design lives in theme) */
+.mmm-plan-day-start {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
 .mmm-plan-day-list.drop-target {
     background: color-mix(in srgb, var(--mmm-primary) 12%, transparent);
 }
@@ -112,4 +121,57 @@ body.mmm-cook-mode-open {
 
 .mmm-subscribe-message:empty {
     display: none;
+}
+
+/* ==========================================================
+   Recipe ratings — structural basics (design lives in theme)
+   ========================================================== */
+.mmm-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mmm-rating__stars {
+    display: inline-flex;
+}
+
+/* Star input: a reversed radio group that reads left-to-right as a star bar.
+   The visually-hidden radios keep the control keyboard-accessible. */
+.mmm-rating-field > label {
+    display: block;
+}
+
+.mmm-rating-input {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.mmm-rating-input input[type="radio"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.mmm-rating-input label {
+    margin: 0;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Reviews list ([mmm_recipe_reviews]) — structure only */
+.mmm-reviews {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.mmm-review__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
 }

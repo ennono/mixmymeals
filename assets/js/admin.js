@@ -475,4 +475,42 @@ jQuery(document).ready(function ($) {
         $(this).closest('tr').remove();
     });
 
+    $(document).on('click', '.mmm-schedule-test', function () {
+        const $btn = $(this);
+        const $row = $btn.closest('tr');
+        const $result = $('#mmm-schedule-test-result');
+
+        $btn.prop('disabled', true);
+        $result.css('color', '').text('…');
+
+        $.ajax({
+            url: ajaxUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'mmm_sub_test_rule',
+                nonce: $btn.data('nonce'),
+                subject: $row.find('input[name$="[subject]"]').val(),
+                template: $row.find('select[name$="[template]"]').val(),
+                append: $row.find('input[name$="[append]"]').is(':checked') ? 'on' : '',
+                to: $('#mmm-schedule-test-to').val()
+            }
+        }).done(function (response) {
+            const msg = (response && response.data && response.data.message) ? response.data.message : '';
+            if (response && response.success) {
+                $result.css('color', '#3F6F1E').text(msg || 'OK');
+            } else {
+                $result.css('color', '#D2622C').text(msg || 'Error.');
+            }
+        }).fail(function (xhr) {
+            let msg = 'Request failed.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                msg = xhr.responseJSON.data.message;
+            }
+            $result.css('color', '#D2622C').text(msg);
+        }).always(function () {
+            $btn.prop('disabled', false);
+        });
+    });
+
 });

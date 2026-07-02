@@ -248,6 +248,16 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Instantiates the recipe ratings class (comment-based star ratings for
+	 * logged-in users plus the per-recipe aggregate and display shortcode).
+	 *
+	 * @return Mixmymeals_Ratings
+	 */
+	public function add_ratings(): Mixmymeals_Ratings {
+		return new Mixmymeals_Ratings();
+	}
+
+	/**
 	 * Instantiates the post types class.
 	 *
 	 * @return Mixmymeals_Post_Types

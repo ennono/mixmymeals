@@ -1,33 +1,44 @@
 <!--
-	Example body template for Mixmymeals_Mailer::send_template().
+	BEISPIEL-/REFERENZ-TEMPLATE für Abo-Mails.
 
-	Use with a layout:
-	Mixmymeals_Mailer::send_template(
-		$to,
-		'Hallo {{ name }}, willkommen bei {{ site_name }}',
-		'example.html',
-		array(
-			'name'        => $user_name,   // escaped via esc_html
-			'intro_html'  => $rich_intro,  // trusted rich text via wp_kses_post
-			'cta_url'     => $link,        // escaped via esc_url
-			'cta_label'   => 'Zum Essensplan',
-			'footer_note' => 'Du erhältst diese E-Mail, weil du einen Essensplan erstellt hast.',
-		),
-		array( 'layout' => 'layout.html' )
-	);
+	Die echten Templates liegen im Child-Theme unter:
+		mixmymeals-astra-child/mixmymeals/emails/
+	(layout.html = gemeinsamer Rahmen, plus ein Template je Trigger:
+	 each-day.html, on-start.html, before-start.html, evening-before.html,
+	 on-confirm.html).
 
-	Placeholder escaping by key suffix: *_url → esc_url, *_html → wp_kses_post,
-	otherwise esc_html. Unknown placeholders are removed.
+	So legst du ein eigenes Template an: diese Datei ins Child-Theme nach
+	mixmymeals/emails/ kopieren, umbenennen und anpassen. Theme-Dateien haben
+	Vorrang vor dem Plugin und erscheinen automatisch im Template-Dropdown der
+	Sende-Regeln (Einstellungen → Abos).
+
+	Platzhalter werden mit doppelten geschweiften Klammern geschrieben
+	(Beispiele unten). Verfügbare Platzhalter (für JEDES Template gleich):
+		greeting              Anrede (z. B. „Hallo Timo,")
+		weekday               Wochentag, um den es geht
+		plan                  Titel des Essensplans
+		plan_url              Link zum Plan
+		unsubscribe_url       Abmelde-Link
+		meal_list_html        Mahlzeiten des Tages, je mit Bild + „Jetzt kochen"-Link
+		meal_images_html      Reihe der Mahlzeiten-Bilder des Tages (verlinkt, oder leer)
+		day_summary_html      Tagessumme kcal/Kosten (oder leer)
+		day_kcal / day_cost / currency
+		day_ingredients_html  Zutaten für diesen Tag (fertige Liste)
+		shopping_list_html    Komplette Einkaufsliste des Plans
+		site_name / site_url / year
 -->
-<h1>Hallo {{ name }}!</h1>
+<h1>Deine Mahlzeiten am {{ weekday }}</h1>
 
-<p>{{ intro_html }}</p>
+<p>{{ greeting }}</p>
 
-<p>
-	<a href="{{ cta_url }}"
-	   style="display:inline-block;padding:11px 18px;border-radius:999px;background:#5C9E2E;color:#ffffff;font-weight:800;text-decoration:none;">
-		{{ cta_label }}
-	</a>
-</p>
+{{ meal_list_html }}
 
-<p>Guten Appetit!<br>{{ site_name }}</p>
+{{ day_summary_html }}
+
+<h2>Zutaten für heute</h2>
+
+{{ day_ingredients_html }}
+
+<p style="margin-top:16px;"><a href="{{ plan_url }}">Zum vollständigen Plan</a></p>
+
+<p style="color:#6B665B;">Guten Appetit!</p>

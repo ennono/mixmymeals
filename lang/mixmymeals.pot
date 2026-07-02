@@ -1765,6 +1765,14 @@ msgstr ""
 msgid "Unassigned Recipes"
 msgstr ""
 
+#: includes/lib/class-mixmymeals-shortcodes.php:2322
+msgid "Start day"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php:2329
+msgid "Automatic"
+msgstr ""
+
 #: includes/lib/class-mixmymeals-shortcodes.php:2412
 #: includes/lib/class-mixmymeals-shortcodes.php:2732
 msgid "Invalid index."
@@ -1879,13 +1887,6 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
-#. translators: %s: formatted average cost incl. currency
-#: includes/lib/class-mixmymeals-shortcodes.php:3121
-#: includes/lib/class-mixmymeals-shortcodes.php:3243
-#, php-format
-msgid "Ø %s / serving"
-msgstr ""
-
 #: includes/lib/class-mixmymeals-shortcodes.php:3365
 #: includes/lib/class-mixmymeals-shortcodes.php:3890
 msgid "Back to"
@@ -1989,32 +1990,32 @@ msgstr ""
 msgid "No meals found."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4213
-msgid "Ø Calories / day"
+#: includes/lib/class-mixmymeals-shortcodes.php:4258
+msgid "Ø Calories / day / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4214
-msgid "Ø Protein / day"
+#: includes/lib/class-mixmymeals-shortcodes.php:4259
+msgid "Ø Protein / day / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4215
-msgid "Ø Carbohydrates / day"
+#: includes/lib/class-mixmymeals-shortcodes.php:4260
+msgid "Ø Carbohydrates / day / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4216
-msgid "Ø Fat / day"
+#: includes/lib/class-mixmymeals-shortcodes.php:4261
+msgid "Ø Fat / day / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4237
-msgid "Total"
+#: includes/lib/class-mixmymeals-shortcodes.php:4282
+msgid "Total / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4238
-msgid "Avg. per day"
+#: includes/lib/class-mixmymeals-shortcodes.php:4283
+msgid "Avg. per day / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4239
-msgid "Avg. per meal"
+#: includes/lib/class-mixmymeals-shortcodes.php:4284
+msgid "Avg. per meal / person"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-shortcodes.php:4626
@@ -2373,4 +2374,307 @@ msgstr ""
 
 #: includes/lib/class-mixmymeals-user-roles.php:80
 msgid "Pending Meal Mixer"
+msgstr ""
+
+msgid "Each day in the plan"
+msgstr ""
+
+msgid "On the first plan day"
+msgstr ""
+
+msgid "The day before the plan starts"
+msgstr ""
+
+msgid "The evening before each plan day"
+msgstr ""
+
+msgid "On confirmation (immediately)"
+msgstr ""
+
+msgid "Sending Rules"
+msgstr ""
+
+msgid "Each rule picks a trigger, a template and a time. Triggers are relative to the subscribed plan: “On the first plan day”, “The day before the plan starts”, “Each day in the plan” and “The evening before each plan day” all send at the chosen time; “On confirmation” sends immediately after opt-in and ignores the time. The content adapts to the subscribed plan."
+msgstr ""
+
+msgid "Redirect After Subscribing"
+msgstr ""
+
+msgid "Page to redirect to after the subscribe form is submitted. Leave empty to show an inline confirmation message instead."
+msgstr ""
+
+msgid "Redirect After Confirmation"
+msgstr ""
+
+msgid "Page to redirect to after a subscriber confirms via the e-mail link. Leave empty to show the built-in confirmation page."
+msgstr ""
+
+msgid "Trigger"
+msgstr ""
+
+#. translators: %s: meal plan title.
+msgid "Tomorrow's meals: %s"
+msgstr ""
+
+#. translators: %s: subscriber name.
+msgid "Hi %s,"
+msgstr ""
+
+msgid "Hi there,"
+msgstr ""
+
+#. translators: %s: weekday name.
+msgid "Your meals tomorrow (%s)"
+msgstr ""
+
+msgid "Your meals tomorrow"
+msgstr ""
+
+#. translators: %s: weekday name.
+msgid "Your meals on %s"
+msgstr ""
+
+msgid "here is what is on your plan for tomorrow:"
+msgstr ""
+
+msgid "here is what is on your plan for today:"
+msgstr ""
+
+msgid "There are no meals planned for tomorrow."
+msgstr ""
+
+msgid "There are no meals planned for today."
+msgstr ""
+
+#. translators: 1: estimated cost, 2: currency symbol.
+msgid "approx. %1$s %2$s"
+msgstr ""
+
+msgid "Enjoy your meal!"
+msgstr ""
+
+msgid "here is everything you need for your meal plan:"
+msgstr ""
+
+msgid "Happy shopping!"
+msgstr ""
+
+msgid "Test"
+msgstr ""
+
+msgid "Send test to:"
+msgstr ""
+
+msgid "Tests render against your latest published meal plan."
+msgstr ""
+
+#. translators: %s: composed subject line.
+msgid "[TEST] %s"
+msgstr ""
+
+#. translators: 1: recipient address, 2: meal plan title used for the preview.
+msgid "Test sent to %1$s (using plan “%2$s”)."
+msgstr ""
+
+msgid "No published meal plan with meals is available to preview."
+msgstr ""
+
+msgid "Please choose a valid template first."
+msgstr ""
+
+msgid "The test e-mail could not be sent."
+msgstr ""
+
+msgid "Redirect After Unsubscribing"
+msgstr ""
+
+msgid "Page to redirect to after a subscriber unsubscribes via the e-mail link. Leave empty to show the built-in confirmation page."
+msgstr ""
+
+msgid "Appended Text Block"
+msgstr ""
+
+msgid "HTML or plain text, shown at the end of every subscription e-mail when the checkbox above is enabled."
+msgstr ""
+
+msgid "Append"
+msgstr ""
+
+msgid "HTML or plain text. Each sending rule whose “Append” box is ticked adds this block to the end of its e-mail."
+msgstr ""
+
+msgid "Search by title…"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Start date"
+msgstr ""
+
+msgid "Always rephrase the recipe in your own words — never copy the source text verbatim. Vary wording, phrasing and step grouping (and you may slightly adapt seasoning or amounts) so the result is an independent adaptation, not a copy."
+msgstr ""
+
+msgid "Write all texts in natural German and match the tone, wording and level of detail of the existing recipes under \"Style reference\" below."
+msgstr ""
+
+msgid "Style reference (existing recipes — match their tone and wording, do not reuse their content):"
+msgstr ""
+
+msgid "%s / serving"
+msgstr ""
+
+msgid "~%s kcal/serving"
+msgstr ""
+
+msgid "Day total per person: ~%s kcal"
+msgstr ""
+
+msgid "The day’s meals as a ready-made list, each with a thumbnail and “Cook now” link."
+msgstr ""
+
+msgid "A row of the day’s meal images, each linked to its meal (empty when none have an image)."
+msgstr ""
+
+msgid "Used in these recipes"
+msgstr ""
+
+msgid "Nutrition (per 100 g)"
+msgstr ""
+
+msgid "Ingredient Slug"
+msgstr ""
+
+msgid "Set the prefix for ingredients in the URL."
+msgstr ""
+
+msgid "%s kcal / 100 g"
+msgstr ""
+
+msgid "%1$s %2$s / 100 g"
+msgstr ""
+
+msgid "Add to meal plan"
+msgstr ""
+
+msgid "Recipe added to plan."
+msgstr ""
+
+msgid "Recipes added to plan."
+msgstr ""
+
+msgid "This meal plan overlaps with another existing plan and was not saved."
+msgstr ""
+
+msgid "Note (optional)"
+msgstr ""
+
+msgid "Weight per Unit"
+msgstr ""
+
+msgid "Weight per Unit (g)"
+msgstr ""
+
+msgid "e.g. 1 TL = 5 g, 1 EL = 15 g, 1 Pcs. = 120 g."
+msgstr ""
+
+msgid "Linked Ingredient"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "Open Ingredient"
+msgstr ""
+
+msgid "Each rule has a trigger (when to send), a subject and a template (the .html file that decides what the e-mail shows). Every template can use the same placeholders — e.g. {{ greeting }}, {{ weekday }}, {{ plan_url }}, {{ meal_list_html }}, {{ shopping_list_html }} — so a “meals” template simply uses {{ meal_list_html }} and a “shopping” template uses {{ shopping_list_html }}. Triggers are relative to the subscribed plan: “On the first plan day”, “The day before the plan starts”, “Each day in the plan” and “The evening before each plan day” all send at the chosen time; “On confirmation” sends immediately after opt-in and ignores the time."
+msgstr ""
+
+msgid "Rate this recipe"
+msgstr ""
+
+msgid "Submit rating"
+msgstr ""
+
+msgid "Your review"
+msgstr ""
+
+msgid "You need to be <a href=\"%s\">logged in</a> to rate this recipe."
+msgstr ""
+
+msgid "Your rating"
+msgstr ""
+
+msgid "You need to be logged in to rate this recipe."
+msgstr ""
+
+msgid "Please select a rating."
+msgstr ""
+
+msgid "You have already rated this recipe."
+msgstr ""
+
+msgid "No ratings yet."
+msgstr ""
+
+msgid "%s out of 5 stars"
+msgstr ""
+
+msgid "Ratings"
+msgstr ""
+
+msgid "%s star"
+msgid_plural "%s stars"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s rating"
+msgid_plural "%s ratings"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Subscriber"
+msgstr ""
+
+msgid "This recipe is not part of your meal plan."
+msgstr ""
+
+msgid "Thank you! Your rating has been saved."
+msgstr ""
+
+msgid "How would you rate this recipe?"
+msgstr ""
+
+msgid "Token"
+msgstr ""
+
+msgid "Recipe Rating Page"
+msgstr ""
+
+msgid "Page that contains the [mmm_recipe_rating_form] shortcode. The \"rate this recipe\" links in the e-mails point here. Leave empty to omit those links."
+msgstr ""
+
+msgid "Per-recipe “rate this recipe” links for the day (empty unless a rating page is set)."
+msgstr ""
+
+msgid "How did you like the recipes? {{ plan }}"
+msgstr ""
+
+msgid "Rate the recipes you cooked:"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Recipe by"
+msgstr ""
+
+msgid "New recipes"
+msgstr ""
+
+msgid "Favorites"
+msgstr ""
+
+msgid "Mark as favorite (featured in the recipe archive)"
 msgstr ""

@@ -416,6 +416,18 @@ class Mixmymeals_Post_Meta {
 				style="width:100%;"
 			/>
 		</p>
+		<p>
+			<label for="mmm_is_favorite">
+				<input
+					type="checkbox"
+					id="mmm_is_favorite"
+					name="mmm_is_favorite"
+					value="1"
+					<?php checked( '1', (string) get_post_meta( $post->ID, '_mmm_is_favorite', true ) ); ?>
+				/>
+				<?php esc_html_e( 'Mark as favorite (featured in the recipe archive)', 'mixmymeals' ); ?>
+			</label>
+		</p>
 		<?php
 	}
 
@@ -449,6 +461,13 @@ class Mixmymeals_Post_Meta {
 		if ( isset( $_POST['mmm_preparation_time'] ) ) {
 			$recipe = new Mixmymeals_Recipe( $post_ID );
 			$recipe->set_preparation_time( $_POST['mmm_preparation_time'] );
+		}
+
+		// Favorite flag (featured in the recipe archive).
+		if ( ! empty( $_POST['mmm_is_favorite'] ) ) {
+			update_post_meta( $post_ID, '_mmm_is_favorite', '1' );
+		} else {
+			delete_post_meta( $post_ID, '_mmm_is_favorite' );
 		}
 	}
 

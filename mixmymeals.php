@@ -47,6 +47,7 @@ require_once 'includes/lib/class-mixmymeals-mail-log.php';
 require_once 'includes/lib/class-mixmymeals-mailer.php';
 require_once 'includes/lib/class-mixmymeals-subscriptions.php';
 require_once 'includes/lib/class-mixmymeals-importer.php';
+require_once 'includes/lib/class-mixmymeals-ratings.php';
 
 
 /**
@@ -92,3 +93,4 @@ mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();
 mixmymeals()->add_subscriptions();
 mixmymeals()->add_importer();
+mixmymeals()->add_ratings();

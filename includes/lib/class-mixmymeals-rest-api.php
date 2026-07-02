@@ -135,9 +135,9 @@ class Mixmymeals_Rest_Api {
 
 		// ── Meal Plans ────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/meal-plans', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_meal_plans' ),   'permission_callback' => '__return_true' ) );
-		register_rest_route( 'mixmymeals/v1', '/meal-plans', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meal-plans', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_meal_plan' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)/meals',         array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_plan_meals' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)/shopping-list', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_shopping_list' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 
@@ -232,6 +232,7 @@ class Mixmymeals_Rest_Api {
 			'status'     => $post->post_status,
 			'link'       => get_permalink( $post_id ),
 			'content'    => $post->post_content,
+			'excerpt'    => $post->post_excerpt,
 			'start_day'  => $plan->get_start_day(),
 			'end_day'    => $plan->get_end_day(),
 			'count_days' => $plan->count_days(),
@@ -469,6 +470,7 @@ class Mixmymeals_Rest_Api {
 		} catch ( \Exception $e ) {
 			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
 		}
+		if ( $request->has_param( 'excerpt' ) )    wp_update_post( array( 'ID' => $plan->get_id(), 'post_excerpt' => $request->get_param( 'excerpt' ) ) );
 		if ( $request->has_param( 'start_day' ) )  $plan->set_start_day( absint( $request->get_param( 'start_day' ) ) );
 		if ( $request->has_param( 'end_day' ) )    $plan->set_end_day( absint( $request->get_param( 'end_day' ) ) );
 		if ( $request->has_param( 'categories' ) ) wp_set_post_terms( $plan->get_id(), $request->get_param( 'categories' ), 'mmm_meal_plan_category' );
@@ -492,6 +494,7 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'title' ) )   $update['post_title']   = $request->get_param( 'title' );
 		if ( $request->has_param( 'status' ) )  $update['post_status']  = $request->get_param( 'status' );
 		if ( $request->has_param( 'content' ) ) $update['post_content'] = $request->get_param( 'content' );
+		if ( $request->has_param( 'excerpt' ) ) $update['post_excerpt'] = $request->get_param( 'excerpt' );
 		if ( count( $update ) > 1 )             wp_update_post( $update );
 		$plan = new Mixmymeals_Meal_Plan( $id );
 		if ( $request->has_param( 'start_day' ) )  $plan->set_start_day( absint( $request->get_param( 'start_day' ) ) );

@@ -390,3 +390,134 @@
     outline: none;
 }
 
+/* ==========================================================================
+   MixMyMeals – Subscription Mails Overview (Sending Rules)
+   ========================================================================== */
+
+#mmm-schedule-table {
+    margin-top: 6px;
+}
+
+#mmm-schedule-table thead th {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+#mmm-schedule-table td,
+#mmm-schedule-table thead th {
+    vertical-align: middle;
+    padding: 8px 10px;
+}
+
+/* Keep the actions column tight and right-aligned. */
+#mmm-schedule-table thead th:last-child,
+#mmm-schedule-table .mmm-schedule-row td:last-child {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Form controls inside a rule row. */
+.mmm-schedule-row select,
+.mmm-schedule-row input[type="time"] {
+    font-size: 13px;
+    border-radius: 3px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mmm-schedule-row select {
+    min-width: 180px;
+    max-width: 100%;
+}
+
+.mmm-schedule-row input[type="time"] {
+    width: 110px;
+}
+
+.mmm-schedule-row select:focus,
+.mmm-schedule-row input[type="time"]:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+/* Zebra striping + hover, matching the meta tables. */
+#mmm-schedule-table tbody tr:nth-child(odd) {
+    background: #f9f9f9;
+}
+
+#mmm-schedule-table tbody tr:hover {
+    background: #fffbea;
+}
+
+/* Row action buttons. */
+.mmm-schedule-test,
+.mmm-schedule-remove {
+    vertical-align: middle;
+}
+
+.mmm-schedule-remove {
+    line-height: 1;
+    color: #b32d2e;
+}
+
+.mmm-schedule-remove:hover {
+    color: #8a2424;
+    border-color: #b32d2e;
+}
+
+/* "Add row" + test-recipient controls below the table. */
+#mmm-schedule-add {
+    margin-top: 4px;
+}
+
+#mmm-schedule-test-to {
+    max-width: 280px;
+}
+
+#mmm-schedule-test-result {
+    margin: 6px 0 0;
+    min-height: 1.5em;
+    font-weight: 600;
+}
+
+#mmm-schedule-test-result:empty {
+    min-height: 0;
+}
+
+/* Responsive: stack each rule into a card on small screens. */
+@media (max-width: 782px) {
+
+    #mmm-schedule-table,
+    #mmm-schedule-table tbody,
+    #mmm-schedule-table tr,
+    #mmm-schedule-table td {
+        display: block;
+        width: auto;
+    }
+
+    #mmm-schedule-table thead {
+        display: none;
+    }
+
+    #mmm-schedule-table .mmm-schedule-row {
+        margin-bottom: 12px;
+        padding: 6px;
+        border: 1px solid #ccd0d4;
+        border-radius: 6px;
+        background: #fff;
+    }
+
+    #mmm-schedule-table .mmm-schedule-row td:last-child {
+        text-align: left;
+    }
+
+    .mmm-schedule-row select,
+    .mmm-schedule-row input[type="time"] {
+        width: 100%;
+        min-width: 0;
+    }
+}
+

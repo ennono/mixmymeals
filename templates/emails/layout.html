@@ -1,3 +1,17 @@
+<!--
+	Fallback-Layout (gemeinsamer Rahmen) für Abo-Mails.
+
+	Wird nur verwendet, wenn das Theme KEINE eigene
+	mixmymeals/emails/layout.html bereitstellt – das Theme hat immer Vorrang
+	(siehe Mixmymeals_Mailer::locate_template()). Halte hier ein funktionierendes,
+	schlankes Standardlayout vor; die gepflegte Optik lebt im Child-Theme.
+
+	Platzhalter:
+		content            der gerenderte Inhalt des Trigger-Templates
+		site_name / site_url / year
+		footer_note        optionale Fußnote
+		unsubscribe_html   fertiger Abmelde-Link (vom Mailer erzeugt)
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -17,7 +31,7 @@
 		}
 		.mmm-mail-header {
 			padding: 24px 32px;
-			background: linear-gradient(135deg, #F3F8EA 0%, #FBF8F1 60%);
+			background-color: #F3F8EA;
 			border-bottom: 1px solid #ECE6D9;
 		}
 		.mmm-mail-brand {
@@ -48,6 +62,7 @@
 			<div class="mmm-mail-footer">
 				<p>&copy; {{ year }} <a href="{{ site_url }}">{{ site_name }}</a></p>
 				<p>{{ footer_note }}</p>
+				{{ unsubscribe_html }}
 			</div>
 		</div>
 	</div>

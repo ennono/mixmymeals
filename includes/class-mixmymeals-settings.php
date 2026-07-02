@@ -62,6 +62,12 @@ class Mixmymeals_Settings {
 		// Register plugin settings.
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 
+		// Flush rewrite rules after the ingredient slug changes, so the new
+		// archive/single URLs work without manually re-saving permalinks.
+		add_action( 'update_option_mixmymeals_ingredient_slug', array( $this, 'schedule_rewrite_flush' ) );
+		add_action( 'add_option_mixmymeals_ingredient_slug', array( $this, 'schedule_rewrite_flush' ) );
+		add_action( 'init', array( $this, 'maybe_flush_rewrite' ), 99 );
+
 		// Handle the "send test e-mail" button on the E-Mail tab.
 		add_action( 'wp_ajax_mmm_send_test_email', array( $this, 'ajax_send_test_email' ) );
 
@@ -85,6 +91,29 @@ class Mixmymeals_Settings {
 			$this->base . 'menu_settings',
 			array( $this, 'configure_settings' )
 		);
+	}
+
+	/**
+	 * Flags that rewrite rules need flushing on the next init (after the post
+	 * types have been registered with the new slug).
+	 *
+	 * @return void
+	 */
+	public function schedule_rewrite_flush(): void {
+		update_option( 'mixmymeals_flush_rewrite_rules', 1 );
+	}
+
+	/**
+	 * Flushes rewrite rules once when flagged. Runs late on init so the post
+	 * types (and their current slugs) are already registered.
+	 *
+	 * @return void
+	 */
+	public function maybe_flush_rewrite(): void {
+		if ( get_option( 'mixmymeals_flush_rewrite_rules' ) ) {
+			flush_rewrite_rules( false );
+			delete_option( 'mixmymeals_flush_rewrite_rules' );
+		}
 	}
 
 	/**
@@ -247,6 +276,18 @@ class Mixmymeals_Settings {
 						'archive_description_callback'
 					),
 				),
+				array(
+					'id'          => 'recipe_hero_categories',
+					'label'       => __( 'Recipe Archive Hero Categories', 'mixmymeals' ),
+					'description' => __( 'Categories shown as quick-links in the recipe archive hero. If none are selected, the most-used categories are shown.',
+						'mixmymeals' ),
+					'default'     => array(),
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'recipe_hero_categories_callback'
+					),
+				),
 			),
 		);
 
@@ -254,6 +295,18 @@ class Mixmymeals_Settings {
 			'title'       => __( 'Ingredients', 'mixmymeals' ),
 			'description' => __( 'Setup ingredients.', 'mixmymeals' ),
 			'fields'      => array(
+				array(
+					'id'          => 'ingredient_slug',
+					'label'       => __( 'Ingredient Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for ingredients in the URL.',
+						'mixmymeals' ),
+					'default'     => 'ingredients',
+					'placeholder' => 'ingredients',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
 				array(
 					'id'          => 'all_ingredients_description',
 					'label'       => __( 'Ingredient Archive Description', 'mixmymeals' ),
@@ -498,9 +551,11 @@ class Mixmymeals_Settings {
 				),
 				array(
 					'id'          => 'subscription_schedule',
-					'label'       => __( 'Sending Schedule', 'mixmymeals' ),
-					'description' => __( 'Global plan: which template goes out on which weekday and time. The content adapts to the subscribed plan; only weekdays that are part of a plan are sent.',
-						'mixmymeals' ),
+					'label'       => __( 'Sending Rules', 'mixmymeals' ),
+					'description' => /*__(
+						'Each rule has a trigger (when to send), a subject and a template (the .html file that decides what the e-mail shows). Every template can use the same placeholders — e.g. {{ greeting }}, {{ weekday }}, {{ plan_url }}, {{ meal_list_html }}, {{ shopping_list_html }} — so a “meals” template simply uses {{ meal_list_html }} and a “shopping” template uses {{ shopping_list_html }}. Triggers are relative to the subscribed plan: “On the first plan day”, “The day before the plan starts”, “Each day in the plan” and “The evening before each plan day” all send at the chosen time; “On confirmation” sends immediately after opt-in and ignores the time.',
+						'mixmymeals'
+					)*/'',
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_schedule_callback' ),
@@ -513,6 +568,50 @@ class Mixmymeals_Settings {
 					'default'     => '',
 					'placeholder' => 'https://…',
 					'callback'    => array( $this, 'subscription_privacy_url_callback' ),
+				),
+				array(
+					'id'          => 'subscription_subscribe_page',
+					'label'       => __( 'Redirect After Subscribing', 'mixmymeals' ),
+					'description' => __(
+						'Page to redirect to after the subscribe form is submitted. Leave empty to show an inline confirmation message instead.',
+						'mixmymeals'
+					),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_subscribe_page_callback' ),
+				),
+				array(
+					'id'          => 'subscription_confirm_page',
+					'label'       => __( 'Redirect After Confirmation', 'mixmymeals' ),
+					'description' => __(
+						'Page to redirect to after a subscriber confirms via the e-mail link. Leave empty to show the built-in confirmation page.',
+						'mixmymeals'
+					),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_confirm_page_callback' ),
+				),
+				array(
+					'id'          => 'subscription_unsubscribe_page',
+					'label'       => __( 'Redirect After Unsubscribing', 'mixmymeals' ),
+					'description' => __(
+						'Page to redirect to after a subscriber unsubscribes via the e-mail link. Leave empty to show the built-in confirmation page.',
+						'mixmymeals'
+					),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_unsubscribe_page_callback' ),
+				),
+				array(
+					'id'          => 'subscription_rate_page',
+					'label'       => __( 'Recipe Rating Page', 'mixmymeals' ),
+					'description' => __(
+						'Page that contains the [mmm_recipe_rating_form] shortcode. The "rate this recipe" links in the e-mails point here. Leave empty to omit those links.',
+						'mixmymeals'
+					),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_rate_page_callback' ),
 				),
 				array(
 					'id'          => 'subscription_pending_hours',
@@ -540,6 +639,14 @@ class Mixmymeals_Settings {
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_log_ip_callback' ),
+				),
+				array(
+					'id'          => 'subscription_append_text',
+					'label'       => __( 'Appended Text Block', 'mixmymeals' ),
+					'description' => __( 'HTML or plain text. Each sending rule whose “Append” box is ticked adds this block to the end of its e-mail.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_append_text_callback' ),
 				),
 			),
 		);
@@ -1125,6 +1232,19 @@ class Mixmymeals_Settings {
 	}
 
 	/**
+	 * Sanitizes the selected recipe hero categories (array of term slugs).
+	 *
+	 * @param mixed $input Submitted value.
+	 * @return array
+	 */
+	public function recipe_hero_categories_callback( mixed $input ): array {
+		if ( ! is_array( $input ) ) {
+			return array();
+		}
+		return array_values( array_filter( array_unique( array_map( 'sanitize_title', $input ) ) ) );
+	}
+
+	/**
 	 * Sanitizes a plain text setting value.
 	 *
 	 * @param mixed $input Raw input value.
@@ -1195,7 +1315,7 @@ class Mixmymeals_Settings {
 	}
 
 	/**
-	 * Sanitizes the enable-cleanup checkbox setting.
+	 * Sanitizes the enable-cleanup checkbox seButtting.
 	 *
 	 * @param mixed $input Raw input value.
 	 * @return string 'on' or ''
@@ -1318,6 +1438,16 @@ class Mixmymeals_Settings {
 	}
 
 	/**
+	 * Sanitizes the appended text block (HTML allowed via wp_kses_post).
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string
+	 */
+	public function subscription_append_text_callback( mixed $input ): string {
+		return wp_kses_post( (string) $input );
+	}
+
+	/**
 	 * Sanitizes the privacy policy URL.
 	 *
 	 * @param mixed $input Raw input value.
@@ -1325,6 +1455,46 @@ class Mixmymeals_Settings {
 	 */
 	public function subscription_privacy_url_callback( mixed $input ): string {
 		return esc_url_raw( trim( (string) $input ) );
+	}
+
+	/**
+	 * Sanitizes the "redirect after subscribing" page ID.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_subscribe_page_callback( mixed $input ): int {
+		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the "redirect after confirmation" page ID.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_confirm_page_callback( mixed $input ): int {
+		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the "redirect after unsubscribing" page ID.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_unsubscribe_page_callback( mixed $input ): int {
+		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the recipe rating page ID.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_rate_page_callback( mixed $input ): int {
+		return absint( $input );
 	}
 
 	/**
@@ -1350,10 +1520,10 @@ class Mixmymeals_Settings {
 	}
 
 	/**
-	 * Sanitizes the global sending schedule into a clean list of rows.
+	 * Sanitizes the sending rules into a clean list of triggers.
 	 *
-	 * @param mixed $input Raw posted rows (array of day/time/template).
-	 * @return array[] array{ day:int, time:string, template:string }
+	 * @param mixed $input Raw posted rows (array of trigger/time/subject/template).
+	 * @return array[] array{ trigger:string, time:string, subject:string, template:string }
 	 */
 	public function subscription_schedule_callback( mixed $input ): array {
 
@@ -1361,33 +1531,45 @@ class Mixmymeals_Settings {
 			return array();
 		}
 
-		$builtin = class_exists( 'Mixmymeals_Subscriptions' )
-			? array_keys( Mixmymeals_Subscriptions::builtin_templates() )
-			: array( 'builtin:meals', 'builtin:shopping' );
-
 		$clean = array();
 
 		foreach ( $input as $row ) {
 
-			$day = isset( $row['day'] ) ? (int) $row['day'] : 0;
-			if ( $day < 1 || $day > 7 ) {
+			if ( ! is_array( $row ) ) {
 				continue;
 			}
+
+			// The subscriptions class owns validation + legacy migration so save
+			// and read stay in lockstep.
+			if ( class_exists( 'Mixmymeals_Subscriptions' ) ) {
+				$normalized = Mixmymeals_Subscriptions::normalize_rule( $row );
+				if ( null !== $normalized ) {
+					$clean[] = $normalized;
+				}
+				continue;
+			}
+
+			// Fallback when the subscriptions class is unavailable.
+			$trigger  = isset( $row['trigger'] ) ? sanitize_key( $row['trigger'] ) : '';
+			$template = isset( $row['template'] ) ? sanitize_text_field( $row['template'] ) : '';
+			if ( '' === $trigger || ! preg_match( '/^[A-Za-z0-9._-]+\.html$/', $template ) || 'layout.html' === $template ) {
+				continue;
+			}
+
+			$subject = isset( $row['subject'] ) ? sanitize_text_field( $row['subject'] ) : '';
 
 			$time = isset( $row['time'] ) ? trim( (string) $row['time'] ) : '';
-			if ( ! preg_match( '/^([01]?\d|2[0-3]):[0-5]\d$/', $time ) ) {
-				continue;
-			}
 
-			$template = isset( $row['template'] ) ? sanitize_text_field( $row['template'] ) : '';
-			$is_file  = (bool) preg_match( '/^file:[A-Za-z0-9._-]+\.html$/', $template );
-			if ( ! in_array( $template, $builtin, true ) && ! $is_file ) {
+			if ( 'on_confirm' === $trigger ) {
+				$time = '';
+			} elseif ( ! preg_match( '/^([01]?\d|2[0-3]):[0-5]\d$/', $time ) ) {
 				continue;
 			}
 
 			$clean[] = array(
-				'day'      => $day,
+				'trigger'  => $trigger,
 				'time'     => $time,
+				'subject'  => $subject,
 				'template' => $template,
 			);
 		}

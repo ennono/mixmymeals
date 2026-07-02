@@ -602,13 +602,88 @@ class Mixmymeals_Recipe_Importer {
 			'- ' . __( 'Use only category_ids and tag_ids from the references; omit if nothing matches', 'mixmymeals' ),
 			'- ' . __( 'Take servings and prep time from the source; estimate if not stated', 'mixmymeals' ),
 			'- ' . __( 'Group steps sensibly, write descriptions in German', 'mixmymeals' ),
+			'- ' . __( 'Always rephrase the recipe in your own words — never copy the source text verbatim. Vary wording, phrasing and step grouping (and you may slightly adapt seasoning or amounts) so the result is an independent adaptation, not a copy.', 'mixmymeals' ),
+			'- ' . __( 'Write all texts in natural German and match the tone, wording and level of detail of the existing recipes under "Style reference" below.', 'mixmymeals' ),
 			'- ' . __( 'Output: first the JSON array, then (if needed) missing ingredients — no other text', 'mixmymeals' ),
-			'',
-			__( 'Format:', 'mixmymeals' ),
-			$this->get_example_json(),
 		);
 
+		$samples = $this->get_recipe_style_samples();
+		if ( ! empty( $samples ) ) {
+			$lines[] = '';
+			$lines[] = __( 'Style reference (existing recipes — match their tone and wording, do not reuse their content):', 'mixmymeals' );
+			foreach ( $samples as $sample ) {
+				$lines[] = $sample;
+			}
+		}
+
+		$lines[] = '';
+		$lines[] = __( 'Format:', 'mixmymeals' );
+		$lines[] = $this->get_example_json();
+
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Returns a few short step-description samples from existing published
+	 * recipes, used in the prompt as a writing-style reference. Empty when there
+	 * are no recipes yet.
+	 *
+	 * @param int $recipes Max number of recipes to sample.
+	 * @return string[] One line per recipe ("Title: step text …").
+	 */
+	private function get_recipe_style_samples( int $recipes = 4 ): array {
+
+		$ids = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'post_status'    => 'publish',
+				'posts_per_page' => $recipes,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		$samples = array();
+
+		foreach ( $ids as $id ) {
+
+			if ( ! class_exists( 'Mixmymeals_Recipe' ) ) {
+				break;
+			}
+
+			$recipe = new Mixmymeals_Recipe( (int) $id );
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$texts = array();
+			foreach ( $recipe->get_steps() as $step ) {
+				$desc = isset( $step['description'] ) ? trim( wp_strip_all_tags( (string) $step['description'] ) ) : '';
+				if ( '' !== $desc ) {
+					$texts[] = $desc;
+				}
+				if ( count( $texts ) >= 2 ) {
+					break; // A couple of steps are enough to convey the style.
+				}
+			}
+
+			if ( empty( $texts ) ) {
+				continue;
+			}
+
+			$sample = get_the_title( (int) $id ) . ': ' . implode( ' ', $texts );
+			$sample = trim( preg_replace( '/\s+/', ' ', $sample ) );
+
+			if ( function_exists( 'mb_substr' ) && mb_strlen( $sample ) > 300 ) {
+				$sample = mb_substr( $sample, 0, 300 ) . '…';
+			}
+
+			$samples[] = '• ' . $sample;
+		}
+
+		return $samples;
 	}
 
 	private function get_categories_reference(): array {

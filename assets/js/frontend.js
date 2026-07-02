@@ -321,6 +321,27 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
+       START DAY SELECTION (reorders the day rail)
+       ========================================================== */
+    function mmmApplyStartDay(start) {
+        const $days = $('.mmm-plan-days');
+        if (!$days.length) return;
+        const els = $days.children('.mmm-plan-day').get();
+        els.sort(function (a, b) {
+            const da = parseInt(a.getAttribute('data-day'), 10);
+            const db = parseInt(b.getAttribute('data-day'), 10);
+            if (!start) return da - db;             // auto: natural Mon→Sun
+            return ((da - start + 7) % 7) - ((db - start + 7) % 7);
+        });
+        // Reattach in new order; keeps :last-child connector line correct.
+        els.forEach(function (el) { $days.append(el); });
+    }
+
+    $(document).on('change', 'input[name="mmm-plan-startday"]', function () {
+        mmmApplyStartDay(parseInt(this.value, 10) || 0);
+    });
+
+    /* ==========================================================
        DRAG & DROP
        ========================================================== */
     let draggedItem = null;
@@ -457,7 +478,9 @@ jQuery(function ($) {
 
         mmmShowInlineMessage(msgBox, 'Creating...', 'ok');
 
-        mmmPost('mmm_create_meal_plan', { items: items })
+        const startDay = parseInt($('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
+
+        mmmPost('mmm_create_meal_plan', { items: items, start_day: startDay })
             .done(function (response) {
                 if (response && response.success) {
                     mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Meal Plan created!', 'ok');
@@ -656,10 +679,15 @@ jQuery(function ($) {
             plan_id: $form.data('plan-id'),
             email: $form.find('.mmm-subscribe-email').val(),
             name: $form.find('.mmm-subscribe-name').val(),
+            start: $form.find('.mmm-subscribe-start').val() || '',
             agree: '1'
         })
             .done(function (response) {
                 if (response && response.success) {
+                    if (response.data && response.data.redirect) {
+                        window.location.assign(response.data.redirect);
+                        return;
+                    }
                     mmmShowInlineMessage($msg, (response.data && response.data.message) || '', 'ok');
                     const el = $form.get(0);
                     if (el) el.reset();
