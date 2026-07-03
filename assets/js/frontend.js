@@ -228,6 +228,57 @@ jQuery(function ($) {
         mmmOpenPlannerDialog(btn.data('recipe-id'), parseInt(btn.data('servings'), 10) || 1);
     });
 
+    /* A confirmation popup that reuses the planner-dialog markup/styling, so it
+       looks exactly like the "Einplanen" dialog. onConfirm receives a context
+       with an inline message box and a close() helper, so the caller can keep
+       the dialog open and show errors, or close it on success. */
+    function mmmOpenConfirmDialog(opts) {
+        opts = opts || {};
+        mmmClosePlannerDialog();
+
+        const backdrop = $(
+            '<div class="mmm-planner-dialog-backdrop">' +
+                '<div class="mmm-planner-dialog mmm-planner-dialog--confirm" role="dialog" aria-modal="true">' +
+                    '<h4></h4>' +
+                    '<p class="mmm-planner-dialog-text"></p>' +
+                    '<div class="mmm-msg mmm-planner-dialog-msg"></div>' +
+                    '<div class="mmm-planner-dialog-actions">' +
+                        '<button type="button" class="mmm-planner-dialog-cancel"></button>' +
+                        '<button type="button" class="mmm-planner-dialog-submit"></button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>'
+        );
+
+        // Use .text() so labels/messages can never inject markup.
+        backdrop.find('h4').text(opts.title || '');
+        backdrop.find('.mmm-planner-dialog-text').text(opts.message || '');
+        backdrop.find('.mmm-planner-dialog-cancel').text(opts.cancel || '');
+        backdrop.find('.mmm-planner-dialog-submit').text(opts.confirm || '');
+
+        $('body').append(backdrop);
+        backdrop.find('.mmm-planner-dialog-submit').trigger('focus');
+
+        backdrop.on('click', function (e) {
+            if (e.target === this) mmmClosePlannerDialog();
+        });
+        backdrop.find('.mmm-planner-dialog-cancel').on('click', mmmClosePlannerDialog);
+        $(document).on('keydown.mmmPlanner', function (e) {
+            if (e.key === 'Escape') mmmClosePlannerDialog();
+        });
+
+        backdrop.find('.mmm-planner-dialog-submit').on('click', function () {
+            if (typeof opts.onConfirm === 'function') {
+                opts.onConfirm({
+                    msgBox: backdrop.find('.mmm-planner-dialog-msg'),
+                    close: mmmClosePlannerDialog
+                });
+                return;
+            }
+            mmmClosePlannerDialog();
+        });
+    }
+
     /* ==========================================================
        COOK MODE (Kochmodus)
        ========================================================== */
@@ -534,26 +585,34 @@ jQuery(function ($) {
     $(document).on('click', '.mmm-meal-plan-actions__item--load-into-cart', function (e) {
         e.preventDefault();
 
-        if (!confirm(mixmymeals.confirm_load_into_cart || 'The planner will be cleared and replaced with this meal plan. Continue?')) return;
-
         const btn = $(this);
         const mealPlanId = btn.data('meal-plan-id');
         const redirectUrl = btn.data('redirect-url');
+        const labels = mixmymeals.load_into_cart_dialog || {};
 
-        mmmPost('mmm_load_plan_into_cart', { meal_plan_id: mealPlanId })
-            .done(function (response) {
-                if (response && response.success) {
-                    mmmUpdateCartBadge();
-                    if (redirectUrl) {
-                        window.location.href = redirectUrl;
-                    }
-                    return;
-                }
-                mmmHandleAjaxError(response, { fallbackMessage: 'Error loading plan into the planner.' });
-            })
-            .fail(function (xhr) {
-                mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
-            });
+        mmmOpenConfirmDialog({
+            title: labels.title,
+            message: labels.message,
+            confirm: labels.confirm,
+            cancel: labels.cancel,
+            onConfirm: function (ctx) {
+                mmmPost('mmm_load_plan_into_cart', { meal_plan_id: mealPlanId })
+                    .done(function (response) {
+                        if (response && response.success) {
+                            mmmUpdateCartBadge();
+                            ctx.close();
+                            if (redirectUrl) {
+                                window.location.href = redirectUrl;
+                            }
+                            return;
+                        }
+                        mmmHandleAjaxError(response, { inlineEl: ctx.msgBox, fallbackMessage: 'Error loading plan into the planner.' });
+                    })
+                    .fail(function (xhr) {
+                        mmmHandleRequestFail(xhr, { inlineEl: ctx.msgBox, failMessage: 'Request failed.' });
+                    });
+            }
+        });
     });
 
     /* ==========================================================

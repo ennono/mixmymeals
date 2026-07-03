@@ -325,7 +325,12 @@ class Mixmymeals {
 			array(
 				'ajax_url'               => admin_url( 'admin-ajax.php' ),
 				'nonce'                  => wp_create_nonce( 'mmm_frontend_nonce' ),
-				'confirm_load_into_cart' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),
+				'load_into_cart_dialog'  => array(
+					'title'   => __( 'Adjust', 'mixmymeals' ),
+					'message' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),
+					'confirm' => __( 'Continue', 'mixmymeals' ),
+					'cancel'  => __( 'Cancel', 'mixmymeals' ),
+				),
 				'planner_dialog'         => array(
 					'title'    => __( 'Plan this recipe as a meal', 'mixmymeals' ),
 					'servings' => __( 'Servings', 'mixmymeals' ),

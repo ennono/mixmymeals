@@ -2564,6 +2564,10 @@ msgid_plural "%d servings"
 msgstr[0] "%d Portion"
 msgstr[1] "%d Portionen"
 
+#: includes/class-mixmymeals.php
+msgid "Continue"
+msgstr "Fortfahren"
+
 #: includes/lib/class-mixmymeals-subscriptions.php:1442
 msgid "Cook now"
 msgstr "Jetzt kochen"

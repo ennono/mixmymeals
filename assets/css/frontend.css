@@ -41,6 +41,10 @@
     margin-bottom: 12px;
 }
 
+.mmm-planner-dialog-text {
+    margin: 0 0 12px;
+}
+
 .mmm-planner-dialog label input,
 .mmm-planner-dialog label select {
     display: block;
