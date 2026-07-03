@@ -2202,7 +2202,7 @@ msgstr "An Bring! senden"
 #: includes/lib/class-mixmymeals-shortcodes.php:2971
 #: includes/lib/class-mixmymeals-shortcodes.php:3143
 msgid "Adjust"
-msgstr "Ableiten"
+msgstr "Anpassen"
 
 #: includes/lib/class-mixmymeals-shortcodes.php:3031
 #: includes/lib/class-mixmymeals-shortcodes.php:3234
