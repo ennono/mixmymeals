@@ -825,6 +825,8 @@ class Mixmymeals_Shortcodes {
 		$atts = shortcode_atts(
 			array(
 				'count' => 8,
+				'title' => '',
+				'boxed' => '1',
 			),
 			$atts,
 			'mmm_new_recipes'
@@ -844,7 +846,12 @@ class Mixmymeals_Shortcodes {
 			)
 		);
 
-		return $this->render_recipe_browse_cards( $ids );
+		return $this->render_recipe_browse_section(
+			$ids,
+			(string) $atts['title'],
+			'new',
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+		);
 	}
 
 	/**
@@ -860,6 +867,8 @@ class Mixmymeals_Shortcodes {
 		$atts = shortcode_atts(
 			array(
 				'count' => 8,
+				'title' => '',
+				'boxed' => '1',
 			),
 			$atts,
 			'mmm_favorite_recipes'
@@ -886,7 +895,12 @@ class Mixmymeals_Shortcodes {
 			)
 		);
 
-		return $this->render_recipe_browse_cards( $ids );
+		return $this->render_recipe_browse_section(
+			$ids,
+			(string) $atts['title'],
+			'fav',
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+		);
 	}
 
 	/**
@@ -903,6 +917,8 @@ class Mixmymeals_Shortcodes {
 		$atts = shortcode_atts(
 			array(
 				'count' => 8,
+				'title' => '',
+				'boxed' => '1',
 			),
 			$atts,
 			'mmm_popular_recipes'
@@ -949,14 +965,60 @@ class Mixmymeals_Shortcodes {
 		$published = array_map( 'intval', $published );
 		$ids       = array_values( array_intersect( $ids, $published ) );
 
-		return $this->render_recipe_browse_cards( $ids );
+		return $this->render_recipe_browse_section(
+			$ids,
+			(string) $atts['title'],
+			'popular',
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+		);
+	}
+
+	/**
+	 * Wraps the browse cards in a self-contained section so the new/favorite/
+	 * popular shortcodes render correctly on any page (not just the recipe
+	 * archive): an optional boxed <section>, an optional heading and the
+	 * horizontal scroll track. Returns '' when there are no cards.
+	 *
+	 * The heading text is the caller's responsibility (the theme passes the
+	 * localized title); the plugin never invents a default heading.
+	 *
+	 * @param int[]  $ids     Recipe post IDs.
+	 * @param string $title   Heading text; '' renders no heading.
+	 * @param string $variant Modifier key (new|fav|popular) for CSS hooks.
+	 * @param bool   $boxed   Whether to wrap the row in the boxed section.
+	 * @return string
+	 */
+	private function render_recipe_browse_section( array $ids, string $title, string $variant, bool $boxed ): string {
+
+		$cards = $this->render_recipe_browse_cards( $ids );
+		if ( '' === $cards ) {
+			return '';
+		}
+
+		$variant     = sanitize_html_class( $variant );
+		$row_classes = 'mmm-recipe-row' . ( '' !== $variant ? ' mmm-recipe-row--' . $variant : '' );
+
+		$row = '<div class="' . esc_attr( $row_classes ) . '">';
+		if ( '' !== $title ) {
+			$row .= '<h2 class="mmm-recipe-row__title">' . esc_html( $title ) . '</h2>';
+		}
+		// $cards is markup already escaped in render_recipe_browse_cards().
+		$row .= '<div class="mmm-recipe-row__track">' . $cards . '</div></div>';
+
+		if ( ! $boxed ) {
+			return $row;
+		}
+
+		$section_classes = 'mmm-recipe-browse' . ( '' !== $variant ? ' mmm-recipe-browse--' . $variant : '' );
+
+		return '<section class="' . esc_attr( $section_classes ) . '">' . $row . '</section>';
 	}
 
 	/**
 	 * Renders the recipe cards (image, title and rating) for a browse row. The
-	 * surrounding section, heading and horizontal scroll track are added by the
-	 * theme (see mmm_render_recipe_browse_card()). Shared by the new/favorite
-	 * recipe shortcodes. Returns '' when there are no recipes.
+	 * surrounding section, heading and horizontal scroll track are added by
+	 * render_recipe_browse_section(). Shared by the new/favorite/popular recipe
+	 * shortcodes. Returns '' when there are no recipes.
 	 *
 	 * @param int[] $ids Recipe post IDs.
 	 * @return string
@@ -2257,7 +2319,7 @@ class Mixmymeals_Shortcodes {
 		$recipe_id = isset( $_POST['recipe_id'] )
 			? intval( $_POST['recipe_id'] ) : 0;
 
-		if ( $recipe_id <= 0 ) {
+		if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
 			wp_send_json_error( [
 				'code'    => 'invalid_recipe_id',
 				'message' => __( 'Invalid recipe ID.', 'mixmymeals' ),
