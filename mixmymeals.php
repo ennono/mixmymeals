@@ -51,6 +51,7 @@ require_once 'includes/lib/class-mixmymeals-ratings.php';
 require_once 'includes/lib/class-mixmymeals-photos.php';
 require_once 'includes/lib/class-mixmymeals-instagram.php';
 require_once 'includes/lib/class-mixmymeals-pinterest.php';
+require_once 'includes/lib/class-mixmymeals-privacy.php';
 require_once 'includes/lib/class-mixmymeals-user-meta.php';
 
 
@@ -101,4 +102,5 @@ mixmymeals()->add_ratings();
 mixmymeals()->add_photos();
 mixmymeals()->add_instagram();
 mixmymeals()->add_pinterest();
+mixmymeals()->add_privacy();
 mixmymeals()->add_user_meta();

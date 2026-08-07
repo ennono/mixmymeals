@@ -289,6 +289,16 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Instantiates the privacy class (GDPR personal-data exporters/erasers
+	 * and suggested privacy-policy content).
+	 *
+	 * @return Mixmymeals_Privacy
+	 */
+	public function add_privacy(): Mixmymeals_Privacy {
+		return new Mixmymeals_Privacy();
+	}
+
+	/**
 	 * Instantiates the user meta class (profile fields, currently the own
 	 * Instagram/Pinterest credentials).
 	 *
