@@ -11,9 +11,145 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Mixmymeals_Rest_Api {
 
+	/** Präfix der Transients, die Idempotenz-Ergebnisse halten. */
+	const IDEMPOTENCY_PREFIX = 'mmm_idem_';
+
+	/** Wie lange ein Idempotenz-Schlüssel gilt. */
+	const IDEMPOTENCY_TTL = DAY_IN_SECONDS;
+
 	public function __construct() {
 		add_action( 'init', array( $this, 'register_meta' ) );
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+
+		/*
+		 * Idempotenz für alle Schreiboperationen dieses Namespaces. Bewusst als
+		 * Filterpaar statt in jedem Callback: MCP-Timeouts sind häufig, nach
+		 * einem "fetch failed" weiß der Client nicht, ob der Write durchkam, und
+		 * ein Retry würde Duplikate anlegen. Ein Aufruf mit demselben
+		 * idempotency_key liefert das gespeicherte Ergebnis zurück, ohne erneut
+		 * zu schreiben.
+		 */
+		add_filter( 'rest_pre_dispatch', array( $this, 'idempotency_replay' ), 10, 3 );
+		add_filter( 'rest_post_dispatch', array( $this, 'idempotency_store' ), 10, 3 );
+	}
+
+	// =========================================================
+	// IDEMPOTENZ
+	// =========================================================
+
+	/**
+	 * Der Idempotenz-Schlüssel einer Anfrage, sofern sie überhaupt dafür in
+	 * Frage kommt: eigener Namespace, schreibende Methode, Schlüssel gesetzt.
+	 *
+	 * @param WP_REST_Request $request Anfrage.
+	 * @return string Leerer String, wenn nicht anwendbar.
+	 */
+	private function idempotency_key( WP_REST_Request $request ): string {
+
+		if ( 0 !== strpos( (string) $request->get_route(), '/mixmymeals/v1' ) ) {
+			return '';
+		}
+
+		if ( in_array( strtoupper( $request->get_method() ), array( 'GET', 'HEAD', 'OPTIONS' ), true ) ) {
+			return '';
+		}
+
+		return trim( (string) $request->get_param( 'idempotency_key' ) );
+	}
+
+	/**
+	 * Gibt ein gespeichertes Ergebnis zurück, statt die Operation erneut
+	 * auszuführen. Kommt derselbe Schlüssel für eine andere Route, ist das ein
+	 * Client-Fehler und wird als solcher gemeldet – sonst bekäme der Aufrufer
+	 * stillschweigend das Ergebnis einer fremden Operation.
+	 *
+	 * @param mixed           $result  Bisheriges Ergebnis (null = weitermachen).
+	 * @param WP_REST_Server  $server  Server.
+	 * @param WP_REST_Request $request Anfrage.
+	 * @return mixed
+	 */
+	public function idempotency_replay( $result, $server, $request ) {
+
+		if ( null !== $result || ! $request instanceof WP_REST_Request ) {
+			return $result;
+		}
+
+		$key = $this->idempotency_key( $request );
+		if ( '' === $key ) {
+			return $result;
+		}
+
+		$stored = get_transient( self::IDEMPOTENCY_PREFIX . md5( $key ) );
+		if ( ! is_array( $stored ) ) {
+			return $result;
+		}
+
+		if ( $stored['route'] !== $request->get_route() || $stored['method'] !== $request->get_method() ) {
+			return new WP_Error(
+				'idempotency_key_reused',
+				sprintf(
+					'Der Idempotenz-Schlüssel wurde bereits für %s %s verwendet. Für eine andere Operation einen neuen Schlüssel wählen.',
+					$stored['method'],
+					$stored['route']
+				),
+				array( 'status' => 409 )
+			);
+		}
+
+		$data = $stored['data'];
+		if ( is_array( $data ) ) {
+			$data['idempotent_replay'] = true;
+		}
+
+		return new WP_REST_Response( $data, $stored['status'] );
+	}
+
+	/**
+	 * Legt das Ergebnis einer geschriebenen Operation unter dem Schlüssel ab.
+	 *
+	 * Nur Erfolge werden gespeichert: einen Fehlversuch festzuschreiben würde
+	 * einen berechtigten Retry mit demselben Schlüssel dauerhaft blockieren.
+	 *
+	 * @param WP_REST_Response $response Antwort.
+	 * @param WP_REST_Server   $server   Server.
+	 * @param WP_REST_Request  $request  Anfrage.
+	 * @return WP_REST_Response
+	 */
+	public function idempotency_store( $response, $server, $request ) {
+
+		if ( ! $response instanceof WP_REST_Response || ! $request instanceof WP_REST_Request ) {
+			return $response;
+		}
+
+		$key = $this->idempotency_key( $request );
+		if ( '' === $key ) {
+			return $response;
+		}
+
+		$status = $response->get_status();
+		if ( $status < 200 || $status >= 300 ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		// Wiedergabe nicht erneut ablegen – sonst verlängert jeder Replay die TTL.
+		if ( is_array( $data ) && ! empty( $data['idempotent_replay'] ) ) {
+			return $response;
+		}
+
+		set_transient(
+			self::IDEMPOTENCY_PREFIX . md5( $key ),
+			array(
+				'route'  => $request->get_route(),
+				'method' => $request->get_method(),
+				'status' => $status,
+				'data'   => $data,
+			),
+			self::IDEMPOTENCY_TTL
+		);
+
+		return $response;
 	}
 
 	// =========================================================
@@ -22,7 +158,7 @@ class Mixmymeals_Rest_Api {
 
 	public function register_meta(): void {
 
-		$can_edit = static fn() => current_user_can( 'edit_posts' );
+		$can_edit = static fn() => current_user_can( 'edit_others_posts' );
 		$to_float = static fn( $value ) => floatval( $value );
 
 		// mmm_recipe
@@ -30,6 +166,7 @@ class Mixmymeals_Rest_Api {
 		register_post_meta( 'mmm_recipe', '_mmm_preparation_time', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_recipe', '_mmm_priority', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_recipe', '_mmm_equipment', array( 'type' => 'array', 'single' => true, 'show_in_rest' => array( 'schema' => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ), 'auth_callback' => $can_edit ) );
+		register_post_meta( 'mmm_recipe', '_mmm_related_recipes', array( 'type' => 'array', 'single' => true, 'show_in_rest' => array( 'schema' => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ), 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_recipe', '_rmm_steps', array(
 			'type'         => 'array',
 			'single'       => true,
@@ -70,6 +207,22 @@ class Mixmymeals_Rest_Api {
 		register_post_meta( 'mmm_meal_plan', 'start_day', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_meal_plan', 'end_day',   array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 
+		// Author box — identical on both post types, see Mixmymeals_Post_Meta.
+		foreach ( array( 'mmm_recipe', 'mmm_meal_plan' ) as $author_type ) {
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_NAME,      array( 'type' => 'string',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'sanitize_text_field', 'auth_callback' => $can_edit ) );
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_TEXT,      array( 'type' => 'string',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'wp_kses_post',        'auth_callback' => $can_edit ) );
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_URL,       array( 'type' => 'string',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'esc_url_raw',         'auth_callback' => $can_edit ) );
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_LINK_TEXT, array( 'type' => 'string',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'sanitize_text_field', 'auth_callback' => $can_edit ) );
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_NOFOLLOW,  array( 'type' => 'string',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'sanitize_text_field', 'auth_callback' => $can_edit ) );
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_SOCIAL,    array( 'type' => 'array',   'single' => true, 'show_in_rest' => array( 'schema' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ) ), 'auth_callback' => $can_edit ) );
+			register_post_meta( $author_type, Mixmymeals_Post_Meta::AUTHOR_IMAGE,     array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint',              'auth_callback' => $can_edit ) );
+
+			// Image credit — same four fields on both types.
+			foreach ( Mixmymeals_Post_Meta::IMAGE_CREDIT_FIELDS as $credit_field => $credit_key ) {
+				register_post_meta( $author_type, $credit_key, array( 'type' => 'string', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'url' === $credit_field ? 'esc_url_raw' : 'sanitize_text_field', 'auth_callback' => $can_edit ) );
+			}
+		}
+
 		// mmm_meal
 		register_post_meta( 'mmm_meal', 'recipe_id',     array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_meal', 'servings',      array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
@@ -86,13 +239,45 @@ class Mixmymeals_Rest_Api {
 		$auth   = array( $this, 'check_edit_permission' );
 		$id_arg = array( 'validate_callback' => static fn( $v ) => is_numeric( $v ), 'sanitize_callback' => 'absint' );
 
+		// Featured image of a recipe/plan. 0 removes it; upload new images via
+		// POST /media, which returns the attachment ID to put here.
+		$featured_arg = array(
+			'required'    => false,
+			'type'        => 'integer',
+			'description' => 'Attachment ID of the featured image, 0 removes it.',
+		);
+
+		// Credit for the featured image. See Mixmymeals_Post_Meta::IMAGE_CREDIT_FIELDS.
+		$image_credit_arg = array(
+			'required'    => false,
+			'type'        => 'object',
+			'description' => 'Credit for the featured image. Only supplied keys change; an empty string clears a field.',
+			'properties'  => array(
+				'creator' => array( 'type' => 'string', 'description' => 'Who took or made the picture.' ),
+				'source'  => array( 'type' => 'string', 'description' => 'Where it came from, e.g. the stock library.' ),
+				'license' => array( 'type' => 'string', 'description' => 'Licence, e.g. "CC BY 4.0".' ),
+				'url'     => array( 'type' => 'string', 'description' => 'Optional link for creator and source.' ),
+			),
+		);
+
+		// The external-author box, embeddable in every recipe/plan write and
+		// editable on its own under …/author. See Mixmymeals_Post_Meta.
+		$author_arg = array(
+			'required'    => false,
+			'type'        => 'object',
+			'description' => 'External author box. Only supplied keys change; an empty string clears a field. With no name the post falls back to its WordPress author.',
+			'properties'  => self::author_schema_properties(),
+		);
+
 		// ── Recipes ───────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipes' ), 'permission_callback' => '__return_true', 'args' => array( 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'any' ), 'default' => 'publish' ) ) ) );
-		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_recipe' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_recipe' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_recipe' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_recipe' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)/nutrition',   array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe_nutrition' ),   'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)/ingredients', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg, 'scale' => array( 'required' => false, 'type' => 'number', 'default' => 1.0 ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)/equipment',   array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe_equipment' ),   'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
+		$this->register_author_routes( 'recipes', $auth, $id_arg );
 
 		// ── Ingredients ───────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_ingredients' ),    'permission_callback' => '__return_true' ) );
@@ -102,6 +287,17 @@ class Mixmymeals_Rest_Api {
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => array( 'required' => false, 'type' => 'number' ), 'fat' => array( 'required' => false, 'type' => 'number' ), 'carbs' => array( 'required' => false, 'type' => 'number' ), 'protein' => array( 'required' => false, 'type' => 'number' ), 'sugar' => array( 'required' => false, 'type' => 'number' ), 'fiber' => array( 'required' => false, 'type' => 'number' ), 'salt' => array( 'required' => false, 'type' => 'number' ), 'weight_item' => array( 'required' => false, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/price', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_price' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'price_per_100g' => array( 'required' => true, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/units', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient_units' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/search', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'search_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'query' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian' ) ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 20 ) ) ) );
+
+		// ── Audit ─────────────────────────────────────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/audit', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'audit' ), 'permission_callback' => $auth, 'args' => array( 'scope' => array( 'required' => false, 'type' => 'string', 'default' => 'all', 'enum' => array( 'recipes', 'plans', 'ingredients', 'all' ) ) ) ) );
+
+		// ── Zutaten zusammenführen ────────────────────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/merge', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'merge_ingredients' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'to_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => false ) ) ) );
+
+		// ── Löschen (mit Referenz-Prüfung) ────────────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => array( $this, 'delete_recipe' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'force' => array( 'required' => false, 'type' => 'boolean', 'default' => false ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => array( $this, 'delete_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'force' => array( 'required' => false, 'type' => 'boolean', 'default' => false ) ) ) );
 
 		// ── Ingredient Units ──────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/units', array(
@@ -135,23 +331,100 @@ class Mixmymeals_Rest_Api {
 
 		// ── Meal Plans ────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/meal-plans', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_meal_plans' ),   'permission_callback' => '__return_true' ) );
-		register_rest_route( 'mixmymeals/v1', '/meal-plans', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meal-plans', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_meal_plan' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'content' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ), 'start_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'end_day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)/meals',         array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_plan_meals' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)/shopping-list', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_shopping_list' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)/equipment',     array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_meal_plan_equipment' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
+		$this->register_author_routes( 'meal-plans', $auth, $id_arg );
 
 		// ── Equipment ─────────────────────────────────────────────────────
-		register_rest_route( 'mixmymeals/v1', '/equipment', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_equipment_items' ), 'permission_callback' => $auth ) );
-		register_rest_route( 'mixmymeals/v1', '/equipment', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_equipment' ),    'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ) ) ) );
-		register_rest_route( 'mixmymeals/v1', '/equipment/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_equipment_item' ),  'permission_callback' => $auth, 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/equipment/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_equipment' ),     'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/equipment', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_equipment_items' ), 'permission_callback' => '__return_true' ) );
+		register_rest_route( 'mixmymeals/v1', '/equipment', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_equipment' ),    'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'content' => array( 'required' => false, 'type' => 'string' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'affiliate_links' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'object' ) ), 'featured_image' => array( 'required' => false, 'type' => 'integer' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/equipment/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_equipment_item' ),  'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
+		register_rest_route( 'mixmymeals/v1', '/equipment/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_equipment' ),     'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'affiliate_links' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'object' ) ), 'content' => array( 'required' => false, 'type' => 'string' ), 'featured_image' => array( 'required' => false, 'type' => 'integer' ) ) ) );
 
 		// ── Meals ─────────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/meals', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'plan_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'recipe_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'servings' => array( 'required' => false, 'type' => 'integer', 'default' => 1 ), 'type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' ) ), 'day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_meal' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'plan_id' => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'recipe_id' => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'servings' => array( 'required' => false, 'type' => 'integer' ), 'type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' ) ), 'day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft' ) ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)/plan', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'set_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'plan_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ) ) ) );
+
+		// ── AI convenience: build a whole plan in one call, bulk-add meals and
+		// search recipes by planning-relevant criteria. ────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/meal-plans/build', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'build_meal_plan' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'title'      => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+				'status'     => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ),
+				'content'    => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ),
+				'excerpt'    => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post' ),
+				'start_day'  => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ),
+				'end_day'    => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ),
+				'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ),
+				'tags'       => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ),
+				'meals'      => array( 'required' => false, 'type' => 'array' ),
+				'author'     => $author_arg,
+				'featured_image' => $featured_arg,
+				'image_credit'   => $image_credit_arg,
+			),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/meal-plans/(?P<id>\d+)/meals/bulk', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'add_meals_bulk' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'id'    => $id_arg,
+				'meals' => array( 'required' => true, 'type' => 'array' ),
+			),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/posts/(?P<id>\d+)/status', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'set_post_status' ),
+			'permission_callback' => static function ( $request ) {
+				$id = (int) $request['id'];
+				return $id
+					&& current_user_can( 'edit_post', $id )
+					&& in_array( get_post_type( $id ), array( 'mmm_meal_plan', 'mmm_recipe' ), true );
+			},
+			'args'                => array(
+				'id'     => $id_arg,
+				'status' => array( 'required' => true, 'type' => 'string', 'enum' => array( 'draft', 'publish', 'trash' ) ),
+			),
+		) );
+		// ── Media ─────────────────────────────────────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/media', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'upload_media' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'url'           => array( 'required' => false, 'type' => 'string', 'description' => 'Image URL fetched server-side. Alternative to a multipart "file" field.' ),
+				'attachment_id' => array( 'required' => false, 'type' => 'integer', 'description' => 'Use an image already in the library instead of uploading one.' ),
+				'post_id'       => array( 'required' => false, 'type' => 'integer', 'description' => 'Recipe, plan or equipment the image belongs to; becomes the attachment’s parent.' ),
+				'featured'      => array( 'required' => false, 'type' => 'boolean', 'default' => false, 'description' => 'Set the image as the featured image of post_id.' ),
+				'title'         => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+				'alt'           => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+			),
+		) );
+
+		register_rest_route( 'mixmymeals/v1', '/recipes/search', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'search_recipes' ),
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'search'       => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+				'diet'         => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian' ) ),
+				'category'     => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
+				'tag'          => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
+				'min_calories' => array( 'required' => false, 'type' => 'number' ),
+				'max_calories' => array( 'required' => false, 'type' => 'number' ),
+				'max_prep'     => array( 'required' => false, 'type' => 'integer' ),
+				'per_page'     => array( 'required' => false, 'type' => 'integer', 'default' => 50 ),
+			),
+		) );
 	}
 
 	// =========================================================
@@ -159,7 +432,34 @@ class Mixmymeals_Rest_Api {
 	// =========================================================
 
 	public function check_edit_permission(): bool {
-		return current_user_can( 'edit_posts' );
+		return current_user_can( 'edit_others_posts' );
+	}
+
+	/**
+	 * Object-level write guard: the current user must be able to edit THIS post.
+	 *
+	 * @param int $id Post ID.
+	 * @return WP_Error|null WP_Error (403) when not allowed, otherwise null.
+	 */
+	private function require_can_edit( int $id ): ?WP_Error {
+		if ( ! current_user_can( 'edit_post', $id ) ) {
+			return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
+		return null;
+	}
+
+	/**
+	 * Publish guard: moving a post to a public status ('publish'/'private')
+	 * requires the publish_posts capability.
+	 *
+	 * @param string|null $status Requested post status.
+	 * @return WP_Error|null WP_Error (403) when not allowed, otherwise null.
+	 */
+	private function require_can_publish( ?string $status ): ?WP_Error {
+		if ( in_array( $status, array( 'publish', 'private' ), true ) && ! current_user_can( 'publish_posts' ) ) {
+			return new WP_Error( 'forbidden', 'You are not allowed to publish content.', array( 'status' => 403 ) );
+		}
+		return null;
 	}
 
 	private function serialize_ingr_unit( int $id ): array {
@@ -187,9 +487,16 @@ class Mixmymeals_Rest_Api {
 			'priority'         => $recipe->get_priority(),
 			'steps'            => $recipe->get_steps(),
 			'equipment'        => $recipe->get_equipment(),
+			'related_recipes'  => $recipe->get_related_recipes(),
+			'related_recipes_reverse' => $recipe->get_reverse_related_recipes(),
+			'meal_plans'       => $recipe->get_meal_plans(),
 			'diet_type'        => $recipe->get_diet_type(),
 			'categories'       => array_map( fn( $t ) => $t->term_id, $recipe->get_categories() ),
 			'tags'             => wp_get_post_terms( $post_id, 'mmm_recipe_tag', array( 'fields' => 'ids' ) ),
+			'author'           => $this->serialize_author( $post_id ),
+			'featured_image'     => $this->featured_image_id( $post_id ),
+			'featured_image_url' => $this->featured_image_url( $post_id ),
+			'image_credit'       => $this->serialize_image_credit( $post_id ),
 		);
 	}
 
@@ -237,8 +544,433 @@ class Mixmymeals_Rest_Api {
 			'end_day'    => $plan->get_end_day(),
 			'count_days' => $plan->count_days(),
 			'diet_type'  => $plan->get_diet_type(),
+			'author'     => $this->serialize_author( $post_id ),
+			'featured_image'     => $this->featured_image_id( $post_id ),
+			'featured_image_url' => $this->featured_image_url( $post_id ),
+			'image_credit'       => $this->serialize_image_credit( $post_id ),
 			'meals'      => $meals,
 		);
+	}
+
+	// =========================================================
+	// AUTHOR BOX
+	//
+	// The freely editable author credit that recipes and meal plans share (see
+	// Mixmymeals_Post_Meta). Reachable two ways: as an 'author' object on any
+	// recipe/plan write, and as a sub-resource under …/author for editing the
+	// credit of an existing post without touching the rest of it.
+	//
+	// Writes MERGE: only supplied keys change, an empty string clears a single
+	// field, DELETE clears the whole box so the post falls back to its
+	// WordPress author.
+	// =========================================================
+
+	/**
+	 * Field schema of the author box, shared by the embedded 'author' object
+	 * and the …/author sub-resource so both accept exactly the same input.
+	 *
+	 * No 'format' => 'uri' on the URL: '' has to stay valid, that is how a
+	 * client clears the link.
+	 *
+	 * @return array
+	 */
+	private static function author_schema_properties(): array {
+		return array(
+			'name'      => array( 'type' => 'string', 'description' => 'Name of the external author. Empty falls back to the WordPress author.' ),
+			'text'      => array( 'type' => 'string', 'description' => 'Free-form bio, limited HTML allowed.' ),
+			'url'       => array( 'type' => 'string', 'description' => 'Link target of the author box.' ),
+			'link_text' => array( 'type' => 'string', 'description' => 'Link label. Empty falls back to the host of the URL.' ),
+			'nofollow'  => array( 'type' => 'boolean', 'description' => 'Whether the link carries rel="nofollow".' ),
+			'social'    => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'URLs and e-mail addresses; the icon is derived from each entry.' ),
+			'image'     => array( 'type' => 'integer', 'description' => 'Attachment ID of the profile picture, 0 removes it. Rendered like a WordPress author’s avatar; only used together with a name.' ),
+		);
+	}
+
+	/**
+	 * Registers GET/POST/PUT/PATCH/DELETE …/author for one post type.
+	 *
+	 * @param string   $base      Route base, 'recipes' or 'meal-plans'.
+	 * @param callable $auth      Permission callback for writes.
+	 * @param array    $id_arg    Shared id argument definition.
+	 * @return void
+	 */
+	private function register_author_routes( string $base, $auth, array $id_arg ): void {
+
+		$post_type = 'recipes' === $base ? 'mmm_recipe' : 'mmm_meal_plan';
+
+		$write_args = array( 'id' => $id_arg );
+		foreach ( self::author_schema_properties() as $key => $schema ) {
+			$write_args[ $key ] = array( 'required' => false ) + $schema;
+		}
+
+		register_rest_route( 'mixmymeals/v1', '/' . $base . '/(?P<id>\d+)/author', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => fn( WP_REST_Request $request ) => $this->get_author( $request, $post_type ),
+				'permission_callback' => '__return_true',
+				'args'                => array( 'id' => $id_arg ),
+			),
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'callback'            => fn( WP_REST_Request $request ) => $this->update_author( $request, $post_type ),
+				'permission_callback' => $auth,
+				'args'                => $write_args,
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => fn( WP_REST_Request $request ) => $this->delete_author( $request, $post_type ),
+				'permission_callback' => $auth,
+				'args'                => array( 'id' => $id_arg ),
+			),
+		) );
+	}
+
+	/**
+	 * Author box of a post as returned by the API.
+	 *
+	 * 'link_text' is the stored value, 'link_text_display' the one actually
+	 * rendered (host of the URL when no label is set) — a client that only saw
+	 * the resolved value would write the host back as if it were typed in.
+	 * 'image' is the writable attachment ID, 'image_url' its read-only preview.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array
+	 */
+	private function serialize_author( int $post_id ): array {
+
+		$data = Mixmymeals_Post_Meta::get_author_data( $post_id );
+
+		return array(
+			'name'              => $data['name'],
+			'text'              => $data['text'],
+			'url'               => $data['url'],
+			'link_text'         => $data['link_text'],
+			'link_text_display' => Mixmymeals_Post_Meta::get_author_link_text( $post_id ),
+			'nofollow'          => $data['nofollow'],
+			'social'            => $data['social'],
+			'image'             => $data['image'],
+			'image_url'         => Mixmymeals_Post_Meta::get_author_image_url( $post_id ),
+			'is_external'       => Mixmymeals_Post_Meta::has_external_author( $post_id ),
+		);
+	}
+
+	/**
+	 * Merges supplied fields into the stored author box. Keys that are absent
+	 * keep their value — save_author_data() itself is destructive.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $fields  Subset of the author schema.
+	 * @return void
+	 */
+	private function apply_author( int $post_id, array $fields ): void {
+
+		$data = Mixmymeals_Post_Meta::get_author_data( $post_id );
+
+		foreach ( array_keys( self::author_schema_properties() ) as $key ) {
+			if ( array_key_exists( $key, $fields ) ) {
+				$data[ $key ] = $fields[ $key ];
+			}
+		}
+
+		Mixmymeals_Post_Meta::save_author_data( $post_id, $data );
+	}
+
+	/**
+	 * Resolves and guards the post behind an …/author request.
+	 *
+	 * @param int    $id        Post ID.
+	 * @param string $post_type Expected post type.
+	 * @param bool   $write     True for write access, false for read.
+	 * @return WP_Post|WP_Error
+	 */
+	private function author_post( int $id, string $post_type, bool $write ): WP_Post|WP_Error {
+
+		$post = get_post( $id );
+
+		if ( ! $post || $post_type !== $post->post_type ) {
+			return new WP_Error( 'not_found', 'Post not found.', array( 'status' => 404 ) );
+		}
+
+		if ( $write ) {
+			return $this->require_can_edit( $id ) ?? $post;
+		}
+
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) {
+			return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
+
+		return $post;
+	}
+
+	/**
+	 * GET …/author
+	 *
+	 * @param WP_REST_Request $request   Request with the post 'id'.
+	 * @param string          $post_type Expected post type.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_author( WP_REST_Request $request, string $post_type ): WP_REST_Response|WP_Error {
+		$id   = (int) $request->get_param( 'id' );
+		$post = $this->author_post( $id, $post_type, false );
+		if ( is_wp_error( $post ) ) return $post;
+		return new WP_REST_Response( $this->serialize_author( $id ), 200 );
+	}
+
+	/**
+	 * POST/PUT/PATCH …/author — merges the supplied fields.
+	 *
+	 * @param WP_REST_Request $request   Request with the post 'id' and author fields.
+	 * @param string          $post_type Expected post type.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function update_author( WP_REST_Request $request, string $post_type ): WP_REST_Response|WP_Error {
+
+		$id   = (int) $request->get_param( 'id' );
+		$post = $this->author_post( $id, $post_type, true );
+		if ( is_wp_error( $post ) ) return $post;
+
+		$fields = array();
+		foreach ( array_keys( self::author_schema_properties() ) as $key ) {
+			if ( $request->has_param( $key ) ) {
+				$fields[ $key ] = $request->get_param( $key );
+			}
+		}
+
+		$this->apply_author( $id, $fields );
+
+		return new WP_REST_Response( $this->serialize_author( $id ), 200 );
+	}
+
+	/**
+	 * DELETE …/author — clears the box, so the post credits its WordPress
+	 * author again.
+	 *
+	 * @param WP_REST_Request $request   Request with the post 'id'.
+	 * @param string          $post_type Expected post type.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function delete_author( WP_REST_Request $request, string $post_type ): WP_REST_Response|WP_Error {
+
+		$id   = (int) $request->get_param( 'id' );
+		$post = $this->author_post( $id, $post_type, true );
+		if ( is_wp_error( $post ) ) return $post;
+
+		Mixmymeals_Post_Meta::save_author_data( $id, array() );
+
+		return new WP_REST_Response( $this->serialize_author( $id ), 200 );
+	}
+
+	// =========================================================
+	// MEDIA
+	//
+	// Getting an image into WordPress from a client that has no browser: a
+	// multipart upload, a URL the server fetches, or an attachment that is
+	// already in the library. All three end in the media library through core
+	// (MIME check, intermediate sizes, metadata) — this only routes to it and
+	// can hang the result on a recipe or plan as its featured image.
+	// =========================================================
+
+	/**
+	 * Post types whose featured image this API manages.
+	 *
+	 * @var string[]
+	 */
+	private const IMAGE_POST_TYPES = array( 'mmm_recipe', 'mmm_meal_plan', 'mmm_equipment' );
+
+	/**
+	 * Sets or clears a post's featured image.
+	 *
+	 * 0 removes it. An ID that is not an attachment is ignored rather than
+	 * stored, so a typo cannot leave a post pointing at a dangling thumbnail.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param mixed $value   Attachment ID, or 0 to remove.
+	 * @return void
+	 */
+	private function apply_featured_image( int $post_id, $value ): void {
+
+		$thumb_id = absint( $value );
+
+		if ( 0 === $thumb_id ) {
+			delete_post_thumbnail( $post_id );
+			return;
+		}
+
+		if ( 'attachment' === get_post_type( $thumb_id ) ) {
+			set_post_thumbnail( $post_id, $thumb_id );
+		}
+	}
+
+	/**
+	 * Credit for a post's featured image, including the assembled line the
+	 * frontend prints, so a client does not have to rebuild the format.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array
+	 */
+	private function serialize_image_credit( int $post_id ): array {
+
+		$data = Mixmymeals_Post_Meta::get_image_credit( $post_id );
+
+		$data['text']       = Mixmymeals_Post_Meta::get_image_credit_text( $post_id );
+		$data['has_credit'] = Mixmymeals_Post_Meta::has_image_credit( $post_id );
+
+		return $data;
+	}
+
+	/**
+	 * Merges supplied fields into the stored image credit. Keys that are
+	 * absent keep their value — save_image_credit() itself is
+	 * destructive, exactly like the author box.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $fields  Subset of creator, source, license, url.
+	 * @return void
+	 */
+	private function apply_image_credit( int $post_id, array $fields ): void {
+
+		$data = Mixmymeals_Post_Meta::get_image_credit( $post_id );
+
+		foreach ( array_keys( Mixmymeals_Post_Meta::IMAGE_CREDIT_FIELDS ) as $key ) {
+			if ( array_key_exists( $key, $fields ) ) {
+				$data[ $key ] = $fields[ $key ];
+			}
+		}
+
+		Mixmymeals_Post_Meta::save_image_credit( $post_id, $data );
+	}
+
+	/**
+	 * Featured image of a post, or null when it has none.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int|null
+	 */
+	private function featured_image_id( int $post_id ): ?int {
+		$thumb_id = (int) get_post_thumbnail_id( $post_id );
+		return $thumb_id > 0 ? $thumb_id : null;
+	}
+
+	/**
+	 * URL of the featured image at full size, or null when there is none.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string|null
+	 */
+	private function featured_image_url( int $post_id ): ?string {
+		$thumb_id = $this->featured_image_id( $post_id );
+		if ( null === $thumb_id ) {
+			return null;
+		}
+		$url = wp_get_attachment_url( $thumb_id );
+		return $url ? $url : null;
+	}
+
+	/**
+	 * Attachment as returned by the API.
+	 *
+	 * @param int $id Attachment ID.
+	 * @return array
+	 */
+	private function serialize_attachment( int $id ): array {
+
+		$meta = wp_get_attachment_metadata( $id );
+
+		return array(
+			'id'     => $id,
+			'url'    => (string) wp_get_attachment_url( $id ),
+			'title'  => get_the_title( $id ),
+			'alt'    => (string) get_post_meta( $id, '_wp_attachment_image_alt', true ),
+			'mime'   => (string) get_post_mime_type( $id ),
+			'width'  => isset( $meta['width'] ) ? (int) $meta['width'] : null,
+			'height' => isset( $meta['height'] ) ? (int) $meta['height'] : null,
+		);
+	}
+
+	/**
+	 * POST /media — puts an image into the library and optionally makes it the
+	 * featured image of a recipe or plan.
+	 *
+	 * Exactly one source: 'file' (multipart), 'url' (fetched server-side) or
+	 * 'attachment_id' (already in the library).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function upload_media( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return new WP_Error( 'forbidden', 'You are not allowed to upload files.', array( 'status' => 403 ) );
+		}
+
+		// Target post, if the image is meant to land on one.
+		$post_id = absint( $request->get_param( 'post_id' ) );
+
+		if ( $post_id ) {
+			$post = get_post( $post_id );
+
+			if ( ! $post || ! in_array( $post->post_type, self::IMAGE_POST_TYPES, true ) ) {
+				return new WP_Error( 'not_found', 'Post not found.', array( 'status' => 404 ) );
+			}
+
+			$guard = $this->require_can_edit( $post_id );
+			if ( $guard ) {
+				return $guard;
+			}
+		}
+
+		// media_handle_upload()/media_sideload_image() live in wp-admin.
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$files         = $request->get_file_params();
+		$url           = trim( (string) $request->get_param( 'url' ) );
+		$attachment_id = absint( $request->get_param( 'attachment_id' ) );
+		$title         = (string) $request->get_param( 'title' );
+
+		if ( ! empty( $files['file'] ) ) {
+			$new_id = media_handle_upload( 'file', $post_id );
+		} elseif ( '' !== $url ) {
+			$new_id = media_sideload_image( $url, $post_id, '' !== $title ? $title : null, 'id' );
+		} elseif ( $attachment_id ) {
+			if ( 'attachment' !== get_post_type( $attachment_id ) ) {
+				return new WP_Error( 'not_found', 'Attachment not found.', array( 'status' => 404 ) );
+			}
+			$new_id = $attachment_id;
+		} else {
+			return new WP_Error(
+				'no_image',
+				'Provide one of: file (multipart upload), url, attachment_id.',
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( is_wp_error( $new_id ) ) {
+			// Rejected uploads (wrong MIME, too large, unreachable URL) are the
+			// client's problem, not a server fault.
+			return new WP_Error( 'upload_failed', $new_id->get_error_message(), array( 'status' => 400 ) );
+		}
+
+		$new_id = (int) $new_id;
+
+		if ( '' !== $title ) {
+			wp_update_post( array( 'ID' => $new_id, 'post_title' => sanitize_text_field( $title ) ) );
+		}
+
+		if ( $request->has_param( 'alt' ) ) {
+			update_post_meta( $new_id, '_wp_attachment_image_alt', sanitize_text_field( (string) $request->get_param( 'alt' ) ) );
+		}
+
+		$response             = $this->serialize_attachment( $new_id );
+		$response['featured_for'] = null;
+
+		if ( $post_id && $request->get_param( 'featured' ) ) {
+			set_post_thumbnail( $post_id, $new_id );
+			$response['featured_for'] = $post_id;
+		}
+
+		return new WP_REST_Response( $response, 201 );
 	}
 
 	// =========================================================
@@ -247,7 +979,7 @@ class Mixmymeals_Rest_Api {
 
 	public function get_recipes( WP_REST_Request $request ): WP_REST_Response {
 		$status = $request->get_param( 'status' );
-		if ( 'publish' !== $status && ! current_user_can( 'edit_posts' ) ) {
+		if ( 'publish' !== $status && ! current_user_can( 'edit_others_posts' ) ) {
 			$status = 'publish';
 		}
 		$posts = get_posts( array(
@@ -261,6 +993,8 @@ class Mixmymeals_Rest_Api {
 	}
 
 	public function create_recipe( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$guard = $this->require_can_publish( $request->get_param( 'status' ) ?? 'draft' );
+		if ( $guard ) return $guard;
 		try {
 			$recipe = Mixmymeals_Recipe::create(
 				$request->get_param( 'title' ),
@@ -275,20 +1009,28 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'priority' ) )         $recipe->set_priority( absint( $request->get_param( 'priority' ) ) );
 		if ( $request->has_param( 'steps' ) )            $recipe->set_steps( $request->get_param( 'steps' ) );
 		if ( $request->has_param( 'equipment' ) )        $recipe->set_equipment( $request->get_param( 'equipment' ) );
+		if ( $request->has_param( 'related_recipes' ) )  $recipe->set_related_recipes( $request->get_param( 'related_recipes' ) );
 		if ( $request->has_param( 'categories' ) )       wp_set_post_terms( $recipe->get_id(), $request->get_param( 'categories' ), 'mmm_recipe_category' );
 		if ( $request->has_param( 'tags' ) )             wp_set_post_terms( $recipe->get_id(), $request->get_param( 'tags' ), 'mmm_recipe_tag' );
+		if ( $request->has_param( 'author' ) )           $this->apply_author( $recipe->get_id(), (array) $request->get_param( 'author' ) );
+		if ( $request->has_param( 'featured_image' ) )   $this->apply_featured_image( $recipe->get_id(), $request->get_param( 'featured_image' ) );
+		if ( $request->has_param( 'image_credit' ) )    $this->apply_image_credit( $recipe->get_id(), (array) $request->get_param( 'image_credit' ) );
 		return new WP_REST_Response( $this->serialize_recipe( $recipe->get_id() ), 201 );
 	}
 
 	public function get_recipe( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$id = $request->get_param( 'id' );
-		if ( ! Mixmymeals_Recipe::exists_by_id( $id ) ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		$id   = $request->get_param( 'id' );
+		$post = get_post( $id );
+		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( $this->serialize_recipe( $id ), 200 );
 	}
 
 	public function update_recipe( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$id = $request->get_param( 'id' );
 		if ( ! Mixmymeals_Recipe::exists_by_id( $id ) ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_edit( $id ) ?? $this->require_can_publish( $request->get_param( 'status' ) );
+		if ( $guard ) return $guard;
 		$update = array( 'ID' => $id );
 		if ( $request->has_param( 'title' ) )   $update['post_title']   = $request->get_param( 'title' );
 		if ( $request->has_param( 'status' ) )  $update['post_status']  = $request->get_param( 'status' );
@@ -300,14 +1042,20 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'priority' ) )         $recipe->set_priority( absint( $request->get_param( 'priority' ) ) );
 		if ( $request->has_param( 'steps' ) )            $recipe->set_steps( $request->get_param( 'steps' ) );
 		if ( $request->has_param( 'equipment' ) )        $recipe->set_equipment( $request->get_param( 'equipment' ) );
+		if ( $request->has_param( 'related_recipes' ) )  $recipe->set_related_recipes( $request->get_param( 'related_recipes' ) );
 		if ( $request->has_param( 'categories' ) )       wp_set_post_terms( $id, $request->get_param( 'categories' ), 'mmm_recipe_category' );
 		if ( $request->has_param( 'tags' ) )             wp_set_post_terms( $id, $request->get_param( 'tags' ), 'mmm_recipe_tag' );
+		if ( $request->has_param( 'author' ) )           $this->apply_author( $id, (array) $request->get_param( 'author' ) );
+		if ( $request->has_param( 'featured_image' ) )   $this->apply_featured_image( $id, $request->get_param( 'featured_image' ) );
+		if ( $request->has_param( 'image_credit' ) )    $this->apply_image_credit( $id, (array) $request->get_param( 'image_credit' ) );
 		return new WP_REST_Response( $this->serialize_recipe( $id ), 200 );
 	}
 
 	public function get_recipe_nutrition( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$id = $request->get_param( 'id' );
-		if ( ! Mixmymeals_Recipe::exists_by_id( $id ) ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		$id   = $request->get_param( 'id' );
+		$post = get_post( $id );
+		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		$recipe = new Mixmymeals_Recipe( $id );
 		return new WP_REST_Response( array(
 			'per_serving'      => $recipe->calculate_nutrition_per_serving(),
@@ -317,9 +1065,31 @@ class Mixmymeals_Rest_Api {
 	}
 
 	public function get_recipe_ingredients( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$id = $request->get_param( 'id' );
-		if ( ! Mixmymeals_Recipe::exists_by_id( $id ) ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		$id   = $request->get_param( 'id' );
+		$post = get_post( $id );
+		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( ( new Mixmymeals_Recipe( $id ) )->get_ingredients_scaled( floatval( $request->get_param( 'scale' ) ) ), 200 );
+	}
+
+	/**
+	 * Resolves a recipe's required equipment (stored as raw IDs on the
+	 * recipe) to full equipment objects, mirroring /recipes/(id)/ingredients.
+	 *
+	 * @param WP_REST_Request $request Request with the recipe 'id'.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_recipe_equipment( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$id   = $request->get_param( 'id' );
+		$post = get_post( $id );
+		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		$equipment_ids = ( new Mixmymeals_Recipe( $id ) )->get_equipment();
+		$items = array_filter( array_map(
+			fn( $eq_id ) => Mixmymeals_Equipment::exists_by_id( $eq_id ) ? $this->serialize_equipment( $eq_id ) : null,
+			$equipment_ids
+		) );
+		return new WP_REST_Response( array_values( $items ), 200 );
 	}
 
 	// =========================================================
@@ -341,6 +1111,8 @@ class Mixmymeals_Rest_Api {
 	}
 
 	public function create_ingredient( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$guard = $this->require_can_publish( $request->get_param( 'status' ) ?? 'publish' );
+		if ( $guard ) return $guard;
 		try {
 			$ing = Mixmymeals_Ingredient::create(
 				$request->get_param( 'title' ),
@@ -360,6 +1132,8 @@ class Mixmymeals_Rest_Api {
 		$id  = $request->get_param( 'id' );
 		$ing = new Mixmymeals_Ingredient( $id );
 		if ( ! $ing->is_valid() ) return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_edit( $id );
+		if ( $guard ) return $guard;
 		if ( $request->has_param( 'title' ) )        wp_update_post( array( 'ID' => $id, 'post_title' => $request->get_param( 'title' ) ) );
 		if ( $request->has_param( 'diet_type' ) )    $ing->set_diet_type( $request->get_param( 'diet_type' ) );
 		if ( $request->has_param( 'default_unit' ) ) $ing->set_default_unit( $request->get_param( 'default_unit' ) );
@@ -372,6 +1146,8 @@ class Mixmymeals_Rest_Api {
 		$id  = $request->get_param( 'id' );
 		$ing = new Mixmymeals_Ingredient( $id );
 		if ( ! $ing->is_valid() ) return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_edit( $id );
+		if ( $guard ) return $guard;
 		$data = array();
 		foreach ( array( 'calories_100', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt', 'weight_item' ) as $field ) {
 			if ( $request->has_param( $field ) ) $data[ $field ] = floatval( $request->get_param( $field ) );
@@ -384,6 +1160,8 @@ class Mixmymeals_Rest_Api {
 		$id  = $request->get_param( 'id' );
 		$ing = new Mixmymeals_Ingredient( $id );
 		if ( ! $ing->is_valid() ) return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_edit( $id );
+		if ( $guard ) return $guard;
 		$ing->set_price_per_100g( floatval( $request->get_param( 'price_per_100g' ) ) );
 		return new WP_REST_Response( array( 'id' => $id, 'price_per_100g' => $ing->get_price_per_100g() ), 200 );
 	}
@@ -409,6 +1187,9 @@ class Mixmymeals_Rest_Api {
 		if ( ! $parent->is_valid() ) {
 			return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
 		}
+
+		$guard = $this->require_can_edit( $ingredient_id );
+		if ( $guard ) return $guard;
 
 		try {
 			$unit = Mixmymeals_Ingredient_Amount::create( $ingredient_id, $request->get_param( 'title' ) );
@@ -441,6 +1222,9 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'not_found', 'Unit not found.', array( 'status' => 404 ) );
 		}
 
+		$guard = $this->require_can_edit( $id );
+		if ( $guard ) return $guard;
+
 		if ( $request->has_param( 'title' ) )         $unit->set_title( $request->get_param( 'title' ) );
 		if ( $request->has_param( 'weight_g' ) )       $unit->set_weight( floatval( $request->get_param( 'weight_g' ) ) );
 		if ( $request->has_param( 'is_indivisible' ) ) $unit->set_indivisible( (bool) $request->get_param( 'is_indivisible' ) );
@@ -461,6 +1245,8 @@ class Mixmymeals_Rest_Api {
 	}
 
 	public function create_meal_plan( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$guard = $this->require_can_publish( $request->get_param( 'status' ) ?? 'draft' );
+		if ( $guard ) return $guard;
 		try {
 			$plan = Mixmymeals_Meal_Plan::create(
 				$request->get_param( 'title' ),
@@ -475,6 +1261,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'end_day' ) )    $plan->set_end_day( absint( $request->get_param( 'end_day' ) ) );
 		if ( $request->has_param( 'categories' ) ) wp_set_post_terms( $plan->get_id(), $request->get_param( 'categories' ), 'mmm_meal_plan_category' );
 		if ( $request->has_param( 'tags' ) )       wp_set_post_terms( $plan->get_id(), $request->get_param( 'tags' ), 'mmm_meal_plan_tag' );
+		if ( $request->has_param( 'author' ) )     $this->apply_author( $plan->get_id(), (array) $request->get_param( 'author' ) );
+		if ( $request->has_param( 'featured_image' ) ) $this->apply_featured_image( $plan->get_id(), $request->get_param( 'featured_image' ) );
+		if ( $request->has_param( 'image_credit' ) ) $this->apply_image_credit( $plan->get_id(), (array) $request->get_param( 'image_credit' ) );
 		return new WP_REST_Response( $this->serialize_meal_plan( $plan->get_id() ), 201 );
 	}
 
@@ -490,6 +1279,8 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || $post->post_type !== 'mmm_meal_plan' ) return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_edit( $id ) ?? $this->require_can_publish( $request->get_param( 'status' ) );
+		if ( $guard ) return $guard;
 		$update = array( 'ID' => $id );
 		if ( $request->has_param( 'title' ) )   $update['post_title']   = $request->get_param( 'title' );
 		if ( $request->has_param( 'status' ) )  $update['post_status']  = $request->get_param( 'status' );
@@ -501,6 +1292,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'end_day' ) )    $plan->set_end_day( absint( $request->get_param( 'end_day' ) ) );
 		if ( $request->has_param( 'categories' ) ) wp_set_post_terms( $id, $request->get_param( 'categories' ), 'mmm_meal_plan_category' );
 		if ( $request->has_param( 'tags' ) )       wp_set_post_terms( $id, $request->get_param( 'tags' ), 'mmm_meal_plan_tag' );
+		if ( $request->has_param( 'author' ) )     $this->apply_author( $id, (array) $request->get_param( 'author' ) );
+		if ( $request->has_param( 'featured_image' ) ) $this->apply_featured_image( $id, $request->get_param( 'featured_image' ) );
+		if ( $request->has_param( 'image_credit' ) ) $this->apply_image_credit( $id, (array) $request->get_param( 'image_credit' ) );
 		return new WP_REST_Response( $this->serialize_meal_plan( $id ), 200 );
 	}
 
@@ -531,6 +1325,7 @@ class Mixmymeals_Rest_Api {
 					'ingredient_id'   => $ing_id,
 					'ingredient_name' => get_the_title( $ing_id ),
 					'total_weight_g'  => round( (float) $data['total_weight'], 2 ),
+					'optional'        => ! empty( $data['optional'] ),
 					'details'         => array_map( static fn( $d ) => array(
 						'recipe_name' => $d['recipe_name'],
 						'amount'      => $d['amount'],
@@ -544,6 +1339,22 @@ class Mixmymeals_Rest_Api {
 		return new WP_REST_Response( $result, 200 );
 	}
 
+	/**
+	 * Returns the deduplicated equipment required across all meals of a plan,
+	 * mirroring /meal-plans/(id)/shopping-list for ingredients.
+	 *
+	 * @param WP_REST_Request $request Request with the meal plan 'id'.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_meal_plan_equipment( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$plan_id = $request->get_param( 'id' );
+		$post    = get_post( $plan_id );
+		if ( ! $post || $post->post_type !== 'mmm_meal_plan' ) return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $plan_id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		$equipment_ids = ( new Mixmymeals_Meal_Plan( $plan_id ) )->get_required_equipment();
+		return new WP_REST_Response( array_map( fn( $id ) => $this->serialize_equipment( $id ), $equipment_ids ), 200 );
+	}
+
 	// =========================================================
 	// EQUIPMENT CALLBACKS
 	// =========================================================
@@ -551,10 +1362,24 @@ class Mixmymeals_Rest_Api {
 	private function serialize_equipment( int $post_id ): array {
 		$equipment = new Mixmymeals_Equipment( $post_id );
 		$post      = get_post( $post_id );
+		$thumb_id = (int) get_post_thumbnail_id( $post_id );
+
 		return array(
-			'id'     => $post_id,
-			'title'  => $equipment->get_title(),
-			'status' => $post->post_status,
+			'id'              => $post_id,
+			'title'           => $equipment->get_title(),
+			'status'          => $post->post_status,
+			'link'            => get_permalink( $post_id ),
+			'content'         => $post->post_content,
+			'featured_image'  => $thumb_id > 0 ? $thumb_id : null,
+			'categories'      => array_map(
+				static fn( $term ) => array(
+					'id'   => (int) $term->term_id,
+					'name' => $term->name,
+				),
+				$equipment->get_categories()
+			),
+			'affiliate_links' => $equipment->get_affiliate_links(),
+			'recipe_count'    => $equipment->count_recipes(),
 		);
 	}
 
@@ -574,6 +1399,8 @@ class Mixmymeals_Rest_Api {
 	}
 
 	public function create_equipment( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$guard = $this->require_can_publish( $request->get_param( 'status' ) ?? 'publish' );
+		if ( $guard ) return $guard;
 		try {
 			$equipment = Mixmymeals_Equipment::create(
 				$request->get_param( 'title' ),
@@ -582,7 +1409,42 @@ class Mixmymeals_Rest_Api {
 		} catch ( \Exception $e ) {
 			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
 		}
+		$this->apply_equipment_fields( $equipment, $request );
 		return new WP_REST_Response( $this->serialize_equipment( $equipment->get_id() ), 201 );
+	}
+
+	/**
+	 * Applies the optional equipment fields shared by create and update, so a
+	 * piece of equipment can be built in a single call.
+	 */
+	private function apply_equipment_fields( Mixmymeals_Equipment $equipment, WP_REST_Request $request ): void {
+
+		$id = $equipment->get_id();
+
+		if ( $request->has_param( 'content' ) ) {
+			wp_update_post(
+				array(
+					'ID'           => $id,
+					'post_content' => wp_kses_post( (string) $request->get_param( 'content' ) ),
+				)
+			);
+		}
+
+		if ( $request->has_param( 'categories' ) ) {
+			wp_set_post_terms(
+				$id,
+				array_map( 'intval', (array) $request->get_param( 'categories' ) ),
+				'mmm_equipment_category'
+			);
+		}
+
+		if ( $request->has_param( 'affiliate_links' ) ) {
+			$equipment->set_affiliate_links( (array) $request->get_param( 'affiliate_links' ) );
+		}
+
+		if ( $request->has_param( 'featured_image' ) ) {
+			$this->apply_featured_image( $id, $request->get_param( 'featured_image' ) );
+		}
 	}
 
 	public function update_equipment( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -591,8 +1453,11 @@ class Mixmymeals_Rest_Api {
 		if ( ! $equipment->is_valid() ) {
 			return new WP_Error( 'not_found', 'Equipment not found.', array( 'status' => 404 ) );
 		}
+		$guard = $this->require_can_edit( $id ) ?? $this->require_can_publish( $request->get_param( 'status' ) );
+		if ( $guard ) return $guard;
 		if ( $request->has_param( 'title' ) )  $equipment->set_title( $request->get_param( 'title' ) );
 		if ( $request->has_param( 'status' ) ) wp_update_post( array( 'ID' => $id, 'post_status' => $request->get_param( 'status' ) ) );
+		$this->apply_equipment_fields( $equipment, $request );
 		return new WP_REST_Response( $this->serialize_equipment( $id ), 200 );
 	}
 
@@ -604,6 +1469,8 @@ class Mixmymeals_Rest_Api {
 		$plan_id   = $request->get_param( 'plan_id' );
 		$recipe_id = $request->get_param( 'recipe_id' );
 		$title     = $request->get_param( 'title' ) ?: get_the_title( $recipe_id );
+		$guard = $this->require_can_edit( $plan_id ) ?? $this->require_can_publish( $request->get_param( 'status' ) ?? 'publish' );
+		if ( $guard ) return $guard;
 		try {
 			$meal = Mixmymeals_Meal::create( $title, $plan_id, $request->get_param( 'status' ) ?? 'publish' );
 		} catch ( \Exception $e ) {
@@ -620,6 +1487,9 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || $post->post_type !== 'mmm_meal' ) return new WP_Error( 'not_found', 'Meal not found.', array( 'status' => 404 ) );
+		$plan_id   = ( new Mixmymeals_Meal( $id ) )->get_parent_plan_id();
+		$plan_post = $plan_id ? get_post( $plan_id ) : null;
+		if ( ! $plan_post || ( 'publish' !== $plan_post->post_status && ! current_user_can( 'edit_post', $plan_id ) ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( $this->serialize_meal( $id ), 200 );
 	}
 
@@ -627,6 +1497,8 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || $post->post_type !== 'mmm_meal' ) return new WP_Error( 'not_found', 'Meal not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_edit( $id ) ?? $this->require_can_publish( $request->get_param( 'status' ) );
+		if ( $guard ) return $guard;
 		$meal = new Mixmymeals_Meal( $id );
 		if ( $request->has_param( 'plan_id' ) )   $meal->set_parent_plan_id( absint( $request->get_param( 'plan_id' ) ) );
 		if ( $request->has_param( 'recipe_id' ) ) $meal->set_recipe_id( absint( $request->get_param( 'recipe_id' ) ) );
@@ -641,7 +1513,996 @@ class Mixmymeals_Rest_Api {
 	public function set_meal_plan( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$meal_id = $request->get_param( 'id' );
 		$plan_id = $request->get_param( 'plan_id' );
+		$guard = $this->require_can_edit( $meal_id ) ?? $this->require_can_edit( $plan_id );
+		if ( $guard ) return $guard;
 		( new Mixmymeals_Meal( $meal_id ) )->set_parent_plan_id( $plan_id );
 		return new WP_REST_Response( array( 'success' => true, 'meal_id' => $meal_id, 'plan_id' => $plan_id ), 200 );
+	}
+
+	/**
+	 * Sets the WordPress status of a plan/recipe (draft, publish, trash).
+	 * Used by the frontend admin board.
+	 */
+	public function set_post_status( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$id     = (int) $request['id'];
+		$status = (string) $request->get_param( 'status' );
+
+		if ( 'trash' === $status ) {
+			if ( ! current_user_can( 'delete_post', $id ) ) {
+				return new WP_Error( 'forbidden', 'You are not allowed to trash this post.', array( 'status' => 403 ) );
+			}
+			wp_trash_post( $id );
+		} else {
+			$guard = $this->require_can_publish( $status );
+			if ( $guard ) return $guard;
+			wp_update_post( array( 'ID' => $id, 'post_status' => $status ) );
+		}
+
+		return new WP_REST_Response( array(
+			'id'     => $id,
+			'status' => get_post_status( $id ),
+		), 200 );
+	}
+
+	// =========================================================
+	// AI CONVENIENCE
+	// =========================================================
+
+	/**
+	 * Creates a meal plan and all of its meals in a single request. Recipes may
+	 * be referenced by ID ('recipe_id') or by name/slug ('recipe'). When
+	 * start_day/end_day are omitted they are derived from the meals' days.
+	 * Unknown recipes are skipped and reported in 'warnings' rather than failing
+	 * the whole plan, which keeps it forgiving for automated callers.
+	 */
+	public function build_meal_plan( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$guard = $this->require_can_publish( $request->get_param( 'status' ) ?? 'draft' );
+		if ( $guard ) return $guard;
+
+		try {
+			$plan = Mixmymeals_Meal_Plan::create(
+				$request->get_param( 'title' ),
+				$request->get_param( 'status' ) ?? 'draft',
+				$request->get_param( 'content' ) ?? ''
+			);
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
+		}
+
+		$plan_id = $plan->get_id();
+
+		if ( $request->has_param( 'excerpt' ) )    wp_update_post( array( 'ID' => $plan_id, 'post_excerpt' => $request->get_param( 'excerpt' ) ) );
+		if ( $request->has_param( 'categories' ) ) wp_set_post_terms( $plan_id, $request->get_param( 'categories' ), 'mmm_meal_plan_category' );
+		if ( $request->has_param( 'tags' ) )       wp_set_post_terms( $plan_id, $request->get_param( 'tags' ), 'mmm_meal_plan_tag' );
+		if ( $request->has_param( 'author' ) )     $this->apply_author( $plan_id, (array) $request->get_param( 'author' ) );
+		if ( $request->has_param( 'featured_image' ) ) $this->apply_featured_image( $plan_id, $request->get_param( 'featured_image' ) );
+		if ( $request->has_param( 'image_credit' ) ) $this->apply_image_credit( $plan_id, (array) $request->get_param( 'image_credit' ) );
+
+		$meals  = $request->get_param( 'meals' );
+		$result = is_array( $meals ) ? $this->apply_meals_to_plan( $plan_id, $meals ) : array( 'created' => array(), 'warnings' => array() );
+
+		// Day range: explicit values win; otherwise derive from the meals.
+		$start = $request->has_param( 'start_day' ) ? absint( $request->get_param( 'start_day' ) ) : 0;
+		$end   = $request->has_param( 'end_day' ) ? absint( $request->get_param( 'end_day' ) ) : 0;
+		if ( ! $start || ! $end ) {
+			$days = array();
+			foreach ( $result['created'] as $mid ) {
+				$d = (int) ( new Mixmymeals_Meal( $mid ) )->get_day();
+				if ( $d >= 1 && $d <= 7 ) {
+					$days[] = $d;
+				}
+			}
+			if ( $days ) {
+				if ( ! $start ) $start = min( $days );
+				if ( ! $end )   $end   = max( $days );
+			}
+		}
+		if ( $start ) $plan->set_start_day( $start );
+		if ( $end )   $plan->set_end_day( $end );
+
+		$response                  = $this->serialize_meal_plan( $plan_id );
+		$response['created_meals'] = count( $result['created'] );
+		$response['warnings']      = $result['warnings'];
+		return new WP_REST_Response( $response, 201 );
+	}
+
+	/**
+	 * Adds several meals to an existing plan in one call (same 'meals' payload
+	 * as build_meal_plan). Returns the updated plan plus any warnings.
+	 */
+	public function add_meals_bulk( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$plan_id = (int) $request->get_param( 'id' );
+		$post    = get_post( $plan_id );
+		if ( ! $post || 'mmm_meal_plan' !== $post->post_type ) {
+			return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
+		}
+		$guard = $this->require_can_edit( $plan_id );
+		if ( $guard ) return $guard;
+
+		$meals = $request->get_param( 'meals' );
+		if ( ! is_array( $meals ) ) {
+			return new WP_Error( 'invalid', 'meals must be an array.', array( 'status' => 400 ) );
+		}
+
+		$result                    = $this->apply_meals_to_plan( $plan_id, $meals );
+		$response                  = $this->serialize_meal_plan( $plan_id );
+		$response['created_meals'] = count( $result['created'] );
+		$response['warnings']      = $result['warnings'];
+		return new WP_REST_Response( $response, 200 );
+	}
+
+	/**
+	 * Shared meal-creation loop for build_meal_plan()/add_meals_bulk().
+	 *
+	 * @param int     $plan_id Meal plan post ID.
+	 * @param array[] $meals   Meal specs: recipe_id|recipe, servings, type, day, status, title.
+	 * @return array{created:int[], warnings:string[]}
+	 */
+	private function apply_meals_to_plan( int $plan_id, array $meals ): array {
+
+		$created  = array();
+		$warnings = array();
+
+		// Title → ID lookup so recipes can be referenced by name.
+		$catalog = array();
+		foreach ( get_posts( array(
+			'post_type'      => 'mmm_recipe',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		) ) as $rid ) {
+			$catalog[ mb_strtolower( get_the_title( $rid ) ) ] = (int) $rid;
+		}
+
+		$types = array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' );
+
+		foreach ( $meals as $i => $m ) {
+			if ( ! is_array( $m ) ) {
+				$warnings[] = sprintf( 'Meal %d: invalid format.', (int) $i + 1 );
+				continue;
+			}
+
+			$recipe_id = 0;
+			if ( ! empty( $m['recipe_id'] ) && get_post_type( (int) $m['recipe_id'] ) === 'mmm_recipe' ) {
+				$recipe_id = (int) $m['recipe_id'];
+			} elseif ( ! empty( $m['recipe'] ) ) {
+				$recipe_id = $this->resolve_recipe_name( (string) $m['recipe'], $catalog );
+			}
+
+			if ( ! $recipe_id ) {
+				$ref        = $m['recipe'] ?? ( $m['recipe_id'] ?? '?' );
+				$warnings[] = sprintf( 'Meal %d: recipe not found (%s).', (int) $i + 1, (string) $ref );
+				continue;
+			}
+
+			$type     = ( isset( $m['type'] ) && in_array( $m['type'], $types, true ) ) ? $m['type'] : 'other';
+			$day      = isset( $m['day'] ) ? max( 1, min( 7, (int) $m['day'] ) ) : 0;
+			$servings = isset( $m['servings'] ) ? max( 1, (int) $m['servings'] ) : 1;
+			$status   = ( isset( $m['status'] ) && in_array( $m['status'], array( 'publish', 'draft' ), true ) ) ? $m['status'] : 'publish';
+			$title    = ! empty( $m['title'] ) ? sanitize_text_field( $m['title'] ) : get_the_title( $recipe_id );
+
+			try {
+				$meal = Mixmymeals_Meal::create( $title, $plan_id, $status );
+			} catch ( \Exception $e ) {
+				$warnings[] = sprintf( 'Meal %d: %s', (int) $i + 1, $e->getMessage() );
+				continue;
+			}
+
+			$meal->set_recipe_id( $recipe_id );
+			$meal->set_servings( $servings );
+			$meal->set_type( $type );
+			if ( $day ) {
+				$meal->set_day( $day );
+			}
+			$created[] = $meal->get_id();
+		}
+
+		return array( 'created' => $created, 'warnings' => $warnings );
+	}
+
+	/**
+	 * Resolves a recipe reference (exact title, then slug, then partial title).
+	 *
+	 * @param string $name    Recipe name or slug.
+	 * @param array  $catalog Prebuilt lower-title => id map.
+	 * @return int Recipe ID, or 0 when nothing matches.
+	 */
+	private function resolve_recipe_name( string $name, array $catalog ): int {
+
+		$name = trim( $name );
+		if ( '' === $name ) {
+			return 0;
+		}
+
+		$lower = mb_strtolower( $name );
+		if ( isset( $catalog[ $lower ] ) ) {
+			return $catalog[ $lower ];
+		}
+
+		$by_slug = get_page_by_path( sanitize_title( $name ), OBJECT, 'mmm_recipe' );
+		if ( $by_slug ) {
+			return (int) $by_slug->ID;
+		}
+
+		foreach ( $catalog as $title => $id ) {
+			if ( false !== mb_stripos( $title, $lower ) ) {
+				return $id;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Searches published recipes by planning-relevant criteria and returns a
+	 * compact list (nutrition per serving, diet, prep time, categories) so an
+	 * AI can pick recipes without fetching each one individually.
+	 */
+	public function search_recipes( WP_REST_Request $request ): WP_REST_Response {
+
+		$args = array(
+			'post_type'      => 'mmm_recipe',
+			'post_status'    => 'publish',
+			'posts_per_page' => 300,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+		);
+
+		if ( $request->get_param( 'search' ) ) {
+			$args['s'] = $request->get_param( 'search' );
+		}
+
+		$tax = array();
+		if ( $request->get_param( 'category' ) ) {
+			$tax[] = array( 'taxonomy' => 'mmm_recipe_category', 'field' => 'term_id', 'terms' => (int) $request->get_param( 'category' ) );
+		}
+		if ( $request->get_param( 'tag' ) ) {
+			$tax[] = array( 'taxonomy' => 'mmm_recipe_tag', 'field' => 'term_id', 'terms' => (int) $request->get_param( 'tag' ) );
+		}
+		if ( $tax ) {
+			$tax['relation']  = 'AND';
+			$args['tax_query'] = $tax; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+		}
+
+		$diet     = $request->get_param( 'diet' );
+		$min_cal  = $request->has_param( 'min_calories' ) ? (float) $request->get_param( 'min_calories' ) : null;
+		$max_cal  = $request->has_param( 'max_calories' ) ? (float) $request->get_param( 'max_calories' ) : null;
+		$max_prep = $request->has_param( 'max_prep' ) ? (int) $request->get_param( 'max_prep' ) : null;
+		$per_page = max( 1, min( 100, (int) ( $request->get_param( 'per_page' ) ?: 50 ) ) );
+
+		$items = array();
+		foreach ( get_posts( $args ) as $rid ) {
+			$recipe = new Mixmymeals_Recipe( $rid );
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$nutrition = $recipe->calculate_nutrition_per_serving();
+			$calories  = isset( $nutrition['calories'] ) ? (float) $nutrition['calories'] : 0.0;
+			$diet_type = $recipe->get_diet_type();
+			$prep      = (int) $recipe->get_preparation_time();
+
+			if ( $diet && $diet_type !== $diet ) {
+				continue;
+			}
+			if ( null !== $min_cal && $calories < $min_cal ) {
+				continue;
+			}
+			if ( null !== $max_cal && $calories > $max_cal ) {
+				continue;
+			}
+			if ( null !== $max_prep && $prep > $max_prep ) {
+				continue;
+			}
+
+			$items[] = array(
+				'id'                   => (int) $rid,
+				'title'                => get_the_title( $rid ),
+				'diet_type'            => $diet_type,
+				'servings'             => $recipe->get_servings(),
+				'preparation_time'     => $prep,
+				'calories_per_serving' => (int) round( $calories ),
+				'protein_per_serving'  => isset( $nutrition['protein'] ) ? round( (float) $nutrition['protein'], 1 ) : 0,
+				'categories'           => array_map( fn( $t ) => $t->term_id, $recipe->get_categories() ),
+				'link'                 => get_permalink( $rid ),
+			);
+
+			if ( count( $items ) >= $per_page ) {
+				break;
+			}
+		}
+
+		return new WP_REST_Response( array(
+			'count'   => count( $items ),
+			'recipes' => $items,
+		), 200 );
+	}
+
+	// =========================================================
+	// USAGE INDEX
+	// =========================================================
+
+	/**
+	 * Which recipes use which ingredient: [ ingredient_id => [ recipe_id, … ] ].
+	 *
+	 * A recipe references its ingredients inside the serialized _rmm_steps meta,
+	 * so there is no meta key to query — the map is built by scanning every
+	 * recipe once and then reused by search, audit, delete and merge. Cached per
+	 * request; all of these run in a single request.
+	 *
+	 * Drafts count as usage: an ingredient still in an unpublished recipe must
+	 * not be deleted silently.
+	 *
+	 * @return array<int, int[]>
+	 */
+	private function ingredient_usage_map(): array {
+
+		static $map = null;
+
+		if ( null !== $map ) {
+			return $map;
+		}
+
+		$map = array();
+
+		$recipe_ids = get_posts( array(
+			'post_type'      => 'mmm_recipe',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		) );
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$steps = get_post_meta( (int) $recipe_id, '_rmm_steps', true );
+			if ( ! is_array( $steps ) ) {
+				continue;
+			}
+
+			// Eine Zutat kann in mehreren Schritten stehen — pro Rezept nur einmal zählen.
+			$seen = array();
+			foreach ( $steps as $step ) {
+				foreach ( (array) ( $step['ingredients'] ?? array() ) as $entry ) {
+					$ingredient_id = (int) ( $entry['id'] ?? 0 );
+					if ( $ingredient_id <= 0 || isset( $seen[ $ingredient_id ] ) ) {
+						continue;
+					}
+					$seen[ $ingredient_id ]  = true;
+					$map[ $ingredient_id ][] = (int) $recipe_id;
+				}
+			}
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Which meals reference a recipe: [ meal_id, … ], with their parent plan.
+	 * Meals of any status count — a recipe used by a draft plan is still in use.
+	 *
+	 * @param int $recipe_id Recipe post ID.
+	 * @return array<int, array{meal_id:int, plan_id:int, plan_title:string}>
+	 */
+	private function recipe_usage( int $recipe_id ): array {
+
+		$meal_ids = get_posts( array(
+			'post_type'      => 'mmm_meal',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			'meta_key'       => 'recipe_id',
+			'meta_value'     => (string) $recipe_id,
+		) );
+
+		$out = array();
+		foreach ( $meal_ids as $meal_id ) {
+			$plan_id = (int) wp_get_post_parent_id( (int) $meal_id );
+			$out[]   = array(
+				'meal_id'    => (int) $meal_id,
+				'plan_id'    => $plan_id,
+				'plan_title' => $plan_id ? get_the_title( $plan_id ) : '',
+			);
+		}
+
+		return $out;
+	}
+
+	// =========================================================
+	// INGREDIENT SEARCH
+	// =========================================================
+
+	/**
+	 * Compact ingredient search. The full /ingredients list returns all ~350
+	 * ingredients with nutrition and units, which is far too much for a tool
+	 * response — this returns only what is needed to pick one.
+	 */
+	public function search_ingredients( WP_REST_Request $request ): WP_REST_Response {
+
+		$query = trim( (string) $request->get_param( 'query' ) );
+		$diet  = $request->get_param( 'diet_type' );
+		$limit = max( 1, min( 100, (int) ( $request->get_param( 'limit' ) ?: 20 ) ) );
+
+		$args = array(
+			'post_type'      => 'mmm_ingredient',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+		);
+
+		$usage = $this->ingredient_usage_map();
+		$items = array();
+
+		foreach ( get_posts( $args ) as $ingredient_id ) {
+
+			/*
+			 * Titel-Teilstring statt WP-Volltextsuche: "s" durchsucht auch den
+			 * Beschreibungstext, den 301 der 341 Zutaten haben — eine Suche nach
+			 * "Mehl" liefert damit auch Blumenkohl und Backpulver. Markennamen
+			 * stehen im Titel, also reicht der Titel und die Treffer bleiben
+			 * brauchbar. mb_stripos: Teilstring, case-insensitive, umlautfest.
+			 */
+			if ( '' !== $query && false === mb_stripos( get_the_title( (int) $ingredient_id ), $query ) ) {
+				continue;
+			}
+
+			$ingredient = new Mixmymeals_Ingredient( (int) $ingredient_id );
+			if ( ! $ingredient->is_valid() ) {
+				continue;
+			}
+
+			// Diät-Filter nachgelagert, wie in search_recipes().
+			if ( $diet && $ingredient->get_diet_type() !== $diet ) {
+				continue;
+			}
+
+			$units = array();
+			foreach ( $ingredient->get_units() as $unit_post ) {
+				$unit    = new Mixmymeals_Ingredient_Amount( (int) $unit_post->ID );
+				$units[] = array(
+					'id'       => (int) $unit_post->ID,
+					'title'    => $unit->get_title(),
+					'weight_g' => $unit->get_weight(),
+				);
+			}
+
+			$items[] = array(
+				'id'              => (int) $ingredient_id,
+				'title'           => get_the_title( (int) $ingredient_id ),
+				'diet_type'       => $ingredient->get_diet_type(),
+				'units'           => $units,
+				'used_in_recipes' => count( $usage[ (int) $ingredient_id ] ?? array() ),
+			);
+
+			if ( count( $items ) >= $limit ) {
+				break;
+			}
+		}
+
+		return new WP_REST_Response( array(
+			'count'       => count( $items ),
+			'ingredients' => $items,
+		), 200 );
+	}
+
+	// =========================================================
+	// MERGE
+	// =========================================================
+
+	/**
+	 * Moves every recipe reference from one ingredient to another and deletes
+	 * the source afterwards.
+	 *
+	 * Einheiten werden über den Titel zugeordnet (case-insensitive): "EL" der
+	 * Quelle wird zum "EL" des Ziels. Fehlt beim Ziel eine Einheit, die in einem
+	 * Rezept tatsächlich benutzt wird, bricht der Vorgang ab und meldet den
+	 * Konflikt — lieber gar nicht zusammenführen als mit falschen Mengen.
+	 * Einheiten der Quelle, die in keinem Rezept vorkommen, brauchen keine
+	 * Entsprechung; sie verschwinden mit der Quelle.
+	 *
+	 * Mengen in Gramm (amount_id = 0) laufen ohne Zuordnung durch.
+	 */
+	public function merge_ingredients( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$from_id = (int) $request->get_param( 'id' );
+		$to_id   = (int) $request->get_param( 'to_id' );
+		$dry_run = (bool) $request->get_param( 'dry_run' );
+
+		if ( get_post_type( $from_id ) !== 'mmm_ingredient' ) {
+			return new WP_Error( 'not_found', 'Source ingredient not found.', array( 'status' => 404 ) );
+		}
+		if ( get_post_type( $to_id ) !== 'mmm_ingredient' ) {
+			return new WP_Error( 'not_found', 'Target ingredient not found.', array( 'status' => 404 ) );
+		}
+		if ( $from_id === $to_id ) {
+			return new WP_Error( 'invalid_merge', 'Source and target must differ.', array( 'status' => 400 ) );
+		}
+
+		// Zieleinheiten nach Titel indizieren.
+		$target_units = array();
+		foreach ( ( new Mixmymeals_Ingredient( $to_id ) )->get_units() as $unit_post ) {
+			$unit = new Mixmymeals_Ingredient_Amount( (int) $unit_post->ID );
+			$target_units[ mb_strtolower( trim( $unit->get_title() ) ) ] = array(
+				'id'       => (int) $unit_post->ID,
+				'title'    => $unit->get_title(),
+				'weight_g' => $unit->get_weight(),
+			);
+		}
+
+		$usage       = $this->ingredient_usage_map();
+		$recipe_ids  = $usage[ $from_id ] ?? array();
+		$mapping     = array();
+		$conflicts   = array();
+		$affected    = array();
+		$new_steps   = array();
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$recipe_id = (int) $recipe_id;
+			$steps     = get_post_meta( $recipe_id, '_rmm_steps', true );
+			if ( ! is_array( $steps ) ) {
+				continue;
+			}
+
+			$hits = 0;
+			foreach ( $steps as $step_index => $step ) {
+				foreach ( (array) ( $step['ingredients'] ?? array() ) as $entry_index => $entry ) {
+
+					if ( (int) ( $entry['id'] ?? 0 ) !== $from_id ) {
+						continue;
+					}
+					++$hits;
+
+					$amount_id = (int) ( $entry['amount_id'] ?? 0 );
+
+					// Grammangabe ohne Einheit: nichts zuzuordnen.
+					if ( $amount_id <= 0 ) {
+						$steps[ $step_index ]['ingredients'][ $entry_index ]['id'] = $to_id;
+						continue;
+					}
+
+					$source_unit  = new Mixmymeals_Ingredient_Amount( $amount_id );
+					$source_title = trim( $source_unit->get_title() );
+					$key          = mb_strtolower( $source_title );
+
+					if ( ! isset( $target_units[ $key ] ) ) {
+						$conflicts[ $key ] = array(
+							'recipe_id'         => $recipe_id,
+							'recipe_title'      => get_the_title( $recipe_id ),
+							'source_unit_id'    => $amount_id,
+							'source_unit_title' => $source_title,
+							'reason'            => 'Zieleinheit mit diesem Titel fehlt.',
+						);
+						continue;
+					}
+
+					$mapping[ $key ] = array(
+						'from_unit_id'    => $amount_id,
+						'from_unit_title' => $source_title,
+						'to_unit_id'      => $target_units[ $key ]['id'],
+						'to_unit_title'   => $target_units[ $key ]['title'],
+						'weight_changes'  => $source_unit->get_weight() !== $target_units[ $key ]['weight_g']
+							? sprintf( '%s g → %s g', $source_unit->get_weight(), $target_units[ $key ]['weight_g'] )
+							: null,
+					);
+
+					$steps[ $step_index ]['ingredients'][ $entry_index ]['id']        = $to_id;
+					$steps[ $step_index ]['ingredients'][ $entry_index ]['amount_id'] = $target_units[ $key ]['id'];
+				}
+			}
+
+			if ( $hits > 0 ) {
+				$affected[]              = array( 'id' => $recipe_id, 'title' => get_the_title( $recipe_id ), 'entries' => $hits );
+				$new_steps[ $recipe_id ] = $steps;
+			}
+		}
+
+		$result = array(
+			'dry_run'          => $dry_run,
+			'from'             => array( 'id' => $from_id, 'title' => get_the_title( $from_id ) ),
+			'to'               => array( 'id' => $to_id,   'title' => get_the_title( $to_id ) ),
+			'affected_recipes' => $affected,
+			'unit_mapping'     => array_values( $mapping ),
+			'conflicts'        => array_values( $conflicts ),
+		);
+
+		if ( $conflicts ) {
+			$result['merged']  = false;
+			$result['message'] = sprintf(
+				'Abgebrochen: %d Einheit(en) der Quelle haben beim Ziel keine Entsprechung. Erst passende Einheiten bei "%s" anlegen.',
+				count( $conflicts ),
+				get_the_title( $to_id )
+			);
+			return new WP_REST_Response( $result, 200 );
+		}
+
+		if ( $dry_run ) {
+			$result['merged']  = false;
+			$result['message'] = sprintf(
+				'Trockenlauf: %d Rezept(e) würden umgehängt, danach würde "%s" gelöscht.',
+				count( $affected ),
+				get_the_title( $from_id )
+			);
+			return new WP_REST_Response( $result, 200 );
+		}
+
+		foreach ( $new_steps as $recipe_id => $steps ) {
+			update_post_meta( (int) $recipe_id, '_rmm_steps', $steps );
+		}
+
+		// Quelle samt ihrer Einheiten entfernen – wie in delete_ingredient().
+		$source = new Mixmymeals_Ingredient( $from_id );
+		$units  = $source->is_valid() ? $source->get_units() : array();
+		foreach ( $units as $unit_post ) {
+			wp_delete_post( (int) $unit_post->ID, true );
+		}
+		wp_delete_post( $from_id, true );
+
+		$result['merged']        = true;
+		$result['deleted_from']  = true;
+		$result['units_deleted'] = count( $units );
+		$result['message']       = sprintf(
+			'%d Rezept(e) umgehängt, "%s" gelöscht.',
+			count( $affected ),
+			$result['from']['title']
+		);
+
+		return new WP_REST_Response( $result, 200 );
+	}
+
+	// =========================================================
+	// DELETE (mit Referenz-Prüfung)
+	// =========================================================
+
+	/**
+	 * Trashes a recipe, but only when no meal references it.
+	 *
+	 * Ein blockierter Löschversuch ist kein Fehler, sondern ein Ergebnis:
+	 * Antwort 200 mit deleted=false und den Fundstellen. So bekommt der Client
+	 * verwertbare Daten statt einer Fehlermeldung, die er erst parsen müsste.
+	 */
+	public function delete_recipe( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$id = (int) $request->get_param( 'id' );
+
+		if ( get_post_type( $id ) !== 'mmm_recipe' ) {
+			return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
+		}
+		if ( ! current_user_can( 'delete_post', $id ) ) {
+			return new WP_Error( 'forbidden', 'You are not allowed to delete this recipe.', array( 'status' => 403 ) );
+		}
+
+		$title = get_the_title( $id );
+		$used  = $this->recipe_usage( $id );
+
+		if ( $used && ! $request->get_param( 'force' ) ) {
+			return new WP_REST_Response( array(
+				'deleted' => false,
+				'id'      => $id,
+				'title'   => $title,
+				'reason'  => 'in_use',
+				'message' => sprintf(
+					'Rezept wird noch von %d Mahlzeit(en) verwendet. Mit force=true trotzdem löschen.',
+					count( $used )
+				),
+				'used_by' => $used,
+			), 200 );
+		}
+
+		// Rezepte in den Papierkorb – wiederherstellbar.
+		$trashed = wp_trash_post( $id );
+
+		if ( ! $trashed ) {
+			return new WP_Error( 'delete_failed', 'Recipe could not be trashed.', array( 'status' => 500 ) );
+		}
+
+		return new WP_REST_Response( array(
+			'deleted'        => true,
+			'id'             => $id,
+			'title'          => $title,
+			'mode'           => 'trash',
+			'forced'         => (bool) $request->get_param( 'force' ),
+			'was_used_by'    => count( $used ),
+		), 200 );
+	}
+
+	/**
+	 * Deletes an ingredient permanently, but only when no recipe uses it.
+	 * Antwortverhalten wie bei delete_recipe().
+	 */
+	public function delete_ingredient( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$id = (int) $request->get_param( 'id' );
+
+		if ( get_post_type( $id ) !== 'mmm_ingredient' ) {
+			return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		}
+		if ( ! current_user_can( 'delete_post', $id ) ) {
+			return new WP_Error( 'forbidden', 'You are not allowed to delete this ingredient.', array( 'status' => 403 ) );
+		}
+
+		$title = get_the_title( $id );
+		$usage = $this->ingredient_usage_map();
+		$used  = array_map(
+			fn( $rid ) => array( 'recipe_id' => (int) $rid, 'recipe_title' => get_the_title( (int) $rid ) ),
+			$usage[ $id ] ?? array()
+		);
+
+		if ( $used && ! $request->get_param( 'force' ) ) {
+			return new WP_REST_Response( array(
+				'deleted' => false,
+				'id'      => $id,
+				'title'   => $title,
+				'reason'  => 'in_use',
+				'message' => sprintf(
+					'Zutat wird noch in %d Rezept(en) verwendet. Mit force=true trotzdem löschen.',
+					count( $used )
+				),
+				'used_by' => $used,
+			), 200 );
+		}
+
+		/*
+		 * Zutaten hart löschen. Die Einheiten sind Kindposts und würden sonst
+		 * verwaist zurückbleiben, also vorher mit weg.
+		 */
+		$ingredient = new Mixmymeals_Ingredient( $id );
+		$units      = $ingredient->is_valid() ? $ingredient->get_units() : array();
+		foreach ( $units as $unit_post ) {
+			wp_delete_post( (int) $unit_post->ID, true );
+		}
+
+		if ( ! wp_delete_post( $id, true ) ) {
+			return new WP_Error( 'delete_failed', 'Ingredient could not be deleted.', array( 'status' => 500 ) );
+		}
+
+		return new WP_REST_Response( array(
+			'deleted'       => true,
+			'id'            => $id,
+			'title'         => $title,
+			'mode'          => 'permanent',
+			'forced'        => (bool) $request->get_param( 'force' ),
+			'units_deleted' => count( $units ),
+			'was_used_by'   => count( $used ),
+		), 200 );
+	}
+
+	// =========================================================
+	// AUDIT
+	// =========================================================
+
+	/**
+	 * Content quality report. Returns defects grouped by problem type, each item
+	 * only as { id, title } — the point is a worklist, not a data dump.
+	 */
+	public function audit( WP_REST_Request $request ): WP_REST_Response {
+
+		$scope  = (string) ( $request->get_param( 'scope' ) ?: 'all' );
+		$groups = array();
+
+		if ( in_array( $scope, array( 'recipes', 'all' ), true ) ) {
+			$groups += $this->audit_recipes();
+		}
+		if ( in_array( $scope, array( 'ingredients', 'all' ), true ) ) {
+			$groups += $this->audit_ingredients();
+		}
+		if ( in_array( $scope, array( 'plans', 'all' ), true ) ) {
+			$groups += $this->audit_plans();
+		}
+
+		$total = 0;
+		$counts = array();
+		foreach ( $groups as $key => $items ) {
+			$counts[ $key ] = count( $items );
+			$total         += count( $items );
+		}
+
+		return new WP_REST_Response( array(
+			'scope'   => $scope,
+			'total'   => $total,
+			'counts'  => $counts,
+			'groups'  => $groups,
+		), 200 );
+	}
+
+	/** Kurzform für die Mängelliste: nur ID und Titel. */
+	private function audit_entry( int $post_id ): array {
+		return array( 'id' => $post_id, 'title' => get_the_title( $post_id ) );
+	}
+
+	/** Die als Platzhalter konfigurierte Media-ID (Einstellungen → Platzhalterbild). */
+	private function placeholder_image_id(): int {
+		return (int) get_option( 'mixmymeals_placeholder_image_id', 0 );
+	}
+
+	/**
+	 * @return array<string, array<int, array{id:int,title:string}>>
+	 */
+	private function audit_recipes(): array {
+
+		$placeholder = $this->placeholder_image_id();
+
+		$groups = array(
+			'recipes_placeholder_image' => array(),
+			'recipes_without_image'     => array(),
+			'recipes_without_nutrition' => array(),
+			'recipes_without_category'  => array(),
+			'recipes_without_excerpt'   => array(),
+		);
+
+		$recipe_ids = get_posts( array(
+			'post_type'      => 'mmm_recipe',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		) );
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$recipe_id = (int) $recipe_id;
+			$recipe    = new Mixmymeals_Recipe( $recipe_id );
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$thumb = (int) get_post_thumbnail_id( $recipe_id );
+			if ( $placeholder > 0 && $thumb === $placeholder ) {
+				$groups['recipes_placeholder_image'][] = $this->audit_entry( $recipe_id );
+			} elseif ( ! $thumb ) {
+				$groups['recipes_without_image'][] = $this->audit_entry( $recipe_id );
+			}
+
+			// Ohne Kalorien pro Portion fehlen entweder Zutaten oder deren Nährwerte.
+			$nutrition = $recipe->calculate_nutrition_per_serving();
+			if ( empty( $nutrition['calories'] ) ) {
+				$groups['recipes_without_nutrition'][] = $this->audit_entry( $recipe_id );
+			}
+
+			$terms = get_the_terms( $recipe_id, 'mmm_recipe_category' );
+			if ( empty( $terms ) || is_wp_error( $terms ) ) {
+				$groups['recipes_without_category'][] = $this->audit_entry( $recipe_id );
+			}
+
+			if ( '' === trim( (string) get_post_field( 'post_excerpt', $recipe_id ) ) ) {
+				$groups['recipes_without_excerpt'][] = $this->audit_entry( $recipe_id );
+			}
+		}
+
+		return $groups;
+	}
+
+	/**
+	 * @return array<string, array<int, array{id:int,title:string}>>
+	 */
+	private function audit_ingredients(): array {
+
+		$usage = $this->ingredient_usage_map();
+
+		$groups = array(
+			'ingredients_without_nutrition' => array(),
+			'ingredients_without_unit'      => array(),
+			'ingredients_without_price'     => array(),
+			'ingredients_unused'            => array(),
+		);
+
+		$ingredient_ids = get_posts( array(
+			'post_type'      => 'mmm_ingredient',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		) );
+
+		foreach ( $ingredient_ids as $ingredient_id ) {
+
+			$ingredient_id = (int) $ingredient_id;
+			$ingredient    = new Mixmymeals_Ingredient( $ingredient_id );
+			if ( ! $ingredient->is_valid() ) {
+				continue;
+			}
+
+			$nutrition = $ingredient->get_nutrition();
+			if ( empty( $nutrition['calories_100'] ) ) {
+				$groups['ingredients_without_nutrition'][] = $this->audit_entry( $ingredient_id );
+			}
+
+			if ( ! $ingredient->get_units() ) {
+				$groups['ingredients_without_unit'][] = $this->audit_entry( $ingredient_id );
+			}
+
+			if ( ! $ingredient->get_price_per_100g() ) {
+				$groups['ingredients_without_price'][] = $this->audit_entry( $ingredient_id );
+			}
+
+			if ( empty( $usage[ $ingredient_id ] ) ) {
+				$groups['ingredients_unused'][] = $this->audit_entry( $ingredient_id );
+			}
+		}
+
+		return $groups;
+	}
+
+	/**
+	 * @return array<string, array<int, array{id:int,title:string}>>
+	 */
+	private function audit_plans(): array {
+
+		$placeholder = $this->placeholder_image_id();
+
+		$groups = array(
+			'plans_days_below_500_kcal'      => array(),
+			'plans_with_placeholder_recipes' => array(),
+		);
+
+		$plan_ids = get_posts( array(
+			'post_type'      => 'mmm_meal_plan',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		) );
+
+		foreach ( $plan_ids as $plan_id ) {
+
+			$plan_id = (int) $plan_id;
+			$plan    = new Mixmymeals_Meal_Plan( $plan_id );
+
+			/*
+			 * Tage ohne Mahlzeiten bleiben außen vor: ein leerer Tag ist eine
+			 * Lücke im Plan, aber keine "Mahlzeit unter 500 kcal".
+			 */
+			$thin_days = array();
+			foreach ( $plan->calc_nutrition_by_day() as $day => $nutrition ) {
+				if ( $nutrition['meals'] > 0 && $nutrition['per_person']['calories'] < 500 ) {
+					$thin_days[] = Mixmymeals_Meal_Plan::weekday_name( (int) $day );
+				}
+			}
+			if ( $thin_days ) {
+				$entry          = $this->audit_entry( $plan_id );
+				$entry['days']  = $thin_days;
+				$groups['plans_days_below_500_kcal'][] = $entry;
+			}
+
+			if ( $placeholder <= 0 ) {
+				continue;
+			}
+
+			$affected = array();
+			foreach ( $plan->get_meals() as $meal_post ) {
+				$recipe_id = (int) ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id();
+				if ( $recipe_id && (int) get_post_thumbnail_id( $recipe_id ) === $placeholder ) {
+					$affected[ $recipe_id ] = get_the_title( $recipe_id );
+				}
+			}
+			if ( $affected ) {
+				$entry            = $this->audit_entry( $plan_id );
+				$entry['recipes'] = array_map(
+					static fn( $rid, $title ) => array( 'id' => (int) $rid, 'title' => $title ),
+					array_keys( $affected ),
+					$affected
+				);
+				$groups['plans_with_placeholder_recipes'][] = $entry;
+			}
+		}
+
+		return $groups;
 	}
 }
