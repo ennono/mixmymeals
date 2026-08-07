@@ -40,6 +40,7 @@ class Mixmymeals_Subscriptions {
 	const OPT_CONFIRM_PAGE     = 'mixmymeals_subscription_confirm_page';
 	const OPT_UNSUBSCRIBE_PAGE = 'mixmymeals_subscription_unsubscribe_page';
 	const OPT_RATE_PAGE        = 'mixmymeals_subscription_rate_page';
+	const OPT_UPLOAD_PAGE      = 'mixmymeals_subscription_upload_page';
 
 	const OPT_APPEND_TEXT = 'mixmymeals_subscription_append_text';
 
@@ -168,6 +169,7 @@ class Mixmymeals_Subscriptions {
 			'evening-before.html' => __( 'Tomorrow’s meals: {{ plan }}', 'mixmymeals' ),
 			'on-confirm.html'     => __( 'Welcome to {{ plan }}', 'mixmymeals' ),
 			'rate-recipes.html'   => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
+			'upload-photos.html'  => __( 'Show us your meals! {{ plan }}', 'mixmymeals' ),
 		);
 
 		return $subjects[ basename( $template ) ] ?? __( '{{ plan }}', 'mixmymeals' );
@@ -1453,6 +1455,9 @@ class Mixmymeals_Subscriptions {
 	 *  - {{ rating_links_html }}     Per-recipe "rate this recipe" links for the day
 	 *                                (empty unless a rating page is configured and a
 	 *                                token is available, i.e. a real drip send).
+	 *  - {{ upload_links_html }}     Per-recipe "upload your photo" links for the day
+	 *                                (empty unless a photo upload page is configured
+	 *                                and a token is available).
 	 *  - {{ day_summary_html }}      The day's calorie/cost total (or empty).
 	 *  - {{ day_kcal }} {{ day_cost }} {{ currency }}
 	 *  - {{ day_ingredients_html }}  Ingredients needed for this day's meals.
@@ -1480,6 +1485,7 @@ class Mixmymeals_Subscriptions {
 			'meal_list_html'       => $meals['list_html'],
 			'meal_images_html'     => $this->render_meal_images( $plan, $day ),
 			'rating_links_html'    => $this->render_rating_links( $plan, $day, $rate_token ),
+			'upload_links_html'    => $this->render_upload_links( $plan, $day, $rate_token ),
 			'day_summary_html'     => $meals['summary_html'],
 			'day_kcal'             => $meals['day_kcal'],
 			'day_cost'             => $meals['day_cost'],
@@ -1536,7 +1542,59 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return '<div class="mmm-mail-rating-links">'
-			. '<p style="margin:0 0 8px;font-weight:700;">' . esc_html__( 'Rate the recipes you cooked:', 'mixmymeals' ) . '</p>'
+			. '<p style="margin:0 0 8px;font-weight:700;">' . esc_html__( 'Rate the recipes you cooked and share a photo:', 'mixmymeals' ) . '</p>'
+			. '<ul style="list-style:none;margin:0;padding:0;">' . implode( '', $items ) . '</ul>'
+			. '</div>';
+	}
+
+	/**
+	 * Builds the "upload your photo" links block for a plan weekday: one link
+	 * per (distinct) recipe cooked that day, pointing at the configured photo
+	 * upload page. Returns '' when no upload page is set, no token is available
+	 * (e.g. the admin test preview) or the day has no recipes.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan       Plan.
+	 * @param int                  $day        Weekday (1-7).
+	 * @param string               $rate_token Subscription token.
+	 * @return string
+	 */
+	private function render_upload_links( Mixmymeals_Meal_Plan $plan, int $day, string $rate_token ): string {
+
+		if ( '' === $rate_token ) {
+			return '';
+		}
+
+		$items = array();
+		$seen  = array();
+
+		foreach ( $plan->get_meals() as $meal_post ) {
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+			if ( (int) $meal->get_day() !== $day ) {
+				continue;
+			}
+
+			$recipe_id = (int) $meal->get_recipe_id();
+			if ( ! $recipe_id || isset( $seen[ $recipe_id ] ) || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+				continue;
+			}
+			$seen[ $recipe_id ] = true;
+
+			$href = $this->upload_url( $rate_token, $recipe_id );
+			if ( '' === $href ) {
+				return '';
+			}
+
+			$items[] = '<li style="margin:0 0 8px;"><a href="' . esc_url( $href )
+				. '" style="color:#E8A33D;font-weight:700;text-decoration:none;">'
+				. esc_html( get_the_title( $recipe_id ) ) . ' &#128247;</a></li>';
+		}
+
+		if ( empty( $items ) ) {
+			return '';
+		}
+
+		return '<div class="mmm-mail-upload-links">'
+			. '<p style="margin:0 0 8px;font-weight:700;">' . esc_html__( 'Upload a photo of the meals you cooked:', 'mixmymeals' ) . '</p>'
 			. '<ul style="list-style:none;margin:0;padding:0;">' . implode( '', $items ) . '</ul>'
 			. '</div>';
 	}
@@ -2004,6 +2062,31 @@ class Mixmymeals_Subscriptions {
 	private function rate_url( string $token, int $recipe_id ): string {
 
 		$base = self::redirect_url( self::OPT_RATE_PAGE );
+		if ( '' === $base ) {
+			return '';
+		}
+
+		return add_query_arg(
+			array(
+				'token'  => $token,
+				'recipe' => $recipe_id,
+			),
+			$base
+		);
+	}
+
+	/**
+	 * Builds the tokenised "upload your photo" URL pointing at the configured
+	 * photo upload page (which carries the [mmm_photo_upload_form] shortcode).
+	 * Returns '' when no upload page is set.
+	 *
+	 * @param string $token     Subscription token.
+	 * @param int    $recipe_id Recipe post ID.
+	 * @return string
+	 */
+	private function upload_url( string $token, int $recipe_id ): string {
+
+		$base = self::redirect_url( self::OPT_UPLOAD_PAGE );
 		if ( '' === $base ) {
 			return '';
 		}

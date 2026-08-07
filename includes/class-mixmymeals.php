@@ -258,6 +258,16 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Instantiates the meal photos class (visitor photo uploads with admin
+	 * approval, the moderation page and the gallery data helpers).
+	 *
+	 * @return Mixmymeals_Photos
+	 */
+	public function add_photos(): Mixmymeals_Photos {
+		return new Mixmymeals_Photos();
+	}
+
+	/**
 	 * Instantiates the Instagram image generator class (meta box on the
 	 * meal plan edit screen, GD rendering, temporary file storage and the
 	 * daily image cleanup cron).
