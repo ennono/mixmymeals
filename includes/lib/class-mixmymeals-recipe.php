@@ -14,6 +14,51 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Mixmymeals_Recipe {
 
+	/** Post meta holding how often the recipe was edited (absent until the first edit). */
+	const META_EDIT_COUNT = '_mmm_edit_count';
+
+	/** Post meta holding the cook count (absent when zero). */
+	const META_COOK_COUNT = '_mmm_cook_count';
+
+	/**
+	 * Post meta holding the hand-set correction to the measured cook count
+	 * (absent when zero, and deliberately signed). The counter is always this
+	 * plus the measured plannings, clamped at zero, so editing it never stops
+	 * the recipe from counting on: set 12, cook it again, get 13.
+	 *
+	 * A negative value is what lets the counter be set below — or to zero
+	 * despite — what was actually planned. Only the result is floored at zero;
+	 * the correction keeps its magnitude so later plannings still count.
+	 */
+	const META_COOK_ADJUST = '_mmm_cook_count_adjust';
+
+	/** Post types the cook counter observes, and the meal meta linking to a recipe. */
+	const MEAL_TYPE        = 'mmm_meal';
+	const PLAN_TYPE        = 'mmm_meal_plan';
+	const MEAL_RECIPE_META = 'recipe_id';
+
+	/** Option storing the cook-count backfill version already applied. */
+	const COOK_BACKFILL_OPTION = 'mixmymeals_cook_count_version';
+
+	/** Bump to force a full cook-count recount on the next admin request. */
+	const COOK_BACKFILL_VERSION = '1';
+
+	/**
+	 * Recipe IDs whose cook counter needs recomputing, collected during the
+	 * request and flushed once on shutdown. Publishing a plan with 21 meals
+	 * therefore costs one recount per distinct recipe instead of one per meal.
+	 *
+	 * @var array<int, true>
+	 */
+	private static $cook_dirty = array();
+
+	/**
+	 * Whether the shutdown flush for cook counts is already registered.
+	 *
+	 * @var bool
+	 */
+	private static $cook_flush_hooked = false;
+
 	private int $post_id;
 
 	/**
@@ -617,6 +662,573 @@ class Mixmymeals_Recipe {
 		update_post_meta( $this->post_id, '_mmm_equipment', $clean );
 
 		return true;
+	}
+
+	/*
+	----------------------------------------------------------
+	COOK COUNTER
+
+	How often a recipe has been cooked, measured as the number of meals
+	(mmm_meal) that reference it and sit in a published meal plan. Both the meal
+	and its parent plan must be published: meals are created as 'publish' even
+	inside a draft plan, so it is the plan's status that decides.
+
+	The counter is never incremented or decremented, it is recomputed from the
+	database for every affected recipe. A meal's recipe_id can be changed, meals
+	get moved between plans, trashed and restored, and a plan flipping back to
+	draft invalidates all of its meals at once — delta counting drifts under all
+	of these, a recount does not.
+
+	Recipes with a count of zero carry no meta at all. That keeps both consuming
+	queries trivial: "never cooked" is a NOT EXISTS lookup and "cooked most
+	often" an ordered meta_value_num lookup without a threshold clause.
+	----------------------------------------------------------
+	*/
+
+	/**
+	 * The stored cook count of this recipe.
+	 *
+	 * @return int
+	 */
+	public function get_cook_count(): int {
+
+		if ( ! $this->is_valid() ) {
+			return 0;
+		}
+
+		return max( 0, (int) get_post_meta( $this->post_id, self::META_COOK_COUNT, true ) );
+	}
+
+	/**
+	 * The hand-set correction (0 when none was set, may be negative).
+	 *
+	 * @return int
+	 */
+	public function get_cook_adjustment(): int {
+
+		if ( ! $this->is_valid() ) {
+			return 0;
+		}
+
+		return (int) get_post_meta( $this->post_id, self::META_COOK_ADJUST, true );
+	}
+
+	/**
+	 * Sets the counter to a given total by deriving the correction from it. Any
+	 * total from zero upwards is honoured exactly, including totals below the
+	 * measured plannings; real plannings keep counting on from there.
+	 *
+	 * @param int $total Desired counter value (negative is treated as zero).
+	 * @return void
+	 */
+	public function set_cook_total( int $total ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		$this->store_cook_adjustment( max( 0, $total ) - $this->count_cooked() );
+	}
+
+	/**
+	 * Writes the correction, keeping the "zero carries no meta" convention.
+	 *
+	 * @param int $adjust Correction, may be negative.
+	 * @return void
+	 */
+	private function store_cook_adjustment( int $adjust ): void {
+
+		if ( 0 !== $adjust ) {
+			update_post_meta( $this->post_id, self::META_COOK_ADJUST, $adjust );
+		} else {
+			delete_post_meta( $this->post_id, self::META_COOK_ADJUST );
+		}
+	}
+
+	/**
+	 * Counts, straight from the database, how often this recipe is cooked: meals
+	 * referencing it that are published and whose parent plan is published too.
+	 *
+	 * @return int
+	 */
+	public function count_cooked(): int {
+
+		if ( ! $this->is_valid() ) {
+			return 0;
+		}
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*)
+				 FROM {$wpdb->postmeta} pm
+				 INNER JOIN {$wpdb->posts} m ON m.ID = pm.post_id
+				 INNER JOIN {$wpdb->posts} p ON p.ID = m.post_parent
+				 WHERE pm.meta_key = %s
+				   AND pm.meta_value = %s
+				   AND m.post_type = %s
+				   AND m.post_status = 'publish'
+				   AND p.post_type = %s
+				   AND p.post_status = 'publish'",
+				self::MEAL_RECIPE_META,
+				(string) $this->post_id,
+				self::MEAL_TYPE,
+				self::PLAN_TYPE
+			)
+		);
+	}
+
+	/**
+	 * Recomputes and stores the counter: the hand-set correction plus the
+	 * measured plannings, never below zero. A resulting count of zero removes the
+	 * meta entirely, so "never cooked" stays a plain NOT EXISTS query — setting a
+	 * recipe to 0 by hand therefore returns it to that list.
+	 *
+	 * @return void
+	 */
+	public function recount_cook_count(): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		$measured = $this->count_cooked();
+		$count    = $this->get_cook_adjustment() + $measured;
+
+		/*
+		 * A correction may not outlive what it was subtracting from. Without
+		 * this, setting a recipe with five plannings to 0 and then deleting
+		 * those plans would leave a -5 debt that silently swallows the next five
+		 * real plannings. Trim it back to exactly cancel the measurement.
+		 */
+		if ( $count < 0 ) {
+			$count = 0;
+			$this->store_cook_adjustment( -$measured );
+		}
+
+		if ( $count > 0 ) {
+			update_post_meta( $this->post_id, self::META_COOK_COUNT, $count );
+		} else {
+			delete_post_meta( $this->post_id, self::META_COOK_COUNT );
+		}
+	}
+
+	/**
+	 * Registers the cook counter. Static because recipes are instantiated per
+	 * post, while the hooks have to be attached once per request — same pattern
+	 * as Mixmymeals_Cart::register_ajax().
+	 *
+	 * Note that most of these watch meals and plans rather than recipes: the
+	 * counter is a property of a recipe, but every event that changes it happens
+	 * elsewhere.
+	 *
+	 * @return void
+	 */
+	public static function register_cook_count(): void {
+
+		// Meal written: creation, recipe change, moved to another plan.
+		add_action( 'wp_after_insert_post', array( __CLASS__, 'cook_count_on_post_saved' ), 10, 2 );
+
+		// Status flips: a meal being trashed or restored, a plan going
+		// draft/publish/trash (which revalues all of its meals at once).
+		add_action( 'transition_post_status', array( __CLASS__, 'cook_count_on_status_change' ), 10, 3 );
+
+		// recipe_id written: recount the new target …
+		add_action( 'added_post_meta', array( __CLASS__, 'cook_count_on_meta_written' ), 10, 4 );
+		add_action( 'updated_post_meta', array( __CLASS__, 'cook_count_on_meta_written' ), 10, 4 );
+
+		// … and the previous one, read before it is overwritten or removed.
+		add_action( 'update_post_meta', array( __CLASS__, 'cook_count_on_meta_replaced' ), 10, 3 );
+		add_action( 'delete_post_meta', array( __CLASS__, 'cook_count_on_meta_replaced' ), 10, 3 );
+
+		// The hand-set correction changed: fold it into the counter at once.
+		add_action( 'added_post_meta', array( __CLASS__, 'cook_count_on_adjustment_changed' ), 10, 3 );
+		add_action( 'updated_post_meta', array( __CLASS__, 'cook_count_on_adjustment_changed' ), 10, 3 );
+		add_action( 'deleted_post_meta', array( __CLASS__, 'cook_count_on_adjustment_changed' ), 10, 3 );
+
+		// Deletion: read the relations while the posts still exist. The recount
+		// itself runs on shutdown, by which time the rows are gone.
+		add_action( 'before_delete_post', array( __CLASS__, 'cook_count_on_before_delete' ), 10, 2 );
+
+		add_action( 'admin_init', array( __CLASS__, 'maybe_backfill_cook_counts' ) );
+	}
+
+	/**
+	 * Rebuilds the counter for every recipe from a single grouped query. Used by
+	 * the backfill and available as a repair routine when the meta is ever
+	 * suspected to be out of sync.
+	 *
+	 * @return void
+	 */
+	public static function recount_all_cook_counts(): void {
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT pm.meta_value AS recipe_id, COUNT(*) AS total
+				 FROM {$wpdb->postmeta} pm
+				 INNER JOIN {$wpdb->posts} m ON m.ID = pm.post_id
+				 INNER JOIN {$wpdb->posts} p ON p.ID = m.post_parent
+				 WHERE pm.meta_key = %s
+				   AND m.post_type = %s
+				   AND m.post_status = 'publish'
+				   AND p.post_type = %s
+				   AND p.post_status = 'publish'
+				 GROUP BY pm.meta_value",
+				self::MEAL_RECIPE_META,
+				self::MEAL_TYPE,
+				self::PLAN_TYPE
+			)
+		);
+
+		$counts = array();
+		foreach ( (array) $rows as $row ) {
+			$counts[ (int) $row->recipe_id ] = (int) $row->total;
+		}
+
+		$recipe_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+		$recipe_ids = array_map( 'intval', (array) $recipe_ids );
+
+		if ( empty( $recipe_ids ) ) {
+			return;
+		}
+
+		// One query for all existing meta, so the loop below only writes where
+		// the stored value actually differs.
+		update_meta_cache( 'post', $recipe_ids );
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$recipe = new self( $recipe_id );
+			$stored = get_post_meta( $recipe_id, self::META_COOK_COUNT, true );
+
+			// The correction is applied here too — otherwise the backfill would
+			// silently drop every hand-set value. Same trimming as
+			// recount_cook_count(): a correction never outlives its measurement.
+			$measured = isset( $counts[ $recipe_id ] ) ? $counts[ $recipe_id ] : 0;
+			$total    = $recipe->get_cook_adjustment() + $measured;
+
+			if ( $total < 0 ) {
+				$total = 0;
+				$recipe->store_cook_adjustment( -$measured );
+			}
+
+			if ( $total > 0 ) {
+				if ( (int) $stored !== $total ) {
+					update_post_meta( $recipe_id, self::META_COOK_COUNT, $total );
+				}
+			} elseif ( '' !== $stored ) {
+				delete_post_meta( $recipe_id, self::META_COOK_COUNT );
+			}
+		}
+	}
+
+	/**
+	 * Runs the full recount once per backfill version, so existing content gets
+	 * its counters without a manual step.
+	 *
+	 * @return void
+	 */
+	public static function maybe_backfill_cook_counts(): void {
+
+		if ( self::COOK_BACKFILL_VERSION === get_option( self::COOK_BACKFILL_OPTION ) ) {
+			return;
+		}
+
+		self::recount_all_cook_counts();
+		update_option( self::COOK_BACKFILL_OPTION, self::COOK_BACKFILL_VERSION, false );
+	}
+
+	/**
+	 * Queues a recipe for recomputation at the end of the request.
+	 *
+	 * @param int $recipe_id Recipe post ID.
+	 * @return void
+	 */
+	private static function mark_cook_dirty( int $recipe_id ): void {
+
+		if ( $recipe_id <= 0 ) {
+			return;
+		}
+
+		self::$cook_dirty[ $recipe_id ] = true;
+
+		if ( ! self::$cook_flush_hooked ) {
+			self::$cook_flush_hooked = true;
+			add_action( 'shutdown', array( __CLASS__, 'flush_cook_counts' ) );
+		}
+	}
+
+	/**
+	 * Queues every recipe used by the meals of a plan; a plan-wide status change
+	 * or deletion revalues all of them at once.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return void
+	 */
+	private static function mark_plan_cook_dirty( int $plan_id ): void {
+
+		$meal_ids = get_posts(
+			array(
+				'post_type'      => self::MEAL_TYPE,
+				'post_status'    => 'any',
+				'post_parent'    => $plan_id,
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		foreach ( (array) $meal_ids as $meal_id ) {
+			self::mark_cook_dirty( (int) get_post_meta( (int) $meal_id, self::MEAL_RECIPE_META, true ) );
+		}
+	}
+
+	/**
+	 * Recomputes every queued recipe once. Writing the counter meta does not
+	 * re-enter the tracking hooks, which only watch recipe_id on meals.
+	 *
+	 * @return void
+	 */
+	public static function flush_cook_counts(): void {
+
+		$recipe_ids       = array_keys( self::$cook_dirty );
+		self::$cook_dirty = array();
+
+		foreach ( $recipe_ids as $recipe_id ) {
+			( new self( (int) $recipe_id ) )->recount_cook_count();
+		}
+	}
+
+	/**
+	 * A meal was inserted or updated (admin, REST or the cart): its current
+	 * recipe may have gained or lost a plan.
+	 *
+	 * @param int     $post_id Post ID.
+	 * @param WP_Post $post    Post object.
+	 * @return void
+	 */
+	public static function cook_count_on_post_saved( $post_id, $post ): void {
+
+		if ( ! $post instanceof WP_Post || self::MEAL_TYPE !== $post->post_type ) {
+			return;
+		}
+
+		self::mark_cook_dirty( (int) get_post_meta( (int) $post_id, self::MEAL_RECIPE_META, true ) );
+	}
+
+	/**
+	 * A meal or a whole plan changed its publication status.
+	 *
+	 * @param string  $new_status New status.
+	 * @param string  $old_status Previous status.
+	 * @param WP_Post $post       Post object.
+	 * @return void
+	 */
+	public static function cook_count_on_status_change( $new_status, $old_status, $post ): void {
+
+		if ( ! $post instanceof WP_Post || $new_status === $old_status ) {
+			return;
+		}
+
+		if ( self::MEAL_TYPE === $post->post_type ) {
+			self::mark_cook_dirty( (int) get_post_meta( (int) $post->ID, self::MEAL_RECIPE_META, true ) );
+			return;
+		}
+
+		if ( self::PLAN_TYPE === $post->post_type ) {
+			self::mark_plan_cook_dirty( (int) $post->ID );
+		}
+	}
+
+	/**
+	 * A meal's recipe_id was written: the recipe now referenced needs a recount.
+	 *
+	 * @param int    $meta_id    Meta row ID (unused).
+	 * @param int    $object_id  Post ID the meta belongs to.
+	 * @param string $meta_key   Meta key.
+	 * @param mixed  $meta_value New meta value.
+	 * @return void
+	 */
+	public static function cook_count_on_meta_written( $meta_id, $object_id, $meta_key, $meta_value ): void {
+
+		if ( self::MEAL_RECIPE_META !== $meta_key || get_post_type( (int) $object_id ) !== self::MEAL_TYPE ) {
+			return;
+		}
+
+		self::mark_cook_dirty( (int) $meta_value );
+	}
+
+	/**
+	 * A meal's recipe_id is about to be overwritten or removed. Fires before the
+	 * write, so the stored value is still the recipe that is losing the meal.
+	 *
+	 * @param int|array $meta_id   Meta row ID(s) (unused).
+	 * @param int       $object_id Post ID the meta belongs to.
+	 * @param string    $meta_key  Meta key.
+	 * @return void
+	 */
+	public static function cook_count_on_meta_replaced( $meta_id, $object_id, $meta_key ): void {
+
+		if ( self::MEAL_RECIPE_META !== $meta_key || get_post_type( (int) $object_id ) !== self::MEAL_TYPE ) {
+			return;
+		}
+
+		self::mark_cook_dirty( (int) get_post_meta( (int) $object_id, self::MEAL_RECIPE_META, true ) );
+	}
+
+	/**
+	 * A recipe's correction was written or removed, so its stored counter needs
+	 * to follow.
+	 *
+	 * @param int|array $meta_id   Meta row ID(s) (unused).
+	 * @param int       $object_id Post ID the meta belongs to.
+	 * @param string    $meta_key  Meta key.
+	 * @return void
+	 */
+	public static function cook_count_on_adjustment_changed( $meta_id, $object_id, $meta_key ): void {
+
+		if ( self::META_COOK_ADJUST !== $meta_key ) {
+			return;
+		}
+
+		self::mark_cook_dirty( (int) $object_id );
+	}
+
+	/**
+	 * A meal or plan is about to be deleted permanently.
+	 *
+	 * @param int          $post_id Post ID.
+	 * @param WP_Post|null $post    Post object (passed since WP 5.5).
+	 * @return void
+	 */
+	public static function cook_count_on_before_delete( $post_id, $post = null ): void {
+
+		$post = $post instanceof WP_Post ? $post : get_post( (int) $post_id );
+
+		if ( ! $post instanceof WP_Post ) {
+			return;
+		}
+
+		if ( self::MEAL_TYPE === $post->post_type ) {
+			self::mark_cook_dirty( (int) get_post_meta( (int) $post->ID, self::MEAL_RECIPE_META, true ) );
+			return;
+		}
+
+		if ( self::PLAN_TYPE === $post->post_type ) {
+			self::mark_plan_cook_dirty( (int) $post->ID );
+		}
+	}
+
+	/*
+	----------------------------------------------------------
+	EDIT COUNTER
+	----------------------------------------------------------
+	*/
+
+	/**
+	 * How often this recipe has been edited since the counter exists.
+	 *
+	 * Post revisions look like the obvious source for this but are the wrong
+	 * one: WordPress only versions post_title, post_content and post_excerpt
+	 * (see _wp_post_revision_fields()), and wp_save_post_revision() bails out
+	 * when none of those changed. A recipe's substance — steps, ingredients,
+	 * servings, preparation time — lives in post meta, so reworking a recipe
+	 * usually creates no revision at all. Hence a counter of our own, fed by
+	 * count_edit_on_update() below, which catches every save.
+	 *
+	 * @return int
+	 */
+	public function get_edit_count(): int {
+
+		if ( ! $this->is_valid() ) {
+			return 0;
+		}
+
+		return max( 0, (int) get_post_meta( $this->post_id, self::META_EDIT_COUNT, true ) );
+	}
+
+	/**
+	 * Sets the edit counter, so a wrong number can be corrected.
+	 *
+	 * @param int $count New value; zero removes the meta.
+	 * @return void
+	 */
+	public function set_edit_count( int $count ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		$count = max( 0, $count );
+
+		if ( $count > 0 ) {
+			update_post_meta( $this->post_id, self::META_EDIT_COUNT, $count );
+		} else {
+			delete_post_meta( $this->post_id, self::META_EDIT_COUNT );
+		}
+	}
+
+	/**
+	 * Registers the edit counter. Static because recipes are instantiated per
+	 * post, while the hook has to be attached once per request — same pattern
+	 * as Mixmymeals_Cart::register_ajax().
+	 *
+	 * @return void
+	 */
+	public static function register_edit_count(): void {
+
+		// post_updated instead of save_post: it does not fire when a post is
+		// first created, so creating a recipe is not counted as editing it.
+		add_action( 'post_updated', array( __CLASS__, 'count_edit_on_update' ), 10, 3 );
+	}
+
+	/**
+	 * Increments the edit counter when a recipe is updated.
+	 *
+	 * @param int     $post_id     Post ID.
+	 * @param WP_Post $post_after  Post after the update.
+	 * @param WP_Post $post_before Post before the update.
+	 * @return void
+	 */
+	public static function count_edit_on_update( $post_id, $post_after, $post_before ): void {
+
+		if ( ! $post_after instanceof WP_Post || 'mmm_recipe' !== $post_after->post_type ) {
+			return;
+		}
+
+		// Autosaves and revisions are not edits by the author's reckoning.
+		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		/*
+		 * Publishing a brand-new recipe runs through post_updated as well,
+		 * because the editor starts from an auto-draft. That is the creation,
+		 * not an edit — otherwise every recipe would start at one.
+		 */
+		if ( $post_before instanceof WP_Post && 'auto-draft' === $post_before->post_status ) {
+			return;
+		}
+
+		$recipe = new self( (int) $post_id );
+		$recipe->set_edit_count( $recipe->get_edit_count() + 1 );
 	}
 
 	public function set_preparation_time( $minutes ): void {

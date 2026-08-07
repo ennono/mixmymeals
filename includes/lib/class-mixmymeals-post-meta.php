@@ -431,6 +431,31 @@ class Mixmymeals_Post_Meta {
 				<?php esc_html_e( 'Mark as favorite (featured in the recipe archive)', 'mixmymeals' ); ?>
 			</label>
 		</p>
+		<p>
+			<label for="mmm_cook_count">
+				<?php esc_html_e( 'Cook counter (times cooked)', 'mixmymeals' ); ?>
+			</label>
+		</p>
+		<p>
+			<input
+				type="number"
+				id="mmm_cook_count"
+				name="mmm_cook_count"
+				value="<?php echo esc_attr( (string) $recipe->get_cook_count() ); ?>"
+				min="0"
+				step="1"
+				style="width:100%;"
+			/>
+			<span class="description">
+				<?php
+				printf(
+					/* translators: %d: how often the recipe sits on a published meal plan. */
+					esc_html__( 'Freely editable, zero included. The counter keeps counting on from the value you enter whenever the recipe lands on a published meal plan. Currently planned: %d times.', 'mixmymeals' ),
+					$recipe->count_cooked()
+				);
+				?>
+			</span>
+		</p>
 		<?php
 	}
 
@@ -471,6 +496,18 @@ class Mixmymeals_Post_Meta {
 			update_post_meta( $post_ID, '_mmm_is_favorite', '1' );
 		} else {
 			delete_post_meta( $post_ID, '_mmm_is_favorite' );
+		}
+
+		// Cook counter. Only written when the submitted total actually differs
+		// from the stored one, so re-saving a recipe never rewrites the starting
+		// point behind the editor's back.
+		if ( isset( $_POST['mmm_cook_count'] ) ) {
+			$mmm_total  = trim( (string) wp_unslash( $_POST['mmm_cook_count'] ) );
+			$mmm_recipe = new Mixmymeals_Recipe( $post_ID );
+
+			if ( '' !== $mmm_total && absint( $mmm_total ) !== $mmm_recipe->get_cook_count() ) {
+				$mmm_recipe->set_cook_total( absint( $mmm_total ) );
+			}
 		}
 	}
 
