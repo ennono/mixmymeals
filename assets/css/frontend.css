@@ -248,6 +248,49 @@ body.mmm-cook-mode-open {
     text-overflow: ellipsis;
 }
 
+/* ==========================================================
+   Latest-plan teaser ([mmm_latest_plan_teaser]) — structure.
+   Design (colors, radius, shadow) lives in the theme.
+   ========================================================== */
+.mmm-plan-teaser__card {
+    display: flex;
+    flex-wrap: wrap;
+    text-decoration: none;
+    overflow: hidden;
+}
+
+.mmm-plan-teaser__media {
+    flex: 1 1 340px;
+    min-width: 260px;
+}
+
+.mmm-plan-teaser__media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mmm-plan-teaser__body {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.mmm-plan-teaser__cta {
+    margin-top: auto;
+}
+
+/* Back link above the meal-hero title — structure (design lives in theme) */
+.mmm-plan-hero__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+}
+
 /* ---------------------------------------------------------------
    Admin actions panel ([mmm_admin_actions] on plan/recipe singles).
    Styled to match the other MixMyMeals cards; uses the theme's --mmm
@@ -371,4 +414,71 @@ body.mmm-cook-mode-open {
     pointer-events: none;
     cursor: progress;
     position: relative;
+}
+
+/* ==========================================================
+   Empty planner hint – structural basics (design lives in theme)
+   ========================================================== */
+
+.mmm-plan-empty {
+    list-style: none;
+}
+
+.mmm-plan-empty[hidden] {
+    display: none;
+}
+
+/* Initial state comes from PHP; :has keeps it right when meals are added or
+   removed without a reload. Browsers without :has keep the initial state. */
+.mmm-plan-builder:has(.mmm-plan-item) .mmm-plan-empty {
+    display: none;
+}
+
+.mmm-plan-builder:not(:has(.mmm-plan-item)) .mmm-plan-empty {
+    display: block;
+}
+
+/* ==========================================================
+   Per-day drop hint – structural basics (design lives in theme)
+   ========================================================== */
+
+.mmm-plan-day-hint {
+    list-style: none;
+}
+
+.mmm-plan-day-hint[hidden] {
+    display: none;
+}
+
+/* Same approach as the empty-planner hint, but scoped to one day: the initial
+   state comes from PHP, :has keeps it right when meals are dragged in or out
+   without a reload. Browsers without :has keep the initial state. */
+.mmm-plan-day-list:has(.mmm-plan-item) .mmm-plan-day-hint {
+    display: none;
+}
+
+.mmm-plan-day-list:not(:has(.mmm-plan-item)) .mmm-plan-day-hint {
+    display: block;
+}
+
+/* ==========================================================
+   Affiliate links on equipment pages – structural basics
+   (design lives in theme)
+   ========================================================== */
+
+.mmm-affiliate__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mmm-affiliate__item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+    margin: 0;
 }
