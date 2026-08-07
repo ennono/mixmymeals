@@ -19,6 +19,20 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function __construct() {
 
+		$this->register_archive_shortcodes();
+		$this->register_content_type_shortcodes();
+		$this->register_single_shortcodes();
+		$this->register_planner_shortcodes();
+		$this->register_query_hooks();
+		$this->register_ajax();
+
+	}
+
+	/**
+	 * Archive views: meal plans, archive search, recipes.
+	 */
+	private function register_archive_shortcodes(): void {
+
 		// Meal Plan Archive:
 
 		add_shortcode( 'mmm_weekday_overview_for_posts_in_meal_plan_archive',
@@ -36,41 +50,29 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_meal_plan_category_switcher',
 			[ $this, 'mmm_meal_plan_category_switcher_callback' ] );
 
+		add_shortcode( 'mmm_latest_meal_plans',
+			[ $this, 'mmm_latest_meal_plans_callback' ] );
+
+		add_shortcode( 'mmm_latest_plan_teaser',
+			[ $this, 'mmm_latest_plan_teaser_callback' ] );
+
+		add_shortcode( 'mmm_top_rated_recipes',
+			[ $this, 'mmm_top_rated_recipes_callback' ] );
+
+		add_shortcode( 'mmm_community_photo_wall',
+			[ $this, 'mmm_community_photo_wall_callback' ] );
+
 		add_shortcode( 'mmm_thumbnails_of_meals_in_a_single_meal_plan', [
 			$this,
 			'mmm_thumbnails_of_meals_in_a_single_meal_plan_callback'
 		] );
 
-		// Meal plan subscription form (logic in Mixmymeals_Subscriptions):
-		add_shortcode( 'mmm_meal_plan_subscribe',
-			[ $this, 'mmm_meal_plan_subscribe_callback' ] );
-
-		add_action( 'pre_get_posts',
-			array( $this, 'filter_meal_plan_archive_by_url_parameter' ) );
-
-		add_filter( 'query_vars', function( $vars ) {
-			$vars[] = 'mmm_uncategorized';
-			return $vars;
-		} );
 
 		// Archive search + filter (place [mmm_archive_search] on the archive via
 		// a theme hook). Form + query handling for recipe and meal plan archives.
 		add_shortcode( 'mmm_archive_search',
 			array( $this, 'mmm_archive_search_callback' ) );
-		add_action( 'pre_get_posts',
-			array( $this, 'apply_archive_search' ) );
-		add_filter( 'posts_where',
-			array( $this, 'archive_search_title_where' ), 10, 2 );
 
-		// Ingredients as content (single hero + nutrition table + archive index).
-		add_shortcode( 'mmm_ingredient_hero',
-			array( $this, 'mmm_ingredient_hero_callback' ) );
-		add_shortcode( 'mmm_nutrition_table_for_a_single_ingredient',
-			array( $this, 'mmm_nutrition_table_for_a_single_ingredient_callback' ) );
-		add_shortcode( 'mmm_recipes_for_a_single_ingredient',
-			array( $this, 'mmm_recipes_for_a_single_ingredient_callback' ) );
-		add_shortcode( 'mmm_ingredients_index',
-			array( $this, 'mmm_ingredients_index_callback' ) );
 
 		// Recipe Archive:
 
@@ -89,8 +91,41 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_popular_recipes',
 			[ $this, 'mmm_popular_recipes_callback' ] );
 
-		add_filter( 'get_the_archive_title',
-			[ $this, 'remove_recipe_category_archive_title_prefix' ], 20 );
+		add_shortcode( 'mmm_uncooked_recipes',
+			[ $this, 'mmm_uncooked_recipes_callback' ] );
+	}
+
+	/**
+	 * Ingredients and equipment as content.
+	 */
+	private function register_content_type_shortcodes(): void {
+
+		// Ingredients as content (single hero + nutrition table + archive index).
+		add_shortcode( 'mmm_ingredient_hero',
+			array( $this, 'mmm_ingredient_hero_callback' ) );
+		add_shortcode( 'mmm_nutrition_table_for_a_single_ingredient',
+			array( $this, 'mmm_nutrition_table_for_a_single_ingredient_callback' ) );
+		add_shortcode( 'mmm_recipes_for_a_single_ingredient',
+			array( $this, 'mmm_recipes_for_a_single_ingredient_callback' ) );
+		add_shortcode( 'mmm_ingredients_index',
+			array( $this, 'mmm_ingredients_index_callback' ) );
+
+		// Equipment as content (single hero + recipes + archive index).
+		add_shortcode( 'mmm_equipment_hero',
+			array( $this, 'mmm_equipment_hero_callback' ) );
+		add_shortcode( 'mmm_recipes_for_a_single_equipment',
+			array( $this, 'mmm_recipes_for_a_single_equipment_callback' ) );
+		add_shortcode( 'mmm_equipment_affiliate_links',
+			array( $this, 'mmm_equipment_affiliate_links_callback' ) );
+
+		add_shortcode( 'mmm_equipment_index',
+			array( $this, 'mmm_equipment_index_callback' ) );
+	}
+
+	/**
+	 * Single meal, meal plan and recipe views.
+	 */
+	private function register_single_shortcodes(): void {
 
 		// Single Meals:
 
@@ -132,6 +167,9 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_shopping_list_for_a_single_meal_plan',
 			[ $this, 'mmm_shopping_list_for_a_single_meal_plan_callback' ] );
 
+		add_shortcode( 'mmm_equipment_required_for_a_single_meal_plan',
+			[ $this, 'mmm_equipment_required_for_a_single_meal_plan_callback' ] );
+
 		add_shortcode( 'mmm_meal_plan_actions',
 			[ $this, 'mmm_meal_plan_actions_callback' ] );
 
@@ -147,6 +185,12 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_recipe_author_box',
 			[ $this, 'mmm_recipe_author_box_callback' ] );
 
+		add_shortcode( 'mmm_meal_plan_author_box',
+			[ $this, 'mmm_meal_plan_author_box_callback' ] );
+
+		add_shortcode( 'mmm_image_credit',
+			[ $this, 'mmm_image_credit_callback' ] );
+
 		add_shortcode( 'mmm_meal_hero',
 			[ $this, 'mmm_meal_hero_callback' ] );
 
@@ -156,10 +200,28 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_nutrition_overview_for_a_single_meal_plan',
 			[ $this, 'mmm_nutrition_overview_for_a_single_meal_plan_callback' ] );
 
+		add_shortcode( 'mmm_nutrition_per_day_for_a_single_meal_plan',
+			[ $this, 'mmm_nutrition_per_day_for_a_single_meal_plan_callback' ] );
+
 		// Single Recipe:
+
+		add_shortcode( 'mmm_recipe_ingredients',
+			[ $this, 'mmm_recipe_ingredients_callback' ] );
 
 		add_shortcode( 'mmm_equipment_required_for_a_single_recipe',
 			[ $this, 'mmm_equipment_required_for_a_single_recipe_callback' ] );
+
+		add_shortcode( 'mmm_recipe_related',
+			[ $this, 'mmm_recipe_related_callback' ] );
+
+		add_shortcode( 'mmm_recipe_related_reverse',
+			[ $this, 'mmm_recipe_related_reverse_callback' ] );
+
+		add_shortcode( 'mmm_meal_plans_for_a_single_recipe',
+			[ $this, 'mmm_meal_plans_for_a_single_recipe_callback' ] );
+
+		add_shortcode( 'mmm_admin_actions',
+			[ $this, 'mmm_admin_actions_callback' ] );
 
 		add_shortcode( 'mmm_recipe_steps_for_a_single_recipe',
 			[ $this, 'mmm_recipe_steps_for_a_single_recipe_callback' ] );
@@ -173,11 +235,17 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_recipe_actions',
 			[ $this, 'mmm_recipe_actions_callback' ] );
 
+		add_shortcode( 'mmm_add_to_planner',
+			[ $this, 'mmm_add_to_planner_callback' ] );
+
 		add_shortcode( 'mmm_disclaimer_for_a_single_recipe',
 			[ $this, 'mmm_disclaimer_for_a_single_recipe_callback' ] );
 
 		add_shortcode( 'mmm_feature_image_for_a_single_recipe',
 			[ $this, 'mmm_feature_image_for_a_single_recipe_callback' ] );
+
+		add_shortcode( 'mmm_recipe_edit_count',
+			[ $this, 'mmm_recipe_edit_count_callback' ] );
 
 		add_shortcode( 'mmm_recipe_rating',
 			[ $this, 'mmm_recipe_rating_callback' ] );
@@ -187,6 +255,25 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_recipe_rating_form',
 			[ $this, 'mmm_recipe_rating_form_callback' ] );
+
+		add_shortcode( 'mmm_photo_upload_form',
+			[ $this, 'mmm_photo_upload_form_callback' ] );
+
+		add_shortcode( 'mmm_recipe_photo_gallery',
+			[ $this, 'mmm_recipe_photo_gallery_callback' ] );
+	}
+
+	/**
+	 * Planner, latest plan, subscription form, site stats.
+	 */
+	private function register_planner_shortcodes(): void {
+
+		// Meal plan subscription form (logic in Mixmymeals_Subscriptions):
+		add_shortcode( 'mmm_meal_plan_subscribe',
+			[ $this, 'mmm_meal_plan_subscribe_callback' ] );
+
+
+
 
 		// Cart / Meal Plan Builder:
 
@@ -218,70 +305,81 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_recipe_category_terms',
 			[ $this, 'mmm_recipe_category_terms_callback' ] );
 
-		add_shortcode( 'mmm_recipe_category_links',
-			[ $this, 'mmm_recipe_category_links_callback' ] );
 
 
-		// AJAX Handlers. NOT shortcode callbacks:
+		// Site stats:
 
-		add_action( 'wp_ajax_mmm_add_to_cart', array(
-			$this,
-			'mmm_add_recipe_to_cart_ajax_callback'
-		) );
-		add_action( 'wp_ajax_nopriv_mmm_add_to_cart', array(
-			$this,
-			'mmm_add_recipe_to_cart_ajax_callback'
-		) );
+		add_shortcode( 'mmm_published_recipes_count',
+			[ $this, 'mmm_published_recipes_count_callback' ] );
 
-		add_action( 'wp_ajax_mmm_get_cart_count', array(
-			$this,
-			'mmm_get_cart_count_ajax_callback'
-		) );
-		add_action( 'wp_ajax_nopriv_mmm_get_cart_count', array(
-			$this,
-			'mmm_get_cart_count_ajax_callback'
-		) );
+		add_shortcode( 'mmm_published_meal_plans_count',
+			[ $this, 'mmm_published_meal_plans_count_callback' ] );
+	}
 
-		add_action( 'wp_ajax_mmm_remove_cart_item', array(
-			$this,
-			'mmm_remove_cart_item_ajax_callback'
-		) );
-		add_action( 'wp_ajax_nopriv_mmm_remove_cart_item', array(
-			$this,
-			'mmm_remove_cart_item_ajax_callback'
-		) );
+	/**
+	 * Archive query and title filters.
+	 *
+	 * Order matters: two callbacks share pre_get_posts at the same priority.
+	 */
+	private function register_query_hooks(): void {
 
-		add_action( 'wp_ajax_mmm_update_cart_item', array(
-			$this,
-			'mmm_update_cart_item_ajax_callback'
-		) );
-		add_action( 'wp_ajax_nopriv_mmm_update_cart_item', array(
-			$this,
-			'mmm_update_cart_item_ajax_callback'
-		) );
+		add_action( 'pre_get_posts',
+			array( $this, 'filter_meal_plan_archive_by_url_parameter' ) );
 
-		add_action( 'wp_ajax_mmm_clear_cart',
-			array( $this, 'mmm_clear_cart_ajax_callback' ) );
-		add_action( 'wp_ajax_nopriv_mmm_clear_cart',
-			array( $this, 'mmm_clear_cart_ajax_callback' ) );
+		add_filter( 'query_vars', function( $vars ) {
+			$vars[] = 'mmm_uncategorized';
+			return $vars;
+		} );
+
+		add_action( 'pre_get_posts',
+			array( $this, 'apply_archive_search' ) );
+
+		add_filter( 'posts_where',
+			array( $this, 'archive_search_title_where' ), 10, 2 );
+
+		add_filter( 'get_the_archive_title',
+			[ $this, 'remove_recipe_category_archive_title_prefix' ], 20 );
+	}
+
+	/**
+	 * AJAX endpoints that are not shortcodes. Cart and PDF endpoints
+	 * live in their own classes.
+	 */
+	private function register_ajax(): void {
+
+		// AJAX Handlers. NOT shortcode callbacks.
+		// Die Warenkorb-Endpunkte liegen in Mixmymeals_Cart::register_ajax().
+
+
+
+
+
 
 		add_action( 'wp_ajax_mmm_create_meal_plan',
 			array( $this, 'mmm_create_meal_plan_ajax_callback' ) );
 		add_action( 'wp_ajax_nopriv_mmm_create_meal_plan',
 			array( $this, 'mmm_create_meal_plan_ajax_callback' ) );
+	}
 
-		add_action( 'wp_ajax_mmm_generate_pdf', array(
-			$this,
-			'mmm_generate_pdf_ajax_callback'
-		) );
-		add_action( 'wp_ajax_nopriv_mmm_generate_pdf', array(
-			$this,
-			'mmm_generate_pdf_ajax_callback'
-		) );
 
-		add_action( 'wp_ajax_mmm_load_plan_into_cart', array( $this, 'mmm_load_plan_into_cart_ajax_callback' ) );
-		add_action( 'wp_ajax_nopriv_mmm_load_plan_into_cart', array( $this, 'mmm_load_plan_into_cart_ajax_callback' ) );
+	/**
+	 * Shortcode [mmm_published_recipes_count]: gibt die Anzahl veröffentlichter Rezepte aus.
+	 *
+	 * @return string
+	 */
+	public function mmm_published_recipes_count_callback(): string {
+		$count = (int) wp_count_posts( 'mmm_recipe' )->publish;
+		return esc_html( number_format_i18n( $count ) );
+	}
 
+	/**
+	 * Shortcode [mmm_published_meal_plans_count]: gibt die Anzahl veröffentlichter Essenspläne aus.
+	 *
+	 * @return string
+	 */
+	public function mmm_published_meal_plans_count_callback(): string {
+		$count = (int) wp_count_posts( 'mmm_meal_plan' )->publish;
+		return esc_html( number_format_i18n( $count ) );
 	}
 
 	/**
@@ -323,7 +421,6 @@ class Mixmymeals_Shortcodes {
 		// Prefer recipes with a real featured image; fall back to any recipe if none has one.
 		$best_recipe_per_day  = [];
 		$fallback_per_day     = [];
-		$placeholder_id       = (int) get_option( 'mixmymeals_placeholder_image_id' );
 
 		foreach ( $meals as $meal_post ) {
 			$meal      = new Mixmymeals_Meal( $meal_post->ID );
@@ -336,8 +433,7 @@ class Mixmymeals_Shortcodes {
 
 			$recipe   = new Mixmymeals_Recipe( $recipe_id );
 			$priority = $recipe->get_priority();
-			$thumb_id = (int) get_post_thumbnail_id( $recipe_id );
-			$has_real_image = $thumb_id && ( ! $placeholder_id || $thumb_id !== $placeholder_id );
+			$has_real_image = (bool) get_post_thumbnail_id( $recipe_id );
 
 			if ( $has_real_image ) {
 				if (
@@ -696,14 +792,16 @@ class Mixmymeals_Shortcodes {
 	public function mmm_recipes_index_callback( $atts = array() ): string {
 
 		$ids = get_posts(
-			array(
-				'post_type'      => 'mmm_recipe',
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'orderby'        => 'title',
-				'order'          => 'ASC',
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => -1,
+					'orderby'        => 'title',
+					'order'          => 'ASC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
 			)
 		);
 
@@ -835,14 +933,16 @@ class Mixmymeals_Shortcodes {
 		$count = min( 24, max( 1, (int) $atts['count'] ) );
 
 		$ids = get_posts(
-			array(
-				'post_type'      => 'mmm_recipe',
-				'post_status'    => 'publish',
-				'posts_per_page' => $count,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => $count,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
 			)
 		);
 
@@ -877,21 +977,23 @@ class Mixmymeals_Shortcodes {
 		$count = min( 24, max( 1, (int) $atts['count'] ) );
 
 		$ids = get_posts(
-			array(
-				'post_type'      => 'mmm_recipe',
-				'post_status'    => 'publish',
-				'posts_per_page' => $count,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-				'meta_query'     => array(
-					array(
-						'key'   => '_mmm_is_favorite',
-						'value' => '1',
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => $count,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query'     => array(
+						array(
+							'key'   => '_mmm_is_favorite',
+							'value' => '1',
+						),
 					),
-				),
+				)
 			)
 		);
 
@@ -905,9 +1007,9 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_popular_recipes]: a compact, horizontally scrollable row of
-	 * the recipes that have been planned most often, ranked by how many meals
-	 * (mmm_meal) in a published plan reference them. Returns '' when nothing has
-	 * been planned yet, so the section disappears cleanly.
+	 * the recipes that have been cooked most often, ranked by the cook counter
+	 * maintained in Mixmymeals_Recipe. Returns '' when nothing has been
+	 * cooked yet, so the section disappears cleanly.
 	 *
 	 * @param array|string $atts count.
 	 * @return string
@@ -926,47 +1028,28 @@ class Mixmymeals_Shortcodes {
 
 		$count = min( 24, max( 1, (int) $atts['count'] ) );
 
-		global $wpdb;
-
-		// Rank recipes by how often they are used as a meal in a published plan.
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$ranked = $wpdb->get_col(
-			$wpdb->prepare(
-				"SELECT pm.meta_value
-				 FROM {$wpdb->postmeta} pm
-				 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-				 WHERE pm.meta_key = 'recipe_id'
-				   AND p.post_type = 'mmm_meal'
-				   AND p.post_status = 'publish'
-				 GROUP BY pm.meta_value
-				 ORDER BY COUNT(*) DESC, MAX(p.post_date) DESC
-				 LIMIT %d",
-				$count
+		// Recipes only carry the counter once they have been cooked, so joining
+		// on the meta key already restricts this to a count of one or more.
+		$ids = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => $count,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+					'meta_key'       => Mixmymeals_Recipe::META_COOK_COUNT,
+					'orderby'        => array(
+						'meta_value_num' => 'DESC',
+						'date'           => 'DESC',
+					),
+				)
 			)
 		);
-
-		$ids = array_values( array_filter( array_map( 'intval', (array) $ranked ) ) );
-		if ( empty( $ids ) ) {
-			return '';
-		}
-
-		// Keep only recipes that still exist and are published, preserving the
-		// frequency order from the ranking query above.
-		$published = get_posts(
-			array(
-				'post_type'      => 'mmm_recipe',
-				'post_status'    => 'publish',
-				'post__in'       => $ids,
-				'posts_per_page' => count( $ids ),
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
-			)
-		);
-		$published = array_map( 'intval', $published );
-		$ids       = array_values( array_intersect( $ids, $published ) );
 
 		return $this->render_recipe_browse_section(
-			$ids,
+			array_map( 'intval', (array) $ids ),
 			(string) $atts['title'],
 			'popular',
 			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
@@ -974,8 +1057,63 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Shortcode [mmm_uncooked_recipes]: a compact, horizontally scrollable row of
+	 * the recipes that have never been cooked — no meal in a published plan
+	 * references them. The counterpart to [mmm_popular_recipes], useful for
+	 * spotting recipes still waiting for their first plan. Returns '' when every
+	 * recipe has been cooked, so the section disappears cleanly.
+	 *
+	 * @param array|string $atts count, title, boxed.
+	 * @return string
+	 */
+	public function mmm_uncooked_recipes_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'count' => 8,
+				'title' => '',
+				'boxed' => '1',
+			),
+			$atts,
+			'mmm_uncooked_recipes'
+		);
+
+		$count = min( 24, max( 1, (int) $atts['count'] ) );
+
+		// A recipe carries no cook counter until it lands on a published plan,
+		// so "never cooked" is simply the absence of the meta.
+		$ids = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => $count,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query'     => array(
+						array(
+							'key'     => Mixmymeals_Recipe::META_COOK_COUNT,
+							'compare' => 'NOT EXISTS',
+						),
+					),
+				)
+			)
+		);
+
+		return $this->render_recipe_browse_section(
+			array_map( 'intval', (array) $ids ),
+			(string) $atts['title'],
+			'uncooked',
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+		);
+	}
+
+	/**
 	 * Wraps the browse cards in a self-contained section so the new/favorite/
-	 * popular shortcodes render correctly on any page (not just the recipe
+	 * popular/uncooked shortcodes render correctly on any page (not just the recipe
 	 * archive): an optional boxed <section>, an optional heading and the
 	 * horizontal scroll track. Returns '' when there are no cards.
 	 *
@@ -990,7 +1128,34 @@ class Mixmymeals_Shortcodes {
 	 */
 	private function render_recipe_browse_section( array $ids, string $title, string $variant, bool $boxed ): string {
 
-		$cards = $this->render_recipe_browse_cards( $ids );
+		return $this->render_browse_section(
+			$this->render_recipe_browse_cards( $ids ),
+			$title,
+			$variant,
+			$boxed
+		);
+	}
+
+	/**
+	 * Wraps already-rendered browse cards in the shared self-contained section:
+	 * an optional heading, then the boxed <section> holding the horizontal scroll
+	 * track. Shared by the recipe and meal-plan browse shortcodes so they render
+	 * identically on any page. Returns '' when there are no cards.
+	 *
+	 * In a boxed row the heading sits INSIDE the box, mirroring the ingredient
+	 * archive where every category card carries its own heading. Unboxed rows
+	 * keep the heading in front of the track, so a title-less row with an
+	 * editor-supplied heading block above it (as on the front page) still looks
+	 * the same.
+	 *
+	 * @param string $cards   Pre-rendered, already-escaped card markup ('' = none).
+	 * @param string $title   Heading text; '' renders no heading.
+	 * @param string $variant Modifier key (new|fav|popular|uncooked|latest) for CSS hooks.
+	 * @param bool   $boxed   Whether to wrap the row in the boxed section.
+	 * @return string
+	 */
+	private function render_browse_section( string $cards, string $title, string $variant, bool $boxed ): string {
+
 		if ( '' === $cards ) {
 			return '';
 		}
@@ -998,20 +1163,22 @@ class Mixmymeals_Shortcodes {
 		$variant     = sanitize_html_class( $variant );
 		$row_classes = 'mmm-recipe-row' . ( '' !== $variant ? ' mmm-recipe-row--' . $variant : '' );
 
-		$row = '<div class="' . esc_attr( $row_classes ) . '">';
-		if ( '' !== $title ) {
-			$row .= '<h2 class="mmm-recipe-row__title">' . esc_html( $title ) . '</h2>';
-		}
-		// $cards is markup already escaped in render_recipe_browse_cards().
-		$row .= '<div class="mmm-recipe-row__track">' . $cards . '</div></div>';
+		$heading = '' !== $title
+			? '<h2 class="mmm-recipe-row__title">' . esc_html( $title ) . '</h2>'
+			: '';
+
+		// $cards is markup already escaped by the card renderer.
+		$row = '<div class="' . esc_attr( $row_classes ) . '">'
+			. '<div class="mmm-recipe-row__track">' . $cards . '</div></div>';
 
 		if ( ! $boxed ) {
-			return $row;
+			return $heading . $row;
 		}
 
 		$section_classes = 'mmm-recipe-browse' . ( '' !== $variant ? ' mmm-recipe-browse--' . $variant : '' );
 
-		return '<section class="' . esc_attr( $section_classes ) . '">' . $row . '</section>';
+		return '<section class="' . esc_attr( $section_classes ) . '">'
+			. $heading . $row . '</section>';
 	}
 
 	/**
@@ -1050,7 +1217,9 @@ class Mixmymeals_Shortcodes {
 				)
 			);
 
-			echo '<article class="mmm-recipe-row__card">';
+			// Recipes without a photo render cookbook-style: no media block,
+			// just the (nicely typeset) title — flagged via modifier class.
+			echo '<article class="mmm-recipe-row__card' . ( $thumb ? '' : ' mmm-recipe-row__card--noimg' ) . '">';
 			if ( $thumb ) {
 				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '">'
 					. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
@@ -1073,6 +1242,399 @@ class Mixmymeals_Shortcodes {
 		wp_reset_postdata();
 
 		return (string) ob_get_clean();
+	}
+
+
+	/**
+	 * Shortcode [mmm_latest_meal_plans]: a compact, horizontally scrollable row of
+	 * the most recently published meal plans. The meal-plan counterpart to
+	 * [mmm_new_recipes]; reuses the same self-contained browse-row markup so it can
+	 * be dropped on any page. Returns '' when no plans are published.
+	 *
+	 * @param array|string $atts count, title, boxed.
+	 * @return string
+	 */
+	public function mmm_latest_meal_plans_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'count' => 8,
+				'title' => '',
+				'boxed' => '1',
+			),
+			$atts,
+			'mmm_latest_meal_plans'
+		);
+
+		$count = min( 24, max( 1, (int) $atts['count'] ) );
+
+		$ids = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_meal_plan',
+					'post_status'    => 'publish',
+					'posts_per_page' => $count,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
+			)
+		);
+
+		return $this->render_browse_section(
+			$this->render_meal_plan_browse_cards( array_map( 'intval', $ids ) ),
+			(string) $atts['title'],
+			'latest',
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+		);
+	}
+
+	/**
+	 * Shortcode [mmm_latest_plan_teaser]: a large, self-contained teaser card
+	 * for the newest published meal plan — image (the plan's own featured image,
+	 * falling back to the best recipe photo), title, day/meal meta, excerpt and
+	 * a call-to-action, all linking to the plan. Built for landing pages; the
+	 * link always follows the newest plan automatically. Returns '' when no
+	 * plan is published.
+	 *
+	 * @param array|string $atts title (optional section heading), cta_text.
+	 * @return string
+	 */
+	public function mmm_latest_plan_teaser_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'title'    => '',
+				'cta_text' => '',
+			),
+			$atts,
+			'mmm_latest_plan_teaser'
+		);
+
+		$plans = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_meal_plan',
+					'post_status'    => 'publish',
+					'posts_per_page' => 1,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
+			)
+		);
+
+		if ( empty( $plans ) ) {
+			return '';
+		}
+
+		$plan_id = (int) $plans[0];
+		$url     = (string) get_permalink( $plan_id );
+		$thumb   = $this->get_meal_plan_card_thumbnail( $plan_id, 'large' );
+		$meta    = $this->render_meal_plan_card_meta( $plan_id );
+		$cta     = '' !== trim( (string) $atts['cta_text'] )
+			? (string) $atts['cta_text']
+			: __( 'View plan', 'mixmymeals' );
+
+		ob_start();
+		?>
+		<section class="mmm-plan-teaser<?php echo '' === $thumb ? ' mmm-plan-teaser--noimg' : ''; ?>">
+			<?php if ( '' !== trim( (string) $atts['title'] ) ) : ?>
+				<h2 class="mmm-recipe-row__title"><?php echo esc_html( (string) $atts['title'] ); ?></h2>
+			<?php endif; ?>
+			<a class="mmm-plan-teaser__card" href="<?php echo esc_url( $url ); ?>">
+				<?php if ( '' !== $thumb ) : ?>
+					<div class="mmm-plan-teaser__media">
+						<?php echo $thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- image markup from get_the_post_thumbnail(). ?>
+					</div>
+				<?php endif; ?>
+				<div class="mmm-plan-teaser__body">
+					<span class="mmm-plan-teaser__kicker"><?php esc_html_e( 'Latest meal plan', 'mixmymeals' ); ?></span>
+					<h3 class="mmm-plan-teaser__heading"><?php echo esc_html( get_the_title( $plan_id ) ); ?></h3>
+					<?php echo $meta; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<?php if ( has_excerpt( $plan_id ) ) : ?>
+						<p class="mmm-plan-teaser__lead"><?php echo esc_html( get_the_excerpt( $plan_id ) ); ?></p>
+					<?php endif; ?>
+					<span class="mmm-btn mmm-btn--primary mmm-plan-teaser__cta"><?php echo esc_html( $cta ); ?></span>
+				</div>
+			</a>
+		</section>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_top_rated_recipes]: a browse row of the best-rated recipes
+	 * (comment-based star ratings), ordered by average rating, then by number
+	 * of ratings. Recipes with fewer than min_ratings ratings are skipped.
+	 * Returns '' when nothing qualifies, so the section disappears cleanly.
+	 *
+	 * @param array|string $atts count, title, boxed, min_ratings.
+	 * @return string
+	 */
+	public function mmm_top_rated_recipes_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'count'       => 8,
+				'title'       => '',
+				'boxed'       => '1',
+				'min_ratings' => 1,
+			),
+			$atts,
+			'mmm_top_rated_recipes'
+		);
+
+		$count = min( 24, max( 1, (int) $atts['count'] ) );
+		$min   = max( 1, (int) $atts['min_ratings'] );
+
+		$ids = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => $count,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query'     => array(
+						'rating_avg'   => array(
+							'key'  => '_mmm_rating_avg',
+							'type' => 'DECIMAL(3,2)',
+						),
+						'rating_count' => array(
+							'key'     => '_mmm_rating_count',
+							'value'   => $min,
+							'compare' => '>=',
+							'type'    => 'NUMERIC',
+						),
+					),
+					'orderby'        => array(
+						'rating_avg'   => 'DESC',
+						'rating_count' => 'DESC',
+					),
+				)
+			)
+		);
+
+		return $this->render_recipe_browse_section(
+			array_map( 'intval', $ids ),
+			(string) $atts['title'],
+			'toprated',
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+		);
+	}
+
+	/**
+	 * Shortcode [mmm_community_photo_wall]: the newest approved visitor meal
+	 * photos from all recipes as a mosaic; each tile links to the recipe the
+	 * photo belongs to. Social proof for landing pages. Returns '' when no
+	 * approved photos exist.
+	 *
+	 * @param array|string $atts count, title.
+	 * @return string
+	 */
+	public function mmm_community_photo_wall_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'count' => 12,
+				'title' => '',
+			),
+			$atts,
+			'mmm_community_photo_wall'
+		);
+
+		if ( ! class_exists( 'Mixmymeals_Photos' ) ) {
+			return '';
+		}
+
+		$count     = min( 24, max( 1, (int) $atts['count'] ) );
+		$photo_ids = Mixmymeals_Photos::get_photos( 0, true, $count * 2 );
+
+		$tiles = '';
+		$used  = 0;
+		foreach ( $photo_ids as $photo_id ) {
+			$recipe_id = (int) wp_get_post_parent_id( $photo_id );
+			if ( $recipe_id < 1 || 'publish' !== get_post_status( $recipe_id ) ) {
+				continue;
+			}
+			$img = wp_get_attachment_image(
+				(int) $photo_id,
+				'medium_large',
+				false,
+				array(
+					'loading' => 'lazy',
+					'alt'     => get_the_title( $recipe_id ),
+				)
+			);
+			if ( '' === $img ) {
+				continue;
+			}
+			$tiles .= '<a class="mmm-image-wall__tile" href="' . esc_url( (string) get_permalink( $recipe_id ) ) . '">'
+				. $img
+				. '<span class="mmm-image-wall__label">' . esc_html( get_the_title( $recipe_id ) ) . '</span>'
+				. '</a>';
+			++$used;
+			if ( $used >= $count ) {
+				break;
+			}
+		}
+
+		if ( '' === $tiles ) {
+			return '';
+		}
+
+		$html = '<section class="mmm-image-wall mmm-image-wall--community">';
+		if ( '' !== trim( (string) $atts['title'] ) ) {
+			$html .= '<h2 class="mmm-recipe-row__title">' . esc_html( (string) $atts['title'] ) . '</h2>';
+		}
+		$html .= '<div class="mmm-image-wall__grid">' . $tiles . '</div></section>';
+
+		return $html;
+	}
+
+	/**
+	 * Renders the meal-plan cards (representative image, title and a slim day/
+	 * recipe meta line) for the [mmm_latest_meal_plans] browse row, reusing the
+	 * recipe browse-card CSS classes so it stays visually consistent. The
+	 * surrounding section, heading and scroll track are added by
+	 * render_browse_section(). Returns '' when there are no plans.
+	 *
+	 * @param int[] $ids Meal plan post IDs.
+	 * @return string
+	 */
+	private function render_meal_plan_browse_cards( array $ids ): string {
+
+		$ids = array_values( array_filter( array_map( 'intval', $ids ) ) );
+		if ( empty( $ids ) ) {
+			return '';
+		}
+
+		ob_start();
+		foreach ( $ids as $id ) {
+
+			$permalink = (string) get_permalink( $id );
+			$thumb     = $this->get_meal_plan_card_thumbnail( $id );
+
+			echo '<article class="mmm-recipe-row__card mmm-recipe-row__card--plan">';
+			if ( '' !== $thumb ) {
+				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '">'
+					. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
+					. '</a>';
+			}
+			echo '<div class="mmm-recipe-row__body">';
+			echo '<h3 class="mmm-recipe-row__name"><a href="' . esc_url( $permalink ) . '">'
+				. esc_html( get_the_title( $id ) ) . '</a></h3>';
+			echo $this->render_meal_plan_card_meta( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			echo '</div>';
+			echo '</article>';
+		}
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Picks a single representative thumbnail for a meal-plan browse card: the
+	 * plan's own featured image if it is a real image, otherwise the featured
+	 * image of the lowest-priority recipe in the plan that has a real image. The
+	 * placeholder image is never returned; when nothing suitable exists this
+	 * returns '' so the card renders without media rather than a placeholder.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string Escaped <img> markup, or ''.
+	 */
+	private function get_meal_plan_card_thumbnail( int $plan_id, string $size = 'medium' ): string {
+
+		// The plan's own featured image wins when set (thumbnail queries are
+		// truthful — no placeholder is forced anywhere anymore).
+		$plan_thumb_id = (int) get_post_thumbnail_id( $plan_id );
+		if ( $plan_thumb_id ) {
+			return (string) get_the_post_thumbnail(
+				$plan_id,
+				$size,
+				array(
+					'loading' => 'lazy',
+					'alt'     => '',
+				)
+			);
+		}
+
+		$plan           = new Mixmymeals_Meal_Plan( $plan_id );
+		$best_recipe_id = 0;
+		$best_priority  = PHP_INT_MAX;
+
+		foreach ( $plan->get_meals() as $meal_post ) {
+			$meal      = new Mixmymeals_Meal( $meal_post->ID );
+			$recipe_id = (int) $meal->get_recipe_id();
+
+			if ( $recipe_id <= 0 || ! Mixmymeals_Recipe::exists_by_id( $recipe_id ) ) {
+				continue;
+			}
+
+			$thumb_id = (int) get_post_thumbnail_id( $recipe_id );
+			if ( ! $thumb_id ) {
+				continue;
+			}
+
+			$priority = ( new Mixmymeals_Recipe( $recipe_id ) )->get_priority();
+			if ( $priority < $best_priority ) {
+				$best_priority  = $priority;
+				$best_recipe_id = $recipe_id;
+			}
+		}
+
+		if ( $best_recipe_id > 0 ) {
+			return (string) get_the_post_thumbnail(
+				$best_recipe_id,
+				$size,
+				array(
+					'loading' => 'lazy',
+					'alt'     => '',
+				)
+			);
+		}
+
+		return '';
+	}
+
+	/**
+	 * Renders the slim day/recipe meta line shown under a meal-plan browse card,
+	 * reusing the mmm-meal-plan-meta markup from the plan archive. Returns '' when
+	 * the plan has neither days nor meals.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string
+	 */
+	private function render_meal_plan_card_meta( int $plan_id ): string {
+
+		$plan  = new Mixmymeals_Meal_Plan( $plan_id );
+		$days  = $plan->count_days();
+		$meals = $plan->count_meals();
+
+		if ( ! $days && ! $meals ) {
+			return '';
+		}
+
+		$out = '<div class="mmm-meal-plan-meta">';
+		if ( $days ) {
+			/* translators: %s: number of days. */
+			$out .= '<span class="mmm-meta__item mmm-meta__item--days">'
+				. esc_html( sprintf( _n( '%s Day', '%s Days', $days, 'mixmymeals' ), $days ) )
+				. '</span>';
+		}
+		if ( $meals ) {
+			/* translators: %s: number of recipes. */
+			$out .= '<span class="mmm-meta__item mmm-meta__item--meals">'
+				. esc_html( sprintf( _n( '%s Recipe', '%s Recipes', $meals, 'mixmymeals' ), $meals ) )
+				. '</span>';
+		}
+		$out .= '</div>';
+
+		return $out;
 	}
 
 
@@ -1122,7 +1684,8 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$recipe = new Mixmymeals_Recipe( $recipe_id );
-		$steps  = $recipe->get_steps();
+
+		$steps = $recipe->get_steps();
 
 		if ( empty( $steps ) ) {
 			return '<p>' . esc_html__( 'No steps defined for this recipe.',
@@ -1193,6 +1756,8 @@ class Mixmymeals_Shortcodes {
 								$amount_id = ! empty( $ing['amount_id'] )
 									? intval( $ing['amount_id'] ) : 0;
 
+								$is_optional = ! empty( $ing['optional'] );
+
 								$key = $ing['id'] . '_' . $amount_id . '_' . $index;
 
 								// Werte aus skalierter Quelle holen
@@ -1238,7 +1803,7 @@ class Mixmymeals_Shortcodes {
 								?>
                                 <li>
                                 <span class="mmm-ingredient-name">
-									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
+									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> (<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)<?php endif; ?>
                                 </span>
 									<?php if ( $line ) : ?>
                                         <span class="mmm-ingredient-amount">
@@ -1329,13 +1894,13 @@ class Mixmymeals_Shortcodes {
 
 			$totals['weight'] += $weight;
 
-			$totals['calories'] += $nutrition['calories_100'] * $weight / 100;
-			$totals['protein']  += $nutrition['protein'] * $weight / 100;
-			$totals['carbs']    += $nutrition['carbs'] * $weight / 100;
-			$totals['fat']      += $nutrition['fat'] * $weight / 100;
-			$totals['sugar']    += $nutrition['sugar'] * $weight / 100;
-			$totals['fiber']    += $nutrition['fiber'] * $weight / 100;
-			$totals['salt']     += $nutrition['salt'] * $weight / 100;
+			$totals['calories'] += (float) ( $nutrition['calories_100'] ?? 0 ) * $weight / 100;
+			$totals['protein']  += (float) ( $nutrition['protein'] ?? 0 ) * $weight / 100;
+			$totals['carbs']    += (float) ( $nutrition['carbs'] ?? 0 ) * $weight / 100;
+			$totals['fat']      += (float) ( $nutrition['fat'] ?? 0 ) * $weight / 100;
+			$totals['sugar']    += (float) ( $nutrition['sugar'] ?? 0 ) * $weight / 100;
+			$totals['fiber']    += (float) ( $nutrition['fiber'] ?? 0 ) * $weight / 100;
+			$totals['salt']     += (float) ( $nutrition['salt'] ?? 0 ) * $weight / 100;
 		}
 
 		$per_serving = [];
@@ -1423,7 +1988,7 @@ class Mixmymeals_Shortcodes {
 	 * Shortcode [mmm_meals_in_a_single_meal_plan].
 	 * Renders a grouped overview of all meals in a meal plan, grouped by day and meal type.
 	 *
-	 * @param array|string $atts Shortcode attributes: meal_plan_id, show_dates.
+	 * @param array|string $atts Shortcode attributes: meal_plan_id, show_dates, empty_text.
 	 * @return string
 	 */
 	public function mmm_meals_in_a_single_meal_plan_callback( $atts = [] ): string {
@@ -1432,6 +1997,9 @@ class Mixmymeals_Shortcodes {
 			[
 				'meal_plan_id' => null,
 				'show_dates'   => false,
+				// Text für einen Plan ohne Mahlzeiten. Leerer Wert = gar nichts
+				// ausgeben, damit der Abschnitt bei Bedarf ganz verschwinden kann.
+				'empty_text'   => __( 'This meal plan does not contain any meals yet.', 'mixmymeals' ),
 			],
 			$atts,
 			'mmm_meals_in_a_single_meal_plan'
@@ -1458,7 +2026,22 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$meal_plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$days      = $meal_plan->get_day_range();
+		$meals     = $meal_plan->get_meals();
+
+		/*
+		 * Plan ohne Mahlzeiten: Der Tages-Rail wäre sonst eine leere Hülle, weil
+		 * jeder Tag ohne Einträge übersprungen wird. Stattdessen ein Hinweis,
+		 * dessen Wortlaut der Aufrufer bestimmt.
+		 */
+		if ( empty( $meals ) ) {
+			$empty_text = trim( (string) $atts['empty_text'] );
+
+			return '' === $empty_text
+				? ''
+				: '<p class="mmm-plan-empty-note">' . esc_html( $empty_text ) . '</p>';
+		}
+
+		$days = $meal_plan->get_day_range();
 
 		$weekday_labels = [
 			1 => __( 'Monday', 'mixmymeals' ),
@@ -1474,7 +2057,7 @@ class Mixmymeals_Shortcodes {
 
 		$grouped_meals = [];
 
-		foreach ( $meal_plan->get_meals() as $meal_post ) {
+		foreach ( $meals as $meal_post ) {
 			$meal    = new Mixmymeals_Meal( $meal_post->ID );
 			$weekday = (int) $meal->get_day();
 			$type    = $meal->get_type() ?: 'other';
@@ -1503,17 +2086,37 @@ class Mixmymeals_Shortcodes {
 				} ?>
 
 				<?php
-				// Mahlzeiten des Tages flach einsammeln (in Typ-Reihenfolge).
-				$day_meals = [];
+				/*
+				 * Mahlzeiten des Tages nach Typ gruppieren, in der Reihenfolge
+				 * aus get_plaintext_meal_type_map(). Ein Typ ergibt genau eine
+				 * Gruppe, auch wenn mehrere Mahlzeiten darauf entfallen — sonst
+				 * stünde etwa „Abendessen“ zweimal untereinander.
+				 *
+				 * $day_meals bleibt zusätzlich flach: daran hängen die Prüfung
+				 * auf den Ein-Mahlzeit-Tag und die Tagessumme im Kopf.
+				 */
+				$day_groups = [];
+				$day_meals  = [];
 				foreach ( $meal_types as $type_key => $type_label ) {
+
+					$type_entries = [];
 					foreach ( $grouped_meals[ $day_number ][ $type_key ] ?? [] as $day_meal ) {
-						$day_meals[] = [
+						$entry          = [
 							'meal'       => $day_meal,
 							'type_label' => $type_label,
 						];
+						$type_entries[] = $entry;
+						$day_meals[]    = $entry;
+					}
+
+					if ( ! empty( $type_entries ) ) {
+						$day_groups[] = [
+							'label'   => $type_label,
+							'entries' => $type_entries,
+						];
 					}
 				}
-				$single_meal = ( count( $day_meals ) === 1 );
+				$day_head_info = $this->get_meals_head_info( $day_meals );
 				?>
 
                 <div class="mmm-rail-day<?php echo $day_number === $today ? ' mmm-rail-day--today' : ''; ?>">
@@ -1524,31 +2127,39 @@ class Mixmymeals_Shortcodes {
 						<?php if ( $day_number === $today ) : ?>
                             <span class="mmm-badge"><?php esc_html_e( 'Today', 'mixmymeals' ); ?></span>
 						<?php endif; ?>
-						<?php if ( $single_meal ) :
-							$head_info = $this->get_meal_head_info( $day_meals[0] );
-							?>
-                            <span class="mmm-rail-day__meal"><?php echo esc_html( $day_meals[0]['type_label'] ); ?></span>
-							<?php if ( $head_info ) : ?>
-                                <span class="mmm-rail-day__kcal"><?php echo esc_html( $head_info ); ?></span>
-							<?php endif; ?>
+						<?php if ( $day_head_info ) : ?>
+                            <span class="mmm-rail-day__kcal mmm-rail-day__kcal--day"><?php echo esc_html( $day_head_info ); ?></span>
 						<?php endif; ?>
                     </div>
 
-					<?php foreach ( $day_meals as $entry ) :
-						$meal      = $entry['meal'];
-						$recipe_id = (int) $meal->get_recipe_id();
-						$recipe    = new Mixmymeals_Recipe( $recipe_id );
+					<?php foreach ( $day_groups as $day_group ) : ?>
 
-						if ( ! $single_meal ) :
-							$head_info = $this->get_meal_head_info( $entry );
+						<?php
+						/*
+						 * Ein Kopf je Typ, immer unterhalb des Tages — auch wenn
+						 * an dem Tag nur eine Mahlzeit geplant ist. Die kcal-
+						 * Angabe summiert alle Mahlzeiten dieses Typs.
+						 *
+						 * Gibt es an dem Tag nur einen Typ, wäre diese Summe
+						 * identisch mit der im Tageskopf — dann bleibt sie weg,
+						 * statt dieselbe Zahl zweimal untereinander zu zeigen.
+						 */
+						$head_info = count( $day_groups ) > 1
+							? $this->get_meals_head_info( $day_group['entries'] )
+							: '';
+						?>
+                        <div class="mmm-rail-day__sub">
+                            <span class="mmm-rail-day__meal"><?php echo esc_html( $day_group['label'] ); ?></span>
+							<?php if ( $head_info ) : ?>
+                                <span class="mmm-rail-day__kcal"><?php echo esc_html( $head_info ); ?></span>
+							<?php endif; ?>
+                        </div>
+
+						<?php foreach ( $day_group['entries'] as $entry ) :
+							$meal      = $entry['meal'];
+							$recipe_id = (int) $meal->get_recipe_id();
+							$recipe    = new Mixmymeals_Recipe( $recipe_id );
 							?>
-                            <div class="mmm-rail-day__sub">
-                                <span class="mmm-rail-day__meal"><?php echo esc_html( $entry['type_label'] ); ?></span>
-								<?php if ( $head_info ) : ?>
-                                    <span class="mmm-rail-day__kcal"><?php echo esc_html( $head_info ); ?></span>
-								<?php endif; ?>
-                            </div>
-						<?php endif; ?>
 
 						<?php if ( ! $recipe->is_valid() ) : ?>
                             <div class="mmm-recipe-card mmm-recipe-card--missing">
@@ -1589,23 +2200,24 @@ class Mixmymeals_Shortcodes {
 							$tags = [];
 						}
 
-						$thumb_id = get_post_thumbnail_id( $recipe_id )
-							?: (int) get_option( 'mixmymeals_placeholder_image_id' );
+						// No placeholder fallback: photo-less recipes render
+						// cookbook-style without a media box (title only).
+						$thumb_id = (int) get_post_thumbnail_id( $recipe_id );
 
 						$cost = $recipe->calculate_cost_per_serving();
 						?>
-                        <a class="mmm-recipe-card" href="<?php echo esc_url( $meal_url ); ?>">
-                            <div class="mmm-recipe-card__media<?php echo $thumb_id ? '' : ' mmm-recipe-card__media--empty'; ?>">
-								<?php if ( $thumb_id ) :
-									echo wp_get_attachment_image( $thumb_id, 'medium_large', false, [
-										'alt'     => esc_attr( $title ),
-										'loading' => 'lazy',
-										'sizes'   => '(max-width: 640px) 84px, 124px',
-									] );
-								else : ?>
-                                    <span><?php esc_html_e( 'No image yet', 'mixmymeals' ); ?></span>
-								<?php endif; ?>
+                        <a class="mmm-recipe-card<?php echo $thumb_id ? '' : ' mmm-recipe-card--noimg'; ?>" href="<?php echo esc_url( $meal_url ); ?>">
+							<?php if ( $thumb_id ) : ?>
+                            <div class="mmm-recipe-card__media">
+								<?php
+								echo wp_get_attachment_image( $thumb_id, 'medium_large', false, [
+									'alt'     => esc_attr( $title ),
+									'loading' => 'lazy',
+									'sizes'   => '(max-width: 640px) 84px, 124px',
+								] );
+								?>
                             </div>
+							<?php endif; ?>
 
                             <div class="mmm-recipe-card__body">
                                 <h3 class="mmm-recipe-card__title"><?php echo esc_html( $title ); ?></h3>
@@ -1632,28 +2244,26 @@ class Mixmymeals_Shortcodes {
 
                                 <div class="mmm-recipe-card__tags">
 									<?php
-									$first = true;
 									foreach ( $categories ?: [] as $cat ) {
-										printf(
-											'<span class="mmm-tag%s">%s</span>',
-											$first ? '' : ' mmm-tag--neutral',
-											esc_html( $cat->name )
-										);
-										$first = false;
+										printf( '<span class="mmm-tag">%s</span>', esc_html( $cat->name ) );
 									}
 									if ( ! empty( $tags ) ) {
 										usort( $tags, fn( $a, $b ) => strcasecmp( $a->name, $b->name ) );
 										foreach ( $tags as $tag ) {
-											printf(
-												'<span class="mmm-tag mmm-tag--neutral">%s</span>',
-												esc_html( $tag->name )
-											);
+											printf( '<span class="mmm-tag">%s</span>', esc_html( $tag->name ) );
 										}
+									}
+									$diet = $recipe->get_diet_type();
+									if ( 'vegan' === $diet ) {
+										printf( '<span class="mmm-tag">%s</span>', esc_html__( 'Vegan', 'mixmymeals' ) );
+									} elseif ( 'vegetarian' === $diet ) {
+										printf( '<span class="mmm-tag">%s</span>', esc_html__( 'Vegetarian', 'mixmymeals' ) );
 									}
 									?>
                                 </div>
                             </div>
                         </a>
+						<?php endforeach; ?>
 					<?php endforeach; ?>
                 </div>
 
@@ -1709,9 +2319,6 @@ class Mixmymeals_Shortcodes {
 			       . '</p>';
 		}
 
-		// Array für JSON-LD Zutaten vorbereiten
-		$json_ingredients = [];
-
 		ob_start();
 		?>
 
@@ -1739,18 +2346,19 @@ class Mixmymeals_Shortcodes {
 						// Bedarfsanzeige: was wird gebraucht — die
 						// Kaufentscheidung trifft der Nutzer im Laden.
 						$ingredient_name = get_the_title( $ing_id );
-						$needed_amount   = $this->build_needed_amount_string(
+						$needed_amount   = Mixmymeals_Meal_Plan::build_needed_amount_string(
 							$data['units'] ?? [],
 							$total_weight
 						);
+						$is_optional     = ! empty( $data['optional'] );
 
-						// Zutat für JSON-LD sammeln
-						$json_ingredients[] = $ingredient_name . ', '
-						                      . $needed_amount;
-
-						// Anzeige: Zutat und Menge getrennt auszeichnen.
+						// Anzeige: Zutat und Menge getrennt auszeichnen. "(optional)"
+						// steht direkt hinter dem Zutatennamen, ohne eigenen Span.
 						$item_html = '<span class="mmm-shopping-item-name">'
 						             . esc_html( $ingredient_name )
+						             . ( $is_optional
+								? ' (' . esc_html__( 'optional', 'mixmymeals' ) . ')'
+								: '' )
 						             . '</span> '
 						             . '<span class="mmm-shopping-item-amount">'
 						             . esc_html( $needed_amount )
@@ -1768,9 +2376,9 @@ class Mixmymeals_Shortcodes {
                                             <li>
 												<?php
 												printf(
-													'%s × %s für %s',
-													round( $detail['amount'],
-														2 ),
+													/* translators: 1: amount, 2: unit name, 3: recipe name. */
+													esc_html__( '%1$s × %2$s for %3$s', 'mixmymeals' ),
+													esc_html( (string) round( $detail['amount'], 2 ) ),
 													esc_html( $detail['unit_title'] ),
 													esc_html( $detail['recipe_name'] )
 												);
@@ -1791,15 +2399,11 @@ class Mixmymeals_Shortcodes {
         </div>
 
 		<?php
-		// JSON-LD Output
-		$schema_data = [
-			'@context'         => 'https://schema.org',
-			'@type'            => 'Recipe',
-			'name'             => get_the_title( $meal_plan_id ),
-			'recipeIngredient' => $json_ingredients,
-		];
-		echo '<script type="application/ld+json">'
-		     . wp_json_encode( $schema_data ) . '</script>';
+		// Structured data for plans/recipes is emitted centrally by
+		// Mixmymeals_Post_Types in wp_head — a shopping list is not a Recipe,
+		// so the old inline JSON-LD here was removed. The Recipe view Bring!
+		// imports lives at <plan permalink>?mmm_bring=1
+		// (Mixmymeals_Meal_Plan::render_bring_page()).
 
 		return ob_get_clean();
 	}
@@ -1838,50 +2442,17 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Builds the human-readable needed-amount string for one shopping
-	 * list ingredient from its per-unit totals.
+	 * Formats an ingredient's needed amount for display.
 	 *
-	 * Indivisible units are listed as counts ("3× Stück"), everything
-	 * else is collapsed into grams. A gram equivalent is appended when
-	 * piece counts are shown.
+	 * @deprecated Moved to Mixmymeals_Meal_Plan::build_needed_amount_string().
+	 *             Kept as a thin forwarder so existing callers keep working.
 	 *
-	 * @param array $units        Per-unit totals from calc_shopping_list().
+	 * @param array $units        Units of one ingredient from calc_shopping_list().
 	 * @param float $total_weight Total weight in grams.
-	 * @return string E.g. "3× Stück + 150 g (≈ 405 g)".
+	 * @return string
 	 */
 	public static function build_needed_amount_string( array $units, float $total_weight ): string {
-
-		$piece_parts = [];
-		$loose_grams = 0.0;
-
-		foreach ( $units as $unit ) {
-			if ( ! empty( $unit['is_indivisible'] ) ) {
-				$piece_parts[] = trim( sprintf(
-					'%d× %s',
-					(int) ( $unit['amount'] ?? 0 ),
-					$unit['unit_title'] ?? ''
-				) );
-			} else {
-				$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
-			}
-		}
-
-		$parts = $piece_parts;
-
-		if ( $loose_grams > 0 || empty( $parts ) ) {
-			$parts[] = number_format_i18n( round( $loose_grams ) ) . ' g';
-		}
-
-		$result = implode( ' + ', $parts );
-
-		if ( ! empty( $piece_parts ) && $total_weight > 0 ) {
-			$result .= sprintf(
-				' (≈ %s g)',
-				number_format_i18n( round( $total_weight ) )
-			);
-		}
-
-		return $result;
+		return Mixmymeals_Meal_Plan::build_needed_amount_string( $units, $total_weight );
 	}
 
 	/**
@@ -1907,52 +2478,411 @@ class Mixmymeals_Shortcodes {
 		$post_id = $post_id ? $post_id : get_the_ID();
 
 		if ( ! $post_id ) {
-			return '<p>' . esc_html__( 'No recipe specified.', 'mixmymeals' )
-			       . '</p>';
+			return '';
 		}
 
-		$equipment_ids = get_post_meta( $post_id, '_mmm_equipment', true );
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
 
-		if ( empty( $equipment_ids ) || ! is_array( $equipment_ids ) ) {
-			return '<p>'
-			       . esc_html__( 'No special equipment required for this recipe.',
-					'mixmymeals' ) . '</p>';
+		$equipment_ids = $recipe->get_equipment();
+
+		if ( empty( $equipment_ids ) ) {
+			return '';
+		}
+
+		return $this->render_equipment_list( $equipment_ids );
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_related]. Recipes this one is paired with
+	 * ("Dazu passt" / goes well with). Returns '' when there are none.
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @return string
+	 */
+	public function mmm_recipe_related_callback( $atts = [] ): string {
+
+		$atts    = shortcode_atts( [ 'post_id' => 0 ], $atts, 'mmm_recipe_related' );
+		$post_id = absint( $atts['post_id'] ) ?: (int) get_the_ID();
+
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		return $this->render_related_recipe_cards( $recipe->get_related_recipes() );
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_related_reverse]. Recipes that list this one as a
+	 * pairing ("Passend zu" / fits with). Returns '' when there are none.
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @return string
+	 */
+	public function mmm_recipe_related_reverse_callback( $atts = [] ): string {
+
+		$atts    = shortcode_atts( [ 'post_id' => 0 ], $atts, 'mmm_recipe_related_reverse' );
+		$post_id = absint( $atts['post_id'] ) ?: (int) get_the_ID();
+
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		return $this->render_related_recipe_cards( $recipe->get_reverse_related_recipes() );
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plans_for_a_single_recipe]. Published meal plans that
+	 * contain the current (or given) recipe, rendered as archive-style plan
+	 * cards.
+	 *
+	 * Returns '' when the recipe is in no published plan, so the calling template
+	 * can drop its whole section. Pass empty_text to output a note instead — the
+	 * section then stays visible and explains the gap. The note is only used for
+	 * the "no plans" case; an invalid or non-recipe post still yields '', because
+	 * there the shortcode is simply in the wrong place.
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id, empty_text.
+	 * @return string
+	 */
+	public function mmm_meal_plans_for_a_single_recipe_callback( $atts = [] ): string {
+
+		$atts = shortcode_atts(
+			[
+				'post_id'    => 0,
+				'empty_text' => '',
+			],
+			$atts,
+			'mmm_meal_plans_for_a_single_recipe'
+		);
+
+		$post_id = absint( $atts['post_id'] ) ?: (int) get_the_ID();
+
+		if ( ! $post_id || get_post_type( $post_id ) !== 'mmm_recipe' ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		$cards = $this->render_meal_plan_browse_cards( $recipe->get_meal_plans() );
+		if ( '' === trim( $cards ) ) {
+			$empty_text = trim( (string) $atts['empty_text'] );
+
+			return '' !== $empty_text
+				? '<p class="mmm-recipe-plans-empty">' . esc_html( $empty_text ) . '</p>'
+				: '';
+		}
+
+		return '<div class="mmm-recipe-row mmm-recipe-plans">'
+			. '<div class="mmm-recipe-row__track">' . $cards . '</div>'
+			. '</div>';
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_edit_count]. Renders the bare number of edits a
+	 * recipe has seen since the counter exists — no wording, no markup. The
+	 * surrounding sentence belongs to the theme.
+	 *
+	 * Attributes:
+	 *  - id          Recipe post ID; defaults to the current post.
+	 *  - hide_empty  Render '' instead of "0" when nothing was edited yet (default 1).
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_recipe_edit_count_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'id'         => 0,
+				'hide_empty' => '1',
+			),
+			$atts,
+			'mmm_recipe_edit_count'
+		);
+
+		$recipe_id = (int) $atts['id'] ?: (int) get_the_ID();
+
+		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			return '';
+		}
+
+		$count = ( new Mixmymeals_Recipe( $recipe_id ) )->get_edit_count();
+
+		if ( 0 === $count && filter_var( $atts['hide_empty'], FILTER_VALIDATE_BOOLEAN ) ) {
+			return '';
+		}
+
+		return esc_html( number_format_i18n( $count ) );
+	}
+
+	/**
+	 * Shortcode [mmm_admin_actions]. A slim admin-only panel for the CURRENT
+	 * plan/recipe single page: Instagram/Pinterest posting and scheduling plus
+	 * WordPress status actions (draft/publish, trash). Renders '' for
+	 * everyone who cannot manage options and outside plan/recipe singles.
+	 *
+	 * @return string
+	 */
+	public function mmm_admin_actions_callback(): string {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return '';
+		}
+
+		$id = (int) get_the_ID();
+		if ( ! $id || ! in_array( get_post_type( $id ), [ 'mmm_meal_plan', 'mmm_recipe' ], true ) ) {
+			return '';
+		}
+
+		// Panel script (REST-driven; nonce for cookie-authenticated REST).
+		$plugin  = mixmymeals();
+		$rel     = 'js/admin-board' . $plugin->script_suffix . '.js';
+		$abs     = trailingslashit( $plugin->assets_dir ) . $rel;
+		$version = file_exists( $abs ) ? (string) filemtime( $abs ) : $plugin->_version;
+
+		wp_enqueue_script(
+			$plugin->_token . '-admin-board',
+			esc_url( $plugin->assets_url ) . $rel,
+			[],
+			$version,
+			[ 'in_footer' => true ]
+		);
+		wp_localize_script(
+			$plugin->_token . '-admin-board',
+			'mmmBoard',
+			[
+				'restRoot' => esc_url_raw( rest_url( 'mixmymeals/v1/' ) ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			]
+		);
+
+		$post_status   = get_post_status( $id );
+		$status_labels = [
+			'publish' => __( 'Published', 'mixmymeals' ),
+			'draft'   => __( 'Draft', 'mixmymeals' ),
+			'pending' => __( 'Pending', 'mixmymeals' ),
+			'future'  => __( 'Scheduled', 'mixmymeals' ),
+		];
+
+		$has_pinterest = class_exists( 'Mixmymeals_Pinterest' ) && '' !== Mixmymeals_Pinterest::get_access_token();
+		$min_when      = wp_date( 'Y-m-d\TH:i', time() + 10 * MINUTE_IN_SECONDS );
+		$trash_url     = admin_url( 'edit.php?post_type=' . get_post_type( $id ) );
+
+		$services = [ 'instagram' => [ 'Instagram', Mixmymeals_Instagram::META_SCHEDULED_AT, Mixmymeals_Instagram::META_LAST_RESULT, 'permalink' ] ];
+		if ( $has_pinterest ) {
+			$services['pinterest'] = [ 'Pinterest', Mixmymeals_Pinterest::META_SCHEDULED_AT, Mixmymeals_Pinterest::META_LAST_RESULT, 'pin_url' ];
 		}
 
 		ob_start();
+		?>
+		<div class="mmm-admin-actions" data-id="<?php echo esc_attr( $id ); ?>">
+			<div class="mmm-admin-actions__head">
+				<span class="mmm-admin-actions__label"><?php esc_html_e( 'Admin', 'mixmymeals' ); ?></span>
+				<span class="mmm-admin-board__status mmm-admin-board__status--<?php echo esc_attr( $post_status ); ?>" data-status-badge><?php echo esc_html( $status_labels[ $post_status ] ?? $post_status ); ?></span>
+				<a class="mmm-admin-actions__edit" href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php esc_html_e( 'Edit', 'mixmymeals' ); ?></a>
+			</div>
 
-		echo '<div class="mmm-equipment">';
-		echo '<div class="mmm-equipment-header">';
-		echo '<h3>' . esc_html__( 'Required Equipment', 'mixmymeals' )
-		     . '</h3>';
-		echo '</div>';
-		echo '<div class="mmm-equipment-description">';
-		echo '<ul class="mmm-equipment-list">';
+			<div class="mmm-admin-actions__row">
+				<?php foreach ( $services as $service => [ $label, $meta_at, $meta_result, $url_key ] ) :
+					$scheduled = (int) get_post_meta( $id, $meta_at, true );
+					$last      = get_post_meta( $id, $meta_result, true );
+					?>
+					<div class="mmm-admin-actions__service" data-service="<?php echo esc_attr( $service ); ?>">
+						<span class="mmm-admin-actions__service-name"><?php echo esc_html( $label ); ?></span>
+						<?php if ( $scheduled ) : ?>
+							<span class="mmm-admin-board__scheduled">⏱ <?php echo esc_html( wp_date( 'd.m. H:i', $scheduled ) ); ?></span>
+							<button type="button" class="mmm-board-btn" data-action="unschedule"><?php esc_html_e( 'Cancel', 'mixmymeals' ); ?></button>
+						<?php else : ?>
+							<button type="button" class="mmm-board-btn mmm-board-btn--primary" data-action="publish"><?php esc_html_e( 'Post now', 'mixmymeals' ); ?></button>
+							<span class="mmm-admin-board__plan">
+								<input type="datetime-local" min="<?php echo esc_attr( $min_when ); ?>" />
+								<button type="button" class="mmm-board-btn" data-action="schedule"><?php esc_html_e( 'Schedule', 'mixmymeals' ); ?></button>
+							</span>
+						<?php endif; ?>
+						<?php if ( is_array( $last ) && isset( $last['ok'] ) ) : ?>
+							<span class="mmm-admin-board__result mmm-admin-board__result--<?php echo $last['ok'] ? 'ok' : 'fail'; ?>" title="<?php echo esc_attr( (string) ( $last['message'] ?? '' ) ); ?>">
+								<?php if ( $last['ok'] && ! empty( $last[ $url_key ] ) ) : ?>
+									<a href="<?php echo esc_url( (string) $last[ $url_key ] ); ?>" target="_blank" rel="noopener">✓ <?php echo esc_html( wp_date( 'd.m.', (int) $last['time'] ) ); ?></a>
+								<?php else : ?>
+									<?php echo $last['ok'] ? '✓' : '✗'; ?> <?php echo esc_html( wp_date( 'd.m.', (int) $last['time'] ) ); ?>
+								<?php endif; ?>
+							</span>
+						<?php endif; ?>
+						<span class="mmm-admin-board__msg"></span>
+					</div>
+				<?php endforeach; ?>
 
+				<div class="mmm-admin-actions__service mmm-admin-actions__wp">
+					<span class="mmm-admin-actions__service-name">WordPress</span>
+					<?php if ( 'publish' === $post_status ) : ?>
+						<button type="button" class="mmm-board-btn" data-action="wp-status" data-status="draft"><?php esc_html_e( 'Set to draft', 'mixmymeals' ); ?></button>
+					<?php else : ?>
+						<button type="button" class="mmm-board-btn" data-action="wp-status" data-status="publish"><?php esc_html_e( 'Publish', 'mixmymeals' ); ?></button>
+					<?php endif; ?>
+					<button type="button" class="mmm-board-btn mmm-board-btn--danger" data-action="wp-trash" data-redirect="<?php echo esc_url( $trash_url ); ?>"><?php esc_html_e( 'Trash', 'mixmymeals' ); ?></button>
+					<span class="mmm-admin-board__msg"></span>
+				</div>
+			</div>
+
+			<p class="mmm-admin-board__hint"><?php esc_html_e( 'Posting generates fresh images and can take a minute for plans. Captions/titles use the defaults — for custom text use the post’s edit screen.', 'mixmymeals' ); ?></p>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Renders a grid of linked recipe cards (thumbnail + title). Only published
+	 * recipes are shown. Returns '' when nothing renders.
+	 *
+	 * @param int[] $recipe_ids Recipe post IDs.
+	 * @return string
+	 */
+	private function render_related_recipe_cards( array $recipe_ids ): string {
+
+		// Only show published recipes, then reuse the exact same card renderer
+		// as the recipe archive's browse rows so related recipes look identical.
+		$ids = [];
+		foreach ( $recipe_ids as $rid ) {
+			$rid = (int) $rid;
+			if ( $rid > 0 && 'publish' === get_post_status( $rid ) ) {
+				$ids[] = $rid;
+			}
+		}
+
+		if ( empty( $ids ) ) {
+			return '';
+		}
+
+		$cards = $this->render_recipe_browse_cards( $ids );
+		if ( '' === trim( $cards ) ) {
+			return '';
+		}
+
+		return '<div class="mmm-recipe-row mmm-related-recipes">'
+			. '<div class="mmm-recipe-row__track">' . $cards . '</div>'
+			. '</div>';
+	}
+
+	/**
+	 * Shortcode [mmm_equipment_required_for_a_single_meal_plan].
+	 * Renders the deduplicated equipment needed across all meals of the
+	 * current or specified meal plan.
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @return string
+	 */
+	public function mmm_equipment_required_for_a_single_meal_plan_callback(
+		$atts = []
+	): string {
+
+		$atts = shortcode_atts(
+			[
+				'post_id' => 0,
+			],
+			$atts,
+			'mmm_equipment_required_for_a_single_meal_plan'
+		);
+
+		$post_id = absint( $atts['post_id'] );
+		$post_id = $post_id ? $post_id : get_the_ID();
+
+		if ( ! $post_id || get_post_type( $post_id ) !== 'mmm_meal_plan' ) {
+			return '';
+		}
+
+		$plan          = new Mixmymeals_Meal_Plan( $post_id );
+		$equipment_ids = $plan->get_required_equipment();
+
+		if ( empty( $equipment_ids ) ) {
+			return '';
+		}
+
+		return $this->render_equipment_list( $equipment_ids );
+	}
+
+	/**
+	 * Builds the equipment link list for a list of equipment post IDs, styled
+	 * and structured like the meal ingredients list (collapsible toggle with
+	 * a count). The section heading is supplied by the surrounding template,
+	 * not the list itself.
+	 *
+	 * @param int[] $equipment_ids Equipment post IDs.
+	 * @return string
+	 */
+	private function render_equipment_list( array $equipment_ids ): string {
+
+		$items = array();
 		foreach ( $equipment_ids as $eq_id ) {
 			$title = get_the_title( $eq_id );
 			if ( ! $title ) {
 				continue;
 			}
-
-			printf(
-				'<li><a class="mmm-equipment-name" href="%s">%s</a></li>',
-				esc_url( get_permalink( $eq_id ) ),
-				esc_html( $title )
+			$items[] = array(
+				'id'    => $eq_id,
+				'title' => $title,
 			);
 		}
 
-		echo '</ul>';
-		echo '</div>';
-		echo '</div>';
+		if ( empty( $items ) ) {
+			return '';
+		}
 
-		return ob_get_clean();
+		ob_start();
+		?>
+		<div class="mmm-equipment mmm-collapsible-list">
+			<details class="mmm-collapsible-toggle">
+				<summary>
+					<?php
+					printf(
+						/* translators: %d: number of pieces of equipment */
+						esc_html__( 'Show all (%d)', 'mixmymeals' ),
+						count( $items )
+					);
+					?>
+				</summary>
+
+				<ul>
+					<?php foreach ( $items as $item ) : ?>
+						<li>
+							<a class="mmm-equipment-name" href="<?php echo esc_url( get_permalink( $item['id'] ) ); ?>">
+								<?php echo esc_html( $item['title'] ); ?>
+							</a>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</details>
+		</div>
+		<?php
+		return (string) ob_get_clean();
 	}
 
 
 	/**
 	 * Shortcode [mmm_recipe_steps_for_a_single_recipe].
 	 * Renders the step-by-step cooking instructions for the current or specified recipe.
+	 *
+	 * When the setting "Steps on Recipe Pages" (option
+	 * mixmymeals_show_recipe_steps) is switched off, the steps are replaced by
+	 * the configurable note (option mixmymeals_recipe_steps_notice) — the recipe
+	 * then only points at the meal pages, where
+	 * [mmm_scaled_recipe_steps_for_a_single_meal] still renders them in full.
+	 * Recipes without steps stay silent either way: there is nothing to point at.
 	 *
 	 * @param array|string $atts Shortcode attributes: post_id.
 	 * @return string
@@ -1988,6 +2918,34 @@ class Mixmymeals_Shortcodes {
 		if ( empty( $steps ) ) {
 			return '<p>' . esc_html__( 'No steps defined for this recipe.',
 					'mixmymeals' ) . '</p>';
+		}
+
+		if ( 'on' !== get_option( 'mixmymeals_show_recipe_steps', 'on' ) ) {
+			$notice = (string) get_option( 'mixmymeals_recipe_steps_notice', '' );
+
+			if ( '' === trim( wp_strip_all_tags( $notice ) ) ) {
+				return '';
+			}
+
+			// The note is stored through wp_kses_post() by the settings
+			// sanitizer, so it only needs paragraphs and shortcode expansion
+			// here — a second kses pass would strip the markup the embedded
+			// shortcodes produce. wpautop before do_shortcode mirrors the
+			// order the_content uses. The static guard keeps a note that
+			// contains this very shortcode from recursing.
+			static $rendering_notice = false;
+
+			if ( $rendering_notice ) {
+				return '';
+			}
+
+			$rendering_notice = true;
+			$html             = '<div class="mmm-recipe-steps-notice">'
+			                    . do_shortcode( wpautop( $notice ) )
+			                    . '</div>';
+			$rendering_notice = false;
+
+			return $html;
 		}
 
 		ob_start();
@@ -2051,6 +3009,8 @@ class Mixmymeals_Shortcodes {
 									? intval( $ing['amount_id'] )
 									: 0;
 
+								$is_optional = ! empty( $ing['optional'] );
+
 								if ( $amount_id ) {
 									$amt_obj
 										        = new Mixmymeals_Ingredient_Amount( $amount_id );
@@ -2111,7 +3071,7 @@ class Mixmymeals_Shortcodes {
 								?>
                                 <li>
                                 <span class="mmm-ingredient-name">
-                                    <?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
+                                    <?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> (<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)<?php endif; ?>
                                 </span>
 
 									<?php if ( $line ) : ?>
@@ -2269,100 +3229,107 @@ class Mixmymeals_Shortcodes {
 		return ob_get_clean();
 	}
 
-	/*
-	function mmm_add_recipe_to_cart_button_callback( $atts ) {
+
+
+	/**
+	 * Builds the "Add to Planner" control for a recipe — the single source of
+	 * this button's markup. Everything that opens the planner dialog carries the
+	 * class mmm-recipe-actions__item--cart plus data-recipe-id/data-servings;
+	 * one delegated click handler in frontend.js binds to exactly that.
+	 *
+	 * The element and the extra classes are configurable because the button
+	 * appears in two shapes: a slim <span> on recipe cards and a full <button>
+	 * in the recipe hero.
+	 *
+	 * @param int   $recipe_id Recipe post ID.
+	 * @param array $args      element (span|button), class, text, servings.
+	 * @return string Empty string when the ID is not a recipe.
+	 */
+	private function render_add_to_planner_button( int $recipe_id, array $args = array() ): string {
+
+		if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			return '';
+		}
+
+		$element = ( isset( $args['element'] ) && 'button' === $args['element'] ) ? 'button' : 'span';
+
+		$defaults = array(
+			// Card default keeps the generic action-item look; the hero passes
+			// its own button classes.
+			'class'    => 'button' === $element ? 'mmm-btn mmm-btn--primary' : 'mmm-recipe-actions__item',
+			'text'     => __( 'Add to Planner', 'mixmymeals' ),
+			'servings' => 0,
+		);
+
+		$args = array_merge( $defaults, $args );
+
+		// Servings default to the recipe's own; never below one, so the dialog
+		// always opens on a usable number.
+		$servings = (int) $args['servings'];
+		if ( $servings <= 0 ) {
+			$servings = (int) ( new Mixmymeals_Recipe( $recipe_id ) )->get_servings();
+		}
+		$servings = max( 1, $servings );
+
+		$classes = trim( (string) $args['class'] . ' mmm-recipe-actions__item--cart' );
+
+		return sprintf(
+			'<%1$s%2$s class="%3$s" data-recipe-id="%4$d" data-servings="%5$d">%6$s</%1$s>',
+			$element,
+			'button' === $element ? ' type="button"' : '',
+			esc_attr( $classes ),
+			$recipe_id,
+			$servings,
+			esc_html( (string) $args['text'] )
+		);
+	}
+
+	/**
+	 * Shortcode [mmm_add_to_planner]. Renders the "Add to Planner" button on its
+	 * own, so it can be placed anywhere — including outside a recipe post, by
+	 * passing the recipe id.
+	 *
+	 * Attributes:
+	 *  - id        Recipe post ID; defaults to the current post.
+	 *  - servings  Preselected servings; defaults to the recipe's own.
+	 *  - text      Button label.
+	 *  - element   span (default) or button.
+	 *  - class     Extra CSS classes; defaults per element.
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_add_to_planner_callback( $atts = array() ): string {
 
 		$atts = shortcode_atts(
 			array(
-				'recipe_id' => 0,
-				'label'     => __( 'Add to meal plan', 'mixmymeals' ),
+				'id'       => 0,
+				'servings' => 0,
+				'text'     => '',
+				'element'  => 'span',
+				'class'    => '',
 			),
-			$atts
+			$atts,
+			'mmm_add_to_planner'
 		);
 
-		$recipe_id = intval( $atts['recipe_id'] );
+		$recipe_id = (int) $atts['id'] ?: (int) get_the_ID();
 
-		// Falls keine ID übergeben wurde → aktuelle Abfrage
-		if ( $recipe_id <= 0 ) {
-			$recipe_id = get_the_ID();
+		$args = array(
+			'element'  => $atts['element'],
+			'servings' => (int) $atts['servings'],
+		);
+
+		// Only override the defaults when something was actually passed, so an
+		// omitted attribute still yields the per-element default.
+		if ( '' !== $atts['text'] ) {
+			$args['text'] = $atts['text'];
+		}
+		if ( '' !== $atts['class'] ) {
+			$args['class'] = $atts['class'];
 		}
 
-		if ( $recipe_id <= 0 ) {
-			return '<p style="color:red;">Invalid recipe ID.</p>';
-		}
-
-		// Button-HTML
-		ob_start();
-		?>
-		<button
-				class="mmm-add-to-cart-btn"
-				data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>">
-			<?php echo esc_html( $atts['label'] ); ?>
-		</button>
-
-		<div class="mmm-add-to-cart-message" style="margin-top:6px;"></div>
-		<?php
-		return ob_get_clean();
-	}
-	*/
-
-	/**
-	 * AJAX handler for wp_ajax_mmm_add_to_cart.
-	 * Adds a recipe to the current user's or guest's cart.
-	 *
-	 * @return void
-	 */
-	public function mmm_add_recipe_to_cart_ajax_callback(): void {
-
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
-
-		$recipe_id = isset( $_POST['recipe_id'] )
-			? intval( $_POST['recipe_id'] ) : 0;
-
-		if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
-			wp_send_json_error( [
-				'code'    => 'invalid_recipe_id',
-				'message' => __( 'Invalid recipe ID.', 'mixmymeals' ),
-			], 400 );
-		}
-
-
-		/*
-		$cart = new Mixmymeals_Cart();
-		$cart->add( $recipe_id );
-
-		wp_send_json_success( array( 'message' => 'Recipe added to meal plan.' ) );
-		*/
-
-		$servings = isset( $_POST['servings'] )
-			? max( 1, intval( $_POST['servings'] ) )
-			: 1;
-
-		$type = isset( $_POST['type'] )
-			? sanitize_text_field( wp_unslash( $_POST['type'] ) )
-			: '';
-		if ( ! array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ) {
-			$type = '';
-		}
-
-		$day = isset( $_POST['day'] ) ? intval( $_POST['day'] ) : 0;
-		$day = ( $day >= 1 && $day <= 7 ) ? $day : null;
-
-		$cart = new Mixmymeals_Cart();
-		$ok   = $cart->add( $recipe_id, $servings, $type, $day );
-
-		if ( ! $ok ) {
-			wp_send_json_error( [
-				'code'    => 'cart_limit_reached',
-				'message' => __( 'Your planner is full.', 'mixmymeals' ),
-			], 409 );
-		}
-
-
-		wp_send_json_success( [
-			'message' => __( 'Recipe added to meal plan.', 'mixmymeals' ),
-		] );
-
+		return $this->render_add_to_planner_button( $recipe_id, $args );
 	}
 
 	/**
@@ -2373,37 +3340,13 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_recipe_actions_callback(): string {
 
-		$recipe_id = get_the_ID();
+		$button = $this->render_add_to_planner_button( (int) get_the_ID() );
 
-		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+		if ( '' === $button ) {
 			return '';
 		}
 
-		$cart = new Mixmymeals_Cart();
-
-		// HTML Wrapper für Actions
-		$html = '<div class="mmm-recipe-actions">';
-
-		// Add-To-Cart-Link
-		/*
-		$html .= sprintf(
-			'<span class="mmm-recipe-actions__item mmm-recipe-actions__item--cart" data-recipe-id="%d">%s</span>',
-			esc_attr( $recipe_id ),
-			esc_html__( 'Add to Planner', 'mixmymeals' )
-		);
-		*/
-		$recipe   = new Mixmymeals_Recipe( $recipe_id );
-		$servings = $recipe->get_servings();
-		$html     .= sprintf(
-			'<span class="mmm-recipe-actions__item mmm-recipe-actions__item--cart" data-recipe-id="%d" data-servings="%d">%s</span>',
-			esc_attr( $recipe_id ),
-			esc_attr( $servings ),
-			esc_html__( 'Add to Planner', 'mixmymeals' )
-		);
-
-		$html .= '</div>';
-
-		return $html;
+		return '<div class="mmm-recipe-actions">' . $button . '</div>';
 	}
 
 	/**
@@ -2558,33 +3501,6 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * Shows a badge with the number of recipes currently in the cart.
 	 */
-	/*
-	function mmm_cart_badge_callback( $atts ) {
-
-		$atts = shortcode_atts(
-			array(
-				'label_singular' => __( 'Recipe added to plan.', 'mixmymeals' ),
-				'label_plural'   => __( 'Recipes added to plan.', 'mixmymeals' ),
-				'class'          => 'mmm-cart-badge',
-			),
-			$atts
-		);
-
-		$cart  = new Mixmymeals_Cart();
-		$count = count( $cart->get_items() );
-
-		// Text abhängig von Singular/Plural
-		$label = $count === 1 ? $atts['label_singular'] : $atts['label_plural'];
-
-		// HTML ausgeben
-		return sprintf(
-			'<span class="%s">%d %s</span>',
-			esc_attr( $atts['class'] ),
-			$count,
-			esc_html( $label )
-		);
-	}
-	*/
 	/**
 	 * Shortcode: [mmm_cart_badge]
 	 *
@@ -2611,22 +3527,6 @@ class Mixmymeals_Shortcodes {
 		);
 	}
 
-	/**
-	 * AJAX: Get cart count
-	 */
-	public function mmm_get_cart_count_ajax_callback(): void {
-
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
-
-		$cart  = new Mixmymeals_Cart();
-		$count = count( $cart->get_items() );
-
-		wp_send_json_success(
-			array(
-				'count' => $count,
-			)
-		);
-	}
 
 	/**
 	 * Shortcode: [mmm_meal_plan_builder]
@@ -2659,10 +3559,18 @@ class Mixmymeals_Shortcodes {
 			'snack'     => __( 'Snack', 'mixmymeals' ),
 		);
 
+		// Welche Tage schon belegt sind — nur für den Anfangszustand des
+		// Ablage-Hinweises; ab dann übernimmt CSS (:has), damit Drag & Drop den
+		// Hinweis ohne Reload richtig ein- und ausblendet.
+		$days_with_items = array();
+		foreach ( $items as $item ) {
+			$days_with_items[ intval( $item['day'] ?? 0 ) ] = true;
+		}
+
 		ob_start();
 		?>
 
-        <div class="mmm-plan-builder">
+        <div class="mmm-plan-builder" data-kcal-unit="<?php echo esc_attr__( 'kcal ps', 'mixmymeals' ); ?>">
 
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
@@ -2688,6 +3596,7 @@ class Mixmymeals_Shortcodes {
                         <li class="mmm-plan-item"
                             data-index="<?php echo esc_attr( $index ); ?>"
                             data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
+                            data-kcal="<?php echo esc_attr( $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
                             draggable="true">
 
                             <div class="mmm-plan-item-drag">☰</div>
@@ -2729,12 +3638,34 @@ class Mixmymeals_Shortcodes {
                             </div>
 
                             <button class="mmm-plan-item-remove"
+                                    aria-label="<?php esc_attr_e( 'Remove item', 'mixmymeals' ); ?>"
                                     data-action="remove">×
                             </button>
 
                         </li>
 
 					<?php endforeach; ?>
+
+					<?php
+					/*
+					 * Leerer Planer: Einstieg ins Rezeptarchiv anbieten statt
+					 * einer leeren Ablagefläche. Der Anfangszustand kommt aus
+					 * PHP, das spätere Ein- und Ausblenden aus CSS (:has) —
+					 * sonst bliebe der Hinweis stehen, wenn per Drag & Drop
+					 * oder über das × etwas verändert wird.
+					 */
+					$recipe_archive = get_post_type_archive_link( 'mmm_recipe' );
+
+					if ( $recipe_archive ) :
+						?>
+                        <li class="mmm-plan-empty"<?php echo empty( $items ) ? '' : ' hidden'; ?>>
+							<?php esc_html_e( 'Your planner is still empty.', 'mixmymeals' ); ?>
+                            <a class="mmm-plan-empty__link"
+                               href="<?php echo esc_url( $recipe_archive ); ?>">
+								<?php esc_html_e( 'Find recipes', 'mixmymeals' ); ?>
+                            </a>
+                        </li>
+					<?php endif; ?>
 
                 </ul>
             </div>
@@ -2776,6 +3707,7 @@ class Mixmymeals_Shortcodes {
                                 <li class="mmm-plan-item"
                                     data-index="<?php echo esc_attr( $index ); ?>"
                                     data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
+                                    data-kcal="<?php echo esc_attr( $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
                                     draggable="true">
 
                                     <div class="mmm-plan-item-drag">☰</div>
@@ -2819,6 +3751,7 @@ class Mixmymeals_Shortcodes {
                                     </div>
 
                                     <button class="mmm-plan-item-remove"
+                                            aria-label="<?php esc_attr_e( 'Remove item', 'mixmymeals' ); ?>"
                                             data-action="remove">
                                         ×
                                     </button>
@@ -2827,7 +3760,24 @@ class Mixmymeals_Shortcodes {
 
 							<?php endforeach; ?>
 
+                            <?php
+                            /*
+                             * Ablage-Hinweis für diesen Tag. Steht immer im
+                             * Markup; sichtbar ist er nur, solange der Tag leer
+                             * ist. Anfangszustand aus PHP, danach CSS (:has) —
+                             * sonst bliebe er nach Drag & Drop oder × stehen.
+                             */
+                            ?>
+                            <li class="mmm-plan-day-hint"<?php echo empty( $days_with_items[ $day_key ] ) ? '' : ' hidden'; ?>>
+                                <?php esc_html_e( 'Drag a recipe here to plan it for this day.', 'mixmymeals' ); ?>
+                            </li>
+
                         </ul>
+
+                        <div class="mmm-plan-day-total" hidden>
+                            <span class="mmm-plan-day-total__label"><?php esc_html_e( 'Day total', 'mixmymeals' ); ?></span>
+                            <span class="mmm-plan-day-total__value" data-day-total></span>
+                        </div>
 
                     </div>
 
@@ -2842,41 +3792,6 @@ class Mixmymeals_Shortcodes {
 		return ob_get_clean();
 	}
 
-	/**
-	 * AJAX handler for wp_ajax_mmm_remove_cart_item.
-	 * Removes a recipe from the cart by its index.
-	 *
-	 * @return void
-	 */
-	public function mmm_remove_cart_item_ajax_callback(): void {
-
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
-
-		$index = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : - 1;
-
-		if ( $index < 0 ) {
-			wp_send_json_error( [
-				'code'    => 'invalid_index',
-				'message' => __( 'Invalid index.', 'mixmymeals' ),
-			], 400 );
-		}
-
-		$cart    = new Mixmymeals_Cart();
-		$success = $cart->remove_by_index( $index );
-
-		if ( $success ) {
-			wp_send_json_success( [
-				'code'    => 'removed',
-				'message' => __( 'Recipe removed.', 'mixmymeals' ),
-			] );
-		} else {
-			wp_send_json_error( [
-				'code'    => 'remove_failed',
-				'message' => __( 'Could not remove recipe.', 'mixmymeals' ),
-			], 500 );
-		}
-
-	}
 
 	/**
 	 * Shortcode [mmm_clear_cart].
@@ -2900,20 +3815,6 @@ class Mixmymeals_Shortcodes {
 		return ob_get_clean();
 	}
 
-	/**
-	 * AJAX handler for wp_ajax_mmm_clear_cart.
-	 * Clears all items from the cart.
-	 *
-	 * @return void
-	 */
-	public function mmm_clear_cart_ajax_callback(): void {
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
-
-		$cart = new Mixmymeals_Cart();
-		$cart->clear();
-
-		wp_send_json_success( array( 'message' => __( 'Planner cleared.', 'mixmymeals' ) ) );
-	}
 
 	/**
 	 * Shortcode [mmm_create_meal_plan_from_cart].
@@ -2941,6 +3842,7 @@ class Mixmymeals_Shortcodes {
             <span class="mmm-create-meal-plan-message"
                   style="margin-left:10px;"></span>
 			<?php
+			echo self::input_notice( 'plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 		} else {
 			echo '<span class="mmm-create-meal-plan-guest">'
 			     . esc_html( $atts['guest_text'] ) . '</span>';
@@ -2986,7 +3888,7 @@ class Mixmymeals_Shortcodes {
 		$is_guest = ! is_user_logged_in();
 		if ( $public_mode && $is_guest ) {
 
-			$ip     = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+			$ip     = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
 			$ip_key = 'mmm_rl_create_plan_ip_' . md5( $ip );
 
 			$limit
@@ -3118,7 +4020,7 @@ class Mixmymeals_Shortcodes {
 
 		try {
 			$meal_plan = Mixmymeals_Meal_Plan::create(
-				__( 'Meal Plan', 'mixmymeals' ) . ' ' . date( 'd.m.Y' ),
+				__( 'Meal Plan', 'mixmymeals' ) . ' ' . wp_date( 'd.m.Y' ),
 				$post_status
 			);
 		} catch ( \Exception $e ) {
@@ -3185,55 +4087,6 @@ class Mixmymeals_Shortcodes {
 
 
 	/**
-	 * AJAX handler for wp_ajax_mmm_update_cart_item.
-	 * Updates the servings, type, or day of a cart item by its index.
-	 *
-	 * @return void
-	 */
-	public function mmm_update_cart_item_ajax_callback(): void {
-
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
-
-		$index = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : - 1;
-		if ( $index < 0 ) {
-			wp_send_json_error( [
-				'code'    => 'invalid_index',
-				'message' => __( 'Invalid index.', 'mixmymeals' ),
-			], 400 );
-		}
-
-		$cart  = new Mixmymeals_Cart();
-		$items = $cart->get_items();
-
-		if ( ! isset( $items[ $index ] ) ) {
-			wp_send_json_error( [
-				'code'    => 'item_not_found',
-				'message' => __( 'Item not existing.', 'mixmymeals' ),
-			], 404 );
-		}
-
-		$item             = $items[ $index ];
-		$item['servings'] = isset( $_POST['servings'] )
-			? intval( $_POST['servings'] ) : $item['servings'] ?? 1;
-		$item['type']     = isset( $_POST['type'] )
-			? sanitize_text_field( $_POST['type'] ) : $item['type'] ?? '';
-		$item['note']     = isset( $_POST['note'] )
-			? sanitize_textarea_field( $_POST['note'] ) : $item['note'] ?? '';
-		$item['day']      = isset( $_POST['day'] ) ? intval( $_POST['day'] )
-			: $item['day'] ?? null;
-
-		// Item zurück in den Warenkorb setzen
-		$items[ $index ] = $item;
-		$cart->save_items( $items );
-
-		wp_send_json_success( [
-			'code'    => 'updated',
-			'message' => __( 'Item updated.', 'mixmymeals' ),
-			'item'    => $item,
-		] );
-	}
-
-	/**
 	 * Shortcode [mmm_meal_ingredients].
 	 * Renders a scaled ingredient list for the specified meal.
 	 *
@@ -3274,15 +4127,58 @@ class Mixmymeals_Shortcodes {
 
 		$ingredients_raw = $recipe->get_ingredients_scaled( $factor );
 
-		if ( empty( $ingredients_raw ) ) {
+		return $this->render_ingredients_list( $ingredients_raw );
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_ingredients].
+	 * Renders the ingredient list for the specified (or current) recipe, at
+	 * the recipe's own stored servings — the recipe-page equivalent of
+	 * [mmm_meal_ingredients].
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @return string
+	 */
+	public function mmm_recipe_ingredients_callback( $atts = [] ): string {
+
+		$atts = shortcode_atts(
+			[
+				'post_id' => 0,
+			],
+			$atts,
+			'mmm_recipe_ingredients'
+		);
+
+		$post_id = absint( $atts['post_id'] );
+		$post_id = $post_id ? $post_id : get_the_ID();
+
+		if ( ! $post_id || get_post_type( $post_id ) !== 'mmm_recipe' ) {
 			return '';
 		}
 
-		/*
-		----------------------------------------------------------
-		INGREDIENTS AGGREGATION
-		----------------------------------------------------------
-		*/
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		$ingredients_raw = $recipe->get_ingredients_scaled( 1.0 );
+
+		return $this->render_ingredients_list( $ingredients_raw );
+	}
+
+	/**
+	 * Aggregates raw (already scaled) step ingredients by ingredient ID and
+	 * renders them as the shared collapsible ingredients list used on both
+	 * the meal and recipe pages.
+	 *
+	 * @param array $ingredients_raw Entries from Mixmymeals_Recipe::get_ingredients_scaled().
+	 * @return string
+	 */
+	private function render_ingredients_list( array $ingredients_raw ): string {
+
+		if ( empty( $ingredients_raw ) ) {
+			return '';
+		}
 
 		$ingredients = [];
 
@@ -3306,36 +4202,40 @@ class Mixmymeals_Shortcodes {
 					'unit'     => $ing['unit'] ?? '',
 					'amount'   => 0.0,
 					'weight_g' => 0.0,
+					// Optional only while every use is optional.
+					'optional' => true,
 				];
 			}
 
 			// Aggregation (skalierte Werte direkt verwenden)
 			$ingredients[ $id ]['amount']   += (float) ( $ing['amount'] ?? 0 );
 			$ingredients[ $id ]['weight_g'] += (float) ( $ing['weight_g'] ?? 0 );
+			$ingredients[ $id ]['optional']  = $ingredients[ $id ]['optional'] && ! empty( $ing['optional'] );
 		}
 
-		/*
-		----------------------------------------------------------
-		OUTPUT
-		----------------------------------------------------------
-		*/
+		if ( empty( $ingredients ) ) {
+			return '';
+		}
 
 		ob_start();
 		?>
-        <div class="mmm-meal-ingredients">
-            <details class="mmm-meal-ingredients-toggle">
+        <div class="mmm-ingredients-list mmm-collapsible-list">
+            <details class="mmm-collapsible-toggle">
                 <summary>
-					<?php esc_html_e( 'Ingredients', 'mixmymeals' ); ?>
-                    <span class="mmm-meal-ingredients-count">
-					(<?php echo count( $ingredients ); ?>)
-				</span>
+					<?php
+					printf(
+						/* translators: %d: number of ingredients */
+						esc_html__( 'Show all (%d)', 'mixmymeals' ),
+						count( $ingredients )
+					);
+					?>
                 </summary>
 
                 <ul>
 					<?php foreach ( $ingredients as $ingredient ) : ?>
                         <li>
 						<span class="mmm-ingredient-name">
-							<?php echo esc_html( $ingredient['name'] ); ?>
+							<?php echo esc_html( $ingredient['name'] ); ?><?php if ( ! empty( $ingredient['optional'] ) ) : ?> (<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)<?php endif; ?>
 						</span>
 
 							<?php if ( ! empty( $ingredient['amount'] ) ) :
@@ -3365,7 +4265,7 @@ class Mixmymeals_Shortcodes {
         </div>
 		<?php
 
-		return ob_get_clean();
+		return (string) ob_get_clean();
 	}
 
 
@@ -3406,11 +4306,8 @@ class Mixmymeals_Shortcodes {
 			rawurlencode( $mail_body )
 		);
 
-		// Bring! Deep Link vorbereiten
-		$bring_link = sprintf(
-			'https://api.getbring.com/rest/bringrecipes/deeplink?url=%s&source=web&baseQuantity=1&requestedQuantity=1',
-			rawurlencode( $url )
-		);
+		// Bring! Deep Link vorbereiten (zeigt auf die Import-Ansicht des Plans)
+		$bring_link = Mixmymeals_Meal_Plan::bring_deeplink( $meal_plan_id );
 
 		ob_start();
 		?>
@@ -3449,27 +4346,52 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Builds the "<kcal> kcal ps" info string for one day-rail meal entry.
+	 * Builds the summed "<kcal> kcal ps" info string for a list of meals, so a
+	 * heading covering several meals still shows a per-person total. Used for a
+	 * whole day and for one meal-type group within a day.
 	 *
-	 * @param array $entry Entry with 'meal' (Mixmymeals_Meal) and 'type_label'.
-	 * @return string Empty string if no calories are available.
+	 * @param array $entries List of entries, each with 'meal' (Mixmymeals_Meal).
+	 * @return string Empty string when the meals have no calories.
 	 */
-	private function get_meal_head_info( array $entry ): string {
+	private function get_meals_head_info( array $entries ): string {
 
-		$recipe = new Mixmymeals_Recipe( (int) $entry['meal']->get_recipe_id() );
-
-		if ( ! $recipe->is_valid() ) {
-			return '';
+		$kcal = 0;
+		foreach ( $entries as $entry ) {
+			$recipe = new Mixmymeals_Recipe( (int) $entry['meal']->get_recipe_id() );
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+			$nutrition = $recipe->calculate_nutrition_per_serving();
+			$kcal     += (int) round( $nutrition['calories'] ?? 0 );
 		}
-
-		$nutrition = $recipe->calculate_nutrition_per_serving();
-		$kcal      = (int) round( $nutrition['calories'] ?? 0 );
 
 		if ( $kcal <= 0 ) {
 			return '';
 		}
 
 		return number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' );
+	}
+
+	/**
+	 * Per-serving (per-person) calories of a recipe, rounded. Used to feed the
+	 * planner's live day totals via a data attribute.
+	 *
+	 * @param int $recipe_id Recipe post ID.
+	 * @return int
+	 */
+	private function recipe_kcal_per_serving( int $recipe_id ): int {
+
+		if ( $recipe_id <= 0 ) {
+			return 0;
+		}
+
+		$recipe = new Mixmymeals_Recipe( $recipe_id );
+		if ( ! $recipe->is_valid() ) {
+			return 0;
+		}
+
+		$nutrition = $recipe->calculate_nutrition_per_serving();
+		return (int) round( $nutrition['calories'] ?? 0 );
 	}
 
 	/**
@@ -3563,10 +4485,7 @@ class Mixmymeals_Shortcodes {
 			rawurlencode( $mail_subject ),
 			rawurlencode( $mail_body )
 		);
-		$bring_link   = sprintf(
-			'https://api.getbring.com/rest/bringrecipes/deeplink?url=%s&source=web&baseQuantity=1&requestedQuantity=1',
-			rawurlencode( $url )
-		);
+		$bring_link   = Mixmymeals_Meal_Plan::bring_deeplink( $plan_id );
 
 		ob_start();
 		?>
@@ -3724,12 +4643,17 @@ class Mixmymeals_Shortcodes {
 			<?php endif; ?>
 
             <div class="mmm-plan-hero__actions">
-                <button type="button"
-                        class="mmm-btn mmm-btn--primary mmm-recipe-actions__item--cart"
-                        data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
-                        data-servings="<?php echo esc_attr( max( 1, $servings ) ); ?>">
-                    <?php esc_html_e( 'Add to Planner', 'mixmymeals' ); ?>
-                </button>
+				<?php
+				// Same renderer as the recipe cards, only as a full button —
+				// so there is one place that knows this control's markup.
+				echo $this->render_add_to_planner_button( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
+					(int) $recipe_id,
+					array(
+						'element'  => 'button',
+						'servings' => $servings,
+					)
+				);
+				?>
             </div>
         </section>
 		<?php
@@ -3740,60 +4664,243 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * Shortcode [mmm_recipe_author_box].
 	 * Renders an author card (avatar, display name and biography) for the
-	 * recipe's author. Designed to sit just below the recipe hero. Returns ''
-	 * when used off a recipe or when the author has no display name.
+	 * recipe's author. Designed to sit just below the recipe hero.
 	 *
-	 * @param array|string $atts Optional: id to force a specific recipe.
+	 * Also works on a meal: a meal is a planned serving of a recipe and has no
+	 * author of its own, so it credits the recipe it was built from — same card,
+	 * same "Recipe by" label. That way the meal page, which is where visitors
+	 * actually cook, carries the credit too.
+	 *
+	 * Returns '' when used anywhere else, when the meal has no valid recipe, or
+	 * when there is no author to name.
+	 *
+	 * @param array|string $atts Optional: id to force a specific recipe or meal.
 	 * @return string
 	 */
 	public function mmm_recipe_author_box_callback( $atts = array() ): string {
 
 		$atts = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_recipe_author_box' );
 
-		$recipe_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
-		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+		$post_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+		if ( ! $post_id ) {
 			return '';
 		}
 
-		$author_id = (int) get_post_field( 'post_author', $recipe_id );
-		if ( $author_id <= 0 ) {
+		$recipe_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+		if ( ! $recipe_id || 'mmm_recipe' !== get_post_type( $recipe_id ) ) {
 			return '';
 		}
 
-		$name = trim( (string) get_the_author_meta( 'display_name', $author_id ) );
-		if ( '' === $name ) {
-			return '';
-		}
-
-		$bio    = trim( (string) get_the_author_meta( 'description', $author_id ) );
-		$avatar = get_avatar(
-			$author_id,
-			96,
-			'',
-			$name,
-			array( 'class' => 'mmm-author-box__avatar' )
+		return $this->render_author_box(
+			$recipe_id,
+			__( 'Recipe by', 'mixmymeals' )
 		);
+	}
+
+	/**
+	 * The author card itself, shared by [mmm_recipe_author_box] and
+	 * [mmm_meal_plan_author_box] so both post types render identically instead
+	 * of drifting apart.
+	 *
+	 * Two sources, in this order: the post's own author fields (name, text,
+	 * link, picture) and — when no name is set there — the WordPress user who
+	 * created the post, with avatar and profile bio. Both render the same
+	 * markup, so an external author with a picture is indistinguishable from a
+	 * WordPress user: same classes, same size, same rounding. An external
+	 * author without a picture gets no media block at all.
+	 *
+	 * Returns '' when there is neither an external author nor a WordPress
+	 * author to credit (e.g. plans created by anonymous visitors, which carry
+	 * post_author = 0).
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $eyebrow Small label above the name ("Recipe by"/"Plan by").
+	 * @return string
+	 */
+	private function render_author_box( int $post_id, string $eyebrow ): string {
+
+		$size   = Mixmymeals_Post_Meta::AUTHOR_AVATAR_SIZE;
+		$name   = Mixmymeals_Post_Meta::get_author_name( $post_id );
+		$avatar = '';
+
+		if ( '' !== $name ) {
+			$bio = Mixmymeals_Post_Meta::get_author_text( $post_id );
+
+			// Same markup contract as get_avatar() below — square source, the
+			// avatar/photo classes some themes and microformat parsers key on,
+			// plus the box's own class the theme sizes and rounds. Without a
+			// picture the media block is simply omitted.
+			$image_id = Mixmymeals_Post_Meta::get_author_image_id( $post_id );
+
+			if ( $image_id ) {
+				$avatar = wp_get_attachment_image(
+					$image_id,
+					'thumbnail',
+					false,
+					array(
+						'class'  => 'avatar avatar-' . $size . ' photo mmm-author-box__avatar',
+						'alt'    => $name,
+						'width'  => $size,
+						'height' => $size,
+					)
+				);
+			}
+		} else {
+			$author_id = (int) get_post_field( 'post_author', $post_id );
+			if ( $author_id <= 0 ) {
+				return '';
+			}
+
+			$name = trim( (string) get_the_author_meta( 'display_name', $author_id ) );
+			if ( '' === $name ) {
+				return '';
+			}
+
+			$bio    = wpautop( esc_html( trim( (string) get_the_author_meta( 'description', $author_id ) ) ) );
+			$avatar = get_avatar(
+				$author_id,
+				$size,
+				'',
+				$name,
+				array( 'class' => 'mmm-author-box__avatar' )
+			);
+		}
+
+		$url       = Mixmymeals_Post_Meta::get_author_url( $post_id );
+		$link_html = '';
+
+		if ( '' !== $url ) {
+			$rel = Mixmymeals_Post_Meta::get_author_nofollow( $post_id )
+				? 'nofollow noopener noreferrer'
+				: 'noopener noreferrer';
+
+			$link_html = '<a class="mmm-author-box__link" href="' . esc_url( $url ) . '"'
+				. ' target="_blank" rel="' . esc_attr( $rel ) . '">'
+				. esc_html( Mixmymeals_Post_Meta::get_author_link_text( $post_id ) )
+				. '</a>';
+		}
 
 		ob_start();
 		?>
-        <aside class="mmm-author-box">
-            <div class="mmm-author-box__blob" aria-hidden="true"></div>
+		<aside class="mmm-author-box">
+			<div class="mmm-author-box__blob" aria-hidden="true"></div>
 			<?php if ( $avatar ) : ?>
-                <div class="mmm-author-box__media">
-					<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar() returns escaped markup. ?>
-                </div>
+				<div class="mmm-author-box__media">
+					<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar()/wp_get_attachment_image() return escaped markup. ?>
+				</div>
 			<?php endif; ?>
-            <div class="mmm-author-box__body">
-                <span class="mmm-author-box__eyebrow"><?php esc_html_e( 'Recipe by', 'mixmymeals' ); ?></span>
-                <span class="mmm-author-box__name"><?php echo esc_html( $name ); ?></span>
-				<?php if ( '' !== $bio ) : ?>
-                    <p class="mmm-author-box__bio"><?php echo esc_html( $bio ); ?></p>
+			<div class="mmm-author-box__body">
+				<span class="mmm-author-box__eyebrow"><?php echo esc_html( $eyebrow ); ?></span>
+				<span class="mmm-author-box__name"><?php echo esc_html( $name ); ?></span>
+				<?php if ( '' !== trim( wp_strip_all_tags( (string) $bio ) ) ) : ?>
+					<div class="mmm-author-box__bio"><?php echo wp_kses_post( $bio ); ?></div>
 				<?php endif; ?>
-            </div>
-        </aside>
+				<?php if ( '' !== $link_html ) : ?>
+					<?php echo $link_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from escaped parts above. ?>
+				<?php endif; ?>
+			</div>
+		</aside>
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_image_credit].
+	 * Renders the credit for the featured image, meant to sit directly below
+	 * the picture it belongs to.
+	 *
+	 * Works on recipes, meal plans and meals. A meal shows the featured image
+	 * of the recipe it plans, so it shows that recipe's credit — the same rule
+	 * the author box follows.
+	 *
+	 * Returns '' when nothing is credited, so a template can print it
+	 * unconditionally without leaving an empty line behind.
+	 *
+	 * @param array|string $atts id to force a post, label to change or hide
+	 *                           the prefix.
+	 * @return string
+	 */
+	public function mmm_image_credit_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'id'    => 0,
+				'label' => __( 'Image source:', 'mixmymeals' ),
+			),
+			$atts,
+			'mmm_image_credit'
+		);
+
+		$post_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+		if ( ! $post_id || ! Mixmymeals_Post_Meta::has_image_credit( $post_id ) ) {
+			return '';
+		}
+
+		$data  = Mixmymeals_Post_Meta::get_image_credit( $post_id );
+		$name  = Mixmymeals_Post_Meta::get_image_credit_name( $post_id );
+		$label = (string) $atts['label'];
+
+		$html = '';
+
+		if ( '' !== $label ) {
+			$html .= '<span class="mmm-image-credit__label">' . esc_html( $label ) . '</span> ';
+		}
+
+		if ( '' !== $name ) {
+			// Always nofollow, unlike the author box, which has a per-post
+			// toggle: a credit link is a licence obligation pointing at a
+			// stock library or someone else's site, not an endorsement, and
+			// it is repeated on every post using that picture.
+			$html .= '' !== $data['url']
+				? '<a class="mmm-image-credit__link" href="' . esc_url( $data['url'] ) . '"'
+					. ' target="_blank" rel="nofollow noopener noreferrer">' . esc_html( $name ) . '</a>'
+				: '<span class="mmm-image-credit__name">' . esc_html( $name ) . '</span>';
+		}
+
+		if ( '' !== $data['license'] ) {
+			$html .= ( '' !== $name ? ' ' : '' )
+				. '<span class="mmm-image-credit__license">'
+				. esc_html( '' !== $name ? '(' . $data['license'] . ')' : $data['license'] )
+				. '</span>';
+		}
+
+		return '<p class="mmm-image-credit">' . $html . '</p>';
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plan_author_box]. The counterpart to
+	 * [mmm_recipe_author_box] for meal plans, using the same markup and classes.
+	 *
+	 * Two sources, in order: the freely editable author fields on the plan
+	 * (name, text, link, picture) and — when no name is set there — the
+	 * WordPress user who created the plan, with avatar and profile bio, exactly
+	 * like the recipe box. The optional link is rendered follow or nofollow per
+	 * the plan's setting; an external author without a picture gets no media
+	 * block (the recipe box handles a missing avatar the same way).
+	 *
+	 * @param array|string $atts Shortcode attributes: id.
+	 * @return string
+	 */
+	public function mmm_meal_plan_author_box_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_meal_plan_author_box' );
+
+		$plan_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+		if ( ! $plan_id || get_post_type( $plan_id ) !== 'mmm_meal_plan' ) {
+			return '';
+		}
+
+		return $this->render_author_box(
+			$plan_id,
+			__( 'Plan by', 'mixmymeals' )
+		);
 	}
 
 	/**
@@ -3849,6 +4956,11 @@ class Mixmymeals_Shortcodes {
 
         <section class="mmm-plan-hero">
             <div class="mmm-plan-hero__blob"></div>
+			<?php if ( $plan_url && $plan_title ) : ?>
+                <a class="mmm-plan-hero__back" href="<?php echo esc_url( $plan_url ); ?>">
+                    <i class="mmm-icon fa-solid fa-arrow-left" aria-hidden="true"></i><?php echo esc_html( __( 'Back to', 'mixmymeals' ) . ' ' . $plan_title ); ?>
+                </a>
+			<?php endif; ?>
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
@@ -3880,11 +4992,6 @@ class Mixmymeals_Shortcodes {
                         <i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php esc_html_e( 'Start cooking mode', 'mixmymeals' ); ?>
                     </button>
 				<?php endif; ?>
-				<?php if ( $plan_url && $plan_title ) : ?>
-                    <a class="mmm-btn mmm-btn--ghost" href="<?php echo esc_url( $plan_url ); ?>">
-                        <i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo esc_html( __( 'Back to', 'mixmymeals' ) . ' ' . $plan_title ); ?>
-                    </a>
-				<?php endif; ?>
             </div>
         </section>
 		<?php
@@ -3892,498 +4999,12 @@ class Mixmymeals_Shortcodes {
 		return ob_get_clean();
 	}
 
-	/**
-	 * AJAX handler for wp_ajax_mmm_load_plan_into_cart.
-	 * Clears the current cart and loads all meals from the specified meal plan.
-	 *
-	 * @return void
-	 */
-	public function mmm_load_plan_into_cart_ajax_callback(): void {
 
-		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
 
-		$meal_plan_id = intval( $_POST['meal_plan_id'] ?? 0 );
 
-		$post = get_post( $meal_plan_id );
-		if ( ! $post || $post->post_type !== 'mmm_meal_plan' || $post->post_status !== 'publish' ) {
-			wp_send_json_error( array( 'message' => __( 'Meal Plan not found.', 'mixmymeals' ) ) );
-		}
 
-		$plan  = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$meals = $plan->get_meals();
 
-		$cart = new Mixmymeals_Cart();
-		$cart->clear();
 
-		foreach ( $meals as $meal_post ) {
-			$meal = new Mixmymeals_Meal( $meal_post->ID );
-			$cart->add(
-				$meal->get_recipe_id(),
-				$meal->get_servings(),
-				$meal->get_type(),
-				$meal->get_day()
-			);
-		}
-
-		wp_send_json_success( array(
-			'message' => __( 'Meal plan loaded into the planner.', 'mixmymeals' ),
-		) );
-	}
-
-	/**
-	 * AJAX handler for wp_ajax_mmm_generate_pdf.
-	 * Generates and streams a PDF for the specified meal plan.
-	 * Rate-limited to 5 requests per IP per minute.
-	 *
-	 * @return void
-	 */
-	public function mmm_generate_pdf_ajax_callback(): void {
-
-		if ( empty( $_GET['meal_plan_id'] ) ) {
-			wp_die( esc_html__( 'Meal Plan ID missing.', 'mixmymeals' ) );
-		}
-
-		$meal_plan_id = intval( $_GET['meal_plan_id'] );
-
-		$post = get_post( $meal_plan_id );
-		if ( ! $post || $post->post_type !== 'mmm_meal_plan' || $post->post_status !== 'publish' ) {
-			wp_die( esc_html__( 'Meal Plan not found.', 'mixmymeals' ), '', array( 'response' => 404 ) );
-		}
-
-		$ip       = md5( $_SERVER['REMOTE_ADDR'] ?? '' );
-		$rate_key = 'mmm_pdf_rate_' . $ip;
-		$count    = (int) get_transient( $rate_key );
-		if ( $count >= 5 ) {
-			wp_die( esc_html__( 'Too many requests. Please wait a minute.', 'mixmymeals' ), '', array( 'response' => 429 ) );
-		}
-		set_transient( $rate_key, $count + 1, 60 );
-
-		$meals_html
-			= $this->render_meal_plan_overview_html_for_pdf( $meal_plan_id );
-		$shopping_list_html
-			= $this->render_shopping_list_html_for_pdf( $meal_plan_id );
-		$recipes_html
-			= $this->render_recipes_contained_in_a_meal_plan_html_for_pdf( $meal_plan_id,
-			true, true );
-
-
-		$pdf_builder = new Mixmymeals_PDF_Builder( [
-			'logo_url'    => '',
-			'header_html' => '<h1>' . esc_html( get_the_title( $meal_plan_id ) )
-			                 . '</h1>',
-			'footer_html' => esc_html( __( 'Planned on', 'mixmymeals' ) . ' '
-			                           . get_bloginfo( 'name' ) . ' '
-			                           . __( 'using MixMyMeals',
-					'mixmymeals' ) ),
-		] );
-
-		$pdf_builder->add_page( $meals_html );
-		$pdf_builder->add_page( $shopping_list_html );
-		foreach ( $recipes_html as $recipe_html ) {
-			$pdf_builder->add_page( $recipe_html );
-		}
-
-		$pdf_builder->render( 'meal-plan.pdf', false );
-	}
-
-
-	/**
-	 * Renders the meals overview section of a meal plan PDF.
-	 *
-	 * @param int $meal_plan_id Meal plan post ID.
-	 * @return string
-	 */
-	private function render_meal_plan_overview_html_for_pdf( int $meal_plan_id
-	): string {
-
-		$meal_plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$days      = $meal_plan->get_day_range();
-		$meals     = $meal_plan->get_meals();
-
-		if ( empty( $meals ) ) {
-			return '<p>' . esc_html__( 'No meals found in this plan.',
-					'mixmymeals' ) . '</p>';
-		}
-
-		$grouped_meals = [];
-		foreach ( $meals as $meal_post ) {
-			$meal    = new Mixmymeals_Meal( $meal_post->ID );
-			$weekday = (int) $meal->get_day();
-			$type    = $meal->get_type() ?: 'other';
-
-			if ( $weekday < 1 || $weekday > 7 ) {
-				continue;
-			}
-
-			$grouped_meals[ $weekday ][ $type ][] = $meal;
-		}
-
-		$weekdays = [
-			1 => _x( 'Monday', 'weekday', 'mixmymeals' ),
-			2 => _x( 'Tuesday', 'weekday', 'mixmymeals' ),
-			3 => _x( 'Wednesday', 'weekday', 'mixmymeals' ),
-			4 => _x( 'Thursday', 'weekday', 'mixmymeals' ),
-			5 => _x( 'Friday', 'weekday', 'mixmymeals' ),
-			6 => _x( 'Saturday', 'weekday', 'mixmymeals' ),
-			7 => _x( 'Sunday', 'weekday', 'mixmymeals' ),
-		];
-
-		$meal_types = Mixmymeals_Meal::get_plaintext_meal_type_map();
-
-		ob_start();
-		?>
-        <h2><?php esc_html_e( 'Meals', 'mixmymeals' ); ?></h2>
-
-		<?php foreach ( $days as $day_number ) : ?>
-
-			<?php if ( empty( $grouped_meals[ $day_number ] ) ) {
-				continue;
-			} ?>
-
-            <h3>
-				<?php echo esc_html( $weekdays[ $day_number ] ??
-				                     sprintf( __( 'Day %d', 'mixmymeals' ),
-					                     $day_number ) ); ?>
-            </h3>
-
-            <table class="mmm-meal-plan-overview-table" width="100%">
-                <colgroup>
-                    <col style="width:20%">
-                    <col style="width:70%">
-                    <col style="width:10%">
-                </colgroup>
-                <thead>
-                <tr>
-                    <th class="align-left"><?php esc_html_e( 'Type',
-							'mixmymeals' ); ?></th>
-                    <th class="align-left"><?php esc_html_e( 'Meal',
-							'mixmymeals' ); ?></th>
-                    <th class="align-right"><?php esc_html_e( 'Servings',
-							'mixmymeals' ); ?></th>
-                </tr>
-                </thead>
-                <tbody>
-
-				<?php foreach ( $meal_types as $type_code => $type_name ) : ?>
-
-					<?php if ( empty( $grouped_meals[ $day_number ][ $type_code ] ) ) {
-						continue;
-					} ?>
-
-					<?php
-					$cell_meals   = $grouped_meals[ $day_number ][ $type_code ];
-					$titles       = [];
-					$servings     = [];
-					$calories_sum = 0;
-					$weight_sum   = 0;
-
-					foreach ( $cell_meals as $meal ) {
-
-						$recipe
-							= new Mixmymeals_Recipe( $meal->get_recipe_id() );
-
-						$titles[]
-							        = esc_html( get_the_title( $meal->get_id() ) );
-						$servings[] = esc_html( $meal->get_servings() );
-
-							$recipe_servings = max( 1.0,
-							floatval( $recipe->get_servings() ) );
-						$meal_servings   = max( 1.0,
-							floatval( $meal->get_servings() ) );
-						$factor          = $meal_servings / $recipe_servings;
-
-						$ingredients
-							= $recipe->get_ingredients_scaled( $factor );
-
-						$calories = 0;
-						$weight   = 0;
-
-						foreach ( $ingredients as $ing ) {
-
-							if ( empty( $ing['id'] )
-							     || empty( $ing['weight_g'] ) ) {
-								continue;
-							}
-
-							$ingredient_obj
-								= new Mixmymeals_Ingredient( $ing['id'] );
-
-							if ( ! $ingredient_obj->is_valid() ) {
-								continue;
-							}
-
-							$nutrition = $ingredient_obj->get_nutrition();
-							$w         = floatval( $ing['weight_g'] );
-
-							if ( $w <= 0 ) {
-								continue;
-							}
-
-							$weight   += $w;
-							$calories += $nutrition['calories_100'] * $w / 100;
-						}
-
-							if ( $meal_servings > 0 ) {
-							$calories /= $meal_servings;
-							$weight   /= $meal_servings;
-						}
-
-						$calories_sum += $calories;
-						$weight_sum   += $weight;
-					}
-					?>
-
-                    <tr>
-                        <td class="align-left"><?php echo esc_html( $type_name ); ?></td>
-
-                        <td class="align-left">
-							<?php
-							echo implode( '<br>', $titles );
-							echo '<br><small>';
-							echo esc_html__( 'Per serving', 'mixmymeals' )
-							     . ': '
-							     . absint( $weight_sum ) . ' g, '
-							     . absint( $calories_sum ) . ' '
-							     . esc_html__( 'kcal', 'mixmymeals' );
-							echo '</small>';
-							?>
-                        </td>
-
-                        <td class="align-right">
-							<?php echo implode( '<br>', $servings ); ?>
-                        </td>
-                    </tr>
-
-				<?php endforeach; ?>
-
-                </tbody>
-            </table>
-
-		<?php endforeach;
-
-		return ob_get_clean();
-	}
-
-
-	/**
-	 * Renders the shopping list section of a meal plan PDF.
-	 *
-	 * @param int  $meal_plan_id    Meal plan post ID.
-	 * @param bool $sort_by_category Whether to group ingredients by category.
-	 * @return string
-	 */
-	private function render_shopping_list_html_for_pdf(
-		int $meal_plan_id, bool $sort_by_category = true
-	): string {
-
-		$meal_plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$ingredients_by_cat
-		           = $meal_plan->calc_shopping_list( $sort_by_category );
-
-		if ( empty( $ingredients_by_cat ) ) {
-			return '<p>' . esc_html__( 'No ingredients found.', 'mixmymeals' )
-			       . '</p>';
-		}
-
-		ob_start();
-		?>
-        <h2><?php esc_html_e( 'Shopping List', 'mixmymeals' ); ?></h2>
-
-		<?php foreach ( $ingredients_by_cat as $cat_name => $ings ) : ?>
-            <h3><?php echo esc_html( $cat_name ); ?></h3>
-            <table class="mmm-meal-plan-shopping-list-table" border="1"
-                   cellspacing="0" cellpadding="4" width="100%">
-                <thead>
-                <tr>
-                    <th>✔</th>
-                    <th><?php esc_html_e( 'Ingredient', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Amount', 'mixmymeals' ); ?></th>
-                </tr>
-                </thead>
-                <tbody>
-				<?php foreach ( $ings as $ing_id => $data ) :
-
-					$total_weight = $data['total_weight'];
-
-					// Bedarfsanzeige analog zur Frontend-Liste.
-					$main_line = get_the_title( $ing_id ) . ', '
-					             . $this->build_needed_amount_string(
-						             $data['units'] ?? [],
-						             $total_weight
-					             );
-					?>
-                    <tr>
-                        <td style="text-align:center;">☐</td>
-                        <td><?php echo esc_html( $main_line ); ?></td>
-                        <td><?php echo esc_html( number_format_i18n( $total_weight,
-								2 ) ); ?> g
-                        </td>
-                    </tr>
-				<?php endforeach; ?>
-                </tbody>
-            </table>
-		<?php endforeach;
-
-		return ob_get_clean();
-	}
-
-	/**
-	 * Renders one PDF page per recipe contained in the meal plan, with scaled ingredients.
-	 *
-	 * @param int  $meal_plan_id          Meal plan post ID.
-	 * @param bool $show_ingredients_top  Whether to include an ingredient summary at the top.
-	 * @param bool $show_step_ingredients Whether to list ingredients per step.
-	 * @return string[]
-	 */
-	private function render_recipes_contained_in_a_meal_plan_html_for_pdf(
-		int $meal_plan_id,
-		bool $show_ingredients_top = true,
-		bool $show_step_ingredients = false
-	): array {
-
-		$meal_plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$meals     = $meal_plan->get_meals();
-
-		if ( empty( $meals ) ) {
-			return [];
-		}
-
-		$pages = [];
-
-		foreach ( $meals as $meal_post ) {
-
-			$meal       = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe_id  = $meal->get_recipe_id();
-
-			if ( ! $recipe_id ) {
-				continue;
-			}
-
-			$recipe = new Mixmymeals_Recipe( $recipe_id );
-			$steps  = $recipe->get_steps();
-
-			if ( empty( $steps ) ) {
-				continue;
-			}
-
-			$recipe_servings = max( 1.0, (float) $recipe->get_servings() );
-			$meal_servings   = max( 1.0, (float) $meal->get_servings() );
-			$factor          = $meal_servings / $recipe_servings;
-
-				$ingredients = $recipe->get_ingredients_scaled( $factor );
-
-				$ingredients_map = [];
-			foreach ( $ingredients as $ing ) {
-				$id = (int) ( $ing['id'] ?? 0 );
-				if ( $id > 0 ) {
-					$ingredients_map[ $id ] = $ing;
-				}
-			}
-
-			ob_start();
-			?>
-            <div class="mmm-pdf-page">
-
-                <h2><?php echo esc_html( get_the_title( $recipe_id ) ); ?></h2>
-
-                <div class="mmm-recipe-meta">
-                    <p>
-                        <strong><?php esc_html_e( 'Servings', 'mixmymeals' ); ?>:</strong>
-						<?php echo esc_html( number_format_i18n( $meal_servings ) ); ?>
-                    </p>
-                </div>
-
-				<?php if ( $show_ingredients_top && ! empty( $ingredients ) ) : ?>
-                    <div class="mmm-meal-ingredients-overview">
-                        <h3><?php esc_html_e( 'Ingredients Overview', 'mixmymeals' ); ?></h3>
-                        <ul>
-							<?php foreach ( $ingredients as $ingredient ) :
-
-								$amount    = (float) ( $ingredient['amount'] ?? 0 );
-								$unit      = $ingredient['unit'] ?: 'g';
-								$weight_g  = round( (float) ( $ingredient['weight_g'] ?? 0 ) );
-
-								$display_amount = $amount > 0
-									? rtrim( rtrim( number_format_i18n( $amount, 1 ), '0' ), ',' )
-									: '';
-								?>
-                                <li>
-									<?php echo esc_html( $ingredient['name'] ); ?>
-									<?php if ( $display_amount ) : ?>
-                                        – <?php echo esc_html( $display_amount . ' ' . $unit ); ?>
-                                        (<?php echo esc_html( $weight_g ); ?> g)
-									<?php endif; ?>
-                                </li>
-							<?php endforeach; ?>
-                        </ul>
-                    </div>
-				<?php endif; ?>
-
-                <div class="mmm-recipe-steps scaled">
-
-					<?php foreach ( $steps as $index => $step ) : ?>
-                        <div class="mmm-step">
-
-							<?php if ( ! empty( $step['title'] ) ) : ?>
-                                <h3>
-									<?php echo esc_html(
-										sprintf( __( 'Step %d', 'mixmymeals' ), $index + 1 )
-										. ': ' . $step['title']
-									); ?>
-                                </h3>
-							<?php endif; ?>
-
-							<?php if ( ! empty( $step['description'] ) ) : ?>
-                                <div class="mmm-step-description"><?php echo wp_kses_post( $step['description'] ); ?></div>
-							<?php endif; ?>
-
-							<?php if ( $show_step_ingredients && ! empty( $step['ingredients'] ) ) : ?>
-                                <ul>
-									<?php foreach ( $step['ingredients'] as $ing ) :
-
-										$id = (int) ( $ing['id'] ?? 0 );
-										if ( $id <= 0 ) {
-											continue;
-										}
-
-										$scaled = $ingredients_map[ $id ] ?? null;
-
-										if ( ! $scaled ) {
-											continue;
-										}
-
-										$amount   = (float) ( $scaled['amount'] ?? 0 );
-										$unit     = $scaled['unit'] ?: 'g';
-										$weight_g = round( (float) ( $scaled['weight_g'] ?? 0 ) );
-
-										$display_amount = $amount > 0
-											? rtrim( rtrim( number_format_i18n( $amount, 2 ), '0' ), ',' )
-											: '';
-										?>
-                                        <li>
-											<?php echo esc_html( get_the_title( $id ) ); ?>
-											<?php if ( $display_amount ) : ?>
-                                                – <?php echo esc_html( $display_amount . ' ' . $unit ); ?>
-                                                (<?php echo esc_html( $weight_g ); ?> g)
-											<?php endif; ?>
-                                        </li>
-									<?php endforeach; ?>
-                                </ul>
-							<?php endif; ?>
-
-                        </div>
-					<?php endforeach; ?>
-
-                </div>
-
-            </div>
-			<?php
-
-			$pages[] = ob_get_clean();
-		}
-
-		return $pages;
-	}
 
 	/**
 	 * Shortcode [mmm_back_to_meal_plan_link_for_single_meal].
@@ -4559,6 +5180,17 @@ class Mixmymeals_Shortcodes {
 				}
 			}
 
+			/* -------------------------
+			 * Diet Type Badge
+			 * ------------------------- */
+			$diet = $recipe->get_diet_type();
+			if ( $diet === 'vegan' ) {
+				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
+				           . esc_html__( 'Vegan', 'mixmymeals' ) . '</span>';
+			} elseif ( $diet === 'vegetarian' ) {
+				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
+				           . esc_html__( 'Vegetarian', 'mixmymeals' ) . '</span>';
+			}
 
 		}
 
@@ -4799,113 +5431,97 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Shortcode: [mmm_recipe_category_links]
+	 * Shortcode [mmm_nutrition_per_day_for_a_single_meal_plan].
+	 * Renders the plan's nutrition broken down by weekday — the distribution
+	 * that the averages in [mmm_nutrition_overview_for_a_single_meal_plan]
+	 * necessarily hide. Days without meals are listed with zeroes so gaps in a
+	 * plan stay visible.
 	 *
-	 * A handful of recipe category links as separate pills (used in the recipe
-	 * archive hero, styled by the child theme's .mmm-recipe-cat-links).
-	 *
-	 * Attribute:
-	 * - categories="slug-a,slug-b"  comma-separated term slugs to curate (in order);
-	 *                               empty = the most-used categories (by recipe count)
-	 * - limit="6"                   how many to show when not curated
-	 * - show_all="1"                prepend an "All" link to the recipe archive
-	 * - taxonomy="mmm_recipe_category"
-	 *
-	 * @param array|string $atts Shortcode attributes.
+	 * @param array|string $atts meal_plan_id, per (person|total).
 	 * @return string
 	 */
-	public function mmm_recipe_category_links_callback( $atts = [] ): string {
+	public function mmm_nutrition_per_day_for_a_single_meal_plan_callback( $atts = [] ): string {
 
 		$atts = shortcode_atts(
 			[
-				'categories' => '',
-				'limit'      => 6,
-				'show_all'   => '1',
-				'taxonomy'   => 'mmm_recipe_category',
-				// Optional plain-text "view all" link at the end of the row.
-				'more_url'   => '',
-				'more_text'  => '',
+				'meal_plan_id' => null,
+				'per'          => 'person',
 			],
 			$atts,
-			'mmm_recipe_category_links'
+			'mmm_nutrition_per_day_for_a_single_meal_plan'
 		);
 
-		$taxonomy = sanitize_key( $atts['taxonomy'] );
-		$limit    = max( 1, (int) $atts['limit'] );
+		$meal_plan_id = $atts['meal_plan_id']
+			? intval( $atts['meal_plan_id'] )
+			: get_the_ID();
 
-		// Which categories to show: shortcode attr > admin option > most-used.
-		$slugs = [];
-		if ( '' !== trim( (string) $atts['categories'] ) ) {
-			$slugs = array_filter( array_map( 'trim', explode( ',', (string) $atts['categories'] ) ) );
-		} else {
-			$option = get_option( 'mixmymeals_recipe_hero_categories', [] );
-			if ( is_array( $option ) ) {
-				$slugs = array_filter( array_map( 'sanitize_title', $option ) );
-			}
+		if ( ! $meal_plan_id || get_post_type( $meal_plan_id ) !== 'mmm_meal_plan' ) {
+			return '<p>' . esc_html__( 'No valid meal plan found.', 'mixmymeals' ) . '</p>';
 		}
 
-		if ( ! empty( $slugs ) ) {
+		// 'person' = one serving of each meal, 'total' = everything cooked.
+		$bucket = 'total' === $atts['per'] ? 'totals' : 'per_person';
 
-			$terms = get_terms( [
-				'taxonomy'   => $taxonomy,
-				'slug'       => $slugs,
-				'hide_empty' => false,
-			] );
+		$plan   = new Mixmymeals_Meal_Plan( $meal_plan_id );
+		$by_day = $plan->calc_nutrition_by_day();
 
-			// Preserve the configured order.
-			if ( ! is_wp_error( $terms ) && $terms ) {
-				$by_slug = [];
-				foreach ( $terms as $t ) {
-					$by_slug[ $t->slug ] = $t;
-				}
-				$terms = [];
-				foreach ( $slugs as $s ) {
-					if ( isset( $by_slug[ $s ] ) ) {
-						$terms[] = $by_slug[ $s ];
-					}
-				}
-			}
-		} else {
-			$terms = get_terms( [
-				'taxonomy'   => $taxonomy,
-				'hide_empty' => true,
-				'orderby'    => 'count',
-				'order'      => 'DESC',
-				'number'     => $limit,
-			] );
+		if ( empty( $by_day ) ) {
+			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
 		}
 
-		if ( empty( $terms ) || is_wp_error( $terms ) ) {
-			return '';
-		}
+		$columns = [
+			'calories' => [ __( 'Calories', 'mixmymeals' ), 'kcal', 0 ],
+			'protein'  => [ __( 'Protein', 'mixmymeals' ), 'g', 1 ],
+			'carbs'    => [ __( 'Carbohydrates', 'mixmymeals' ), 'g', 1 ],
+			'fat'      => [ __( 'Fat', 'mixmymeals' ), 'g', 1 ],
+		];
 
-		$current = is_tax( $taxonomy ) ? get_queried_object()->slug : '';
+		$sums = array_fill_keys( array_keys( $columns ), 0.0 );
 
 		ob_start();
-		echo '<nav class="mmm-recipe-cat-links" aria-label="' . esc_attr__( 'Recipe categories', 'mixmymeals' ) . '">';
+		?>
+        <div class="mmm-meal-plan-nutrition-days">
+            <table class="mmm-nutri-days-table">
+                <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Day', 'mixmymeals' ); ?></th>
+					<?php foreach ( $columns as [ $label, $unit ] ) : ?>
+                        <th><?php echo esc_html( $label ); ?></th>
+					<?php endforeach; ?>
+                </tr>
+                </thead>
+                <tbody>
+				<?php foreach ( $by_day as $day => $nutrition ) : ?>
+                    <tr<?php echo 0 === $nutrition['meals'] ? ' class="mmm-nutri-days-table__empty"' : ''; ?>>
+                        <th scope="row"><?php echo esc_html( Mixmymeals_Meal_Plan::weekday_name( (int) $day ) ); ?></th>
+						<?php
+						foreach ( $columns as $key => [ $label, $unit, $decimals ] ) :
+							$value          = (float) ( $nutrition[ $bucket ][ $key ] ?? 0.0 );
+							$sums[ $key ]  += $value;
+							?>
+                            <td data-label="<?php echo esc_attr( $label ); ?>">
+								<?php echo esc_html( number_format_i18n( $value, $decimals ) ); ?>
+								<?php echo esc_html( $unit ); ?>
+                            </td>
+						<?php endforeach; ?>
+                    </tr>
+				<?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Total', 'mixmymeals' ); ?></th>
+					<?php foreach ( $columns as $key => [ $label, $unit, $decimals ] ) : ?>
+                        <td data-label="<?php echo esc_attr( $label ); ?>">
+							<?php echo esc_html( number_format_i18n( $sums[ $key ], $decimals ) ); ?>
+							<?php echo esc_html( $unit ); ?>
+                        </td>
+					<?php endforeach; ?>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+		<?php
 
-		if ( filter_var( $atts['show_all'], FILTER_VALIDATE_BOOLEAN ) ) {
-			$all_active = is_post_type_archive( 'mmm_recipe' ) ? ' active' : '';
-			echo '<a class="mmm-recipe-cat-links__item' . esc_attr( $all_active ) . '" href="'
-				. esc_url( (string) get_post_type_archive_link( 'mmm_recipe' ) ) . '">'
-				. esc_html__( 'All', 'mixmymeals' ) . '</a>';
-		}
-
-		foreach ( $terms as $term ) {
-			$active = ( $current === $term->slug ) ? ' active' : '';
-			echo '<a class="mmm-recipe-cat-links__item' . esc_attr( $active ) . '" href="'
-				. esc_url( (string) get_term_link( $term ) ) . '">'
-				. esc_html( $term->name ) . '</a>';
-		}
-
-		$more_url  = trim( (string) $atts['more_url'] );
-		$more_text = trim( (string) $atts['more_text'] );
-		if ( '' !== $more_url && '' !== $more_text ) {
-			echo '<a class="mmm-recipe-cat-links__more" href="' . esc_url( $more_url ) . '">'
-				. esc_html( $more_text ) . '</a>';
-		}
-
-		echo '</nav>';
 		return (string) ob_get_clean();
 	}
 
@@ -5114,6 +5730,24 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Renders a configurable notice/disclaimer shown on a visitor-input form
+	 * (ratings, photo uploads, subscription, plan creation). Returns '' when
+	 * the corresponding option is empty, so nothing shows unless configured.
+	 *
+	 * @param string $key Notice key: rating|photo|subscribe|plan.
+	 * @return string Escaped HTML, or ''.
+	 */
+	public static function input_notice( string $key ): string {
+
+		$text = trim( (string) get_option( 'mixmymeals_notice_' . $key, '' ) );
+		if ( '' === $text ) {
+			return '';
+		}
+
+		return '<div class="mmm-input-notice">' . wpautop( esc_html( $text ) ) . '</div>';
+	}
+
+	/**
 	 * Shortcode [mmm_disclaimer_for_a_single_meal].
 	 * Renders the recipe disclaimer text for a single meal.
 	 *
@@ -5296,9 +5930,15 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_recipe_rating_form]: lets an e-mail subscriber rate a recipe
-	 * from their plan via a tokenised link (?token=…&recipe=…). Place it on a
-	 * normal page and point the "Recipe Rating Page" setting at it. One rating per
-	 * recipe per subscription.
+	 * from their plan via a tokenised link (?token=…&recipe=…) AND upload a photo
+	 * of the cooked meal in the same submit (the photo is optional). Place it on
+	 * a normal page and point the "Recipe Rating Page" setting at it.
+	 *
+	 * One rating per recipe per subscription; photos up to the per-uploader
+	 * limit. The rating is saved before the photo is processed so a failed
+	 * upload never loses the rating. A subscriber who already rated (or who
+	 * rated without a photo) gets a photo-only form as long as the photo limit
+	 * is not reached.
 	 *
 	 * @param array|string $atts Unused.
 	 * @return string
@@ -5329,53 +5969,121 @@ class Mixmymeals_Shortcodes {
 			return $this->rating_form_notice( __( 'This recipe is not part of your meal plan.', 'mixmymeals' ) );
 		}
 
-		if ( Mixmymeals_Ratings::subscriber_has_rated( $recipe_id, $sub_id ) ) {
+		$has_rated = Mixmymeals_Ratings::subscriber_has_rated( $recipe_id, $sub_id );
+		$can_photo = class_exists( 'Mixmymeals_Photos' )
+			&& Mixmymeals_Photos::count_by_uploader( $recipe_id, $sub_id, 0 ) < Mixmymeals_Photos::upload_limit();
+
+		if ( $has_rated && ! $can_photo ) {
 			return $this->rating_form_notice( __( 'You have already rated this recipe.', 'mixmymeals' ), true );
 		}
 
-		$error = '';
-		if ( $is_post && isset( $_POST['mmm_rating'] ) ) {
+		$notices     = '';
+		$error       = '';
+		$photo_saved = false;
+		$photo_given = false;
 
-			$nonce = isset( $_POST['mmm_sub_rate_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['mmm_sub_rate_nonce'] ) ) : '';
+		if ( $is_post && isset( $_POST['mmm_sub_rate_nonce'] ) ) {
+
+			$nonce = sanitize_text_field( wp_unslash( $_POST['mmm_sub_rate_nonce'] ) );
 			if ( ! wp_verify_nonce( $nonce, 'mmm_sub_rate' ) ) {
 				return $this->rating_form_notice( __( 'Your session has expired. Please reload the page.', 'mixmymeals' ) );
 			}
 
-			$stars = absint( wp_unslash( $_POST['mmm_rating'] ) );
-			if ( $stars >= 1 && $stars <= 5 ) {
-				list( $name, $email ) = Mixmymeals_Subscriptions::subscriber_identity( $sub_id );
-				Mixmymeals_Ratings::add_subscriber_rating( $recipe_id, $sub_id, $stars, $name, $email );
-				return $this->rating_form_notice( __( 'Thank you! Your rating has been saved.', 'mixmymeals' ), true );
+			// Rating first: it must never be lost to a failed photo upload.
+			if ( ! $has_rated ) {
+				$stars = isset( $_POST['mmm_rating'] ) ? absint( wp_unslash( $_POST['mmm_rating'] ) ) : 0;
+				if ( $stars >= 1 && $stars <= 5 ) {
+					list( $name, $email ) = Mixmymeals_Subscriptions::subscriber_identity( $sub_id );
+					Mixmymeals_Ratings::add_subscriber_rating( $recipe_id, $sub_id, $stars, $name, $email );
+					$has_rated = true;
+					$notices  .= $this->rating_form_notice( __( 'Thank you! Your rating has been saved.', 'mixmymeals' ), true );
+				} else {
+					$error = __( 'Please select a rating.', 'mixmymeals' );
+				}
 			}
 
-			$error = __( 'Please select a rating.', 'mixmymeals' );
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput -- nonce verified above; the file itself is validated in add_photo().
+			$photo_given = $can_photo && ! empty( $_FILES['mmm_photo']['name'] );
+			if ( $photo_given ) {
+
+				list( $name, ) = Mixmymeals_Subscriptions::subscriber_identity( $sub_id );
+				$result        = Mixmymeals_Photos::add_photo( $recipe_id, 'mmm_photo', $name, $sub_id, 0 );
+
+				if ( ! is_wp_error( $result ) ) {
+					$photo_saved = true;
+					$notices    .= $this->rating_form_notice(
+						Mixmymeals_Photos::is_auto_approved()
+							? __( 'Thank you! Your photo is now in the recipe gallery.', 'mixmymeals' )
+							: __( 'Thank you! Your photo will appear in the recipe gallery once it has been approved.', 'mixmymeals' ),
+						true
+					);
+				} else {
+					$error = trim( $error . ' ' . $result->get_error_message() );
+				}
+			}
 		}
 
-		return $this->render_subscriber_rating_form( $token, $recipe_id, $error );
+		// Everything collected (or nothing left to ask for): just say thanks.
+		if ( $is_post && '' === $error && $has_rated && ( $photo_saved || ! $can_photo ) ) {
+			return $notices;
+		}
+
+		// Rated without a photo: thank for the rating, gently ask for a photo.
+		if ( $is_post && '' === $error && $has_rated && ! $photo_given ) {
+			return $notices . $this->render_subscriber_rating_form(
+				$token,
+				$recipe_id,
+				'',
+				false,
+				true,
+				__( 'Would you like to add a photo of your meal?', 'mixmymeals' )
+			);
+		}
+
+		$intro = '';
+		if ( $has_rated ) {
+			$intro = __( 'You have already rated this recipe — would you like to add a photo of your meal?', 'mixmymeals' );
+		}
+
+		return $notices . $this->render_subscriber_rating_form(
+			$token,
+			$recipe_id,
+			$error,
+			! $has_rated,
+			$can_photo && ! $photo_saved,
+			$intro
+		);
 	}
 
 	/**
-	 * Wraps a short status message for the rating-form shortcode.
+	 * Wraps a short status message for the rating-form and photo-upload
+	 * shortcodes.
 	 *
-	 * @param string $message Message text.
-	 * @param bool   $ok      Whether it is a success message.
+	 * @param string $message  Message text.
+	 * @param bool   $ok       Whether it is a success message.
+	 * @param bool   $is_html  Whether the message is pre-escaped HTML (links).
 	 * @return string
 	 */
-	private function rating_form_notice( string $message, bool $ok = false ): string {
+	private function rating_form_notice( string $message, bool $ok = false, bool $is_html = false ): string {
 		return '<div class="mmm-rating-notice ' . ( $ok ? 'mmm-rating-notice--ok' : 'mmm-rating-notice--error' ) . '">'
-			. esc_html( $message ) . '</div>';
+			. ( $is_html ? wp_kses( $message, array( 'a' => array( 'href' => array() ) ) ) : esc_html( $message ) ) . '</div>';
 	}
 
 	/**
-	 * Builds the subscriber star-rating form for one recipe (reuses the comment
-	 * form's star-widget classes so the theme styles it).
+	 * Builds the subscriber rating/photo form for one recipe (reuses the comment
+	 * form's star-widget classes so the theme styles it). Depending on what is
+	 * still missing it shows the stars, the photo field or both in one form —
+	 * one submit collects everything.
 	 *
-	 * @param string $token     Subscription token (kept in the form action URL).
-	 * @param int    $recipe_id Recipe post ID.
-	 * @param string $error     Optional error message.
+	 * @param string $token       Subscription token (kept in the form action URL).
+	 * @param int    $recipe_id   Recipe post ID.
+	 * @param string $error       Optional error message.
+	 * @param bool   $with_rating Whether to show the star input.
+	 * @param bool   $with_photo  Whether to show the photo upload field.
+	 * @param string $intro       Optional intro line replacing the default one.
 	 * @return string
 	 */
-	private function render_subscriber_rating_form( string $token, int $recipe_id, string $error = '' ): string {
+	private function render_subscriber_rating_form( string $token, int $recipe_id, string $error = '', bool $with_rating = true, bool $with_photo = false, string $intro = '' ): string {
 
 		$action = esc_url(
 			add_query_arg(
@@ -5387,37 +6095,313 @@ class Mixmymeals_Shortcodes {
 			)
 		);
 
+		if ( '' === $intro ) {
+			$intro = $with_rating
+				? __( 'How would you rate this recipe?', 'mixmymeals' )
+				: __( 'Would you like to add a photo of your meal?', 'mixmymeals' );
+		}
+
 		ob_start();
 		?>
-		<form class="mmm-subscriber-rating" method="post" action="<?php echo $action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped via esc_url() above. ?>">
+		<form class="mmm-subscriber-rating" method="post"<?php echo $with_photo ? ' enctype="multipart/form-data"' : ''; ?> action="<?php echo $action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped via esc_url() above. ?>">
 			<h3 class="mmm-subscriber-rating__title"><?php echo esc_html( get_the_title( $recipe_id ) ); ?></h3>
-			<p><?php esc_html_e( 'How would you rate this recipe?', 'mixmymeals' ); ?></p>
+			<p><?php echo esc_html( $intro ); ?></p>
 			<?php if ( '' !== $error ) : ?>
 				<p class="mmm-rating-notice mmm-rating-notice--error"><?php echo esc_html( $error ); ?></p>
 			<?php endif; ?>
-			<p class="comment-form-rating mmm-rating-field">
-				<span class="mmm-rating-input">
+			<?php if ( $with_rating ) : ?>
+				<p class="comment-form-rating mmm-rating-field">
+					<span class="mmm-rating-input">
+						<?php
+						for ( $i = 5; $i >= 1; $i-- ) {
+							$field_id = 'mmm-sub-rate-' . $i;
+							$label    = sprintf(
+								/* translators: %s: number of stars */
+								_n( '%s star', '%s stars', $i, 'mixmymeals' ),
+								number_format_i18n( $i )
+							);
+							printf(
+								'<input type="radio" name="mmm_rating" id="%1$s" value="%2$d" required><label for="%1$s" title="%3$s"><i class="mmm-icon fa-solid fa-star" aria-hidden="true"></i><span class="screen-reader-text">%3$s</span></label>',
+								esc_attr( $field_id ),
+								(int) $i,
+								esc_attr( $label )
+							);
+						}
+						?>
+					</span>
+				</p>
+			<?php endif; ?>
+			<?php if ( $with_photo ) : ?>
+				<p class="mmm-photo-upload__field">
+					<input type="hidden" name="MAX_FILE_SIZE" value="<?php echo esc_attr( (string) Mixmymeals_Photos::max_bytes() ); ?>">
+					<label class="mmm-photo-upload__label" for="mmm-photo">
+						<i class="mmm-icon fa-solid fa-camera" aria-hidden="true"></i>
+						<span>
+							<?php
+							echo esc_html(
+								$with_rating
+									? __( 'Your photo of this meal (optional)', 'mixmymeals' )
+									: __( 'Choose photo or take one', 'mixmymeals' )
+							);
+							?>
+						</span>
+					</label>
+					<input type="file" id="mmm-photo" name="mmm_photo" accept="image/jpeg,image/png,image/webp"<?php echo $with_rating ? '' : ' required'; ?>>
+				</p>
+				<p class="mmm-photo-upload__hint">
 					<?php
-					for ( $i = 5; $i >= 1; $i-- ) {
-						$field_id = 'mmm-sub-rate-' . $i;
-						$label    = sprintf(
-							/* translators: %s: number of stars */
-							_n( '%s star', '%s stars', $i, 'mixmymeals' ),
-							number_format_i18n( $i )
-						);
-						printf(
-							'<input type="radio" name="mmm_rating" id="%1$s" value="%2$d" required><label for="%1$s" title="%3$s"><i class="mmm-icon fa-solid fa-star" aria-hidden="true"></i><span class="screen-reader-text">%3$s</span></label>',
-							esc_attr( $field_id ),
-							(int) $i,
-							esc_attr( $label )
-						);
-					}
+					printf(
+						/* translators: %s: maximum file size, e.g. "10 MB" */
+						esc_html__( 'JPG, PNG or WebP, up to %s.', 'mixmymeals' ),
+						esc_html( size_format( Mixmymeals_Photos::max_bytes() ) )
+					);
 					?>
-				</span>
-			</p>
-			<?php wp_nonce_field( 'mmm_sub_rate', 'mmm_sub_rate_nonce' ); ?>
-			<button type="submit" class="mmm-rating-submit"><?php esc_html_e( 'Submit rating', 'mixmymeals' ); ?></button>
+				</p>
+			<?php endif; ?>
+			<?php
+				if ( $with_rating ) {
+					echo self::input_notice( 'rating' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				}
+				if ( $with_photo ) {
+					echo self::input_notice( 'photo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				}
+				wp_nonce_field( 'mmm_sub_rate', 'mmm_sub_rate_nonce' );
+				?>
+			<button type="submit" class="mmm-rating-submit">
+				<?php echo esc_html( $with_rating ? __( 'Submit rating', 'mixmymeals' ) : __( 'Upload photo', 'mixmymeals' ) ); ?>
+			</button>
 		</form>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_photo_upload_form]: lets a visitor upload a photo of a
+	 * cooked meal for one recipe. Place it on a normal page and point the
+	 * "Photo Upload Page" setting at it. Two ways in:
+	 *  - tokenised link from a subscription mail (?token=…&recipe=…), limited
+	 *    to recipes from the subscriber's plan, or
+	 *  - a logged-in user with just ?recipe=… (e.g. via the gallery button).
+	 *
+	 * Photos await admin approval unless the auto-approve option is on.
+	 *
+	 * @param array|string $atts Unused.
+	 * @return string
+	 */
+	public function mmm_photo_upload_form_callback( $atts = array() ): string {
+
+		if ( ! class_exists( 'Mixmymeals_Photos' ) ) {
+			return '';
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- token-authenticated public link; the POST additionally carries a nonce.
+		$token     = isset( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : '';
+		$recipe_id = isset( $_GET['recipe'] ) ? absint( wp_unslash( $_GET['recipe'] ) ) : 0;
+		$is_post   = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( (string) wp_unslash( $_SERVER['REQUEST_METHOD'] ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			return $this->rating_form_notice( __( 'This link is invalid or has expired.', 'mixmymeals' ) );
+		}
+
+		$sub_id  = 0;
+		$user_id = 0;
+		$by_name = '';
+
+		if ( '' !== $token && class_exists( 'Mixmymeals_Subscriptions' ) ) {
+
+			$sub_id = Mixmymeals_Subscriptions::find_subscription_by_token( $token );
+			if ( ! $sub_id || ! Mixmymeals_Subscriptions::subscription_is_active( $sub_id ) ) {
+				return $this->rating_form_notice( __( 'This link is invalid or has expired.', 'mixmymeals' ) );
+			}
+
+			if ( ! Mixmymeals_Subscriptions::subscription_has_recipe( $sub_id, $recipe_id ) ) {
+				return $this->rating_form_notice( __( 'This recipe is not part of your meal plan.', 'mixmymeals' ) );
+			}
+
+			list( $by_name, ) = Mixmymeals_Subscriptions::subscriber_identity( $sub_id );
+
+		} elseif ( is_user_logged_in() ) {
+
+			$user_id = get_current_user_id();
+			$by_name = wp_get_current_user()->display_name;
+
+		} else {
+
+			return $this->rating_form_notice(
+				sprintf(
+					wp_kses(
+						/* translators: %s: log-in URL */
+						__( 'You need to be <a href="%s">logged in</a> to upload a photo.', 'mixmymeals' ),
+						array( 'a' => array( 'href' => array() ) )
+					),
+					esc_url( wp_login_url( (string) add_query_arg( 'recipe', $recipe_id, get_permalink() ) ) )
+				),
+				false,
+				true
+			);
+		}
+
+		if ( Mixmymeals_Photos::count_by_uploader( $recipe_id, $sub_id, $user_id ) >= Mixmymeals_Photos::upload_limit() ) {
+			return $this->rating_form_notice( __( 'You have already uploaded the maximum number of photos for this recipe. Thank you!', 'mixmymeals' ), true );
+		}
+
+		$error = '';
+		if ( $is_post && isset( $_FILES['mmm_photo'] ) ) {
+
+			$nonce = isset( $_POST['mmm_photo_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['mmm_photo_nonce'] ) ) : '';
+			if ( ! wp_verify_nonce( $nonce, 'mmm_photo_upload' ) ) {
+				return $this->rating_form_notice( __( 'Your session has expired. Please reload the page.', 'mixmymeals' ) );
+			}
+
+			$result = Mixmymeals_Photos::add_photo( $recipe_id, 'mmm_photo', $by_name, $sub_id, $user_id );
+
+			if ( ! is_wp_error( $result ) ) {
+				return $this->rating_form_notice(
+					Mixmymeals_Photos::is_auto_approved()
+						? __( 'Thank you! Your photo is now in the recipe gallery.', 'mixmymeals' )
+						: __( 'Thank you! Your photo will appear in the recipe gallery once it has been approved.', 'mixmymeals' ),
+					true
+				);
+			}
+
+			$error = $result->get_error_message();
+		}
+
+		return $this->render_photo_upload_form( $token, $recipe_id, $error );
+	}
+
+	/**
+	 * Builds the photo upload form for one recipe.
+	 *
+	 * @param string $token     Subscription token ('' for logged-in uploads).
+	 * @param int    $recipe_id Recipe post ID.
+	 * @param string $error     Optional error message.
+	 * @return string
+	 */
+	private function render_photo_upload_form( string $token, int $recipe_id, string $error = '' ): string {
+
+		$args = array( 'recipe' => $recipe_id );
+		if ( '' !== $token ) {
+			$args['token'] = $token;
+		}
+		$action = esc_url( add_query_arg( $args, get_permalink() ) );
+
+		$max_bytes = Mixmymeals_Photos::max_bytes();
+
+		ob_start();
+		?>
+		<form class="mmm-photo-upload" method="post" enctype="multipart/form-data" action="<?php echo $action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped via esc_url() above. ?>">
+			<h3 class="mmm-photo-upload__title"><?php echo esc_html( get_the_title( $recipe_id ) ); ?></h3>
+			<?php if ( has_post_thumbnail( $recipe_id ) ) : ?>
+				<div class="mmm-photo-upload__recipe-image"><?php echo get_the_post_thumbnail( $recipe_id, 'medium' ); ?></div>
+			<?php endif; ?>
+			<p><?php esc_html_e( 'You cooked this? Show us! Upload a photo of your meal.', 'mixmymeals' ); ?></p>
+			<?php if ( '' !== $error ) : ?>
+				<p class="mmm-rating-notice mmm-rating-notice--error"><?php echo esc_html( $error ); ?></p>
+			<?php endif; ?>
+			<p class="mmm-photo-upload__field">
+				<input type="hidden" name="MAX_FILE_SIZE" value="<?php echo esc_attr( (string) $max_bytes ); ?>">
+				<label class="mmm-photo-upload__label" for="mmm-photo">
+					<i class="mmm-icon fa-solid fa-camera" aria-hidden="true"></i>
+					<span><?php esc_html_e( 'Choose photo or take one', 'mixmymeals' ); ?></span>
+				</label>
+				<input type="file" id="mmm-photo" name="mmm_photo" accept="image/jpeg,image/png,image/webp" required>
+			</p>
+			<p class="mmm-photo-upload__hint">
+				<?php
+				printf(
+					/* translators: %s: maximum file size, e.g. "10 MB" */
+					esc_html__( 'JPG, PNG or WebP, up to %s.', 'mixmymeals' ),
+					esc_html( size_format( $max_bytes ) )
+				);
+				?>
+			</p>
+			<?php
+			echo self::input_notice( 'photo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			wp_nonce_field( 'mmm_photo_upload', 'mmm_photo_nonce' );
+			?>
+			<button type="submit" class="mmm-rating-submit"><?php esc_html_e( 'Upload photo', 'mixmymeals' ); ?></button>
+		</form>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_photo_gallery]: the approved visitor photos of a
+	 * recipe as a thumbnail grid, plus an upload button when the "Photo Upload
+	 * Page" setting is configured. Self-contained: uses the current recipe on
+	 * a single recipe page, or an explicit recipe="123" attribute elsewhere.
+	 *
+	 * @param array|string $atts Shortcode attributes: recipe, size.
+	 * @return string
+	 */
+	public function mmm_recipe_photo_gallery_callback( $atts = array() ): string {
+
+		if ( ! class_exists( 'Mixmymeals_Photos' ) ) {
+			return '';
+		}
+
+		$atts = shortcode_atts(
+			array(
+				'recipe' => 0,
+				'size'   => 'medium',
+			),
+			$atts,
+			'mmm_recipe_photo_gallery'
+		);
+
+		$recipe_id = absint( $atts['recipe'] );
+		if ( ! $recipe_id && is_singular( 'mmm_recipe' ) ) {
+			$recipe_id = (int) get_the_ID();
+		}
+
+		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			return '';
+		}
+
+		$allowed_sizes = array( 'thumbnail', 'medium', 'medium_large', 'large', 'full' );
+		$size          = in_array( $atts['size'], $allowed_sizes, true ) ? $atts['size'] : 'medium';
+
+		$photos = Mixmymeals_Photos::get_photos( $recipe_id, true );
+
+		$upload_url = '';
+		if ( class_exists( 'Mixmymeals_Subscriptions' ) ) {
+			$upload_page = (int) get_option( Mixmymeals_Subscriptions::OPT_UPLOAD_PAGE, 0 );
+			if ( $upload_page > 0 && 'publish' === get_post_status( $upload_page ) ) {
+				$upload_url = (string) add_query_arg( 'recipe', $recipe_id, (string) get_permalink( $upload_page ) );
+			}
+		}
+
+		if ( empty( $photos ) && '' === $upload_url ) {
+			return '';
+		}
+
+		ob_start();
+		?>
+		<div class="mmm-photo-gallery">
+			<?php if ( ! empty( $photos ) ) : ?>
+				<ul class="mmm-photo-gallery__grid">
+					<?php foreach ( $photos as $photo_id ) : ?>
+						<li class="mmm-photo-gallery__item">
+							<a href="<?php echo esc_url( (string) wp_get_attachment_url( $photo_id ) ); ?>" target="_blank" rel="noopener">
+								<?php echo wp_get_attachment_image( $photo_id, $size, false, array( 'loading' => 'lazy' ) ); ?>
+							</a>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php else : ?>
+				<p class="mmm-photo-gallery__empty"><?php esc_html_e( 'No photos yet — be the first to show your version of this meal!', 'mixmymeals' ); ?></p>
+			<?php endif; ?>
+			<?php if ( '' !== $upload_url ) : ?>
+				<p class="mmm-photo-gallery__upload">
+					<a class="mmm-photo-gallery__upload-link" href="<?php echo esc_url( $upload_url ); ?>">
+						<i class="mmm-icon fa-solid fa-camera" aria-hidden="true"></i>
+						<?php esc_html_e( 'Upload your photo', 'mixmymeals' ); ?>
+					</a>
+				</p>
+			<?php endif; ?>
+		</div>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -5969,28 +6953,30 @@ class Mixmymeals_Shortcodes {
 
 		$idn = (string) $ingredient_id;
 		$ids = get_posts(
-			array(
-				'post_type'      => 'mmm_recipe',
-				'post_status'    => 'publish',
-				'posts_per_page' => 100,
-				'fields'         => 'ids',
-				'orderby'        => 'title',
-				'order'          => 'ASC',
-				'no_found_rows'  => true,
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-				'meta_query'     => array(
-					'relation' => 'OR',
-					array(
-						'key'     => '_rmm_steps',
-						'value'   => 's:2:"id";i:' . $idn . ';',
-						'compare' => 'LIKE',
-					),
-					array(
-						'key'     => '_rmm_steps',
-						'value'   => 's:2:"id";s:' . strlen( $idn ) . ':"' . $idn . '";',
-						'compare' => 'LIKE',
-					),
-				),
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => 100,
+						'fields'         => 'ids',
+						'orderby'        => 'title',
+						'order'          => 'ASC',
+						'no_found_rows'  => true,
+						// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+						'meta_query'     => array(
+							'relation' => 'OR',
+							array(
+								'key'     => '_rmm_steps',
+								'value'   => 's:2:"id";i:' . $idn . ';',
+								'compare' => 'LIKE',
+							),
+							array(
+								'key'     => '_rmm_steps',
+								'value'   => 's:2:"id";s:' . strlen( $idn ) . ':"' . $idn . '";',
+								'compare' => 'LIKE',
+							),
+						),
+				)
 			)
 		);
 
@@ -6011,6 +6997,230 @@ class Mixmymeals_Shortcodes {
 		set_transient( $cache_key, $result, HOUR_IN_SECONDS );
 
 		return $result;
+	}
+
+	/**
+	 * Shortcode [mmm_equipment_hero]. Renders the hero section for a single
+	 * piece of equipment, mirroring the ingredient hero.
+	 *
+	 * @param array|string $atts Optional: id to force a specific piece of equipment.
+	 * @return string
+	 */
+	public function mmm_equipment_hero_callback( $atts = array() ): string {
+
+		$atts         = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_equipment_hero' );
+		$equipment_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+
+		if ( ! $equipment_id || get_post_type( $equipment_id ) !== 'mmm_equipment' ) {
+			return '';
+		}
+
+		$title        = get_the_title( $equipment_id );
+		$recipe_count = count( $this->recipes_using_equipment( $equipment_id ) );
+
+		ob_start();
+		?>
+		<section class="mmm-plan-hero mmm-equipment-hero">
+			<div class="mmm-plan-hero__blob"></div>
+			<h1><?php echo esc_html( $title ); ?></h1>
+
+			<div class="mmm-plan-hero__meta">
+				<?php if ( $recipe_count > 0 ) : ?>
+					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-utensils" aria-hidden="true"></i><?php
+						printf(
+							/* translators: %s: number of recipes using this equipment */
+							esc_html( _n( 'Used in %s recipe', 'Used in %s recipes', $recipe_count, 'mixmymeals' ) ),
+							esc_html( number_format_i18n( $recipe_count ) )
+						);
+					?></span>
+				<?php endif; ?>
+			</div>
+		</section>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_recipes_for_a_single_equipment]. Lists the published
+	 * recipes that require the current (or given) piece of equipment as a
+	 * simple list of links.
+	 *
+	 * @param array|string $atts Optional: id to force a specific piece of equipment.
+	 * @return string
+	 */
+	public function mmm_recipes_for_a_single_equipment_callback( $atts = array() ): string {
+
+		$atts         = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_recipes_for_a_single_equipment' );
+		$equipment_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+
+		if ( ! $equipment_id || get_post_type( $equipment_id ) !== 'mmm_equipment' ) {
+			return '';
+		}
+
+		$recipes = $this->recipes_using_equipment( $equipment_id );
+		if ( empty( $recipes ) ) {
+			return '';
+		}
+
+		ob_start();
+		?>
+		<ul class="mmm-ingredient-recipes mmm-equipment-recipes">
+			<?php foreach ( $recipes as $rid ) : ?>
+				<li><a href="<?php echo esc_url( (string) get_permalink( $rid ) ); ?>"><?php echo esc_html( get_the_title( $rid ) ); ?></a></li>
+			<?php endforeach; ?>
+		</ul>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_equipment_affiliate_links]. Renders the shop links of a
+	 * piece of equipment plus the mandatory advertising disclosure.
+	 *
+	 * Returns an empty string when no links are stored, so the template can
+	 * skip the whole section. Every link carries rel="sponsored nofollow
+	 * noopener" and a star that ties it to the disclosure below.
+	 *
+	 * @param array|string $atts Shortcode attributes: equipment_id.
+	 * @return string
+	 */
+	public function mmm_equipment_affiliate_links_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'equipment_id' => 0,
+			),
+			$atts,
+			'mmm_equipment_affiliate_links'
+		);
+
+		$equipment_id = absint( $atts['equipment_id'] );
+
+		if ( 0 === $equipment_id ) {
+			$equipment_id = (int) get_the_ID();
+		}
+
+		if ( ! Mixmymeals_Equipment::exists_by_id( $equipment_id ) ) {
+			return '';
+		}
+
+		$equipment = new Mixmymeals_Equipment( $equipment_id );
+		$links     = $equipment->get_affiliate_links();
+
+		if ( empty( $links ) ) {
+			return '';
+		}
+
+		$disclosure = trim( (string) get_option( 'mixmymeals_affiliate_disclosure', '' ) );
+
+		if ( '' === $disclosure ) {
+			$disclosure = __( 'Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you.', 'mixmymeals' );
+		}
+
+		ob_start();
+		?>
+		<div class="mmm-affiliate">
+			<ul class="mmm-affiliate__list">
+				<?php foreach ( $links as $link ) : ?>
+					<li class="mmm-affiliate__item">
+						<a class="mmm-btn mmm-btn--primary mmm-affiliate__link"
+							href="<?php echo esc_url( $link['url'] ); ?>"
+							target="_blank"
+							rel="sponsored nofollow noopener">
+							<?php echo esc_html( $link['merchant'] ); ?><span class="mmm-affiliate__star" aria-hidden="true">&nbsp;*</span>
+						</a>
+						<?php if ( '' !== $link['note'] ) : ?>
+							<span class="mmm-affiliate__note"><?php echo esc_html( $link['note'] ); ?></span>
+						<?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+
+			<p class="mmm-affiliate__disclosure"><?php echo esc_html( $disclosure ); ?></p>
+		</div>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_equipment_index]. Lists all published equipment grouped by
+	 * equipment category, mirroring the ingredients index.
+	 *
+	 * @param array|string $atts Unused.
+	 * @return string
+	 */
+	public function mmm_equipment_index_callback( $atts = array() ): string {
+
+		$ids = get_posts(
+			array(
+				'post_type'      => 'mmm_equipment',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		if ( empty( $ids ) ) {
+			return '';
+		}
+
+		$groups        = array();
+		$uncategorized = array();
+
+		foreach ( $ids as $id ) {
+			$terms = get_the_terms( $id, 'mmm_equipment_category' );
+
+			if ( empty( $terms ) || is_wp_error( $terms ) ) {
+				$uncategorized[] = (int) $id;
+				continue;
+			}
+
+			$groups[ $terms[0]->name ][] = (int) $id;
+		}
+
+		ksort( $groups, SORT_NATURAL | SORT_FLAG_CASE );
+
+		if ( ! empty( $uncategorized ) ) {
+			$groups[ __( 'Other', 'mixmymeals' ) ] = $uncategorized;
+		}
+
+		ob_start();
+		echo '<div class="mmm-ingredients-index mmm-equipment-index">';
+		foreach ( $groups as $cat_name => $cat_ids ) {
+			echo '<section class="mmm-ingredients-index__group">';
+			echo '<h2 class="mmm-ingredients-index__cat">' . esc_html( (string) $cat_name ) . '</h2>';
+			echo '<ul class="mmm-ingredients-index__list">';
+			foreach ( $cat_ids as $id ) {
+				echo '<li class="mmm-ingredients-index__item"><a href="' . esc_url( (string) get_permalink( $id ) ) . '">'
+					. esc_html( get_the_title( $id ) ) . '</a></li>';
+			}
+			echo '</ul>';
+			echo '</section>';
+		}
+		echo '</div>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Returns published recipe IDs that require the given piece of equipment.
+	 *
+	 * Die Suche selbst liegt in Mixmymeals_Equipment — Daten und Logik gehören
+	 * in die Feature-Klasse, der Shortcode rendert nur.
+	 *
+	 * @param int $equipment_id Equipment post ID.
+	 * @param int $limit        Max recipes to return.
+	 * @return int[]
+	 */
+	private function recipes_using_equipment( int $equipment_id, int $limit = 24 ): array {
+
+		$equipment = new Mixmymeals_Equipment( $equipment_id );
+
+		return $equipment->get_recipe_ids( $limit );
 	}
 
 	/**
@@ -6082,13 +7292,13 @@ class Mixmymeals_Shortcodes {
 			}
 
 			$totals['weight']   += $weight;
-			$totals['calories'] += $nutrition['calories_100'] * $weight / 100;
-			$totals['protein']  += $nutrition['protein'] * $weight / 100;
-			$totals['carbs']    += $nutrition['carbs'] * $weight / 100;
-			$totals['fat']      += $nutrition['fat'] * $weight / 100;
-			$totals['sugar']    += $nutrition['sugar'] * $weight / 100;
-			$totals['fiber']    += $nutrition['fiber'] * $weight / 100;
-			$totals['salt']     += $nutrition['salt'] * $weight / 100;
+			$totals['calories'] += (float) ( $nutrition['calories_100'] ?? 0 ) * $weight / 100;
+			$totals['protein']  += (float) ( $nutrition['protein'] ?? 0 ) * $weight / 100;
+			$totals['carbs']    += (float) ( $nutrition['carbs'] ?? 0 ) * $weight / 100;
+			$totals['fat']      += (float) ( $nutrition['fat'] ?? 0 ) * $weight / 100;
+			$totals['sugar']    += (float) ( $nutrition['sugar'] ?? 0 ) * $weight / 100;
+			$totals['fiber']    += (float) ( $nutrition['fiber'] ?? 0 ) * $weight / 100;
+			$totals['salt']     += (float) ( $nutrition['salt'] ?? 0 ) * $weight / 100;
 		}
 
 		$nutrition = [];
