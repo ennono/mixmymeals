@@ -94,9 +94,16 @@ mixmymeals();
 mixmymeals()->add_post_types();
 mixmymeals()->add_taxonomies();
 mixmymeals()->add_shortcodes();
+// Warenkorb-AJAX-Endpunkte: statisch registriert, weil die Klasse pro
+// Verwendung neu instanziiert wird.
+Mixmymeals_Cart::register_ajax();
 Mixmymeals_Meal_Plan_PDF::register_ajax();
+// Bearbeitungszähler: ebenfalls statisch, weil Rezepte pro Post instanziiert
+// werden, der Hook aber einmal pro Request hängen muss.
 Mixmymeals_Recipe::register_edit_count();
 Mixmymeals_Recipe::register_cook_count();
+// Bring!-Importansicht: ebenso statisch, Pläne werden pro Post instanziiert,
+// Query-Var und template_redirect brauchen aber einen Hook pro Request.
 Mixmymeals_Meal_Plan::register_bring();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();

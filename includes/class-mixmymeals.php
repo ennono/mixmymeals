@@ -120,6 +120,11 @@ class Mixmymeals {
 			: '.min';
 
 		register_activation_hook( $this->file, array( $this, 'install' ) );
+		register_deactivation_hook( $this->file, 'flush_rewrite_rules' );
+
+		// Deferred one-time rewrite flush after activation (post types must
+		// be registered first, hence late init priority).
+		add_action( 'init', array( $this, 'maybe_flush_rewrite_rules' ), 99 );
 
 		// Load frontend JS & CSS.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
@@ -434,11 +439,14 @@ class Mixmymeals {
 	 */
 	public function admin_enqueue_styles( string $hook = '' ): void {
 
+		$css_path = $this->dir . '/assets/css/admin.css';
+		$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : $this->_version;
+
 		wp_register_style(
 			$this->_token . '-admin',
 			esc_url( $this->assets_url ) . 'css/admin.css',
 			array(),
-			$this->_version
+			$version
 		);
 		wp_enqueue_style( $this->_token . '-admin' );
 	}
@@ -562,12 +570,34 @@ class Mixmymeals {
 	/**
 	 * Installation. Runs on activation.
 	 *
+	 * Post types are not registered yet at activation time, so the rewrite
+	 * flush is deferred: a flag option is set here and consumed by
+	 * maybe_flush_rewrite_rules() on the next init (after CPT registration).
+	 *
 	 * @access  public
 	 * @return  void
 	 * @since   1.0.0
 	 */
 	public function install(): void {
 		$this->_log_version_number();
+
+		// Defer the rewrite flush until post types are registered.
+		update_option( 'mixmymeals_flush_needed', 1 );
+	}
+
+	/**
+	 * Flushes rewrite rules once after activation, late on init so all
+	 * MixMyMeals post types and taxonomies are registered first. Without
+	 * this, fresh installs 404 on every plugin permalink.
+	 *
+	 * @access  public
+	 * @return  void
+	 */
+	public function maybe_flush_rewrite_rules(): void {
+		if ( get_option( 'mixmymeals_flush_needed' ) ) {
+			flush_rewrite_rules();
+			delete_option( 'mixmymeals_flush_needed' );
+		}
 	}
 
 	/**

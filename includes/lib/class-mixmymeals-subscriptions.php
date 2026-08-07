@@ -414,13 +414,24 @@ class Mixmymeals_Subscriptions {
 				$mmm_starts = self::upcoming_start_dates( new Mixmymeals_Meal_Plan( $plan_id ) );
 				if ( count( $mmm_starts ) > 1 ) :
 					$mmm_date_fmt = (string) get_option( 'date_format' );
+					$mmm_today    = ( new DateTimeImmutable( 'now' ) )->setTimezone( wp_timezone() )->setTime( 0, 0 );
 					?>
 					<div class="mmm-subscribe-field">
 						<label><?php esc_html_e( 'Start date', 'mixmymeals' ); ?>
 							<select class="mmm-subscribe-start">
 								<?php foreach ( $mmm_starts as $mmm_d ) : ?>
 									<option value="<?php echo esc_attr( $mmm_d->format( 'Y-m-d' ) ); ?>">
-										<?php echo esc_html( wp_date( $mmm_date_fmt, $mmm_d->getTimestamp() ) ); ?>
+										<?php
+										if ( $mmm_d < $mmm_today ) {
+											printf(
+												/* translators: %s: start date of the already-running week */
+												esc_html__( 'This week (started %s) — skips past days', 'mixmymeals' ),
+												esc_html( wp_date( $mmm_date_fmt, $mmm_d->getTimestamp() ) )
+											);
+										} else {
+											echo esc_html( wp_date( $mmm_date_fmt, $mmm_d->getTimestamp() ) );
+										}
+										?>
 									</option>
 								<?php endforeach; ?>
 							</select>
@@ -436,6 +447,11 @@ class Mixmymeals_Subscriptions {
 					<span><?php echo wp_kses_post( $consent ); ?></span>
 				</label>
 			</div>
+			<?php
+			if ( class_exists( 'Mixmymeals_Shortcodes' ) ) {
+				echo Mixmymeals_Shortcodes::input_notice( 'subscribe' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			}
+			?>
 			<button type="submit" class="mmm-subscribe-submit" data-nonce="<?php echo esc_attr( wp_create_nonce( 'mmm_subscribe' ) ); ?>">
 				<?php esc_html_e( 'Subscribe', 'mixmymeals' ); ?>
 			</button>
@@ -601,12 +617,22 @@ class Mixmymeals_Subscriptions {
 		$day_range = $plan->get_day_range();
 		$first_day = ! empty( $day_range ) ? (int) $day_range[0] : 1;
 
-		// Use the subscriber-chosen start day as the drip anchor when one was set
-		// and is still in the future; otherwise fall back to the confirmation
-		// time (original behaviour). plan_start_date() snaps any anchor onto the
-		// start weekday, so a valid chosen day maps to itself.
+		// Use the subscriber-chosen start day as the drip anchor when one was
+		// set. A past anchor is kept as long as its plan window still covers
+		// today — that is the "start in the running week" case, where the
+		// future-only queueing below simply skips the already-past days. Only
+		// a stale choice (window fully over) or no choice falls back to the
+		// confirmation time (original behaviour). plan_start_date() snaps any
+		// anchor onto the start weekday, so a valid chosen day maps to itself.
 		$start_anchor = (int) get_post_meta( $sub_id, '_mmm_sub_start_anchor', true );
-		if ( $start_anchor < $anchor ) {
+		if ( $start_anchor > 0 && $start_anchor < $anchor ) {
+			$window_end = $this->plan_start_date( $plan, $start_anchor )
+				->modify( '+' . ( max( 1, count( $day_range ) ) - 1 ) . ' days' )
+				->setTime( 23, 59, 59 )->getTimestamp();
+			if ( $anchor > $window_end ) {
+				$start_anchor = $anchor;
+			}
+		} elseif ( $start_anchor <= 0 ) {
 			$start_anchor = $anchor;
 		}
 
@@ -828,9 +854,14 @@ class Mixmymeals_Subscriptions {
 	 * ---------------------------------------------------------- */
 
 	/**
-	 * Lists the next $count occurrences of the plan's start weekday, on or after
-	 * today (site time). Used to let the subscriber choose which week to begin
-	 * (opt-in via the shortcode's pick_start attribute).
+	 * Lists the selectable start dates (site time): the running week when its
+	 * plan window still covers today, plus the next $count occurrences of the
+	 * plan's start weekday on or after today. Used to let the subscriber choose
+	 * which week to begin (opt-in via the shortcode's pick_start attribute).
+	 *
+	 * Choosing the running week starts the drip mid-week: the future-only
+	 * queueing in sync_sends() silently skips the mails of the already-past
+	 * plan days, so no mail is ever scheduled retroactively.
 	 *
 	 * @param Mixmymeals_Meal_Plan $plan  Plan.
 	 * @param int                  $count How many upcoming dates to offer.
@@ -845,6 +876,17 @@ class Mixmymeals_Subscriptions {
 		$first         = $today->modify( "+{$diff} days" );
 
 		$dates = array();
+
+		// The running week: its start weekday already passed ($diff > 0 means
+		// $first is next week's start), but the plan window still covers today.
+		if ( $diff > 0 ) {
+			$current  = $first->modify( '-7 days' );
+			$last_day = $current->modify( '+' . ( max( 1, count( $plan->get_day_range() ) ) - 1 ) . ' days' );
+			if ( $last_day >= $today ) {
+				$dates[] = $current;
+			}
+		}
+
 		for ( $i = 0; $i < max( 1, $count ); $i++ ) {
 			$dates[] = $first->modify( '+' . ( $i * 7 ) . ' days' );
 		}
@@ -1460,6 +1502,9 @@ class Mixmymeals_Subscriptions {
 	 *                                and a token is available).
 	 *  - {{ day_summary_html }}      The day's calorie/cost total (or empty).
 	 *  - {{ day_kcal }} {{ day_cost }} {{ currency }}
+	 *  - {{ day_nutrition_html }}    The day's kcal/protein/carbs/fat as one line,
+	 *                                per person; empty when the day has no data.
+	 *  - {{ day_protein }} {{ day_carbs }} {{ day_fat }}  Grams, per person.
 	 *  - {{ day_ingredients_html }}  Ingredients needed for this day's meals.
 	 *  - {{ shopping_list_html }}    The whole plan's shopping list.
 	 *
@@ -1476,6 +1521,12 @@ class Mixmymeals_Subscriptions {
 
 		$meals = $this->render_meal_list( $plan, $day );
 
+		// The day's nutrition comes from the plan so the mail, the plan page and
+		// the PDF quote the same figures. {{ day_kcal }} keeps coming from
+		// render_meal_list(), which computes the identical value alongside the
+		// cost — left untouched so existing templates cannot shift.
+		$nutrition = $plan->calc_nutrition( $day )['per_person'];
+
 		return array(
 			'plan'                 => get_the_title( $plan->get_id() ),
 			'plan_url'             => (string) get_permalink( $plan->get_id() ),
@@ -1489,10 +1540,56 @@ class Mixmymeals_Subscriptions {
 			'day_summary_html'     => $meals['summary_html'],
 			'day_kcal'             => $meals['day_kcal'],
 			'day_cost'             => $meals['day_cost'],
+			'day_protein'          => number_format_i18n( $nutrition['protein'], 1 ),
+			'day_carbs'            => number_format_i18n( $nutrition['carbs'], 1 ),
+			'day_fat'              => number_format_i18n( $nutrition['fat'], 1 ),
+			'day_nutrition_html'   => $this->render_day_nutrition( $nutrition ),
 			'currency'             => (string) get_option( 'mixmymeals_currency', '€' ),
 			'day_ingredients_html' => $this->render_ingredient_list( $plan, $day, __( 'No ingredients needed for this day.', 'mixmymeals' ) ),
 			'shopping_list_html'   => $this->render_ingredient_list( $plan, null, __( 'The shopping list is empty.', 'mixmymeals' ) ),
 		);
+	}
+
+	/**
+	 * Renders the day's nutrition as one compact, mail-safe line. Returns '' when
+	 * the day carries no calories, so a day without meals (or without nutrition
+	 * data) does not print an empty strip of zeroes.
+	 *
+	 * @param array<string,float> $nutrition Per-person figures for the day.
+	 * @return string
+	 */
+	private function render_day_nutrition( array $nutrition ): string {
+
+		if ( empty( $nutrition['calories'] ) ) {
+			return '';
+		}
+
+		$parts = array(
+			sprintf(
+				/* translators: %s: kilocalories for the day. */
+				__( '~%s kcal', 'mixmymeals' ),
+				number_format_i18n( round( (float) $nutrition['calories'] ) )
+			),
+			sprintf(
+				/* translators: %s: grams of protein. */
+				__( '%s g protein', 'mixmymeals' ),
+				number_format_i18n( (float) $nutrition['protein'], 1 )
+			),
+			sprintf(
+				/* translators: %s: grams of carbohydrates. */
+				__( '%s g carbs', 'mixmymeals' ),
+				number_format_i18n( (float) $nutrition['carbs'], 1 )
+			),
+			sprintf(
+				/* translators: %s: grams of fat. */
+				__( '%s g fat', 'mixmymeals' ),
+				number_format_i18n( (float) $nutrition['fat'], 1 )
+			),
+		);
+
+		return '<p style="margin:0 0 8px;color:#6B665B;font-size:14px;">'
+			. esc_html( implode( ' · ', $parts ) )
+			. '</p>';
 	}
 
 	/**
@@ -1950,9 +2047,14 @@ class Mixmymeals_Subscriptions {
 					(float) ( $data['total_weight'] ?? 0 )
 				);
 
+				$optional_label = ! empty( $data['optional'] )
+					? ' <span style="color:#6B665B;">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
+					: '';
+
 				$out .= '<li style="padding:4px 0;border-bottom:1px solid #ECE6D9;">'
 					. '<strong style="font-weight:600;">' . esc_html( $ing_name ) . '</strong>'
 					. ( '' !== $amount ? ' <span style="color:#6B665B;">' . esc_html( $amount ) . '</span>' : '' )
+					. $optional_label
 					. '</li>';
 			}
 

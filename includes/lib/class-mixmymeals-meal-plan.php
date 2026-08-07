@@ -592,120 +592,6 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * Calculates the shopping list data for this meal plan.
-	 *
-	 * @param bool $sort_by_category
-	 * @return array
-	 */
-	/*
-	public function calc_shopping_list( bool $sort_by_category = true ): array {
-
-		$meals = $this->get_meals();
-
-		if ( empty( $meals ) ) {
-			return [];
-		}
-
-		$ingredient_totals = [];
-
-		foreach ( $meals as $meal_post ) {
-
-			$meal      = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe_id = $meal->get_recipe_id();
-
-			if ( ! $recipe_id ) {
-				continue;
-			}
-
-			$recipe = new Mixmymeals_Recipe( $recipe_id );
-			$steps  = $recipe->get_steps();
-
-			$recipe_servings = max( 1, floatval( $recipe->get_servings() ) );
-			$meal_servings   = max( 0.01, floatval( $meal->get_servings() ) );
-			$scale           = $meal_servings / $recipe_servings;
-
-			foreach ( $steps as $step ) {
-				foreach ( $step['ingredients'] ?? [] as $ing ) {
-
-					if ( empty( $ing['id'] ) || ! isset( $ing['amount'] ) ) {
-						continue;
-					}
-
-					$ing_id = intval( $ing['id'] );
-
-					// Ignoriere invalide Zutaten
-					$ingredient_obj = new Mixmymeals_Ingredient( $ing_id );
-					if ( ! $ingredient_obj->is_valid() ) {
-						continue;
-					}
-
-					$amount    = floatval( $ing['amount'] ) * $scale;
-					$amount_id = ! empty( $ing['amount_id'] )
-						? intval( $ing['amount_id'] )
-						: 0;
-
-					$unit_weight = 1;
-					$unit_title  = 'g';
-
-					if ( $amount_id ) {
-						$amount_obj  = new Mixmymeals_Ingredient_Amount( $amount_id );
-						$unit_weight = max( 0.0001, floatval( $amount_obj->get_weight() ) );
-						$unit_title  = $amount_obj->get_title() ?: 'g';
-					}
-
-					if ( ! isset( $ingredient_totals[ $ing_id ] ) ) {
-						$ingredient_totals[ $ing_id ] = [
-							'details'      => [],
-							'total_weight' => 0,
-						];
-					}
-
-					$ingredient_totals[ $ing_id ]['details'][] = [
-						'amount'      => $amount,
-						'unit_title'  => $unit_title,
-						'unit_weight' => $unit_weight,
-						'recipe_name' => get_the_title( $recipe_id ),
-					];
-
-					$ingredient_totals[ $ing_id ]['total_weight'] += $amount * $unit_weight;
-				}
-			}
-		}
-
-		if ( empty( $ingredient_totals ) ) {
-			return [];
-		}
-
-		// Gruppieren nach Kategorie
-		$ingredients_by_cat = [];
-
-		if ( $sort_by_category ) {
-
-			foreach ( $ingredient_totals as $ing_id => $data ) {
-
-				$terms = wp_get_post_terms( $ing_id, 'mmm_ingredient_category' );
-				if ( is_wp_error( $terms ) ) {
-					$terms = [];
-				}
-
-				$cat_name = ! empty( $terms )
-					? $terms[0]->name
-					: __( 'Other', 'mixmymeals' );
-
-				$ingredients_by_cat[ $cat_name ][ $ing_id ] = $data;
-			}
-
-			ksort( $ingredients_by_cat, SORT_NATURAL | SORT_FLAG_CASE );
-
-		} else {
-			$ingredients_by_cat[ __( 'All Ingredients', 'mixmymeals' ) ] = $ingredient_totals;
-		}
-
-		return $ingredients_by_cat;
-	}
-	*/
-
-	/**
 	 * Aggregates the plan's ingredient needs, grouped by category.
 	 *
 	 * @param bool     $sort_by_category Group the result by ingredient category.
@@ -769,8 +655,15 @@ class Mixmymeals_Meal_Plan {
 						'details'      => [],
 						'units'        => [],
 						'total_weight' => 0,
+						// Optional stays true only while every use of this
+						// ingredient across the plan is optional; a single
+						// required use flips it back to a normal purchase.
+						'optional'     => true,
 					];
 				}
+
+				$ingredient_totals[ $ing_id ]['optional'] =
+					$ingredient_totals[ $ing_id ]['optional'] && ! empty( $ing['optional'] );
 
 				// Rohbedarf je Einheit sammeln; unteilbare Einheiten werden
 				// erst nach der Aggregation über alle Mahlzeiten gerundet.
@@ -917,13 +810,15 @@ class Mixmymeals_Meal_Plan {
 
 		return is_string( $title ) ? $title : '';
 	}
-
 	/**
-	 * Internal helper: returns a random recipe ID from the newest meal plan (cached per request).
+	 * Internal helper: returns a random recipe ID from the newest meal plan
+	 * (cached per request). Prefers recipes with a real featured image so the
+	 * image shortcode has something to show; when no recipe of the plan has a
+	 * photo, falls back to any valid recipe (the title shortcode still works,
+	 * the image shortcode then cleanly renders nothing).
 	 *
 	 * @return int Recipe ID or 0 if none found.
 	 */
-	/*
 	private static function get_random_recipe_id_from_latest_plan_cached(): int {
 
 		if ( null !== self::$cached_random_recipe_id ) {
@@ -965,74 +860,9 @@ class Mixmymeals_Meal_Plan {
 			return 0;
 		}
 
-		// Robust: some meals might not have a recipe -> shuffle and pick first valid
 		shuffle( $meal_ids );
 
-		foreach ( $meal_ids as $meal_id ) {
-			$meal = new Mixmymeals_Meal( absint( $meal_id ) );
-
-			if ( ! method_exists( $meal, 'get_recipe_id' ) ) {
-				continue;
-			}
-
-			$recipe_id = absint( $meal->get_recipe_id() );
-			if ( $recipe_id > 0 ) {
-				self::$cached_random_recipe_id = $recipe_id;
-				return $recipe_id;
-			}
-		}
-
-		self::$cached_random_recipe_id = 0;
-		return 0;
-	}
-	*/
-	// This variant does return recipes that use the placeholder image as
-	// featured image:
-	private static function get_random_recipe_id_from_latest_plan_cached(): int {
-
-		if ( null !== self::$cached_random_recipe_id ) {
-			return absint( self::$cached_random_recipe_id );
-		}
-
-		// Placeholder-ID einmal abrufen
-		$placeholder_id = (int) get_option( 'mixmymeals_placeholder_image_id' );
-
-		// 1) Latest plan
-		$plans = get_posts(
-			array(
-				'post_type'      => 'mmm_meal_plan',
-				'post_status'    => 'publish',
-				'posts_per_page' => 1,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'fields'         => 'ids',
-			)
-		);
-
-		if ( empty( $plans ) ) {
-			self::$cached_random_recipe_id = 0;
-			return 0;
-		}
-
-		$latest_plan_id = absint( $plans[0] );
-
-		// 2) Meals in latest plan
-		$meal_ids = get_posts(
-			array(
-				'post_type'      => 'mmm_meal',
-				'post_parent'    => $latest_plan_id,
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-			)
-		);
-
-		if ( empty( $meal_ids ) ) {
-			self::$cached_random_recipe_id = 0;
-			return 0;
-		}
-
-		shuffle( $meal_ids );
+		$fallback_id = 0;
 
 		foreach ( $meal_ids as $meal_id ) {
 			$meal = new Mixmymeals_Meal( absint( $meal_id ) );
@@ -1047,18 +877,21 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			// Prüfen: hat das Rezept ein Featured Image?
-			$thumb_id = get_post_thumbnail_id( $recipe_id );
-			if ( ! $thumb_id || $thumb_id === $placeholder_id ) {
-				continue; // Skip, kein echtes Bild
+			if ( ! $fallback_id ) {
+				$fallback_id = $recipe_id;
+			}
+
+			// Prefer a recipe with a real featured image.
+			if ( ! get_post_thumbnail_id( $recipe_id ) ) {
+				continue;
 			}
 
 			self::$cached_random_recipe_id = $recipe_id;
 			return $recipe_id;
 		}
 
-		self::$cached_random_recipe_id = 0;
-		return 0;
+		self::$cached_random_recipe_id = $fallback_id;
+		return $fallback_id;
 	}
 
 	/**

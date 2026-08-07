@@ -409,8 +409,11 @@ jQuery(document).ready(function ($) {
             .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`)
             .addClass("ingredient-select");
 
-        $template.find("input")
+        $template.find("input.ingredient-amount-input")
             .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount]`);
+
+        $template.find("input.ingredient-optional-input")
+            .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][optional]`);
 
         $container.append($template);
         showShoppingListSaveNotice();

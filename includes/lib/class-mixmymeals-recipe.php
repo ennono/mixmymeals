@@ -245,8 +245,11 @@ class Mixmymeals_Recipe {
 
 		foreach ( $steps as $step ) {
 
-			$title = trim( $step['title'] ?? '' );
-			$desc  = trim( $step['description'] ?? '' );
+			// HTML zentral säubern, damit REST/Importer/Admin denselben
+			// Schutz erhalten: Titel ohne Markup, Beschreibung nur mit
+			// erlaubtem Post-HTML (kein <script> etc.).
+			$title = sanitize_text_field( $step['title'] ?? '' );
+			$desc  = wp_kses_post( trim( (string) ( $step['description'] ?? '' ) ) );
 			$image = intval( $step['image'] ?? 0 );
 
 			// Leere Schritte überspringen
@@ -281,6 +284,7 @@ class Mixmymeals_Recipe {
 						'id'        => $ing_id,
 						'amount'    => $amount,
 						'amount_id' => $amount_id,
+						'optional'  => ! empty( $ing['optional'] ),
 					);
 				}
 			}
@@ -351,13 +355,16 @@ class Mixmymeals_Recipe {
 
 			$total_weight += $weight;
 
-			$totals['calories'] += $nutrition['calories_100'] * $weight / 100;
-			$totals['fat']      += $nutrition['fat'] * $weight / 100;
-			$totals['carbs']    += $nutrition['carbs'] * $weight / 100;
-			$totals['protein']  += $nutrition['protein'] * $weight / 100;
-			$totals['sugar']    += $nutrition['sugar'] * $weight / 100;
-			$totals['fiber']    += $nutrition['fiber'] * $weight / 100;
-			$totals['salt']     += $nutrition['salt'] * $weight / 100;
+			// Zweiter Gürtel: get_nutrition() liefert bereits float|null, aber
+			// diese Rechnung darf unter keinen Umständen fatal werden — sie
+			// hängt an der Rezeptliste im Admin und an jeder Rezeptseite.
+			$totals['calories'] += (float) ( $nutrition['calories_100'] ?? 0 ) * $weight / 100;
+			$totals['fat']      += (float) ( $nutrition['fat'] ?? 0 ) * $weight / 100;
+			$totals['carbs']    += (float) ( $nutrition['carbs'] ?? 0 ) * $weight / 100;
+			$totals['protein']  += (float) ( $nutrition['protein'] ?? 0 ) * $weight / 100;
+			$totals['sugar']    += (float) ( $nutrition['sugar'] ?? 0 ) * $weight / 100;
+			$totals['fiber']    += (float) ( $nutrition['fiber'] ?? 0 ) * $weight / 100;
+			$totals['salt']     += (float) ( $nutrition['salt'] ?? 0 ) * $weight / 100;
 		}
 
 		return [$totals, $total_weight];
@@ -524,6 +531,7 @@ class Mixmymeals_Recipe {
 					'amount'   => round( $amount, 1 ),
 					'unit'     => $unit_title,
 					'weight_g' => round( $total_weight ),
+					'optional' => ! empty( $ing['optional'] ),
 				);
 			}
 		}
@@ -597,6 +605,7 @@ class Mixmymeals_Recipe {
 					'weight_per_unit' => $weight_per_unit,
 					'is_indivisible'  => $is_indivisible,
 					'amount_id'       => $amount_id,
+					'optional'        => ! empty( $ing['optional'] ),
 					'step'            => $step_index,
 				);
 			}

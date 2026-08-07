@@ -33,12 +33,18 @@ class Mixmymeals_Cart {
 			setcookie(
 				self::COOKIE_NAME,
 				$uuid,
-				time() + self::EXPIRATION,
-				COOKIEPATH,
-				COOKIE_DOMAIN,
-				is_ssl(),
-				true
+				array(
+					'expires'  => time() + self::EXPIRATION,
+					'path'     => COOKIEPATH,
+					'domain'   => COOKIE_DOMAIN,
+					'secure'   => is_ssl(),
+					'httponly' => true,
+					'samesite' => 'Lax',
+				)
 			);
+
+			// Make the fresh UUID visible to reads within this request.
+			$_COOKIE[ self::COOKIE_NAME ] = $uuid;
 		}
 
 		return self::TRANSIENT_PREFIX . $uuid;
@@ -231,7 +237,7 @@ class Mixmymeals_Cart {
 			return false;
 		}
 
-		$allowed_keys = array( 'servings', 'type', 'day' /*, 'note'*/ );
+		$allowed_keys = array( 'servings', 'type', 'day' );
 
 		foreach ( $allowed_keys as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
@@ -243,5 +249,245 @@ class Mixmymeals_Cart {
 		return true;
 	}
 
+	/**
+	 * Registers the cart AJAX endpoints.
+	 *
+	 * Deliberately static and called once from the bootstrap: this class is
+	 * instantiated per use, so hooking in the constructor would register the
+	 * same callbacks again on every `new Mixmymeals_Cart()`.
+	 *
+	 * Moved here from Mixmymeals_Shortcodes — these are write endpoints for the
+	 * cart, not shortcodes. Behaviour is unchanged.
+	 */
+	public static function register_ajax(): void {
+
+		$endpoints = array(
+			'mmm_add_to_cart'         => 'mmm_add_recipe_to_cart_ajax_callback',
+			'mmm_get_cart_count'      => 'mmm_get_cart_count_ajax_callback',
+			'mmm_remove_cart_item'    => 'mmm_remove_cart_item_ajax_callback',
+			'mmm_update_cart_item'    => 'mmm_update_cart_item_ajax_callback',
+			'mmm_clear_cart'          => 'mmm_clear_cart_ajax_callback',
+			'mmm_load_plan_into_cart' => 'mmm_load_plan_into_cart_ajax_callback',
+		);
+
+		foreach ( $endpoints as $action => $method ) {
+			add_action( 'wp_ajax_' . $action, array( __CLASS__, $method ) );
+			add_action( 'wp_ajax_nopriv_' . $action, array( __CLASS__, $method ) );
+		}
+	}
+
+	/**
+	 * AJAX handler for wp_ajax_mmm_add_to_cart.
+	 * Adds a recipe to the current user's or guest's cart.
+	 *
+	 * @return void
+	 */
+	public static function mmm_add_recipe_to_cart_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$recipe_id = isset( $_POST['recipe_id'] )
+			? intval( $_POST['recipe_id'] ) : 0;
+
+		if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			wp_send_json_error( [
+				'code'    => 'invalid_recipe_id',
+				'message' => __( 'Invalid recipe ID.', 'mixmymeals' ),
+			], 400 );
+		}
+
+
+		/*
+		$cart = new Mixmymeals_Cart();
+		$cart->add( $recipe_id );
+
+		wp_send_json_success( array( 'message' => 'Recipe added to meal plan.' ) );
+		*/
+
+		$servings = isset( $_POST['servings'] )
+			? max( 1, intval( $_POST['servings'] ) )
+			: 1;
+
+		$type = isset( $_POST['type'] )
+			? sanitize_text_field( wp_unslash( $_POST['type'] ) )
+			: '';
+		if ( ! array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ) {
+			$type = '';
+		}
+
+		$day = isset( $_POST['day'] ) ? intval( $_POST['day'] ) : 0;
+		$day = ( $day >= 1 && $day <= 7 ) ? $day : null;
+
+		$cart = new Mixmymeals_Cart();
+		$ok   = $cart->add( $recipe_id, $servings, $type, $day );
+
+		if ( ! $ok ) {
+			wp_send_json_error( [
+				'code'    => 'cart_limit_reached',
+				'message' => __( 'Your planner is full.', 'mixmymeals' ),
+			], 409 );
+		}
+
+
+		wp_send_json_success( [
+			'message' => __( 'Recipe added to meal plan.', 'mixmymeals' ),
+		] );
+
+	}
+
+	/**
+	 * AJAX: Get cart count
+	 */
+	public static function mmm_get_cart_count_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$cart  = new Mixmymeals_Cart();
+		$count = count( $cart->get_items() );
+
+		wp_send_json_success(
+			array(
+				'count' => $count,
+			)
+		);
+	}
+
+	/**
+	 * AJAX handler for wp_ajax_mmm_remove_cart_item.
+	 * Removes a recipe from the cart by its index.
+	 *
+	 * @return void
+	 */
+	public static function mmm_remove_cart_item_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$index = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : - 1;
+
+		if ( $index < 0 ) {
+			wp_send_json_error( [
+				'code'    => 'invalid_index',
+				'message' => __( 'Invalid index.', 'mixmymeals' ),
+			], 400 );
+		}
+
+		$cart    = new Mixmymeals_Cart();
+		$success = $cart->remove_by_index( $index );
+
+		if ( $success ) {
+			wp_send_json_success( [
+				'code'    => 'removed',
+				'message' => __( 'Recipe removed.', 'mixmymeals' ),
+			] );
+		} else {
+			wp_send_json_error( [
+				'code'    => 'remove_failed',
+				'message' => __( 'Could not remove recipe.', 'mixmymeals' ),
+			], 500 );
+		}
+
+	}
+
+	/**
+	 * AJAX handler for wp_ajax_mmm_clear_cart.
+	 * Clears all items from the cart.
+	 *
+	 * @return void
+	 */
+	public static function mmm_clear_cart_ajax_callback(): void {
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$cart = new Mixmymeals_Cart();
+		$cart->clear();
+
+		wp_send_json_success( array( 'message' => __( 'Planner cleared.', 'mixmymeals' ) ) );
+	}
+
+	/**
+	 * AJAX handler for wp_ajax_mmm_update_cart_item.
+	 * Updates the servings, type, or day of a cart item by its index.
+	 *
+	 * @return void
+	 */
+	public static function mmm_update_cart_item_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$index = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : - 1;
+		if ( $index < 0 ) {
+			wp_send_json_error( [
+				'code'    => 'invalid_index',
+				'message' => __( 'Invalid index.', 'mixmymeals' ),
+			], 400 );
+		}
+
+		$cart  = new Mixmymeals_Cart();
+		$items = $cart->get_items();
+
+		if ( ! isset( $items[ $index ] ) ) {
+			wp_send_json_error( [
+				'code'    => 'item_not_found',
+				'message' => __( 'Item not existing.', 'mixmymeals' ),
+			], 404 );
+		}
+
+		$item             = $items[ $index ];
+		$item['servings'] = isset( $_POST['servings'] )
+			? intval( $_POST['servings'] ) : $item['servings'] ?? 1;
+		$item['type']     = isset( $_POST['type'] )
+			? sanitize_text_field( $_POST['type'] ) : $item['type'] ?? '';
+		$item['note']     = isset( $_POST['note'] )
+			? sanitize_textarea_field( $_POST['note'] ) : $item['note'] ?? '';
+		$item['day']      = isset( $_POST['day'] ) ? intval( $_POST['day'] )
+			: $item['day'] ?? null;
+
+		// Item zurück in den Warenkorb setzen
+		$items[ $index ] = $item;
+		$cart->save_items( $items );
+
+		wp_send_json_success( [
+			'code'    => 'updated',
+			'message' => __( 'Item updated.', 'mixmymeals' ),
+			'item'    => $item,
+		] );
+	}
+
+	/**
+	 * AJAX handler for wp_ajax_mmm_load_plan_into_cart.
+	 * Clears the current cart and loads all meals from the specified meal plan.
+	 *
+	 * @return void
+	 */
+	public static function mmm_load_plan_into_cart_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$meal_plan_id = intval( $_POST['meal_plan_id'] ?? 0 );
+
+		$post = get_post( $meal_plan_id );
+		if ( ! $post || $post->post_type !== 'mmm_meal_plan' || $post->post_status !== 'publish' ) {
+			wp_send_json_error( array( 'message' => __( 'Meal Plan not found.', 'mixmymeals' ) ) );
+		}
+
+		$plan  = new Mixmymeals_Meal_Plan( $meal_plan_id );
+		$meals = $plan->get_meals();
+
+		$cart = new Mixmymeals_Cart();
+		$cart->clear();
+
+		foreach ( $meals as $meal_post ) {
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+			$cart->add(
+				$meal->get_recipe_id(),
+				$meal->get_servings(),
+				$meal->get_type(),
+				$meal->get_day()
+			);
+		}
+
+		wp_send_json_success( array(
+			'message' => __( 'Meal plan loaded into the planner.', 'mixmymeals' ),
+		) );
+	}
 
 }
