@@ -170,6 +170,102 @@ class Mixmymeals_Meal_Plan {
 			max( 1, min( 7, intval( $day ) ) )
 		);
 	}
+	// ---------------------------
+	// External author (author box)
+	// ---------------------------
+
+	/**
+	 * Author box accessors. Thin delegates to Mixmymeals_Post_Meta, which
+	 * holds the storage and admin fields shared with recipes; the card itself
+	 * is rendered by the author-box shortcodes.
+	 *
+	 * @return string
+	 */
+	public function get_author_name(): string {
+		return Mixmymeals_Post_Meta::get_author_name( $this->post_id );
+	}
+
+	/**
+	 * Free-form description shown in the author box (limited HTML allowed).
+	 *
+	 * @return string
+	 */
+	public function get_author_text(): string {
+		return Mixmymeals_Post_Meta::get_author_text( $this->post_id );
+	}
+
+	/**
+	 * Link target of the author box, or '' when none is set.
+	 *
+	 * @return string
+	 */
+	public function get_author_url(): string {
+		return Mixmymeals_Post_Meta::get_author_url( $this->post_id );
+	}
+
+	/**
+	 * Label for the author link, defaulting to the link's host.
+	 *
+	 * @return string
+	 */
+	public function get_author_link_text(): string {
+		return Mixmymeals_Post_Meta::get_author_link_text( $this->post_id );
+	}
+
+	/**
+	 * Whether the author link should carry rel="nofollow".
+	 *
+	 * @return bool
+	 */
+	public function get_author_nofollow(): bool {
+		return Mixmymeals_Post_Meta::get_author_nofollow( $this->post_id );
+	}
+
+	/**
+	 * Social/contact addresses of the external author.
+	 *
+	 * @return string[]
+	 */
+	public function get_author_social(): array {
+		return Mixmymeals_Post_Meta::get_author_social( $this->post_id );
+	}
+
+	/**
+	 * Attachment ID of the external author's profile picture, 0 when none.
+	 *
+	 * @return int
+	 */
+	public function get_author_image_id(): int {
+		return Mixmymeals_Post_Meta::get_author_image_id( $this->post_id );
+	}
+
+	/**
+	 * URL of the external author's profile picture, '' when none.
+	 *
+	 * @return string
+	 */
+	public function get_author_image_url(): string {
+		return Mixmymeals_Post_Meta::get_author_image_url( $this->post_id );
+	}
+
+	/**
+	 * All stored author-box fields, raw as saved.
+	 *
+	 * @return array
+	 */
+	public function get_author_box(): array {
+		return Mixmymeals_Post_Meta::get_author_data( $this->post_id );
+	}
+
+	/**
+	 * Stores the author box fields.
+	 *
+	 * @param array $data name, text, url, link_text, nofollow, social.
+	 * @return void
+	 */
+	public function set_author_box( array $data ): void {
+		Mixmymeals_Post_Meta::save_author_data( $this->post_id, $data );
+	}
 
 	// ---------------------------
 	// Meal Handling

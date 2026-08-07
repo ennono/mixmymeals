@@ -123,6 +123,27 @@ class Mixmymeals_Post_Meta {
 			'save_post_mmm_meal_plan',
 			array( $this, 'save_meal_plan_days_meta' )
 		);
+
+		// Author box: same fields, storage and rendering for both post types.
+		add_action(
+			'add_meta_boxes_mmm_meal_plan',
+			array( $this, 'register_meal_plan_author_metabox' )
+		);
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'register_recipe_author_metabox' )
+		);
+		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_author_meta' ) );
+		add_action( 'save_post_mmm_recipe', array( $this, 'save_author_meta' ) );
+
+		// Image credit: same fields, storage and rendering for both post types.
+		foreach ( array( 'mmm_meal_plan', 'mmm_recipe' ) as $mmm_credit_type ) {
+			add_action(
+				'add_meta_boxes_' . $mmm_credit_type,
+				array( $this, 'register_image_credit_metabox' )
+			);
+			add_action( 'save_post_' . $mmm_credit_type, array( $this, 'save_image_credit_meta' ) );
+		}
 		/*
 		add_action( 'save_post_mmm_meal_plan', [ $this, 'prevent_overlapping_meal_plans' ], 10, 3 );
 		add_action( 'admin_notices', function() {
@@ -2157,6 +2178,653 @@ class Mixmymeals_Post_Meta {
 		}
 
 		echo '</ul>';
+	}
+
+	/**
+	 * Nonce action/field for the author meta box, shared by both post types.
+	 *
+	 * @var string
+	 */
+	const AUTHOR_NONCE_ACTION = 'mmm_author_meta_box';
+	const AUTHOR_NONCE_FIELD  = 'mmm_author_nonce';
+
+	/**
+	 * The freely editable author credit that recipes and meal plans share, so
+	 * both post types behave identically instead of drifting apart.
+	 *
+	 * Two sources, in this order:
+	 *  1. the post's own author fields (name, text, link, picture) — a guest
+	 *     author, an external site, a magazine credit;
+	 *  2. when no name is set there, the WordPress user who created the post,
+	 *     with avatar and profile bio.
+	 *
+	 * Not to be confused with the image credit below, which credits the
+	 * featured image rather than the post.
+	 *
+	 * @var string
+	 */
+	const AUTHOR_NAME      = '_mmm_author_name';
+	const AUTHOR_TEXT      = '_mmm_author_text';
+	const AUTHOR_URL       = '_mmm_author_url';
+	const AUTHOR_LINK_TEXT = '_mmm_author_link_text';
+	const AUTHOR_NOFOLLOW  = '_mmm_author_nofollow';
+	const AUTHOR_SOCIAL    = '_mmm_author_social';
+	const AUTHOR_IMAGE     = '_mmm_author_image';
+
+	/**
+	 * Rendered size of the author's profile picture in pixels. Matches the size
+	 * the box asks get_avatar() for, so both sources hand the theme an image of
+	 * the same dimensions.
+	 *
+	 * @var int
+	 */
+	const AUTHOR_AVATAR_SIZE = 96;
+
+	const IMAGE_CREDIT_NONCE_ACTION = 'mmm_image_credit_meta_box';
+	const IMAGE_CREDIT_NONCE_FIELD  = 'mmm_image_credit_nonce';
+
+	/**
+	 * Credit for the featured image of recipes and meal plans. Kept structured
+	 * rather than free text on purpose — licences like CC BY ask for creator,
+	 * source and licence separately, and only a structured field can still be
+	 * reformatted later without re-editing every post.
+	 *
+	 * Field key => meta key. The order is also the order of the admin fields.
+	 *
+	 * @var array<string,string>
+	 */
+	const IMAGE_CREDIT_FIELDS = array(
+		'creator' => '_mmm_image_credit_creator',
+		'source'  => '_mmm_image_credit_source',
+		'license' => '_mmm_image_credit_license',
+		'url'     => '_mmm_image_credit_url',
+	);
+
+	/**
+	 * Meal Plan Metabox: freely editable author box (external author).
+	 */
+	public function register_meal_plan_author_metabox(): void {
+		add_meta_box(
+			'mmm_meal_plan_author_meta_box',
+			__( 'Plan Author', 'mixmymeals' ),
+			array( $this, 'render_author_metabox' ),
+			'mmm_meal_plan',
+			'normal',
+			'low'
+		);
+	}
+
+	/**
+	 * Recipe Metabox: freely editable author box (external author).
+	 */
+	public function register_recipe_author_metabox(): void {
+		add_meta_box(
+			'mmm_recipe_author_meta_box',
+			__( 'Recipe Author', 'mixmymeals' ),
+			array( $this, 'render_author_metabox' ),
+			'mmm_recipe',
+			'normal',
+			'low'
+		);
+	}
+
+	/**
+	 * Renders the author-box fields for recipes and meal plans alike. Leaving
+	 * the name empty falls back to the WordPress user who created the post.
+	 *
+	 * @param WP_Post $post Current post.
+	 * @return void
+	 */
+	public function render_author_metabox( WP_Post $post ): void {
+
+		wp_nonce_field( self::AUTHOR_NONCE_ACTION, self::AUTHOR_NONCE_FIELD );
+
+		$wp_author = trim(
+			(string) get_the_author_meta( 'display_name', (int) $post->post_author )
+		);
+
+		echo '<p class="description" style="margin:0 0 12px;">'
+			. esc_html(
+				sprintf(
+					/* translators: %s: display name of the WordPress user who created the post. */
+					__( 'Leave the name empty to credit the WordPress author (%s) with their profile picture and bio.', 'mixmymeals' ),
+					'' !== $wp_author ? $wp_author : '—'
+				)
+			)
+			. '</p>';
+
+		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
+
+		echo '<tr><th scope="row"><label for="mmm_author_name">'
+			. esc_html__( 'Author Name', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="text" class="regular-text" id="mmm_author_name" name="mmm_author_name" value="'
+			. esc_attr( self::get_author_name( $post->ID ) ) . '" /></td></tr>';
+
+		// Plain textarea, upgraded to a slim TinyMCE by admin.js. Deliberately
+		// NOT wp_editor(): in the block editor classic meta boxes are moved into
+		// the Gutenberg meta-box area after load, and a TinyMCE initialised
+		// before that move ends up focusable but not typable. admin.js waits for
+		// the meta boxes to settle, exactly like the recipe step editors.
+		echo '<tr><th scope="row"><label for="mmm_author_text">'
+			. esc_html__( 'Author Text', 'mixmymeals' ) . '</label></th>'
+			. '<td><textarea class="large-text mmm-author-editor" id="mmm_author_text" name="mmm_author_text" rows="5">'
+			. esc_textarea( self::get_author_text( $post->ID ) )
+			. '</textarea></td></tr>';
+
+		$image_id  = self::get_author_image_id( $post->ID );
+		$image_url = self::get_author_image_url( $post->ID );
+
+		echo '<tr><th scope="row"><label for="mmm_author_image_button">'
+			. esc_html__( 'Profile Picture', 'mixmymeals' ) . '</label></th>'
+			. '<td><div class="mmm-author-image-field">'
+			. '<input type="hidden" class="mmm-author-image-id" id="mmm_author_image" name="mmm_author_image" value="'
+			. esc_attr( (string) $image_id ) . '" />'
+			. '<img src="' . esc_url( $image_url ) . '" class="mmm-author-image-preview" alt=""'
+			. ( '' === $image_url ? ' style="display:none;"' : '' ) . ' />'
+			. '<p>'
+			. '<button type="button" class="button mmm-author-image-select" id="mmm_author_image_button">'
+			. esc_html__( 'Select Image', 'mixmymeals' ) . '</button> '
+			. '<button type="button" class="button-link mmm-author-image-remove"'
+			. ( '' === $image_url ? ' style="display:none;"' : '' ) . '>'
+			. esc_html__( 'Remove', 'mixmymeals' ) . '</button>'
+			. '</p><p class="description">'
+			. esc_html__( 'Shown like a WordPress author’s profile picture. Only used for an external author; without a name the WordPress author’s own avatar is shown.', 'mixmymeals' )
+			. '</p></div></td></tr>';
+
+		echo '<tr><th scope="row"><label for="mmm_author_url">'
+			. esc_html__( 'Link URL', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="url" class="regular-text" id="mmm_author_url" name="mmm_author_url" placeholder="https://" value="'
+			. esc_attr( self::get_author_url( $post->ID ) ) . '" /></td></tr>';
+
+		echo '<tr><th scope="row"><label for="mmm_author_link_text">'
+			. esc_html__( 'Link Text', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="text" class="regular-text" id="mmm_author_link_text" name="mmm_author_link_text" value="'
+			. esc_attr( (string) get_post_meta( $post->ID, self::AUTHOR_LINK_TEXT, true ) ) . '" />'
+			. '<p class="description">'
+			. esc_html__( 'Optional. Defaults to the domain of the link.', 'mixmymeals' )
+			. '</p></td></tr>';
+
+		echo '<tr><th scope="row"><label for="mmm_author_social">'
+			. esc_html__( 'Social Links', 'mixmymeals' ) . '</label></th>'
+			. '<td><textarea class="large-text code" id="mmm_author_social" name="mmm_author_social" rows="4" placeholder="https://instagram.com/…">'
+			. esc_textarea( implode( "\n", self::get_author_social( $post->ID ) ) )
+			. '</textarea><p class="description">'
+			. esc_html__( 'One URL or e-mail address per line. The icon is derived from the address; unknown sites get a globe icon. Only used for an external author — the WordPress author’s links come from their profile.', 'mixmymeals' )
+			. '</p></td></tr>';
+
+		echo '<tr><th scope="row">' . esc_html__( 'Link Type', 'mixmymeals' ) . '</th>'
+			. '<td><label><input type="checkbox" id="mmm_author_nofollow" name="mmm_author_nofollow" value="1" '
+			. checked( self::get_author_nofollow( $post->ID ), true, false ) . ' /> '
+			. esc_html__( 'Mark link as nofollow', 'mixmymeals' )
+			. '</label><p class="description">'
+			. esc_html__( 'Off: the link passes ranking signals (follow). On: rel="nofollow" is added.', 'mixmymeals' )
+			. '</p></td></tr>';
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Saves the author-box fields for recipes and meal plans alike, after
+	 * verifying nonce, autosave state and caps.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public function save_author_meta( int $post_id ): void {
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified right here.
+		if (
+			! isset( $_POST[ self::AUTHOR_NONCE_FIELD ] )
+			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST[ self::AUTHOR_NONCE_FIELD ] ) ), self::AUTHOR_NONCE_ACTION )
+		) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		self::save_author_data(
+			$post_id,
+			array(
+				'name'      => wp_unslash( $_POST['mmm_author_name'] ?? '' ),
+				'text'      => wp_unslash( $_POST['mmm_author_text'] ?? '' ),
+				'url'       => wp_unslash( $_POST['mmm_author_url'] ?? '' ),
+				'link_text' => wp_unslash( $_POST['mmm_author_link_text'] ?? '' ),
+				'social'    => wp_unslash( $_POST['mmm_author_social'] ?? '' ),
+				'image'     => absint( $_POST['mmm_author_image'] ?? 0 ),
+				'nofollow'  => ! empty( $_POST['mmm_author_nofollow'] ),
+			)
+		);
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Name of the external author, or '' when none is set.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_author_name( int $post_id ): string {
+		return trim( (string) get_post_meta( $post_id, self::AUTHOR_NAME, true ) );
+	}
+
+	/**
+	 * Free-form description shown in the box (limited HTML allowed).
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_author_text( int $post_id ): string {
+		return trim( (string) get_post_meta( $post_id, self::AUTHOR_TEXT, true ) );
+	}
+
+	/**
+	 * Link target of the author box, or '' when none is set.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_author_url( int $post_id ): string {
+		return trim( (string) get_post_meta( $post_id, self::AUTHOR_URL, true ) );
+	}
+
+	/**
+	 * Label for the author link. Falls back to the link's host (without "www.")
+	 * so the field can stay empty in the common case.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_author_link_text( int $post_id ): string {
+
+		$text = trim( (string) get_post_meta( $post_id, self::AUTHOR_LINK_TEXT, true ) );
+
+		if ( '' !== $text ) {
+			return $text;
+		}
+
+		$host = (string) wp_parse_url( self::get_author_url( $post_id ), PHP_URL_HOST );
+
+		return '' !== $host ? (string) preg_replace( '/^www\./', '', $host ) : '';
+	}
+
+	/**
+	 * Whether the author link should carry rel="nofollow".
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function get_author_nofollow( int $post_id ): bool {
+		return '1' === (string) get_post_meta( $post_id, self::AUTHOR_NOFOLLOW, true );
+	}
+
+	/**
+	 * Social/contact entries of the external author: URLs and e-mail addresses,
+	 * one per line in the admin. The platform (and therefore the icon) is
+	 * derived from the address when rendering, so no per-network fields are
+	 * needed and unknown sites still work.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string[]
+	 */
+	public static function get_author_social( int $post_id ): array {
+
+		$stored = get_post_meta( $post_id, self::AUTHOR_SOCIAL, true );
+
+		return is_array( $stored ) ? array_values( array_filter( $stored ) ) : array();
+	}
+
+	/**
+	 * Attachment ID of the external author's profile picture, or 0 when none is
+	 * set. Only meaningful together with a name — without one the box shows the
+	 * WordPress author and their own avatar.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int
+	 */
+	public static function get_author_image_id( int $post_id ): int {
+		return (int) get_post_meta( $post_id, self::AUTHOR_IMAGE, true );
+	}
+
+	/**
+	 * URL of the profile picture at avatar size, or '' when none is set or the
+	 * attachment has meanwhile been deleted.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_author_image_url( int $post_id ): string {
+
+		$image_id = self::get_author_image_id( $post_id );
+
+		if ( ! $image_id ) {
+			return '';
+		}
+
+		return (string) wp_get_attachment_image_url( $image_id, 'thumbnail' );
+	}
+
+	/**
+	 * Whether the post credits an external author. False means the box falls
+	 * back to the WordPress user — the state the theme needs to know before it
+	 * appends profile-based extras such as social links.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function has_external_author( int $post_id ): bool {
+		return '' !== self::get_author_name( $post_id );
+	}
+
+	/**
+	 * All stored author fields as they sit in the database. Unlike
+	 * get_author_link_text() this returns the *raw* link text, so callers that
+	 * read-modify-write the box (the REST API merges partial updates) never
+	 * persist the derived host fallback as if it had been typed in.
+	 *
+	 * The keys match what save_author_data() expects, so read + override + save
+	 * is a lossless round trip.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array
+	 */
+	public static function get_author_data( int $post_id ): array {
+
+		return array(
+			'name'      => self::get_author_name( $post_id ),
+			'text'      => self::get_author_text( $post_id ),
+			'url'       => self::get_author_url( $post_id ),
+			'link_text' => trim( (string) get_post_meta( $post_id, self::AUTHOR_LINK_TEXT, true ) ),
+			'nofollow'  => self::get_author_nofollow( $post_id ),
+			'social'    => self::get_author_social( $post_id ),
+			'image'     => self::get_author_image_id( $post_id ),
+		);
+	}
+
+	/**
+	 * Stores the author fields. Empty values delete their meta so the post
+	 * cleanly falls back to the WordPress author.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $data    name, text, url, link_text, nofollow, social, image.
+	 * @return void
+	 */
+	public static function save_author_data( int $post_id, array $data ): void {
+
+		$map = array(
+			self::AUTHOR_NAME      => isset( $data['name'] ) ? sanitize_text_field( $data['name'] ) : '',
+			self::AUTHOR_TEXT      => isset( $data['text'] ) ? wp_kses_post( $data['text'] ) : '',
+			self::AUTHOR_URL       => isset( $data['url'] ) ? esc_url_raw( $data['url'] ) : '',
+			self::AUTHOR_LINK_TEXT => isset( $data['link_text'] ) ? sanitize_text_field( $data['link_text'] ) : '',
+			self::AUTHOR_NOFOLLOW  => ! empty( $data['nofollow'] ) ? '1' : '',
+		);
+
+		foreach ( $map as $key => $value ) {
+			if ( '' === trim( (string) $value ) ) {
+				delete_post_meta( $post_id, $key );
+				continue;
+			}
+
+			update_post_meta( $post_id, $key, $value );
+		}
+
+		$image = isset( $data['image'] ) ? absint( $data['image'] ) : 0;
+
+		if ( $image ) {
+			update_post_meta( $post_id, self::AUTHOR_IMAGE, $image );
+		} else {
+			delete_post_meta( $post_id, self::AUTHOR_IMAGE );
+		}
+
+		$social = isset( $data['social'] ) ? self::parse_author_social( $data['social'] ) : array();
+
+		if ( empty( $social ) ) {
+			delete_post_meta( $post_id, self::AUTHOR_SOCIAL );
+			return;
+		}
+
+		update_post_meta( $post_id, self::AUTHOR_SOCIAL, $social );
+	}
+
+	/**
+	 * Parses the input into a clean list of URLs/e-mail addresses. Accepts the
+	 * admin textarea (one entry per line) as well as an array, which is what
+	 * REST clients send.
+	 *
+	 * @param string|array $raw One entry per line, or a list of entries.
+	 * @return string[]
+	 */
+	private static function parse_author_social( $raw ): array {
+
+		$lines = is_array( $raw )
+			? array_map( 'strval', $raw )
+			: preg_split( '/\r\n|\r|\n/', (string) $raw );
+
+		$out = array();
+
+		foreach ( $lines as $line ) {
+
+			$line = trim( $line );
+
+			if ( '' === $line ) {
+				continue;
+			}
+
+			if ( is_email( $line ) ) {
+				$out[] = sanitize_email( $line );
+				continue;
+			}
+
+			$url = esc_url_raw( $line );
+
+			if ( '' !== $url ) {
+				$out[] = $url;
+			}
+		}
+
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Metabox for the featured image's credit, identical on recipes and plans.
+	 *
+	 * @param WP_Post $post Current post.
+	 * @return void
+	 */
+	public function register_image_credit_metabox( WP_Post $post ): void {
+		add_meta_box(
+			'mmm_image_credit_meta_box',
+			__( 'Image Source', 'mixmymeals' ),
+			array( $this, 'render_image_credit_metabox' ),
+			$post->post_type,
+			'normal',
+			'low'
+		);
+	}
+
+	/**
+	 * Renders the image-credit fields.
+	 *
+	 * @param WP_Post $post Current post.
+	 * @return void
+	 */
+	public function render_image_credit_metabox( WP_Post $post ): void {
+
+		wp_nonce_field( self::IMAGE_CREDIT_NONCE_ACTION, self::IMAGE_CREDIT_NONCE_FIELD );
+
+		$data = self::get_image_credit( $post->ID );
+		$text = self::get_image_credit_text( $post->ID );
+
+		echo '<p class="description" style="margin:0 0 12px;">'
+			. esc_html__( 'Credit for the featured image. Every field is optional; the line is only shown when at least one of creator, source or licence is filled in.', 'mixmymeals' )
+			. '</p>';
+
+		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
+
+		echo '<tr><th scope="row"><label for="mmm_image_credit_creator">'
+			. esc_html__( 'Creator', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="text" class="regular-text" id="mmm_image_credit_creator" name="mmm_image_credit_creator" value="'
+			. esc_attr( $data['creator'] ) . '" />'
+			. '<p class="description">' . esc_html__( 'Who took or made the picture.', 'mixmymeals' ) . '</p></td></tr>';
+
+		echo '<tr><th scope="row"><label for="mmm_image_credit_source">'
+			. esc_html__( 'Source', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="text" class="regular-text" id="mmm_image_credit_source" name="mmm_image_credit_source" value="'
+			. esc_attr( $data['source'] ) . '" />'
+			. '<p class="description">' . esc_html__( 'Where it came from, e.g. the stock library or publication.', 'mixmymeals' ) . '</p></td></tr>';
+
+		echo '<tr><th scope="row"><label for="mmm_image_credit_license">'
+			. esc_html__( 'Licence', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="text" class="regular-text" id="mmm_image_credit_license" name="mmm_image_credit_license" value="'
+			. esc_attr( $data['license'] ) . '" placeholder="CC BY 4.0" /></td></tr>';
+
+		echo '<tr><th scope="row"><label for="mmm_image_credit_url">'
+			. esc_html__( 'Link URL', 'mixmymeals' ) . '</label></th>'
+			. '<td><input type="url" class="regular-text" id="mmm_image_credit_url" name="mmm_image_credit_url" placeholder="https://" value="'
+			. esc_attr( $data['url'] ) . '" />'
+			. '<p class="description">' . esc_html__( 'Optional. Links creator and source; the licence stays unlinked.', 'mixmymeals' ) . '</p></td></tr>';
+
+		echo '</tbody></table>';
+
+		echo '<p class="description" style="margin:12px 0 0;">'
+			. esc_html__( 'Preview:', 'mixmymeals' ) . ' <strong>'
+			. esc_html( '' !== $text ? $text : '—' )
+			. '</strong></p>';
+	}
+
+	/**
+	 * Saves the image-credit fields after verifying nonce, autosave and caps.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public function save_image_credit_meta( int $post_id ): void {
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified right here.
+		if (
+			! isset( $_POST[ self::IMAGE_CREDIT_NONCE_FIELD ] )
+			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST[ self::IMAGE_CREDIT_NONCE_FIELD ] ) ), self::IMAGE_CREDIT_NONCE_ACTION )
+		) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		$data = array();
+
+		foreach ( array_keys( self::IMAGE_CREDIT_FIELDS ) as $key ) {
+			$data[ $key ] = wp_unslash( $_POST[ 'mmm_image_credit_' . $key ] ?? '' );
+		}
+
+		self::save_image_credit( $post_id, $data );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * All stored image-credit fields, keyed as save_image_credit() expects
+	 * them, so read + override + save is a lossless round trip.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<string,string>
+	 */
+	public static function get_image_credit( int $post_id ): array {
+
+		$out = array();
+
+		foreach ( self::IMAGE_CREDIT_FIELDS as $key => $meta_key ) {
+			$out[ $key ] = trim( (string) get_post_meta( $post_id, $meta_key, true ) );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Stores the image credit. Empty values delete their meta, so a cleared
+	 * field leaves no trace behind.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $data    creator, source, license, url.
+	 * @return void
+	 */
+	public static function save_image_credit( int $post_id, array $data ): void {
+
+		foreach ( self::IMAGE_CREDIT_FIELDS as $key => $meta_key ) {
+
+			$value = isset( $data[ $key ] ) ? (string) $data[ $key ] : '';
+
+			$value = 'url' === $key
+				? esc_url_raw( trim( $value ) )
+				: sanitize_text_field( $value );
+
+			if ( '' === trim( $value ) ) {
+				delete_post_meta( $post_id, $meta_key );
+				continue;
+			}
+
+			update_post_meta( $post_id, $meta_key, $value );
+		}
+	}
+
+	/**
+	 * Whether the post has anything to credit at all. A URL on its own does
+	 * not count — a bare link with nothing to name is not an attribution.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function has_image_credit( int $post_id ): bool {
+
+		$data = self::get_image_credit( $post_id );
+
+		return '' !== $data['creator'] || '' !== $data['source'] || '' !== $data['license'];
+	}
+
+	/**
+	 * The credit as a plain string: "Creator / Source (Licence)". Every part
+	 * is optional, so the separators only appear where there is something on
+	 * both sides of them.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_image_credit_text( int $post_id ): string {
+
+		$data = self::get_image_credit( $post_id );
+		$name = self::get_image_credit_name( $post_id );
+
+		if ( '' === $data['license'] ) {
+			return $name;
+		}
+
+		// Without a name the licence stands on its own, otherwise it trails
+		// the name in brackets.
+		return '' === $name ? $data['license'] : $name . ' (' . $data['license'] . ')';
+	}
+
+	/**
+	 * The linkable part of the credit: creator and source, without the
+	 * licence — a licence is not a place the image came from, and linking it
+	 * would misattribute it.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_image_credit_name( int $post_id ): string {
+
+		$data = self::get_image_credit( $post_id );
+
+		return implode( ' / ', array_filter( array( $data['creator'], $data['source'] ) ) );
 	}
 
 }

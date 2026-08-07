@@ -45,6 +45,32 @@ class Mixmymeals_Meal {
 		return new self( $post_id );
 	}
 
+	/**
+	 * The post a page should read its credits from.
+	 *
+	 * A meal is a planned serving of a recipe: it shows that recipe's title,
+	 * steps and featured image, so it shows the recipe's credits too — author
+	 * box and image source alike. Everything else stands for itself.
+	 *
+	 * Every feature that credits a post has to resolve through here. Reading
+	 * the meal directly instead would, on a meal page, attribute the recipe's
+	 * picture and author to whoever happened to create the meal.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int Post ID to read credits from, 0 when a meal has no recipe.
+	 */
+	public static function resolve_credit_source( int $post_id ): int {
+
+		if ( 'mmm_meal' !== get_post_type( $post_id ) ) {
+			return $post_id;
+		}
+
+		$recipe_id = (int) ( new self( $post_id ) )->get_recipe_id();
+
+		// Meals can outlive their recipe (deleted, or never set on a stub).
+		return Mixmymeals_Recipe::exists_by_id( $recipe_id ) ? $recipe_id : 0;
+	}
+
 	/*
 	----------------------------------------------------------
 	BASIC META HANDLING
@@ -144,11 +170,11 @@ class Mixmymeals_Meal {
 	 */
 	public function set_parent_plan_id( int $parent_id ): void {
 
-		write_to_log( 'Start setting parent ID...' );
+		mmm_write_to_log( 'Start setting parent ID...' );
 
 		$new_parent = intval( $parent_id );
 
-		write_to_log( '... New Parent: ' . $new_parent );
+		mmm_write_to_log( '... New Parent: ' . $new_parent );
 
 		/*
 		// Example of direct database update (commented out).
@@ -170,7 +196,7 @@ class Mixmymeals_Meal {
 			)
 		);
 
-		write_to_log( '... Done.' );
+		mmm_write_to_log( '... Done.' );
 
 		clean_post_cache( $this->post_id );
 	}
@@ -202,22 +228,22 @@ class Mixmymeals_Meal {
 	public function save_meta_from_post( $post_data ): void {
 
 		if ( isset( $post_data['recipe_id'] ) ) {
-			write_to_log( 'Setting Recipe ID.' );
+			mmm_write_to_log( 'Setting Recipe ID.' );
 			$this->set_recipe_id( $post_data['recipe_id'] );
 		}
 
 		if ( isset( $post_data['servings'] ) ) {
-			write_to_log( 'Setting Servings.' );
+			mmm_write_to_log( 'Setting Servings.' );
 			$this->set_servings( $post_data['servings'] );
 		}
 
 		if ( isset( $post_data['note'] ) ) {
-			write_to_log( 'Setting Note.' );
+			mmm_write_to_log( 'Setting Note.' );
 			$this->set_note( $post_data['note'] );
 		}
 
 		if ( isset( $post_data['mmm_parent_id'] ) ) {
-			write_to_log( 'Setting Parent ID.' );
+			mmm_write_to_log( 'Setting Parent ID.' );
 			$this->set_parent_plan_id( $post_data['mmm_parent_id'] );
 		}
 	}

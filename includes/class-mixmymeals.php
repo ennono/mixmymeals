@@ -447,11 +447,13 @@ class Mixmymeals {
 		wp_enqueue_media();
 		global $post;
 
-		// Load the TinyMCE / wp.editor JS API so recipe step descriptions can
-		// attach a slim rich-text editor (see admin.js). Only needed on the
-		// recipe edit screens.
+		// Load the TinyMCE / wp.editor JS API so recipe step descriptions and the
+		// author box text can attach a slim rich-text editor (see admin.js).
+		// Needed on the recipe and meal plan edit screens — the author box lives
+		// on both.
 		if ( ( 'post.php' === $hook || 'post-new.php' === $hook )
-			&& isset( $post ) && 'mmm_recipe' === get_post_type( $post ) ) {
+			&& isset( $post )
+			&& in_array( get_post_type( $post ), array( 'mmm_recipe', 'mmm_meal_plan' ), true ) ) {
 			wp_enqueue_editor();
 		}
 

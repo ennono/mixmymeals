@@ -92,6 +92,51 @@ jQuery(document).ready(function ($) {
     });
 
     /* ===========================
+       AUTHOR BOX PROFILE PICTURE
+    ============================ */
+    // Same pattern as the step images. Delegated on document, because in the
+    // block editor classic meta boxes are moved after load.
+    let authorImageFrame;
+
+    $(document).on("click", ".mmm-author-image-select", function (e) {
+        e.preventDefault();
+        const $field = $(this).closest(".mmm-author-image-field");
+
+        if (authorImageFrame) authorImageFrame.off("select");
+
+        authorImageFrame = wp.media({
+            title: "Profilbild auswählen",
+            button: { text: "Übernehmen" },
+            library: { type: "image" },
+            multiple: false,
+        });
+
+        authorImageFrame.on("select", function () {
+            const attachment = authorImageFrame.state().get("selection").first().toJSON();
+            // Thumbnail is square, matching how the picture is rendered on the
+            // frontend; fall back to the full size for images without one.
+            const url =
+                (attachment.sizes && attachment.sizes.thumbnail && attachment.sizes.thumbnail.url) ||
+                attachment.url;
+
+            $field.find(".mmm-author-image-id").val(attachment.id);
+            $field.find(".mmm-author-image-preview").attr("src", url).show();
+            $field.find(".mmm-author-image-remove").show();
+        });
+
+        authorImageFrame.open();
+    });
+
+    $(document).on("click", ".mmm-author-image-remove", function (e) {
+        e.preventDefault();
+        const $field = $(this).closest(".mmm-author-image-field");
+
+        $field.find(".mmm-author-image-id").val("");
+        $field.find(".mmm-author-image-preview").hide().attr("src", "");
+        $(this).hide();
+    });
+
+    /* ===========================
        STEP DESCRIPTION EDITOR (slim TinyMCE via wp.editor)
     ============================ */
     let mmmStepEditorUid = 0;
@@ -259,6 +304,20 @@ jQuery(document).ready(function ($) {
         });
     }
 
+    // The author box text field (recipes and meal plans) uses the same slim
+    // editor and the same deferred boot: rendered as a plain textarea by PHP so
+    // TinyMCE is only created once the meta box has reached its final place.
+    function mmmInitAuthorEditors() {
+        $("textarea.mmm-author-editor").each(function () {
+            mmmInitStepEditor(this);
+        });
+    }
+
+    function mmmInitDeferredEditors() {
+        mmmInitAllStepEditors();
+        mmmInitAuthorEditors();
+    }
+
     // Initialize the editors for the step rows rendered on page load.
     //
     // In the block editor, classic meta boxes are relocated into the Gutenberg
@@ -274,22 +333,22 @@ jQuery(document).ready(function ($) {
 
         if (editPost && typeof editPost.areMetaBoxesInitialized === "function") {
             if (editPost.areMetaBoxesInitialized()) {
-                mmmInitAllStepEditors();
+                mmmInitDeferredEditors();
                 return;
             }
             const unsubscribe = wp.data.subscribe(function () {
                 if (wp.data.select("core/edit-post").areMetaBoxesInitialized()) {
                     unsubscribe();
-                    mmmInitAllStepEditors();
+                    mmmInitDeferredEditors();
                 }
             });
             return;
         }
 
         if (window.tinymce) {
-            mmmInitAllStepEditors();
+            mmmInitDeferredEditors();
         } else {
-            $(window).on("load", mmmInitAllStepEditors);
+            $(window).on("load", mmmInitDeferredEditors);
         }
     }
 
