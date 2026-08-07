@@ -91,6 +91,19 @@ All shortcodes live in `Mixmymeals_Shortcodes` and are prefixed `mmm_`. AJAX han
 
 The public PDF download endpoint (`mmm_generate_pdf`, admin-ajax) is **intentionally nonce-free**: PDFs of published plans must be shareable/cacheable by anonymous visitors. Protection: only published plans are served, plus a per-IP rate limit (5/min).
 
+### Structured data, social tags and Bring!
+
+There is no SEO class — each structure is built by the post type that owns it, and only the *printing* is central:
+
+- `Mixmymeals_Recipe::get_schema()` returns the schema.org/Recipe for one recipe (ingredients, `HowToStep` instructions, nutrition per serving, `aggregateRating` from `_mmm_rating_avg/_count`, `suitableForDiet`), filter `mixmymeals_recipe_schema`.
+- `Mixmymeals_Meal_Plan::get_schema()` returns the plan's `ItemList` of published recipes, filter `mixmymeals_meal_plan_schema`.
+- `Mixmymeals_Post_Types` prints both in `wp_head` (`output_schema()`, priority 8, switch on `is_singular()`) plus Open Graph/Twitter tags for `OG_POST_TYPES` (`output_og_tags()`, priority 6). OG is skipped when Yoast/Rank Math/AIOSEO/Slim SEO is active — never double up. Filters: `mixmymeals_seo_schema_enabled`, `mixmymeals_seo_og_enabled`.
+- The three helpers all of the above share are public statics on `Mixmymeals_Post_Types`: `meta_description()` (excerpt → content, 300 chars), `social_image_id()` (featured image → `mixmymeals_placeholder_image_id`; the placeholder is used ONLY here and as Instagram slide fallback) and `schema_image_urls()`.
+
+The **Bring! import view** lives entirely in `Mixmymeals_Meal_Plan`, registered once per request via `Mixmymeals_Meal_Plan::register_bring()` in `mixmymeals.php` (same pattern as `Mixmymeals_Recipe::register_cook_count()`). `<plan permalink>?mmm_bring=1` (`BRING_QUERY_VAR`) renders a minimal noindex page on `template_redirect` whose only content is the shopping list as a schema.org/Recipe — Bring! fetches that URL itself and imports what it finds, and a plan page is an ItemList, not a Recipe. `bring_deeplink()` builds the link the shortcodes render; `get_bring_shopping_list_lines()` formats "405 g Möhren" (amount, unit, name — the order Bring! splits on).
+
+Amounts in all of these go through `Mixmymeals_Ingredient::format_amount()`: no thousands separator, since parsers read "1.000 g" as one gram. The human-facing counterparts are `Mixmymeals_Meal_Plan::build_needed_amount_string()` / `build_short_amount_string()`.
+
 ### Author box
 
 The external author credit shared by recipes and meal plans lives in `Mixmymeals_Post_Meta` next to the image credit and follows the same split: the `AUTHOR_*` constants map the seven `_mmm_author_*` meta keys, with `get_author_name/text/url/link_text/nofollow/social/image_id/image_url()`, `get_author_data()`, `save_author_data()` and `has_external_author()` beside the meta box (`render_author_metabox()` / `save_author_meta()`) that edits them. An empty name falls the box back to the post's WordPress author.

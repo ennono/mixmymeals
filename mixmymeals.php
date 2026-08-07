@@ -97,6 +97,7 @@ mixmymeals()->add_shortcodes();
 Mixmymeals_Meal_Plan_PDF::register_ajax();
 Mixmymeals_Recipe::register_edit_count();
 Mixmymeals_Recipe::register_cook_count();
+Mixmymeals_Meal_Plan::register_bring();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();

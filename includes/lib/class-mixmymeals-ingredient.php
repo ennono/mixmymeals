@@ -207,9 +207,19 @@ class Mixmymeals_Ingredient {
 
 		$data = array();
 
+		/*
+		 * Typisiert zurückgeben, nicht roh: bis PHP 7 wurde ein nie ausgefülltes
+		 * Feld ('') in Rechnungen still zu 0, seit PHP 8 wirft '' * 1.0 einen
+		 * TypeError und reißt die ganze Seite mit — zuletzt die Rezeptliste im
+		 * Adminbereich.
+		 *
+		 * null statt 0.0 für Ungesetztes: in Rechnungen verhält es sich wie 0,
+		 * aber Anzeigen mit `?? '-'` erkennen weiterhin „nicht gesetzt" und
+		 * zeigen keinen erfundenen Nullwert.
+		 */
 		foreach ( $fields as $key => $meta_key ) {
 			$value        = $this->get_meta_value( $meta_key );
-			$data[ $key ] = $value;
+			$data[ $key ] = is_numeric( $value ) ? (float) $value : null;
 		}
 
 		return $data;
@@ -350,5 +360,26 @@ class Mixmymeals_Ingredient {
 			return;
 		}
 		update_post_meta( $this->post_id, '_mmm_default_unit', sanitize_text_field( $unit ) );
+	}
+
+	/**
+	 * Amount for machine-readable ingredient lines: whole numbers stay whole,
+	 * decimals lose trailing zeros, never any thousands separator (parsers
+	 * read "1.000 g" as one gram).
+	 *
+	 * Used by the structured data of recipes and by the Bring! shopping list,
+	 * both of which are read by software rather than by people — the
+	 * human-facing counterparts are Mixmymeals_Meal_Plan::build_*_string().
+	 *
+	 * @param float $amount Amount.
+	 * @return string
+	 */
+	public static function format_amount( float $amount ): string {
+
+		if ( abs( $amount - round( $amount ) ) < 0.01 ) {
+			return (string) (int) round( $amount );
+		}
+
+		return rtrim( rtrim( number_format( $amount, 2, '.', '' ), '0' ), '.' );
 	}
 }

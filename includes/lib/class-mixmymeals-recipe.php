@@ -782,8 +782,6 @@ class Mixmymeals_Recipe {
 		);
 	}
 
-
-
 	/*
 	----------------------------------------------------------
 	COOK COUNTER
@@ -1526,4 +1524,197 @@ class Mixmymeals_Recipe {
 		Mixmymeals_Post_Meta::save_author_data( $this->post_id, $data );
 	}
 
+	/* ---------------------------------------------------------------------
+	 * Structured data
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * The schema.org/Recipe structure for this recipe — ingredients,
+	 * instructions, nutrition, rating and diet, the shape Google reads for
+	 * recipe rich results. Printed by Mixmymeals_Post_Types::output_schema().
+	 *
+	 * @return array Empty array when the recipe is invalid.
+	 */
+	public function get_schema(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		$recipe_id = $this->post_id;
+
+		$schema = array(
+			'@context'      => 'https://schema.org',
+			'@type'         => 'Recipe',
+			'name'          => get_the_title( $recipe_id ),
+			'url'           => get_permalink( $recipe_id ),
+			'datePublished' => get_the_date( 'c', $recipe_id ),
+			'dateModified'  => get_the_modified_date( 'c', $recipe_id ),
+			'author'        => array(
+				'@type' => 'Organization',
+				'name'  => get_bloginfo( 'name' ),
+			),
+		);
+
+		$description = Mixmymeals_Post_Types::meta_description( $recipe_id );
+		if ( '' !== $description ) {
+			$schema['description'] = $description;
+		}
+
+		// Image in several ratios (Google prefers 1:1, 4:3 and 16:9 variants).
+		$images = Mixmymeals_Post_Types::schema_image_urls( $recipe_id );
+		if ( $images ) {
+			$schema['image'] = $images;
+		}
+
+		$prep = (int) $this->get_preparation_time();
+		if ( $prep > 0 ) {
+			$schema['prepTime']  = self::iso8601_minutes( $prep );
+			$schema['totalTime'] = self::iso8601_minutes( $prep );
+		}
+
+		$servings = (float) $this->get_servings();
+		if ( $servings > 0 ) {
+			$schema['recipeYield'] = (string) ( (int) round( $servings ) );
+		}
+
+		$categories = array_map( static fn( $t ) => $t->name, $this->get_categories() );
+		if ( $categories ) {
+			$schema['recipeCategory'] = implode( ', ', $categories );
+		}
+
+		$tags = wp_get_post_terms( $recipe_id, 'mmm_recipe_tag', array( 'fields' => 'names' ) );
+		if ( is_array( $tags ) && $tags ) {
+			$schema['keywords'] = implode( ', ', $tags );
+		}
+
+		// Diet type → schema.org RestrictedDiet.
+		$diet_map = array(
+			'vegan'      => 'https://schema.org/VeganDiet',
+			'vegetarian' => 'https://schema.org/VegetarianDiet',
+		);
+		$diet     = $this->get_diet_type();
+		if ( isset( $diet_map[ $diet ] ) ) {
+			$schema['suitableForDiet'] = $diet_map[ $diet ];
+		}
+
+		// Ingredients, aggregated across steps at the recipe's own servings.
+		$ingredients = $this->schema_ingredient_lines();
+		if ( $ingredients ) {
+			$schema['recipeIngredient'] = $ingredients;
+		}
+
+		// Instructions as HowToStep list.
+		$steps = array();
+		foreach ( (array) $this->get_steps() as $step ) {
+			$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) ( $step['description'] ?? '' ) ) ) );
+			$name = trim( wp_strip_all_tags( (string) ( $step['title'] ?? '' ) ) );
+			if ( '' === $text && '' === $name ) {
+				continue;
+			}
+			$how_to = array( '@type' => 'HowToStep' );
+			if ( '' !== $name ) {
+				$how_to['name'] = $name;
+			}
+			$how_to['text'] = '' !== $text ? $text : $name;
+			$steps[]        = $how_to;
+		}
+		if ( $steps ) {
+			$schema['recipeInstructions'] = $steps;
+		}
+
+		// Nutrition per serving.
+		$nutrition = $this->calculate_nutrition_per_serving();
+		$info      = array( '@type' => 'NutritionInformation' );
+		$mapping   = array(
+			'calories' => array( 'calories', ' kcal' ),
+			'protein'  => array( 'proteinContent', ' g' ),
+			'carbs'    => array( 'carbohydrateContent', ' g' ),
+			'fat'      => array( 'fatContent', ' g' ),
+			'sugar'    => array( 'sugarContent', ' g' ),
+			'fiber'    => array( 'fiberContent', ' g' ),
+			'salt'     => array( 'sodiumContent', ' g' ),
+		);
+		foreach ( $mapping as $key => list( $prop, $unit ) ) {
+			if ( ! empty( $nutrition[ $key ] ) ) {
+				$info[ $prop ] = round( (float) $nutrition[ $key ], 1 ) . $unit;
+			}
+		}
+		if ( count( $info ) > 1 ) {
+			$schema['nutrition'] = $info;
+		}
+
+		// Aggregate rating from the ratings module.
+		$avg   = (float) get_post_meta( $recipe_id, '_mmm_rating_avg', true );
+		$count = (int) get_post_meta( $recipe_id, '_mmm_rating_count', true );
+		if ( $avg > 0 && $count > 0 ) {
+			$schema['aggregateRating'] = array(
+				'@type'       => 'AggregateRating',
+				'ratingValue' => $avg,
+				'ratingCount' => $count,
+				'bestRating'  => 5,
+				'worstRating' => 1,
+			);
+		}
+
+		/**
+		 * Filters the finished Recipe schema before output.
+		 *
+		 * @param array $schema    Schema.org Recipe structure.
+		 * @param int   $recipe_id Recipe post ID.
+		 */
+		return apply_filters( 'mixmymeals_recipe_schema', $schema, $recipe_id );
+	}
+
+	/**
+	 * Ingredient lines ("250 g Mehl") aggregated across the recipe's steps.
+	 *
+	 * @return string[]
+	 */
+	private function schema_ingredient_lines(): array {
+
+		$totals = array();
+		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ingredient ) {
+			$key = $ingredient['id'] . '|' . $ingredient['unit'];
+			if ( ! isset( $totals[ $key ] ) ) {
+				$totals[ $key ] = array(
+					'name'   => trim( wp_strip_all_tags( (string) $ingredient['name'] ) ),
+					'unit'   => (string) $ingredient['unit'],
+					'amount' => 0.0,
+				);
+			}
+			$totals[ $key ]['amount'] += (float) $ingredient['amount'];
+		}
+
+		$lines = array();
+		foreach ( $totals as $item ) {
+			$lines[] = trim(
+				Mixmymeals_Ingredient::format_amount( (float) $item['amount'] )
+				. ' ' . $item['unit'] . ' ' . $item['name']
+			);
+		}
+
+		return $lines;
+	}
+
+	/**
+	 * Minutes → ISO 8601 duration (25 → PT25M, 90 → PT1H30M).
+	 *
+	 * @param int $minutes Minutes.
+	 * @return string
+	 */
+	private static function iso8601_minutes( int $minutes ): string {
+
+		$hours = intdiv( $minutes, 60 );
+		$rest  = $minutes % 60;
+		$out   = 'PT';
+		if ( $hours > 0 ) {
+			$out .= $hours . 'H';
+		}
+		if ( $rest > 0 || 0 === $hours ) {
+			$out .= $rest . 'M';
+		}
+
+		return $out;
+	}
 }

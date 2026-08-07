@@ -491,6 +491,107 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * The nutrition keys every calculation in this plugin works with.
+	 *
+	 * @var string[]
+	 */
+	const NUTRITION_KEYS = array( 'calories', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt' );
+
+	/**
+	 * Aggregates the plan's nutrition, optionally for a single plan weekday.
+	 * The counterpart to calc_shopping_list() and deliberately built on the same
+	 * per-serving figures the recipe pages and the PDF already use, so all views
+	 * agree to the last kcal.
+	 *
+	 * Two figures are returned because they answer different questions:
+	 *  - 'totals'     everything cooked, i.e. per-serving values times the meal's
+	 *                 servings — what comes out of the kitchen.
+	 *  - 'per_person' one serving of each meal — what a single person eats.
+	 *
+	 * @param int|null $day When set (1-7), only include meals on that plan
+	 *                      weekday; otherwise the whole plan.
+	 * @return array{totals:array<string,float>, per_person:array<string,float>, servings:float, meals:int}
+	 */
+	public function calc_nutrition( ?int $day = null ): array {
+
+		$result = array(
+			'totals'     => array_fill_keys( self::NUTRITION_KEYS, 0.0 ),
+			'per_person' => array_fill_keys( self::NUTRITION_KEYS, 0.0 ),
+			'servings'   => 0.0,
+			'meals'      => 0,
+		);
+
+		foreach ( $this->get_meals() as $meal_post ) {
+
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+
+			if ( null !== $day && (int) $meal->get_day() !== $day ) {
+				continue;
+			}
+
+			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$per_serving   = $recipe->calculate_nutrition_per_serving();
+			$meal_servings = max( 0.01, (float) $meal->get_servings() );
+
+			$result['servings'] += $meal_servings;
+			++$result['meals'];
+
+			foreach ( self::NUTRITION_KEYS as $key ) {
+				$value = (float) ( $per_serving[ $key ] ?? 0.0 );
+
+				$result['totals'][ $key ]     += $value * $meal_servings;
+				$result['per_person'][ $key ] += $value;
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * The plan's nutrition broken down by weekday, keyed by day number (1-7) in
+	 * the plan's own order — so a plan running Friday to Tuesday starts at 5 and
+	 * wraps around. Days without meals are present with zeroes, which keeps gaps
+	 * in a plan visible instead of silently dropping them.
+	 *
+	 * @return array<int, array{totals:array<string,float>, per_person:array<string,float>, servings:float, meals:int}>
+	 */
+	public function calc_nutrition_by_day(): array {
+
+		$by_day = array();
+
+		foreach ( $this->get_day_range() as $day ) {
+			$by_day[ (int) $day ] = $this->calc_nutrition( (int) $day );
+		}
+
+		return $by_day;
+	}
+
+	/**
+	 * The localized name of a plan weekday.
+	 *
+	 * @param int  $day    Day number, 1 = Monday … 7 = Sunday.
+	 * @param bool $abbrev Return the abbreviation (e.g. "Mon") instead.
+	 * @return string
+	 */
+	public static function weekday_name( int $day, bool $abbrev = false ): string {
+
+		global $wp_locale;
+
+		if ( ! $wp_locale instanceof WP_Locale || $day < 1 || $day > 7 ) {
+			return '';
+		}
+
+		$name = (string) $wp_locale->get_weekday( $day % 7 ); // get_weekday: 0 = Sunday.
+
+		return $abbrev ? (string) $wp_locale->get_weekday_abbrev( $name ) : $name;
+	}
+
+	/**
 	 * Calculates the shopping list data for this meal plan.
 	 *
 	 * @param bool $sort_by_category
@@ -752,6 +853,45 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * Returns the deduplicated equipment post IDs required by any meal's
+	 * recipe in this plan, sorted alphabetically by title.
+	 *
+	 * @return int[]
+	 */
+	public function get_required_equipment(): array {
+
+		$equipment_ids = [];
+
+		foreach ( $this->get_meals() as $meal_post ) {
+
+			$meal      = new Mixmymeals_Meal( $meal_post->ID );
+			$recipe_id = $meal->get_recipe_id();
+
+			if ( ! $recipe_id ) {
+				continue;
+			}
+
+			$recipe = new Mixmymeals_Recipe( $recipe_id );
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			foreach ( $recipe->get_equipment() as $eq_id ) {
+				$equipment_ids[ (int) $eq_id ] = (int) $eq_id;
+			}
+		}
+
+		if ( empty( $equipment_ids ) ) {
+			return [];
+		}
+
+		$equipment_ids = array_values( $equipment_ids );
+		usort( $equipment_ids, fn( $a, $b ) => strnatcasecmp( get_the_title( $a ), get_the_title( $b ) ) );
+
+		return $equipment_ids;
+	}
+
+	/**
 	 * Returns the title of the most recent (newest) published meal plan.
 	 *
 	 * @return string The title or empty string if none found.
@@ -1001,6 +1141,10 @@ class Mixmymeals_Meal_Plan {
 	 * is vegan or vegetarian, and '' otherwise or if the plan has no meals.
 	 * A single invalid recipe causes an early '' return.
 	 *
+	 * The per-recipe diet comes from Mixmymeals_Recipe::get_diet_type(), i.e.
+	 * from the ingredients' _mmm_diet_type meta — the same source the recipe
+	 * and meal badges use, so a plan can never disagree with its recipes.
+	 *
 	 * @return string 'vegan', 'vegetarian', or ''.
 	 */
 	public function get_diet_type(): string {
@@ -1011,7 +1155,6 @@ class Mixmymeals_Meal_Plan {
 
 		$all_vegan      = true;
 		$all_vegetarian = true;
-		$diet_names     = [ 'vegan', 'vegetarisch', 'vegetarian' ];
 
 		foreach ( $meals as $meal_post ) {
 			$meal   = new Mixmymeals_Meal( $meal_post->ID );
@@ -1021,17 +1164,7 @@ class Mixmymeals_Meal_Plan {
 				return '';
 			}
 
-			$recipe_diet = '';
-			foreach ( $recipe->get_categories() as $cat ) {
-				$name = strtolower( $cat->name );
-				if ( $name === 'vegan' ) {
-					$recipe_diet = 'vegan';
-					break;
-				}
-				if ( in_array( $name, [ 'vegetarisch', 'vegetarian' ], true ) ) {
-					$recipe_diet = 'vegetarian';
-				}
-			}
+			$recipe_diet = $recipe->get_diet_type();
 
 			if ( $recipe_diet !== 'vegan' ) {
 				$all_vegan = false;
@@ -1050,6 +1183,387 @@ class Mixmymeals_Meal_Plan {
 		}
 		return '';
 	}
+	/**
+	 * Builds the human-readable needed-amount string for one shopping
+	 * list ingredient from its per-unit totals.
+	 *
+	 * Indivisible units are listed as counts ("3× Stück"), everything
+	 * else is collapsed into grams. A gram equivalent is appended when
+	 * piece counts are shown.
+	 *
+	 * Moved here from Mixmymeals_Shortcodes: it formats the output of
+	 * calc_shopping_list(), which lives in this class.
+	 *
+	 * @param array $units        Per-unit totals from calc_shopping_list().
+	 * @param float $total_weight Total weight in grams.
+	 * @return string E.g. "3× Stück + 150 g (≈ 405 g)".
+	 */
+	public static function build_needed_amount_string( array $units, float $total_weight ): string {
+
+		$piece_parts = [];
+		$loose_grams = 0.0;
+
+		foreach ( $units as $unit ) {
+			if ( ! empty( $unit['is_indivisible'] ) ) {
+				$piece_parts[] = trim( sprintf(
+					'%d× %s',
+					(int) ( $unit['amount'] ?? 0 ),
+					$unit['unit_title'] ?? ''
+				) );
+			} else {
+				$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
+			}
+		}
+
+		$parts = $piece_parts;
+
+		if ( $loose_grams > 0 || empty( $parts ) ) {
+			$parts[] = number_format_i18n( round( $loose_grams ) ) . ' g';
+		}
+
+		$result = implode( ' + ', $parts );
+
+		if ( ! empty( $piece_parts ) && $total_weight > 0 ) {
+			$result .= sprintf(
+				' (≈ %s g)',
+				number_format_i18n( round( $total_weight ) )
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Short amount for teasers — one figure, no compounds.
+	 *
+	 * build_needed_amount_string() is built for the full shopping list, where
+	 * "3× EL + 400 g (≈ 430 g)" is the honest answer. On a teaser that has room
+	 * for one line per item it only produces noise, so this variant commits to a
+	 * single figure:
+	 *
+	 * - every unit indivisible → count and unit, e.g. "4 EL", "2 Stück"
+	 * - otherwise             → total weight, switching to kg from 1000 g
+	 *
+	 * The full breakdown stays available on the meal plan page.
+	 *
+	 * @param array $units        Units of one ingredient from calc_shopping_list().
+	 * @param float $total_weight Total weight in grams.
+	 * @return string
+	 */
+	public static function build_short_amount_string( array $units, float $total_weight ): string {
+
+		$divisible = array_filter(
+			$units,
+			static fn( $unit ) => empty( $unit['is_indivisible'] )
+		);
+
+		// Nur Stückgut: Anzahl und Einheit sagen mehr als ein Gewicht.
+		if ( ! empty( $units ) && empty( $divisible ) ) {
+
+			$count = 0;
+			$label = '';
+
+			foreach ( $units as $unit ) {
+				$count += (int) ( $unit['amount'] ?? 0 );
+				$label  = (string) ( $unit['unit_title'] ?? '' );
+			}
+
+			return trim( number_format_i18n( $count ) . ' ' . $label );
+		}
+
+		$grams = (int) round( $total_weight );
+
+		if ( $grams >= 1000 ) {
+			$kilos = $grams / 1000;
+
+			return number_format_i18n( $kilos, 0 === $grams % 1000 ? 0 : 1 ) . ' kg';
+		}
+
+		return number_format_i18n( $grams ) . ' g';
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Structured data
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * An ItemList of the plan's recipes (deduplicated, day order) — what a
+	 * search engine reads off a plan page. Printed by
+	 * Mixmymeals_Post_Types::output_schema().
+	 *
+	 * @return array Empty array when the plan holds no published recipe.
+	 */
+	public function get_schema(): array {
+
+		$seen  = array();
+		$items = array();
+
+		foreach ( $this->get_meals() as $meal_post ) {
+			$meal      = new Mixmymeals_Meal( $meal_post->ID );
+			$recipe_id = (int) $meal->get_recipe_id();
+
+			if ( ! $recipe_id || isset( $seen[ $recipe_id ] ) || 'publish' !== get_post_status( $recipe_id ) ) {
+				continue;
+			}
+			$seen[ $recipe_id ] = true;
+
+			$items[] = array(
+				'@type'    => 'ListItem',
+				'position' => count( $items ) + 1,
+				'url'      => get_permalink( $recipe_id ),
+				'name'     => get_the_title( $recipe_id ),
+			);
+		}
+
+		if ( ! $items ) {
+			return array();
+		}
+
+		$plan_id = $this->post_id;
+
+		$schema = array(
+			'@context'        => 'https://schema.org',
+			'@type'           => 'ItemList',
+			'name'            => get_the_title( $plan_id ),
+			'url'             => get_permalink( $plan_id ),
+			'numberOfItems'   => count( $items ),
+			'itemListElement' => $items,
+		);
+
+		/**
+		 * Filters the finished meal plan ItemList schema before output.
+		 *
+		 * @param array $schema  Schema.org ItemList structure.
+		 * @param int   $plan_id Meal plan post ID.
+		 */
+		return apply_filters( 'mixmymeals_meal_plan_schema', $schema, $plan_id );
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Bring! import view
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Query var that switches a meal plan permalink to the Bring! import view.
+	 *
+	 * @var string
+	 */
+	const BRING_QUERY_VAR = 'mmm_bring';
+
+	/**
+	 * Registers the Bring! import view. Called once per request from
+	 * mixmymeals.php, same pattern as Mixmymeals_Recipe::register_cook_count().
+	 *
+	 * @return void
+	 */
+	public static function register_bring(): void {
+
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
+
+		add_filter( 'query_vars', array( __CLASS__, 'register_bring_query_var' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'render_bring_page' ) );
+	}
+
+	/**
+	 * Registers the Bring! query var so ?mmm_bring=1 survives the parse.
+	 *
+	 * @param string[] $vars Public query vars.
+	 * @return string[]
+	 */
+	public static function register_bring_query_var( array $vars ): array {
+
+		$vars[] = self::BRING_QUERY_VAR;
+
+		return $vars;
+	}
+
+	/**
+	 * The Bring! deep link for a meal plan.
+	 *
+	 * Bring! fetches the passed URL itself and imports the schema.org/Recipe
+	 * it finds there, so the link points at the plan's Bring! import view
+	 * rather than at the plan page (which is an ItemList, not a Recipe).
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string Empty string when the plan has no permalink.
+	 */
+	public static function bring_deeplink( int $plan_id ): string {
+
+		$permalink = get_permalink( $plan_id );
+		if ( ! $permalink ) {
+			return '';
+		}
+
+		return sprintf(
+			'https://api.getbring.com/rest/bringrecipes/deeplink?url=%s&source=web&baseQuantity=1&requestedQuantity=1',
+			rawurlencode( add_query_arg( self::BRING_QUERY_VAR, '1', $permalink ) )
+		);
+	}
+
+	/**
+	 * Renders the stripped-down import page Bring! scrapes and exits.
+	 *
+	 * Kept out of the theme on purpose: the page carries nothing but the
+	 * shopping list as a Recipe, is marked noindex and never becomes part of
+	 * the site's own structured data.
+	 *
+	 * @return void
+	 */
+	public static function render_bring_page(): void {
+
+		if ( ! is_singular( 'mmm_meal_plan' ) || ! get_query_var( self::BRING_QUERY_VAR ) ) {
+			return;
+		}
+
+		$plan_id = (int) get_queried_object_id();
+		$schema  = ( new self( $plan_id ) )->get_bring_recipe_schema();
+
+		// Nothing to import — let the normal plan page render instead.
+		if ( empty( $schema['recipeIngredient'] ) ) {
+			return;
+		}
+
+		$title     = get_the_title( $plan_id );
+		$permalink = get_permalink( $plan_id );
+
+		header( 'Content-Type: text/html; charset=utf-8' );
+		header( 'X-Robots-Tag: noindex, follow', true );
+
+		?><!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+	<meta charset="<?php bloginfo( 'charset' ); ?>">
+	<meta name="robots" content="noindex, follow">
+	<title><?php echo esc_html( $title ); ?></title>
+	<link rel="canonical" href="<?php echo esc_url( $permalink ); ?>">
+	<script type="application/ld+json"><?php
+		echo wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+	?></script>
+</head>
+<body>
+	<h1><?php echo esc_html( $title ); ?></h1>
+	<ul>
+		<?php foreach ( $schema['recipeIngredient'] as $line ) : ?>
+			<li><?php echo esc_html( $line ); ?></li>
+		<?php endforeach; ?>
+	</ul>
+	<p><a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $title ); ?></a></p>
+</body>
+</html>
+		<?php
+
+		exit;
+	}
+
+	/**
+	 * Builds a schema.org/Recipe whose ingredients are the plan's shopping
+	 * list — the shape Bring! expects from an import URL.
+	 *
+	 * @return array Empty array when the plan has no ingredients.
+	 */
+	public function get_bring_recipe_schema(): array {
+
+		$lines = $this->get_bring_shopping_list_lines();
+		if ( ! $lines ) {
+			return array();
+		}
+
+		$plan_id = $this->post_id;
+
+		$schema = array(
+			'@context'         => 'https://schema.org',
+			'@type'            => 'Recipe',
+			'name'             => get_the_title( $plan_id ),
+			'url'              => get_permalink( $plan_id ),
+			'recipeIngredient' => $lines,
+		);
+
+		$description = Mixmymeals_Post_Types::meta_description( $plan_id );
+		if ( '' !== $description ) {
+			$schema['description'] = $description;
+		}
+
+		$images = Mixmymeals_Post_Types::schema_image_urls( $plan_id );
+		if ( $images ) {
+			$schema['image'] = $images;
+		}
+
+		/**
+		 * Filters the Recipe schema handed to Bring! for a meal plan.
+		 *
+		 * @param array $schema  Schema.org Recipe structure.
+		 * @param int   $plan_id Meal plan post ID.
+		 */
+		return apply_filters( 'mixmymeals_bring_recipe_schema', $schema, $plan_id );
+	}
+
+	/**
+	 * Shopping list as Bring!-parsable lines ("405 g Möhren", "3 Stück Eier").
+	 *
+	 * Amount first, then unit, then name: that is the order Bring! splits on.
+	 * Indivisible units keep their unit, everything else is collapsed into
+	 * grams, mirroring what the shopping list shortcode displays.
+	 *
+	 * @return string[]
+	 */
+	public function get_bring_shopping_list_lines(): array {
+
+		$lines = array();
+
+		// Grouping by category would only add headings we cannot use here.
+		foreach ( $this->calc_shopping_list( false ) as $ingredients ) {
+			foreach ( $ingredients as $ing_id => $data ) {
+
+				$ingredient = new Mixmymeals_Ingredient( (int) $ing_id );
+				if ( ! $ingredient->is_valid() ) {
+					continue;
+				}
+
+				$name = trim( wp_strip_all_tags( get_the_title( (int) $ing_id ) ) );
+				if ( '' === $name ) {
+					continue;
+				}
+
+				$loose_grams = 0.0;
+				$added       = false;
+
+				foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
+					if ( ! empty( $unit['is_indivisible'] ) ) {
+						$lines[] = trim( sprintf(
+							'%s %s %s',
+							Mixmymeals_Ingredient::format_amount( (float) ( $unit['amount'] ?? 0 ) ),
+							trim( (string) ( $unit['unit_title'] ?? '' ) ),
+							$name
+						) );
+						$added   = true;
+					} else {
+						$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
+					}
+				}
+
+				if ( $loose_grams > 0 ) {
+					$lines[] = Mixmymeals_Ingredient::format_amount( round( $loose_grams ) ) . ' g ' . $name;
+					$added   = true;
+				}
+
+				// Ingredient without any usable unit: hand over the bare name
+				// so it still lands on the list.
+				if ( ! $added ) {
+					$total   = (float) ( $data['total_weight'] ?? 0 );
+					$lines[] = $total > 0
+						? Mixmymeals_Ingredient::format_amount( round( $total ) ) . ' g ' . $name
+						: $name;
+				}
+			}
+		}
+
+		return $lines;
+	}
+
 
 
 }

@@ -23,6 +23,10 @@
 		meal_images_html      Reihe der Mahlzeiten-Bilder des Tages (verlinkt, oder leer)
 		day_summary_html      Tagessumme kcal/Kosten (oder leer)
 		day_kcal / day_cost / currency
+		day_nutrition_html    Nährwerte des Tages als fertige Zeile: kcal, Eiweiß,
+		                      Kohlenhydrate, Fett — pro Person, eine Portion je
+		                      Mahlzeit (leer, wenn für den Tag nichts vorliegt)
+		day_protein / day_carbs / day_fat   Gramm, pro Person
 		day_ingredients_html  Zutaten für diesen Tag (fertige Liste)
 		shopping_list_html    Komplette Einkaufsliste des Plans
 		site_name / site_url / year
@@ -34,6 +38,8 @@
 {{ meal_list_html }}
 
 {{ day_summary_html }}
+
+{{ day_nutrition_html }}
 
 <h2>Zutaten für heute</h2>
 

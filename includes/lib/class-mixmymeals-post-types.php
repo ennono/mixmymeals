@@ -35,6 +35,13 @@ class Mixmymeals_Post_Types {
 	const UNLISTED_POST_TYPES = array( 'mmm_recipe', 'mmm_meal_plan' );
 
 	/**
+	 * Public post types whose singles receive Open Graph / Twitter tags.
+	 *
+	 * @var string[]
+	 */
+	const OG_POST_TYPES = array( 'mmm_recipe', 'mmm_meal_plan', 'mmm_ingredient', 'mmm_equipment' );
+
+	/**
 	 * Whether the post is hidden from listings.
 	 *
 	 * @param int $post_id Post ID.
@@ -218,6 +225,9 @@ class Mixmymeals_Post_Types {
 			'pre_get_posts',
 			array( $this, 'add_mealplan_column_ordering' )
 		);
+
+		add_action( 'wp_head', array( $this, 'output_og_tags' ), 6 );
+		add_action( 'wp_head', array( $this, 'output_schema' ), 8 );
 	}
 
 	/**
@@ -472,7 +482,7 @@ class Mixmymeals_Post_Types {
 			'show_in_menu' => true,
 			'show_in_rest' => true,
 			'menu_icon'    => 'dashicons-calendar-alt',
-			'supports'     => array( 'title', 'editor', 'excerpt' ),
+			'supports'     => array( 'title', 'editor', 'excerpt', 'thumbnail' ),
 			'has_archive'  => true,
 			'hierarchical' => false,
 			'rewrite'      => array(
@@ -1007,5 +1017,172 @@ class Mixmymeals_Post_Types {
 				)
 			);
 		}
+	}
+	/* ---------------------------------------------------------------------
+	 * Head output: structured data and social meta tags
+	 *
+	 * The structures themselves are built by the post types that own them
+	 * (Mixmymeals_Recipe::get_schema(), Mixmymeals_Meal_Plan::get_schema());
+	 * printing them is a per-post-type frontend concern and lives here.
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Prints the JSON-LD block for the current single view: a full
+	 * schema.org/Recipe on recipes, an ItemList of its recipes on meal plans.
+	 *
+	 * @return void
+	 */
+	public function output_schema(): void {
+
+		/**
+		 * Allows disabling the MixMyMeals structured data output.
+		 *
+		 * @param bool $enabled Default true.
+		 */
+		if ( ! apply_filters( 'mixmymeals_seo_schema_enabled', true ) ) {
+			return;
+		}
+
+		if ( is_singular( 'mmm_recipe' ) ) {
+			$schema = ( new Mixmymeals_Recipe( (int) get_queried_object_id() ) )->get_schema();
+		} elseif ( is_singular( 'mmm_meal_plan' ) ) {
+			$schema = ( new Mixmymeals_Meal_Plan( (int) get_queried_object_id() ) )->get_schema();
+		} else {
+			return;
+		}
+
+		if ( empty( $schema ) ) {
+			return;
+		}
+
+		echo '<script type="application/ld+json">'
+			. wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			. '</script>' . "\n";
+	}
+
+	/**
+	 * Prints OG + Twitter meta tags on MixMyMeals singles. Skipped when a
+	 * dedicated SEO plugin is active (those handle social tags themselves).
+	 *
+	 * @return void
+	 */
+	public function output_og_tags(): void {
+
+		if ( ! is_singular( self::OG_POST_TYPES ) ) {
+			return;
+		}
+
+		// A dedicated SEO plugin outputs its own social tags — never double up.
+		$seo_plugin_active = defined( 'WPSEO_VERSION' )       // Yoast.
+			|| defined( 'RANK_MATH_VERSION' )                 // Rank Math.
+			|| defined( 'AIOSEO_VERSION' )                    // All in One SEO.
+			|| defined( 'SLIM_SEO_VER' );                     // Slim SEO.
+
+		/**
+		 * Allows forcing the OG output on or off.
+		 *
+		 * @param bool $enabled Default: only when no SEO plugin is active.
+		 */
+		if ( ! apply_filters( 'mixmymeals_seo_og_enabled', ! $seo_plugin_active ) ) {
+			return;
+		}
+
+		$post_id     = (int) get_queried_object_id();
+		$title       = get_the_title( $post_id );
+		$description = self::meta_description( $post_id );
+		$url         = get_permalink( $post_id );
+
+		printf( '<meta property="og:locale" content="%s" />' . "\n", esc_attr( get_locale() ) );
+		printf( '<meta property="og:type" content="article" />' . "\n" );
+		printf( '<meta property="og:site_name" content="%s" />' . "\n", esc_attr( get_bloginfo( 'name' ) ) );
+		printf( '<meta property="og:title" content="%s" />' . "\n", esc_attr( $title ) );
+		if ( '' !== $description ) {
+			printf( '<meta property="og:description" content="%s" />' . "\n", esc_attr( $description ) );
+		}
+		printf( '<meta property="og:url" content="%s" />' . "\n", esc_url( $url ) );
+
+		$image_id = self::social_image_id( $post_id );
+		if ( $image_id ) {
+			$src = wp_get_attachment_image_src( $image_id, 'large' );
+			if ( $src ) {
+				printf( '<meta property="og:image" content="%s" />' . "\n", esc_url( $src[0] ) );
+				printf( '<meta property="og:image:width" content="%d" />' . "\n", (int) $src[1] );
+				printf( '<meta property="og:image:height" content="%d" />' . "\n", (int) $src[2] );
+				$alt = (string) get_post_meta( $image_id, '_wp_attachment_image_alt', true );
+				if ( '' !== $alt ) {
+					printf( '<meta property="og:image:alt" content="%s" />' . "\n", esc_attr( $alt ) );
+				}
+			}
+		}
+
+		printf( '<meta name="twitter:card" content="%s" />' . "\n", $image_id ? 'summary_large_image' : 'summary' );
+		printf( '<meta name="twitter:title" content="%s" />' . "\n", esc_attr( $title ) );
+		if ( '' !== $description ) {
+			printf( '<meta name="twitter:description" content="%s" />' . "\n", esc_attr( $description ) );
+		}
+	}
+
+	/**
+	 * Plain-text description of a post: excerpt first, then trimmed content.
+	 * Feeds the OG/Twitter tags and the schema descriptions.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function meta_description( int $post_id ): string {
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return '';
+		}
+
+		$text = trim( wp_strip_all_tags( strip_shortcodes( $post->post_excerpt ) ) );
+		if ( '' === $text ) {
+			$text = trim( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ) );
+		}
+		$text = preg_replace( '/\s+/u', ' ', $text );
+
+		return wp_html_excerpt( (string) $text, 300, '…' );
+	}
+
+	/**
+	 * The post's featured image ID, falling back to the configured
+	 * placeholder image.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int Attachment ID, or 0.
+	 */
+	public static function social_image_id( int $post_id ): int {
+
+		$thumb = (int) get_post_thumbnail_id( $post_id );
+		if ( $thumb ) {
+			return $thumb;
+		}
+
+		return absint( get_option( 'mixmymeals_placeholder_image_id', 0 ) );
+	}
+
+	/**
+	 * Full-size and large image URLs for the schema image property.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string[]
+	 */
+	public static function schema_image_urls( int $post_id ): array {
+
+		$image_id = self::social_image_id( $post_id );
+		if ( ! $image_id ) {
+			return array();
+		}
+
+		$urls = array();
+		foreach ( array( 'full', 'large', 'medium_large' ) as $size ) {
+			$src = wp_get_attachment_image_src( $image_id, $size );
+			if ( $src && ! in_array( $src[0], $urls, true ) ) {
+				$urls[] = $src[0];
+			}
+		}
+
+		return $urls;
 	}
 }
