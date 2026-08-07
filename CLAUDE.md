@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v1.4.3, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans.
+MixMyMeals is a WordPress plugin (v2.0.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator, a frontend cart for building custom plans, and social publishing (Instagram/Pinterest).
 
 ## Development commands
 
@@ -103,6 +103,26 @@ There is no SEO class — each structure is built by the post type that owns it,
 The **Bring! import view** lives entirely in `Mixmymeals_Meal_Plan`, registered once per request via `Mixmymeals_Meal_Plan::register_bring()` in `mixmymeals.php` (same pattern as `Mixmymeals_Recipe::register_cook_count()`). `<plan permalink>?mmm_bring=1` (`BRING_QUERY_VAR`) renders a minimal noindex page on `template_redirect` whose only content is the shopping list as a schema.org/Recipe — Bring! fetches that URL itself and imports what it finds, and a plan page is an ItemList, not a Recipe. `bring_deeplink()` builds the link the shortcodes render; `get_bring_shopping_list_lines()` formats "405 g Möhren" (amount, unit, name — the order Bring! splits on).
 
 Amounts in all of these go through `Mixmymeals_Ingredient::format_amount()`: no thousands separator, since parsers read "1.000 g" as one gram. The human-facing counterparts are `Mixmymeals_Meal_Plan::build_needed_amount_string()` / `build_short_amount_string()`.
+
+### Feature modules (includes/lib)
+
+| Class | Purpose |
+|---|---|
+| `Mixmymeals_Instagram` | GD-rendered carousel/recipe images, immediate + scheduled posting via Instagram Graph API, per-user credentials (user meta `mmm_instagram_*`, no site fallback), scheduled-posts admin overview, temp-image cleanup cron, REST routes `mixmymeals/v1/instagram/…` |
+| `Mixmymeals_Pinterest` | Pin plans/recipes (reuses Instagram images), immediate + scheduled, per-user credentials `mmm_pinterest_*`, REST routes `mixmymeals/v1/pinterest/…` |
+| `Mixmymeals_User_Meta` | The plugin's fields on the WordPress user profile — currently the per-user Instagram/Pinterest credentials (`render_social_fields()` / `save_social_fields()`), including the "Connect with Pinterest" OAuth button, which only ever appears in one's own profile |
+| `Mixmymeals_Privacy` | GDPR personal-data exporters/erasers (subscriptions, photos), suggested privacy-policy text |
+| `Mixmymeals_Subscriptions` | Meal-plan e-mail subscriptions: double opt-in, consent records, drip sending via WP-Cron, token endpoints |
+| `Mixmymeals_Mailer` / `Mixmymeals_Mail_Log` | wp_mail wrapper with GDPR footer + send log |
+| `Mixmymeals_Ratings` | Comment-based star ratings (logged-in users + subscribers via token), per-recipe aggregates in `_mmm_rating_avg/_count` |
+| `Mixmymeals_Photos` | Visitor meal-photo uploads (MIME-whitelisted, EXIF-stripped), moderation page, gallery |
+| `Mixmymeals_Rest_Api` | REST namespace `mixmymeals/v1`: CRUD for recipes/ingredients/units/plans/meals, recipe search, post status, AI-friendly `/meal-plans/build` bulk builder, author box and media upload (see below) |
+| `Mixmymeals_Cleanup` | WP-Cron cleanup of orphaned meals and stale visitor plans; owns the cleanup report e-mail (see below) |
+| `Mixmymeals_Ingredient_Importer` / `Mixmymeals_Recipe_Importer` | Admin JSON importers |
+| `Mixmymeals_User_Roles` | Custom roles (meal mixer) |
+| `Mixmymeals_Admin_API` | Settings-field rendering engine used by `Mixmymeals_Settings` |
+
+A companion MCP server for AI automation lives in `tools/mcp-server.mjs` (excluded from distribution via `.distignore`).
 
 ### Author box
 

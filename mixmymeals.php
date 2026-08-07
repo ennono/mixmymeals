@@ -1,14 +1,15 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 1.4.3
+ * Version: 2.4.1
  * Plugin URI:
- * Description: Plan your meals.
+ * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data, PDF export and social publishing.
  * Author: Timo Fricke
  * Requires PHP: 8.0
  * Requires at least: 6.0
- * Tested up to: 6.9
- * License: GPLv2
+ * Tested up to: 7.0
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
  * Text Domain: mixmymeals
  * Domain Path: /lang/
@@ -81,7 +82,7 @@ function mmm_write_to_log( $message ) {
  */
 function mixmymeals() {
 
-	$instance = Mixmymeals::instance( __FILE__, '1.4.3' );
+	$instance = Mixmymeals::instance( __FILE__, '2.3.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
