@@ -482,3 +482,27 @@ body.mmm-cook-mode-open {
     gap: 0.5em;
     margin: 0;
 }
+
+/* ==========================================================
+   Disclosure label ([mmm_disclosure_label]) – structural basics.
+   Design lives in the theme, but deliberately NOT the visibility:
+   a legally required label must not be themable into invisibility,
+   so display and visibility are pinned here.
+   ========================================================== */
+
+.mmm-disclosure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em;
+    margin: 0 0 var(--mmm-s3, 12px);
+}
+
+.mmm-disclosure__label,
+.mmm-disclosure__sponsor {
+    display: inline-flex !important;
+    visibility: visible !important;
+    align-items: center;
+    line-height: 1;
+    white-space: nowrap;
+}

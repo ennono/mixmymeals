@@ -191,6 +191,9 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_image_credit',
 			[ $this, 'mmm_image_credit_callback' ] );
 
+		add_shortcode( 'mmm_disclosure_label',
+			[ $this, 'mmm_disclosure_label_callback' ] );
+
 		add_shortcode( 'mmm_meal_hero',
 			[ $this, 'mmm_meal_hero_callback' ] );
 
@@ -4872,6 +4875,99 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return '<p class="mmm-image-credit">' . $html . '</p>';
+	}
+
+	/**
+	 * The default wording per disclosure type. "Anzeige" / "Werbung" are the
+	 * terms German case law accepts; "Kooperation", "sponsored by" and English
+	 * wording have repeatedly been held insufficient, so neither is used as a
+	 * default here even though the internal type is called `cooperation`.
+	 *
+	 * @param string $type Disclosure type.
+	 * @return string Empty when the type needs no label.
+	 */
+	public static function disclosure_label_text( string $type ): string {
+
+		switch ( $type ) {
+			case Mixmymeals_Post_Meta::DISCLOSURE_SPONSORED:
+				$text = __( 'Advertisement', 'mixmymeals' );
+				break;
+
+			case Mixmymeals_Post_Meta::DISCLOSURE_COOPERATION:
+				$text = __( 'Advertisement', 'mixmymeals' );
+				break;
+
+			default:
+				return '';
+		}
+
+		/**
+		 * Filters the disclosure label wording.
+		 *
+		 * Whatever this returns is what the page presents as its legal
+		 * disclosure — returning '' or something evasive removes the label
+		 * without removing the obligation.
+		 *
+		 * @param string $text The default wording.
+		 * @param string $type Disclosure type.
+		 */
+		return (string) apply_filters( 'mixmymeals_disclosure_label_text', $text, $type );
+	}
+
+	/**
+	 * Shortcode [mmm_disclosure_label].
+	 * Renders the "Anzeige" pill for commercial content — paid placements and
+	 * cooperations. Editorial and unpaid guest contributions render nothing:
+	 * a guest recipe is credited through the author box and is not advertising.
+	 *
+	 * Resolves meals to the recipe they plan, like every other crediting
+	 * feature, so a meal never drops the recipe's disclosure.
+	 *
+	 * Meant to sit above the content and inside listings — a label that only
+	 * appears after a click, or below the fold, does not do its job.
+	 *
+	 * @param array|string $atts id to force a post.
+	 * @return string
+	 */
+	public function mmm_disclosure_label_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'id' => 0,
+			),
+			$atts,
+			'mmm_disclosure_label'
+		);
+
+		$post_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+		if ( ! $post_id || ! Mixmymeals_Post_Meta::requires_disclosure_label( $post_id ) ) {
+			return '';
+		}
+
+		$type = Mixmymeals_Post_Meta::get_disclosure_type( $post_id );
+		$text = self::disclosure_label_text( $type );
+
+		if ( '' === trim( $text ) ) {
+			return '';
+		}
+
+		$sponsor = Mixmymeals_Post_Meta::get_disclosure_sponsor( $post_id );
+
+		$html = '<span class="mmm-disclosure__label">' . esc_html( $text ) . '</span>';
+
+		if ( '' !== $sponsor ) {
+			$html .= '<span class="mmm-disclosure__sponsor">' . esc_html( $sponsor ) . '</span>';
+		}
+
+		return '<p class="mmm-disclosure mmm-disclosure--' . esc_attr( $type ) . '">'
+			. $html
+			. '</p>';
 	}
 
 	/**
