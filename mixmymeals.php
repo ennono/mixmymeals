@@ -41,6 +41,7 @@ require_once 'includes/lib/class-mixmymeals-cart.php';
 require_once 'includes/lib/class-mixmymeals-equipment.php';
 
 require_once 'includes/lib/class-mixmymeals-pdf-builder.php';
+require_once 'includes/lib/class-mixmymeals-meal-plan-pdf.php';
 require_once 'includes/lib/class-mixmymeals-rest-api.php';
 require_once 'includes/lib/class-mixmymeals-cleanup.php';
 require_once 'includes/lib/class-mixmymeals-mail-log.php';
@@ -93,6 +94,7 @@ mixmymeals();
 mixmymeals()->add_post_types();
 mixmymeals()->add_taxonomies();
 mixmymeals()->add_shortcodes();
+Mixmymeals_Meal_Plan_PDF::register_ajax();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();

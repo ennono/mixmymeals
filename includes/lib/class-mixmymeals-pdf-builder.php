@@ -52,8 +52,6 @@ class Mixmymeals_PDF_Builder {
 
 		$full_html = $this->build_document_html();
 
-		write_to_log( $full_html );
-
 		$dompdf->loadHtml( $full_html );
 		$dompdf->setPaper( $this->paper_size, $this->orientation );
 		$dompdf->render();
