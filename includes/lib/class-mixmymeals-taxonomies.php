@@ -25,6 +25,10 @@ class Mixmymeals_Taxonomies {
 			'init',
 			array( $this, 'register_ingredient_category_taxonomy' )
 		);
+		add_action(
+			'init',
+			array( $this, 'register_equipment_category_taxonomy' )
+		);
 		add_action( 'init', array( $this, 'register_meal_plan_category_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_meal_plan_tag_taxonomy' ) );
 	}
@@ -165,6 +169,55 @@ class Mixmymeals_Taxonomies {
 		register_taxonomy(
 			'mmm_ingredient_category',
 			array( 'mmm_ingredient' ),
+			$args
+		);
+	}
+
+	/**
+	 * Registers the "category" taxonomy for equipment.
+	 *
+	 * Mirrors the ingredient category: a grouping taxonomy for the admin and
+	 * the archive index, not a public archive of its own. Unlike the
+	 * ingredient one this sets show_admin_column, which gives the list table a
+	 * clickable, filtering column for free.
+	 */
+	public function register_equipment_category_taxonomy(): void {
+		$labels = array(
+			'name'              => _x(
+				'Categories',
+				'taxonomy general name',
+				'mixmymeals'
+			),
+			'singular_name'     => _x(
+				'Category',
+				'taxonomy singular name',
+				'mixmymeals'
+			),
+			'search_items'      => __( 'Search Categories', 'mixmymeals' ),
+			'all_items'         => __( 'All Categories', 'mixmymeals' ),
+			'parent_item'       => __( 'Parent Category', 'mixmymeals' ),
+			'parent_item_colon' => __( 'Parent Category:', 'mixmymeals' ),
+			'edit_item'         => __( 'Edit Category', 'mixmymeals' ),
+			'update_item'       => __( 'Update Category', 'mixmymeals' ),
+			'add_new_item'      => __( 'Add New Category', 'mixmymeals' ),
+			'new_item_name'     => __( 'New Category Name', 'mixmymeals' ),
+			'menu_name'         => __( 'Categories', 'mixmymeals' ),
+		);
+
+		$args = array(
+			'labels'            => $labels,
+			'public'            => false,
+			'show_ui'           => true,
+			'show_admin_column' => true,
+			'hierarchical'      => false,
+			'show_in_rest'      => true,
+			'rewrite'           => false,
+			'query_var'         => false,
+		);
+
+		register_taxonomy(
+			'mmm_equipment_category',
+			array( 'mmm_equipment' ),
 			$args
 		);
 	}

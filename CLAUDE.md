@@ -33,13 +33,13 @@ All types are prefixed `mmm_`:
 | Post type | Class | Notes |
 |---|---|---|
 | `mmm_recipe` | `Mixmymeals_Recipe` | Public, has archive, slug from settings option |
-| `mmm_ingredient` | `Mixmymeals_Ingredient` | Not public, admin only |
+| `mmm_ingredient` | `Mixmymeals_Ingredient` | Public, has archive, slug from settings option |
 | `mmm_ingr_unit` | `Mixmymeals_Ingredient_Amount` | Hidden, child posts of `mmm_ingredient` |
 | `mmm_meal_plan` | `Mixmymeals_Meal_Plan` | Public, has archive |
 | `mmm_meal` | `Mixmymeals_Meal` | Child post of `mmm_meal_plan` via `post_parent` |
-| `mmm_equipment` | `Mixmymeals_Equipment` | Admin only |
+| `mmm_equipment` | `Mixmymeals_Equipment` | Public, has archive, slug from settings option; linked from recipes via `_mmm_equipment` meta (array of equipment post IDs) |
 
-Slugs for public post types and their taxonomy archives are configurable in Settings and stored as WP options (`mixmymeals_recipe_slug`, `mixmymeals_meal_plan_slug`, `mixmymeals_meal_slug`). After changing slugs, WordPress permalinks must be flushed.
+Slugs for public post types and their taxonomy archives are configurable in Settings and stored as WP options (`mixmymeals_recipe_slug`, `mixmymeals_meal_plan_slug`, `mixmymeals_meal_slug`, `mixmymeals_ingredient_slug`, `mixmymeals_equipment_slug`). After changing slugs, WordPress permalinks must be flushed (the ingredient/equipment slug options schedule a flush automatically).
 
 ### Taxonomies
 

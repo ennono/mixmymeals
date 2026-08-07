@@ -47,6 +47,14 @@ class Mixmymeals_Post_Meta {
 			'add_meta_boxes_mmm_recipe',
 			array( $this, 'add_equipment_meta_box' )
 		);
+		add_action(
+			'add_meta_boxes_mmm_recipe',
+			array( $this, 'add_related_recipes_meta_box' )
+		);
+		add_action(
+			'save_post_mmm_recipe',
+			array( $this, 'save_related_recipes_metabox' )
+		);
 
 		add_action(
 			'add_meta_boxes_mmm_ingredient',
@@ -81,6 +89,15 @@ class Mixmymeals_Post_Meta {
 				$this,
 				'save_equipment_metabox',
 			)
+		);
+
+		add_action(
+			'add_meta_boxes_mmm_equipment',
+			array( $this, 'add_equipment_affiliate_meta_box' )
+		);
+		add_action(
+			'save_post_mmm_equipment',
+			array( $this, 'save_equipment_affiliate_meta' )
 		);
 
         /*
@@ -2912,5 +2929,235 @@ class Mixmymeals_Post_Meta {
 		Mixmymeals_Post_Types::set_unlisted( $post_id, ! empty( $_POST['mmm_unlisted'] ) );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
+
+	/**
+	 * Registers the affiliate links meta box for equipment.
+	 */
+	public function add_equipment_affiliate_meta_box(): void {
+		add_meta_box(
+			'mmm_equipment_affiliate_meta_box',
+			__( 'Affiliate links', 'mixmymeals' ),
+			array( $this, 'render_equipment_affiliate_meta_box_content' ),
+			'mmm_equipment',
+			'normal',
+			'default'
+		);
+	}
+
+	/**
+	 * Renders the affiliate links meta box.
+	 *
+	 * Deliberately without JavaScript: the plugin has no build step, so every
+	 * script would have to be kept in sync with its minified twin by hand.
+	 * Instead the box shows the saved rows plus two empty spares — save, and
+	 * two fresh spares appear. Emptying the URL deletes the row.
+	 *
+	 * @param WP_Post $post Equipment post.
+	 */
+	public function render_equipment_affiliate_meta_box_content( WP_Post $post ): void {
+
+		wp_nonce_field( 'mmm_equipment_affiliate_meta_box', 'mmm_equipment_affiliate_nonce' );
+
+		$equipment = new Mixmymeals_Equipment( $post->ID );
+		$rows      = $equipment->get_affiliate_links();
+		$spares    = max( 0, Mixmymeals_Equipment::MAX_AFFILIATE_LINKS - count( $rows ) );
+		$spares    = min( 2, $spares );
+
+		for ( $i = 0; $i < $spares; $i++ ) {
+			$rows[] = array(
+				'merchant' => '',
+				'url'      => '',
+				'note'     => '',
+			);
+		}
+		?>
+		<p class="description">
+			<?php
+			esc_html_e(
+				'Shops where this piece of equipment can be bought. Links open in a new tab and carry rel="sponsored nofollow". Clear the URL to remove a row; save to get fresh empty rows.',
+				'mixmymeals'
+			);
+			?>
+		</p>
+
+		<table class="widefat striped">
+			<thead>
+			<tr>
+				<th scope="col"><?php esc_html_e( 'Shop', 'mixmymeals' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'URL', 'mixmymeals' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Note', 'mixmymeals' ); ?></th>
+			</tr>
+			</thead>
+			<tbody>
+			<?php foreach ( $rows as $index => $row ) : ?>
+				<tr>
+					<td>
+						<input type="text"
+							name="mmm_affiliate[<?php echo esc_attr( (string) $index ); ?>][merchant]"
+							value="<?php echo esc_attr( $row['merchant'] ); ?>"
+							class="regular-text"
+							placeholder="<?php esc_attr_e( 'e.g. Amazon', 'mixmymeals' ); ?>">
+					</td>
+					<td>
+						<input type="url"
+							name="mmm_affiliate[<?php echo esc_attr( (string) $index ); ?>][url]"
+							value="<?php echo esc_attr( $row['url'] ); ?>"
+							class="large-text code"
+							placeholder="https://">
+					</td>
+					<td>
+						<input type="text"
+							name="mmm_affiliate[<?php echo esc_attr( (string) $index ); ?>][note]"
+							value="<?php echo esc_attr( $row['note'] ); ?>"
+							class="regular-text"
+							placeholder="<?php esc_attr_e( 'e.g. around 30 €', 'mixmymeals' ); ?>">
+					</td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Saves the affiliate links. Sanitising happens in
+	 * Mixmymeals_Equipment::set_affiliate_links().
+	 *
+	 * @param int $post_ID Equipment post ID.
+	 */
+	public function save_equipment_affiliate_meta( int $post_ID ): void {
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+		if (
+			! isset( $_POST['mmm_equipment_affiliate_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_equipment_affiliate_nonce'] ) ),
+				'mmm_equipment_affiliate_meta_box'
+			)
+		) {
+			return;
+		}
+
+		$rows = isset( $_POST['mmm_affiliate'] ) && is_array( $_POST['mmm_affiliate'] )
+			? wp_unslash( $_POST['mmm_affiliate'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			: array();
+
+		$equipment = new Mixmymeals_Equipment( $post_ID );
+		$equipment->set_affiliate_links( $rows );
+	}
+	/**
+	 * Registers the "Goes well with" (Dazu passt) meta box on recipes.
+	 */
+	public function add_related_recipes_meta_box(): void {
+		add_meta_box(
+			'mmm_related_recipes_box',
+			__( 'Goes well with', 'mixmymeals' ),
+			[ $this, 'render_related_recipes_meta_box_content' ],
+			'mmm_recipe',
+			'side',
+			'default'
+		);
+	}
+
+	/**
+	 * Persists the "Goes well with" recipe links.
+	 *
+	 * @param int $post_id Recipe post ID.
+	 */
+	public function save_related_recipes_metabox( int $post_id ): void {
+		if ( ! isset( $_POST['mmm_related_recipes_nonce'] ) ||
+			! wp_verify_nonce( sanitize_key( $_POST['mmm_related_recipes_nonce'] ), 'mmm_related_recipes_save' ) ) {
+			return;
+		}
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		$ids = isset( $_POST['mmm_related_recipes'] ) && is_array( $_POST['mmm_related_recipes'] )
+			? array_map( 'intval', wp_unslash( $_POST['mmm_related_recipes'] ) )
+			: [];
+
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		$recipe->set_related_recipes( $ids );
+	}
+
+	/**
+	 * Renders the "Goes well with" picker plus a read-only list of the recipes
+	 * this one is a pairing for ("Fits with" / Passend zu).
+	 *
+	 * @param WP_Post $post Current recipe.
+	 */
+	public function render_related_recipes_meta_box_content( WP_Post $post ): void {
+
+		wp_nonce_field( 'mmm_related_recipes_save', 'mmm_related_recipes_nonce' );
+
+		$recipe   = new Mixmymeals_Recipe( $post->ID );
+		$selected = $recipe->get_related_recipes();
+
+		$recipes = get_posts( [
+			'post_type'      => 'mmm_recipe',
+			'posts_per_page' => -1,
+			'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
+			'post__not_in'   => [ $post->ID ],
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		] );
+
+		echo '<p>' . esc_html__( 'Select recipes that go well with this one:', 'mixmymeals' ) . '</p>';
+
+		if ( empty( $recipes ) ) {
+			echo '<p>' . esc_html__( 'No other recipes available yet.', 'mixmymeals' ) . '</p>';
+		} else {
+			$field_id = 'mmm-related-filter-' . (int) $post->ID;
+			printf(
+				'<input type="search" id="%s" placeholder="%s" style="width:100%%;margin-bottom:6px;" />',
+				esc_attr( $field_id ),
+				esc_attr__( 'Filter recipes…', 'mixmymeals' )
+			);
+
+			echo '<ul class="mmm-related-recipes-list" style="max-height:220px;overflow:auto;margin:0;">';
+			foreach ( $recipes as $r ) {
+				printf(
+					'<li><label><input type="checkbox" name="mmm_related_recipes[]" value="%d" %s> %s</label></li>',
+					esc_attr( $r->ID ),
+					in_array( $r->ID, $selected, true ) ? 'checked' : '',
+					esc_html( get_the_title( $r ) )
+				);
+			}
+			echo '</ul>';
+
+			// Lightweight client-side filter for the checkbox list.
+			printf(
+				'<script>(function(){var f=document.getElementById(%1$s),l=f&&f.nextElementSibling;if(!f||!l)return;f.addEventListener("input",function(){var q=f.value.toLowerCase();l.querySelectorAll("li").forEach(function(li){li.style.display=li.textContent.toLowerCase().indexOf(q)>-1?"":"none";});});})();</script>',
+				wp_json_encode( $field_id )
+			);
+		}
+
+		// Read-only reverse links: recipes that list THIS recipe.
+		$reverse = $recipe->get_reverse_related_recipes( 'any' );
+		if ( ! empty( $reverse ) ) {
+			echo '<hr />';
+			echo '<p style="margin-bottom:4px;"><strong>' . esc_html__( 'Fits with', 'mixmymeals' ) . '</strong></p>';
+			echo '<ul style="margin:0;">';
+			foreach ( $reverse as $rev_id ) {
+				printf(
+					'<li><a href="%s">%s</a></li>',
+					esc_url( (string) get_edit_post_link( $rev_id ) ),
+					esc_html( get_the_title( $rev_id ) )
+				);
+			}
+			echo '</ul>';
+			echo '<p class="description">' . esc_html__( 'These recipes list this one under “Goes well with”.', 'mixmymeals' ) . '</p>';
+		}
+	}
+
 
 }

@@ -170,6 +170,16 @@ class Mixmymeals_Post_Types {
 			10,
 			2
 		);
+		add_filter(
+			'manage_mmm_equipment_posts_columns',
+			array( $this, 'equipment_columns_callback' )
+		);
+		add_action(
+			'manage_mmm_equipment_posts_custom_column',
+			array( $this, 'equipment_custom_column_callback' ),
+			10,
+			2
+		);
 		add_action(
 			'restrict_manage_posts',
 			array( $this, 'filter_ingredients_by_category' )
@@ -653,6 +663,53 @@ class Mixmymeals_Post_Types {
 				echo esc_html( $nutri['salt'] ?? '-' );
 				break;
 		}
+	}
+
+
+	/**
+	 * Adds a recipe-count column to the equipment list table. The category
+	 * column comes from the taxonomy itself (show_admin_column).
+	 *
+	 * @param array $columns Existing column definitions.
+	 * @return array
+	 */
+	public function equipment_columns_callback( array $columns ): array {
+
+		$new = array();
+
+		foreach ( $columns as $key => $label ) {
+			$new[ $key ] = $label;
+
+			if ( 'title' === $key ) {
+				$new['mmm_recipes'] = __( 'Recipes', 'mixmymeals' );
+			}
+		}
+
+		return $new;
+	}
+
+	/**
+	 * Renders the content for a custom equipment list table column.
+	 *
+	 * @param string $column  Column key.
+	 * @param int    $post_id Equipment post ID.
+	 * @return void
+	 */
+	public function equipment_custom_column_callback( string $column, int $post_id ): void {
+
+		if ( 'mmm_recipes' !== $column ) {
+			return;
+		}
+
+		$equipment = new Mixmymeals_Equipment( $post_id );
+		$count     = $equipment->count_recipes();
+
+		if ( 0 === $count ) {
+			echo '—';
+			return;
+		}
+
+		echo esc_html( number_format_i18n( $count ) );
 	}
 
 	/**

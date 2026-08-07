@@ -664,6 +664,126 @@ class Mixmymeals_Recipe {
 		return true;
 	}
 
+	/**
+	 * Recipes this recipe is paired with ("Dazu passt" / goes well with).
+	 *
+	 * @return int[]
+	 */
+	public function get_related_recipes(): array {
+
+		if ( ! $this->is_valid() ) {
+			return [];
+		}
+
+		$ids = get_post_meta( $this->post_id, '_mmm_related_recipes', true );
+		return is_array( $ids ) ? array_values( array_filter( array_map( 'intval', $ids ), fn( $id ) => $id > 0 && $id !== $this->post_id ) ) : [];
+	}
+
+	/**
+	 * Stores the paired recipes ("Dazu passt"). IDs are cleaned and the recipe
+	 * itself is never allowed to reference itself.
+	 *
+	 * @param int[] $ids Recipe post IDs.
+	 * @return bool
+	 */
+	public function set_related_recipes( array $ids ): bool {
+
+		if ( ! $this->is_valid() ) {
+			return false;
+		}
+
+		$clean = array_values( array_unique( array_filter(
+			array_map( 'intval', $ids ),
+			fn( $id ) => $id > 0 && $id !== $this->post_id
+		) ) );
+
+		update_post_meta( $this->post_id, '_mmm_related_recipes', $clean );
+
+		return true;
+	}
+
+	/**
+	 * Recipes that list THIS recipe as a pairing ("Passend zu" / fits with).
+	 * This is the computed reverse side of get_related_recipes(); it is not
+	 * stored separately.
+	 *
+	 * @param string $status Post status to include (default 'publish').
+	 * @return int[]
+	 */
+	public function get_reverse_related_recipes( string $status = 'publish' ): array {
+
+		if ( ! $this->is_valid() ) {
+			return [];
+		}
+
+		$candidates = get_posts( [
+			'post_type'      => 'mmm_recipe',
+			'posts_per_page' => -1,
+			'post_status'    => $status,
+			'fields'         => 'ids',
+			'post__not_in'   => [ $this->post_id ],
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => '_mmm_related_recipes',
+		] );
+
+		$out = [];
+		foreach ( $candidates as $rid ) {
+			$rel = get_post_meta( $rid, '_mmm_related_recipes', true );
+			if ( is_array( $rel ) && in_array( $this->post_id, array_map( 'intval', $rel ), true ) ) {
+				$out[] = (int) $rid;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Published meal plans that contain this recipe (via an mmm_meal child whose
+	 * recipe_id points here), newest first.
+	 *
+	 * @return int[] Meal plan post IDs.
+	 */
+	public function get_meal_plans(): array {
+
+		if ( ! $this->is_valid() ) {
+			return [];
+		}
+
+		// Meals referencing this recipe; their post_parent is the meal plan.
+		$parents = get_posts( [
+			'post_type'      => 'mmm_meal',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'id=>parent',
+			'no_found_rows'  => true,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			'meta_key'       => 'recipe_id',
+			'meta_value'     => (string) $this->post_id,
+		] );
+
+		$plan_ids = array_values( array_unique( array_filter( array_map( 'intval', $parents ) ) ) );
+		if ( empty( $plan_ids ) ) {
+			return [];
+		}
+
+		return get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted( [
+				'post_type'      => 'mmm_meal_plan',
+				'post_status'    => 'publish',
+				'post__in'       => $plan_ids,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			] )
+		);
+	}
+
+
+
 	/*
 	----------------------------------------------------------
 	COOK COUNTER

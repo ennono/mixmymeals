@@ -465,6 +465,7 @@ class Mixmymeals_Recipe_Importer {
 				'ingredients' => $this->get_reference_data(),
 				'categories'  => $this->get_categories_reference(),
 				'tags'        => $this->get_tags_reference(),
+				'equipment'   => $this->get_equipment_reference(),
 			)
 		);
 	}
@@ -559,11 +560,12 @@ class Mixmymeals_Recipe_Importer {
 		return wp_json_encode(
 			array(
 				array(
-					'title'        => 'Tomato salad',
-					'servings'     => 2,
-					'prep_time'    => 15,
-					'category_ids' => array( 5 ),
-					'tag_ids'      => array( 8 ),
+					'title'         => 'Tomato salad',
+					'servings'      => 2,
+					'prep_time'     => 15,
+					'category_ids'  => array( 5 ),
+					'tag_ids'       => array( 8 ),
+					'equipment_ids' => array( 3 ),
 					'steps'        => array(
 						array(
 							'title'       => 'Preparation',
@@ -578,6 +580,7 @@ class Mixmymeals_Recipe_Importer {
 									'ingredient_id' => 55,
 									'unit_id'       => 0,
 									'amount'        => 2,
+									'optional'      => true,
 								),
 							),
 						),
@@ -592,14 +595,16 @@ class Mixmymeals_Recipe_Importer {
 		$lines = array(
 			__( 'Extract the recipe from the attached image, linked page, or description and create valid JSON for the MixMyMeals recipe importer.', 'mixmymeals' ),
 			'',
-			__( 'Fetch the reference data (ingredients, categories, tags with their IDs) from:', 'mixmymeals' ),
+			__( 'Fetch the reference data (ingredients, categories, tags, equipment with their IDs) from:', 'mixmymeals' ),
 			$this->get_reference_url(),
 			'',
 			__( 'Rules:', 'mixmymeals' ),
 			'- ' . __( 'Use only ingredient_id and unit_id from the ingredients reference', 'mixmymeals' ),
 			'- ' . __( 'If an ingredient is missing: omit it from the JSON and list it after the JSON under "Missing ingredients:"', 'mixmymeals' ),
 			'- ' . __( 'If no matching unit exists: unit_id = 0', 'mixmymeals' ),
+			'- ' . __( 'Mark an ingredient as optional with "optional": true (e.g. garnishes or "to taste" items); omit the field or use false for required ingredients', 'mixmymeals' ),
 			'- ' . __( 'Use only category_ids and tag_ids from the references; omit if nothing matches', 'mixmymeals' ),
+			'- ' . __( 'Use only equipment_ids from the equipment reference for special equipment the recipe requires; omit if nothing matches', 'mixmymeals' ),
 			'- ' . __( 'Take servings and prep time from the source; estimate if not stated', 'mixmymeals' ),
 			'- ' . __( 'Group steps sensibly, write descriptions in German', 'mixmymeals' ),
 			'- ' . __( 'Always rephrase the recipe in your own words — never copy the source text verbatim. Vary wording, phrasing and step grouping (and you may slightly adapt seasoning or amounts) so the result is an independent adaptation, not a copy.', 'mixmymeals' ),
@@ -730,6 +735,16 @@ class Mixmymeals_Recipe_Importer {
 				'name' => $t->name,
 			),
 			$terms
+		);
+	}
+
+	private function get_equipment_reference(): array {
+		return array_map(
+			fn( $p ) => array(
+				'id'   => $p->ID,
+				'name' => get_the_title( $p ),
+			),
+			Mixmymeals_Equipment::get_all()
 		);
 	}
 
@@ -887,6 +902,19 @@ class Mixmymeals_Recipe_Importer {
 			}
 		}
 
+		if ( ! empty( $recipe_data['equipment_ids'] ) && is_array( $recipe_data['equipment_ids'] ) ) {
+			$valid_equipment = array();
+			foreach ( $recipe_data['equipment_ids'] as $raw_id ) {
+				$equipment_id = (int) $raw_id;
+				if ( $equipment_id && Mixmymeals_Equipment::exists_by_id( $equipment_id ) ) {
+					$valid_equipment[] = $equipment_id;
+				}
+			}
+			if ( $valid_equipment ) {
+				$recipe->set_equipment( $valid_equipment );
+			}
+		}
+
 		$steps       = array();
 		$step_errors = array();
 		$step_index  = 0;
@@ -979,6 +1007,7 @@ class Mixmymeals_Recipe_Importer {
 			'id'        => $ingredient_id,
 			'amount'    => $amount,
 			'amount_id' => $unit_id,
+			'optional'  => ! empty( $ingr['optional'] ),
 		);
 	}
 }
