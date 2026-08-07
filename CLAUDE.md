@@ -146,6 +146,25 @@ The profile picture travels as `image` (writable attachment ID, `0` removes it) 
 
 Writes **merge** — only supplied keys change, `""` (or `0` for `image`) clears a single field, `DELETE` clears the whole box so the post credits its WordPress author again. `Mixmymeals_Post_Meta::save_author_data()` itself is destructive, so always read-modify-write via `get_author_data()`, which returns the *raw* `link_text` (unlike `get_author_link_text()`, which falls back to the URL's host — writing that resolved value back would silently freeze the host into the database). The response carries both: `link_text` (stored) and `link_text_display` (rendered).
 
+### Disclosure (sponsored / external content)
+
+How a recipe or plan came about **commercially**, in `Mixmymeals_Post_Meta` alongside the author box and image credit: `DISCLOSURE_TYPE` (`_mmm_disclosure_type`) and `DISCLOSURE_SPONSOR` (`_mmm_disclosure_sponsor`), with `get_disclosure()`, `save_disclosure()`, `get_disclosure_type/sponsor()`, `is_disclosed()` and `requires_disclosure_label()` beside the meta box (`render_disclosure_metabox()` / `save_disclosure_meta()`) that edits them.
+
+Four states, of which editorial is the absence of any meta (same convention as the unlisted flag — no migration, cheap `NOT EXISTS`):
+
+| Value | Meaning | Visible label |
+|---|---|---|
+| *(no meta)* | editorial, our own | no |
+| `guest` | unpaid guest contribution | no — the author box credits it |
+| `cooperation` | goods/services provided, no money | **yes** |
+| `sponsored` | paid placement | **yes** |
+
+**This is deliberately not the same axis as the author box.** A guest recipe has an external author but is not advertising; a sponsored recipe may well be written in-house. Collapsing both into one "external" badge is exactly what makes a disclosure legally worthless — `has_external_author()` answers *who wrote it*, `requires_disclosure_label()` answers *must this be labelled*. Never substitute one for the other.
+
+**Every feature that renders a recipe or plan publicly must honour `requires_disclosure_label()`** — for commercial content the label is a legal requirement (§ 5a UWG, § 22 MStV), not a display preference, and it has to be visible without scrolling and in listings too, not only on the single page. German-language markets need "Anzeige"/"Werbung" as the wording; "Kooperation"/"sponsored by" has repeatedly been held insufficient.
+
+`get_disclosure_type()` maps any unknown stored value back to editorial rather than trusting it through, since the type decides whether that label is printed. `save_disclosure()` clears the sponsor whenever the type is not one of `DISCLOSURE_LABELLED_TYPES`, so a name from an earlier classification can never surface in a label or in structured data.
+
 ### Images over REST
 
 `POST /mixmymeals/v1/media` takes an image from exactly one of three sources — a multipart `file` field, a `url` the server fetches, or an `attachment_id` already in the library — and routes it through core (`media_handle_upload()` / `media_sideload_image()`), so MIME checks, intermediate sizes and metadata behave exactly as in wp-admin. With `post_id` the attachment gets that parent, and `featured: true` makes it the post's featured image in the same call. Requires `upload_files` on top of the namespace's usual `edit_others_posts`.

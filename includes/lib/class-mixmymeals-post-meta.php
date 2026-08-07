@@ -162,6 +162,20 @@ class Mixmymeals_Post_Meta {
 			add_action( 'save_post_' . $mmm_credit_type, array( $this, 'save_image_credit_meta' ) );
 		}
 
+		// Disclosure: how the content came about commercially. Separate from the
+		// author box on purpose — external authorship and paid placement are not
+		// the same thing (see DISCLOSURE_TYPE).
+		foreach ( array( 'mmm_meal_plan', 'mmm_recipe' ) as $mmm_disclosure_post_type ) {
+			add_action(
+				'add_meta_boxes_' . $mmm_disclosure_post_type,
+				array( $this, 'register_disclosure_metabox' )
+			);
+			add_action(
+				'save_post_' . $mmm_disclosure_post_type,
+				array( $this, 'save_disclosure_meta' )
+			);
+		}
+
 		// Visibility: "unlisted" flag. Query side lives in Mixmymeals_Post_Types.
 		foreach ( Mixmymeals_Post_Types::UNLISTED_POST_TYPES as $mmm_visibility_type ) {
 			add_action(
@@ -2854,6 +2868,286 @@ class Mixmymeals_Post_Meta {
 		$data = self::get_image_credit( $post_id );
 
 		return implode( ' / ', array_filter( array( $data['creator'], $data['source'] ) ) );
+	}
+
+	/**
+	 * Nonce action/field for the disclosure meta box.
+	 *
+	 * @var string
+	 */
+	const DISCLOSURE_NONCE_ACTION = 'mmm_disclosure_meta_box';
+	const DISCLOSURE_NONCE_FIELD  = 'mmm_disclosure_nonce';
+
+	/**
+	 * How a recipe or plan came about commercially. Editorial (our own, unpaid)
+	 * is the default and stores no meta at all — same convention as the unlisted
+	 * flag, so existing posts need no migration and "is this editorial?" stays a
+	 * cheap NOT EXISTS lookup.
+	 *
+	 * Deliberately **not** the same thing as the author box: a guest recipe has
+	 * an external author but is not advertising, while a sponsored recipe may
+	 * well be written in-house. Collapsing both into one "external" badge is
+	 * exactly what makes a disclosure legally worthless.
+	 *
+	 * @var string
+	 */
+	const DISCLOSURE_TYPE = '_mmm_disclosure_type';
+
+	/**
+	 * Who paid or provided. Only meaningful for the two commercial types, and
+	 * cleared together with the type so a name from a previous classification
+	 * can never surface in a label or in structured data.
+	 *
+	 * @var string
+	 */
+	const DISCLOSURE_SPONSOR = '_mmm_disclosure_sponsor';
+
+	/** Unpaid guest contribution — credited, but not advertising. */
+	const DISCLOSURE_GUEST = 'guest';
+
+	/** Goods or services provided, no money. Still needs a visible label. */
+	const DISCLOSURE_COOPERATION = 'cooperation';
+
+	/** Paid placement. Needs "Anzeige"/"Werbung" in German-language markets. */
+	const DISCLOSURE_SPONSORED = 'sponsored';
+
+	/**
+	 * The storable types, in the order the admin dropdown lists them. Editorial
+	 * is the absence of a value and therefore not part of this list.
+	 *
+	 * @var string[]
+	 */
+	const DISCLOSURE_TYPES = array(
+		self::DISCLOSURE_GUEST,
+		self::DISCLOSURE_COOPERATION,
+		self::DISCLOSURE_SPONSORED,
+	);
+
+	/**
+	 * Types that must carry a visible label on the frontend. A guest
+	 * contribution is attribution and handled by the author box; the other two
+	 * are commercial and legally require disclosure.
+	 *
+	 * @var string[]
+	 */
+	const DISCLOSURE_LABELLED_TYPES = array(
+		self::DISCLOSURE_COOPERATION,
+		self::DISCLOSURE_SPONSORED,
+	);
+
+	/**
+	 * Human-readable names of the disclosure types for the admin dropdown.
+	 * A method rather than a constant because the strings are translated.
+	 *
+	 * @return array<string,string> Type => label, editorial (empty value) first.
+	 */
+	public static function disclosure_type_labels(): array {
+		return array(
+			''                           => __( 'Editorial (own content)', 'mixmymeals' ),
+			self::DISCLOSURE_GUEST       => __( 'Guest contribution (unpaid)', 'mixmymeals' ),
+			self::DISCLOSURE_COOPERATION => __( 'Cooperation (product provided)', 'mixmymeals' ),
+			self::DISCLOSURE_SPONSORED   => __( 'Sponsored (paid placement)', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * Disclosure Metabox: how a recipe or plan came about commercially.
+	 *
+	 * @param WP_Post $post Post being edited.
+	 * @return void
+	 */
+	public function register_disclosure_metabox( WP_Post $post ): void {
+		add_meta_box(
+			'mmm_disclosure_meta_box',
+			__( 'Disclosure', 'mixmymeals' ),
+			array( $this, 'render_disclosure_metabox' ),
+			$post->post_type,
+			'side'
+		);
+	}
+
+	/**
+	 * Renders the disclosure type dropdown and the sponsor field.
+	 *
+	 * @param WP_Post $post Post being edited.
+	 * @return void
+	 */
+	public function render_disclosure_metabox( WP_Post $post ): void {
+
+		wp_nonce_field( self::DISCLOSURE_NONCE_ACTION, self::DISCLOSURE_NONCE_FIELD );
+
+		$data = self::get_disclosure( $post->ID );
+
+		echo '<p><label for="mmm_disclosure_type">'
+			. esc_html__( 'How this content came about', 'mixmymeals' )
+			. '</label></p>';
+
+		echo '<select id="mmm_disclosure_type" name="mmm_disclosure_type" style="width:100%;">';
+		foreach ( self::disclosure_type_labels() as $mmm_value => $mmm_label ) {
+			printf(
+				'<option value="%1$s" %2$s>%3$s</option>',
+				esc_attr( $mmm_value ),
+				selected( $data['type'], $mmm_value, false ),
+				esc_html( $mmm_label )
+			);
+		}
+		echo '</select>';
+
+		echo '<p style="margin:12px 0 0;"><label for="mmm_disclosure_sponsor">'
+			. esc_html__( 'Sponsor / partner', 'mixmymeals' )
+			. '</label></p>';
+
+		echo '<input type="text" id="mmm_disclosure_sponsor" name="mmm_disclosure_sponsor" style="width:100%;" value="'
+			. esc_attr( $data['sponsor'] ) . '" />';
+
+		echo '<p class="description">'
+			. esc_html__( 'Only stored for cooperation and sponsored content — cleared automatically for the other types.', 'mixmymeals' )
+			. '</p>';
+
+		echo '<p class="description">'
+			. esc_html__( 'Cooperation and sponsored content must carry a visible label on the page. A guest contribution is credited through the author box and is not advertising.', 'mixmymeals' )
+			. '</p>';
+	}
+
+	/**
+	 * Saves the disclosure fields after verifying nonce, autosave and caps.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public function save_disclosure_meta( int $post_id ): void {
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified right here.
+		if (
+			! isset( $_POST[ self::DISCLOSURE_NONCE_FIELD ] )
+			|| ! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST[ self::DISCLOSURE_NONCE_FIELD ] ) ),
+				self::DISCLOSURE_NONCE_ACTION
+			)
+		) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		self::save_disclosure(
+			$post_id,
+			array(
+				'type'    => wp_unslash( $_POST['mmm_disclosure_type'] ?? '' ),
+				'sponsor' => wp_unslash( $_POST['mmm_disclosure_sponsor'] ?? '' ),
+			)
+		);
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * The stored disclosure type, or '' for editorial content. An unknown value
+	 * reads as editorial rather than being trusted through — the type decides
+	 * whether a legally required label is printed, so it must never be a value
+	 * the rendering side does not know.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_disclosure_type( int $post_id ): string {
+
+		$type = (string) get_post_meta( $post_id, self::DISCLOSURE_TYPE, true );
+
+		return in_array( $type, self::DISCLOSURE_TYPES, true ) ? $type : '';
+	}
+
+	/**
+	 * The stored sponsor / partner name, or ''.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_disclosure_sponsor( int $post_id ): string {
+		return trim( (string) get_post_meta( $post_id, self::DISCLOSURE_SPONSOR, true ) );
+	}
+
+	/**
+	 * Both disclosure fields, keyed as save_disclosure() expects them, so read +
+	 * override + save is a lossless round trip.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array{type:string,sponsor:string}
+	 */
+	public static function get_disclosure( int $post_id ): array {
+		return array(
+			'type'    => self::get_disclosure_type( $post_id ),
+			'sponsor' => self::get_disclosure_sponsor( $post_id ),
+		);
+	}
+
+	/**
+	 * Stores the disclosure. An unknown or empty type falls back to editorial
+	 * and deletes both metas, so editorial content leaves no trace behind.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $data    type, sponsor.
+	 * @return void
+	 */
+	public static function save_disclosure( int $post_id, array $data ): void {
+
+		$type = isset( $data['type'] ) ? sanitize_key( (string) $data['type'] ) : '';
+
+		if ( ! in_array( $type, self::DISCLOSURE_TYPES, true ) ) {
+			$type = '';
+		}
+
+		if ( '' === $type ) {
+			delete_post_meta( $post_id, self::DISCLOSURE_TYPE );
+		} else {
+			update_post_meta( $post_id, self::DISCLOSURE_TYPE, $type );
+		}
+
+		// The sponsor belongs to the commercial types only. Clearing it along
+		// with the type keeps a name from an earlier classification out of both
+		// the frontend label and the structured data.
+		$sponsor = in_array( $type, self::DISCLOSURE_LABELLED_TYPES, true )
+			? sanitize_text_field( (string) ( $data['sponsor'] ?? '' ) )
+			: '';
+
+		if ( '' === trim( $sponsor ) ) {
+			delete_post_meta( $post_id, self::DISCLOSURE_SPONSOR );
+
+			return;
+		}
+
+		update_post_meta( $post_id, self::DISCLOSURE_SPONSOR, $sponsor );
+	}
+
+	/**
+	 * Whether the post carries any non-editorial classification at all.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_disclosed( int $post_id ): bool {
+		return '' !== self::get_disclosure_type( $post_id );
+	}
+
+	/**
+	 * Whether the post must show a visible disclosure label. **Every feature
+	 * that renders a recipe or plan publicly must honour this** — the label is a
+	 * legal requirement for commercial content, not a display preference.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function requires_disclosure_label( int $post_id ): bool {
+		return in_array(
+			self::get_disclosure_type( $post_id ),
+			self::DISCLOSURE_LABELLED_TYPES,
+			true
+		);
 	}
 
 	/**
