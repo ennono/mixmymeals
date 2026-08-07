@@ -201,6 +201,8 @@ jQuery(function ($) {
 
         backdrop.find('.mmm-planner-dialog-submit').on('click', function () {
             const msgBox = backdrop.find('.mmm-planner-dialog-msg');
+            const $submit = $(this);
+            mmmSetBusy($submit, true);
 
             mmmPost('mmm_add_to_cart', {
                 recipe_id: recipeId,
@@ -212,14 +214,34 @@ jQuery(function ($) {
                     if (response && response.success) {
                         mmmUpdateCartBadge();
                         mmmClosePlannerDialog();
+                        // On the planner page, reload so the new item shows
+                        // up in the plan builder immediately.
+                        if ($('.mmm-plan-builder').length) {
+                            window.location.reload();
+                        }
                         return;
                     }
+                    mmmSetBusy($submit, false);
                     mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error.' });
                 })
                 .fail(function (xhr) {
+                    mmmSetBusy($submit, false);
                     mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
                 });
         });
+    }
+
+    /* Unified busy state for AJAX-triggering buttons/links: disables the
+       control, exposes aria-busy for assistive tech and adds .is-busy for
+       the spinner/opacity styling. */
+    function mmmSetBusy($el, busy) {
+        $el.prop('disabled', !!busy)
+            .toggleClass('is-busy', !!busy);
+        if (busy) {
+            $el.attr('aria-busy', 'true');
+        } else {
+            $el.removeAttr('aria-busy');
+        }
     }
 
     $(document).on('click', '.mmm-recipe-actions__item--cart', function (e) {
@@ -314,12 +336,12 @@ jQuery(function ($) {
             '<div class="mmm-cook-mode">' +
                 '<div class="mmm-cook-mode-bar">' +
                     '<span class="mmm-cook-mode-progress"></span>' +
-                    '<button type="button" class="mmm-cook-mode-exit">' + (labels.exit || '✕') + '</button>' +
+                    '<button type="button" class="mmm-cook-mode-exit" aria-label="Kochmodus beenden">' + (labels.exit || '✕') + '</button>' +
                 '</div>' +
                 '<div class="mmm-cook-mode-step"></div>' +
                 '<div class="mmm-cook-mode-nav">' +
-                    '<button type="button" class="mmm-cook-mode-prev">' + (labels.prev || '') + '</button>' +
-                    '<button type="button" class="mmm-cook-mode-next">' + (labels.next || '') + '</button>' +
+                    '<button type="button" class="mmm-cook-mode-prev" aria-label="Vorheriger Schritt">' + (labels.prev || '\u2039') + '</button>' +
+                    '<button type="button" class="mmm-cook-mode-next" aria-label="N\u00e4chster Schritt">' + (labels.next || '\u203a') + '</button>' +
                 '</div>' +
             '</div>'
         );
@@ -393,6 +415,37 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
+       PLANNER DAY TOTALS (summed kcal per person)
+       ========================================================== */
+    function mmmUpdatePlannerTotals() {
+        const $builder = $('.mmm-plan-builder');
+        if (!$builder.length) return;
+
+        const unit = $builder.data('kcal-unit') || 'kcal';
+
+        $builder.find('.mmm-plan-day').each(function () {
+            const $day = $(this);
+            let sum = 0;
+            $day.find('.mmm-plan-item').each(function () {
+                sum += parseInt(this.getAttribute('data-kcal'), 10) || 0;
+            });
+
+            const $total = $day.find('.mmm-plan-day-total');
+            const $value = $total.find('[data-day-total]');
+
+            if (sum > 0) {
+                $value.text('≈ ' + sum.toLocaleString() + ' ' + unit);
+                $total.prop('hidden', false);
+            } else {
+                $value.text('');
+                $total.prop('hidden', true);
+            }
+        });
+    }
+
+    mmmUpdatePlannerTotals();
+
+    /* ==========================================================
        DRAG & DROP
        ========================================================== */
     let draggedItem = null;
@@ -440,6 +493,8 @@ jQuery(function ($) {
             field: 'day',
             value: newDay
         });
+
+        mmmUpdatePlannerTotals();
     });
 
     /* ==========================================================
@@ -452,6 +507,7 @@ jQuery(function ($) {
         const item = btn.closest('.mmm-plan-item');
         const index = item.data('index');
 
+        mmmSetBusy(btn, true);
         item.css('opacity', 0.5);
 
         mmmPost('mmm_remove_cart_item', { index: index })
@@ -460,16 +516,19 @@ jQuery(function ($) {
                     item.slideUp(200, function () {
                         item.remove();
                         mmmUpdateCartBadge();
+                        mmmUpdatePlannerTotals();
                     });
                     return;
                 }
 
                 // hier lieber leise/inline? du hast keine Box => fallback alert
                 item.css('opacity', 1);
+                mmmSetBusy(btn, false);
                 mmmHandleAjaxError(response, { fallbackMessage: 'Error while removing item.' });
             })
             .fail(function (xhr) {
                 item.css('opacity', 1);
+                mmmSetBusy(btn, false);
                 mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
             });
     });
@@ -482,22 +541,26 @@ jQuery(function ($) {
 
         const link = $(this);
         const msgBox = link.next('.mmm-clear-cart-message');
+        mmmSetBusy(link, true);
         mmmShowInlineMessage(msgBox, 'Clearing...', 'ok');
 
         mmmPost('mmm_clear_cart', {})
             .done(function (response) {
                 if (response && response.success) {
+                    mmmSetBusy(link, false);
                     mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Planner cleared.', 'ok');
                     mmmUpdateCartBadge();
                     $('.mmm-plan-item').slideUp(200, function () {
                         $(this).remove();
-                    });
+                    }).promise().done(mmmUpdatePlannerTotals);
                     return;
                 }
 
+                mmmSetBusy(link, false);
                 mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error while clearing the planner.' });
             })
             .fail(function (xhr) {
+                mmmSetBusy(link, false);
                 mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
             });
     });
@@ -527,6 +590,8 @@ jQuery(function ($) {
             });
         });
 
+        const $create = $(this);
+        mmmSetBusy($create, true);
         mmmShowInlineMessage(msgBox, 'Creating...', 'ok');
 
         const startDay = parseInt($('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
@@ -543,6 +608,7 @@ jQuery(function ($) {
                 }
 
                 // hier wollen wir praktisch NIE alert -> inline
+                mmmSetBusy($create, false);
                 mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error while creating meal plan.' });
             })
             .fail(function (xhr) {
