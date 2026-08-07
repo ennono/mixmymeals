@@ -521,3 +521,225 @@
     }
 }
 
+
+/* === MixMyMeals Settings Page ============================================ */
+
+/* Group headings between form-table rows (rows tagged .mmm-settings-group).
+   The row is broken out of the table grid so the heading spans full width. */
+#mixmymeals_settings .mmm-settings-group {
+    display: block;
+}
+
+#mixmymeals_settings .mmm-settings-group th {
+    display: none;
+}
+
+#mixmymeals_settings .mmm-settings-group td {
+    display: block;
+    padding: 0;
+}
+
+#mixmymeals_settings .mmm-settings-group-title {
+    margin: 28px 0 0;
+    padding: 0 0 8px;
+    border-bottom: 2px solid #5C9E2E;
+    color: #1d2327;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* First group in a section needs no big top gap. */
+#mixmymeals_settings .form-table tr:first-child .mmm-settings-group-title {
+    margin-top: 4px;
+}
+
+#mixmymeals_settings .mmm-settings-group-desc {
+    margin: 8px 0 0;
+    max-width: 60em;
+    color: #646970;
+}
+
+/* Give the value column a little more room and align labels to the top. */
+#mixmymeals_settings .form-table th {
+    padding-top: 18px;
+    vertical-align: top;
+}
+
+#mixmymeals_settings .form-table td {
+    padding-top: 12px;
+}
+
+/* Color pickers: tidy square swatches. */
+#mixmymeals_settings input[type="color"] {
+    width: 52px;
+    height: 34px;
+    padding: 2px;
+    border: 1px solid #8c8f94;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+/* Font/logo file picker rows. */
+#mixmymeals_settings .mmm-file-field .mmm-file-name {
+    display: inline-block;
+    min-width: 12em;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #f0f0f1;
+    color: #1d2327;
+    vertical-align: middle;
+}
+
+#mixmymeals_settings .mmm-file-field .button {
+    vertical-align: middle;
+}
+
+#mixmymeals_settings .mmm-file-field .mmm-clear-file-button {
+    margin-left: 6px;
+    color: #b32d2e;
+    vertical-align: middle;
+}
+
+/* Meal-type checkbox group: wrap into a neat inline set. */
+#mixmymeals_settings .mmm-checkbox-set {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 0;
+}
+
+#mixmymeals_settings .mmm-checkbox-set label {
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Access-token status lines already carry inline colors; give them room. */
+#mixmymeals_settings #instagram_access_token {
+    max-width: 30em;
+}
+
+
+/* === MixMyMeals Settings Page ============================================ */
+
+/* Group headings between form-table rows (rows tagged .mmm-settings-group).
+   The row is broken out of the table grid so the heading spans full width. */
+#mixmymeals_settings .mmm-settings-group {
+    display: block;
+}
+
+#mixmymeals_settings .mmm-settings-group th {
+    display: none;
+}
+
+#mixmymeals_settings .mmm-settings-group td {
+    display: block;
+    padding: 0;
+}
+
+#mixmymeals_settings .mmm-settings-group-title {
+    margin: 28px 0 0;
+    padding: 0 0 8px;
+    border-bottom: 2px solid #5C9E2E;
+    color: #1d2327;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* First group in a section needs no big top gap. */
+#mixmymeals_settings .form-table tr:first-child .mmm-settings-group-title {
+    margin-top: 4px;
+}
+
+#mixmymeals_settings .mmm-settings-group-desc {
+    margin: 8px 0 0;
+    max-width: 60em;
+    color: #646970;
+}
+
+/* Give the value column a little more room and align labels to the top. */
+#mixmymeals_settings .form-table th {
+    padding-top: 18px;
+    vertical-align: top;
+}
+
+#mixmymeals_settings .form-table td {
+    padding-top: 12px;
+}
+
+/* Color pickers: tidy square swatches. */
+#mixmymeals_settings input[type="color"] {
+    width: 52px;
+    height: 34px;
+    padding: 2px;
+    border: 1px solid #8c8f94;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+/* Font/logo file picker rows. */
+#mixmymeals_settings .mmm-file-field .mmm-file-name {
+    display: inline-block;
+    min-width: 12em;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #f0f0f1;
+    color: #1d2327;
+    vertical-align: middle;
+}
+
+#mixmymeals_settings .mmm-file-field .button {
+    vertical-align: middle;
+}
+
+#mixmymeals_settings .mmm-file-field .mmm-clear-file-button {
+    margin-left: 6px;
+    color: #b32d2e;
+    vertical-align: middle;
+}
+
+/* Meal-type checkbox group: wrap into a neat inline set. */
+#mixmymeals_settings .mmm-checkbox-set {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 0;
+}
+
+#mixmymeals_settings .mmm-checkbox-set label {
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Access-token status lines already carry inline colors; give them room. */
+#mixmymeals_settings #instagram_access_token {
+    max-width: 30em;
+}
+
+/* Author box: profile-picture field. The preview mirrors the frontend, so the
+   editor sees the same round crop the visitor gets. */
+.mmm-author-image-field .mmm-author-image-preview {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    margin: 0 0 8px;
+    border: 1px solid #dcdcde;
+}
+
+.mmm-author-image-field p {
+    margin: 0 0 6px;
+}
+
+.mmm-author-image-field .mmm-author-image-remove {
+    color: #b32d2e;
+    text-decoration: none;
+}

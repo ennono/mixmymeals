@@ -1104,8 +1104,8 @@ class Mixmymeals_Mailer {
 	 * @return void
 	 */
 	private static function log( string $message ): void {
-		if ( function_exists( 'write_to_log' ) ) {
-			write_to_log( 'MixMyMeals_Mailer: ' . $message );
+		if ( function_exists( 'mmm_write_to_log' ) ) {
+			mmm_write_to_log( 'MixMyMeals_Mailer: ' . $message );
 		}
 	}
 }

@@ -66,6 +66,8 @@ class Mixmymeals_Settings {
 		// archive/single URLs work without manually re-saving permalinks.
 		add_action( 'update_option_mixmymeals_ingredient_slug', array( $this, 'schedule_rewrite_flush' ) );
 		add_action( 'add_option_mixmymeals_ingredient_slug', array( $this, 'schedule_rewrite_flush' ) );
+		add_action( 'update_option_mixmymeals_equipment_slug', array( $this, 'schedule_rewrite_flush' ) );
+		add_action( 'add_option_mixmymeals_equipment_slug', array( $this, 'schedule_rewrite_flush' ) );
 		add_action( 'init', array( $this, 'maybe_flush_rewrite' ), 99 );
 
 		// Handle the "send test e-mail" button on the E-Mail tab.
@@ -153,9 +155,14 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-general'] = array(
 			'title'       => __( 'General Settings', 'mixmymeals' ),
-			'description' => __( 'Setup general things.',
+			'description' => __( 'Currency, placeholder image, meal slug, visitor plans, privacy and input notices. Slugs and archive texts for recipes, ingredients, equipment and plans live on their own tabs.',
 				'mixmymeals' ),
 			'fields'      => array(
+				array(
+					'id'    => 'general_group_display',
+					'type'  => 'heading',
+					'label' => __( 'Display', 'mixmymeals' ),
+				),
 				array(
 					'id'          => 'currency',
 					'label'       => __( 'Currency', 'mixmymeals' ),
@@ -163,6 +170,40 @@ class Mixmymeals_Settings {
 					'default'     => '€',
 					'placeholder' => '€',
 					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'placeholder_image_id',
+					'label'       => __( 'Placeholder Image', 'mixmymeals' ),
+					'description' => __( 'Used only as a fallback for social link previews and Instagram slide backgrounds. On the website, recipes without a photo are shown cookbook-style with their title only.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'placeholder_image_id_callback'
+					),
+				),
+				array(
+					'id'    => 'general_group_slugs',
+					'type'  => 'heading',
+					'label' => __( 'Slugs & Permalinks', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'meal_slug',
+					'label'       => __( 'Meal Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for meals in the URL.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
+				array(
+					'id'    => 'general_group_visitor',
+					'type'  => 'heading',
+					'label' => __( 'Visitor Plans', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'public_mode',
@@ -199,8 +240,8 @@ class Mixmymeals_Settings {
 				),
 				array(
 					'id'          => 'page_id_to_redirect_if_new_plan_is_draft',
-					'label'       => __( 'Altervative Redirect', 'mixmymeals' ),
-					'description' => __( 'Where to send vistors after new plan has been saved as draft.', 'mixmymeals' ),
+					'label'       => __( 'Alternative Redirect', 'mixmymeals' ),
+					'description' => __( 'Where to send visitors after their new plan has been saved as a draft.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
@@ -209,25 +250,68 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
-					'id'          => 'placeholder_image_id',
-					'label'       => __( 'Placeholder Image', 'mixmymeals' ),
-					'description' => __( 'Choose an image to show if there is no recipe image.',
-						'mixmymeals' ),
+					'id'    => 'general_group_privacy',
+					'type'  => 'heading',
+					'label' => __( 'Privacy', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'delete_data_on_uninstall',
+					'label'       => __( 'Delete data on uninstall', 'mixmymeals' ),
+					'description' => __( 'When the plugin is deleted, also remove personal data (newsletter subscriptions, ratings and visitor photos). Recipes and plans are always kept. Off by default so an accidental deletion does not destroy records.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'placeholder_image_id_callback'
-					),
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'    => 'general_group_notices',
+					'type'  => 'heading',
+					'label' => __( 'Visitor Input Notices', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'notice_rating',
+					'label'       => __( 'Rating / review notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the rating and review form on recipe pages (e.g. a note that reviews are moderated). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'          => 'notice_photo',
+					'label'       => __( 'Photo upload notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the meal-photo upload form (e.g. that you grant usage rights and photos are reviewed). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'          => 'notice_subscribe',
+					'label'       => __( 'Subscription notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the meal-plan subscription form, below the consent checkbox. Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'          => 'notice_plan',
+					'label'       => __( 'Plan creation notice', 'mixmymeals' ),
+					'description' => __( 'Shown next to the “Create meal plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 			),
 		);
 
 		$settings['mixmymeals-recipes'] = array(
 			'title'       => __( 'Recipes', 'mixmymeals' ),
-			'description' => __( 'Setup recipes.',
+			'description' => __( 'Recipe URL slugs, archive display and the recipe disclaimer.',
 				'mixmymeals' ),
 			'fields'      => array(
+				array(
+					'id'    => 'recipes_group_slugs',
+					'type'  => 'heading',
+					'label' => __( 'URL Slugs', 'mixmymeals' ),
+				),
 				array(
 					'id'          => 'recipe_slug',
 					'label'       => __( 'Recipe Slug', 'mixmymeals' ),
@@ -251,6 +335,11 @@ class Mixmymeals_Settings {
 						$this,
 						'slug_callback'
 					),
+				),
+				array(
+					'id'    => 'recipes_group_archive',
+					'type'  => 'heading',
+					'label' => __( 'Archive & Display', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'recipe_disclaimer_text',
@@ -277,15 +366,32 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
-					'id'          => 'recipe_hero_categories',
-					'label'       => __( 'Recipe Archive Hero Categories', 'mixmymeals' ),
-					'description' => __( 'Categories shown as quick-links in the recipe archive hero. If none are selected, the most-used categories are shown.',
+					'id'    => 'recipes_group_steps',
+					'type'  => 'heading',
+					'label' => __( 'Cooking Steps', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'show_recipe_steps',
+					'label'       => __( 'Steps on Recipe Pages', 'mixmymeals' ),
+					'description' => __( 'Show the cooking steps on the recipe page. When switched off, only the note below is shown there and the steps remain available on the meal pages.',
 						'mixmymeals' ),
-					'default'     => array(),
+					'default'     => 'on',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'recipe_hero_categories_callback'
+						'checkbox_callback'
+					),
+				),
+				array(
+					'id'          => 'recipe_steps_notice',
+					'label'       => __( 'Note Instead of Steps', 'mixmymeals' ),
+					'description' => __( 'Shown on the recipe page in place of the steps while “Steps on Recipe Pages” is switched off. Leave empty to output nothing at all.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'recipe_steps_notice_callback'
 					),
 				),
 			),
@@ -293,8 +399,13 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-ingredients'] = array(
 			'title'       => __( 'Ingredients', 'mixmymeals' ),
-			'description' => __( 'Setup ingredients.', 'mixmymeals' ),
+			'description' => __( 'Ingredient URL slug and archive display.', 'mixmymeals' ),
 			'fields'      => array(
+				array(
+					'id'    => 'ingredients_group_slugs',
+					'type'  => 'heading',
+					'label' => __( 'URL Slugs', 'mixmymeals' ),
+				),
 				array(
 					'id'          => 'ingredient_slug',
 					'label'       => __( 'Ingredient Slug', 'mixmymeals' ),
@@ -306,6 +417,11 @@ class Mixmymeals_Settings {
 						$this,
 						'slug_callback'
 					),
+				),
+				array(
+					'id'    => 'ingredients_group_archive',
+					'type'  => 'heading',
+					'label' => __( 'Archive', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'all_ingredients_description',
@@ -322,22 +438,56 @@ class Mixmymeals_Settings {
 			),
 		);
 
-		$settings['mixmymeals-meals'] = array(
-			'title'       => __( 'Meals', 'mixmymeals' ),
-			'description' => __( 'Setup meals.',
-				'mixmymeals' ),
+		$settings['mixmymeals-equipment'] = array(
+			'title'       => __( 'Equipment', 'mixmymeals' ),
+			'description' => __( 'Equipment URL slug, archive display and affiliate links.', 'mixmymeals' ),
 			'fields'      => array(
 				array(
-					'id'          => 'meal_slug',
-					'label'       => __( 'Meal Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for meals in the URL.',
+					'id'    => 'equipment_group_slugs',
+					'type'  => 'heading',
+					'label' => __( 'URL Slugs', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'equipment_slug',
+					'label'       => __( 'Equipment Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for equipment in the URL. Changing it flushes the permalinks.',
+						'mixmymeals' ),
+					'default'     => 'equipment',
+					'placeholder' => 'equipment',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
+				array(
+					'id'    => 'equipment_group_archive',
+					'type'  => 'heading',
+					'label' => __( 'Archive', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'all_equipment_description',
+					'label'       => __( 'Equipment Archive Description', 'mixmymeals' ),
+					'description' => __( 'This description will be used by the corresponding shortcode.',
 						'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'archive_description_callback'
 					),
+				),
+				array(
+					'id'    => 'equipment_group_affiliate',
+					'type'  => 'heading',
+					'label' => __( 'Affiliate links', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'affiliate_disclosure',
+					'label'       => __( 'Affiliate disclosure', 'mixmymeals' ),
+					'description' => __( 'Shown below the shop links on equipment pages. Affiliate links must be labelled as advertising; leave empty to use the built-in wording.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 			),
 		);
@@ -347,6 +497,11 @@ class Mixmymeals_Settings {
 			'description' => __( 'Setup meal plans.',
 				'mixmymeals' ),
 			'fields'      => array(
+				array(
+					'id'    => 'mealplans_group_slugs',
+					'type'  => 'heading',
+					'label' => __( 'URL Slugs', 'mixmymeals' ),
+				),
 				array(
 					'id'          => 'meal_plan_slug',
 					'label'       => __( 'Meal Plan Slug', 'mixmymeals' ),
@@ -370,6 +525,11 @@ class Mixmymeals_Settings {
 						$this,
 						'slug_callback'
 					),
+				),
+				array(
+					'id'    => 'mealplans_group_planner',
+					'type'  => 'heading',
+					'label' => __( 'Planner', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'max_items_in_cart',
@@ -396,6 +556,11 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'    => 'mealplans_group_archive',
+					'type'  => 'heading',
+					'label' => __( 'Archive Descriptions', 'mixmymeals' ),
+				),
+				array(
 					'id'          => 'all_meal_plans_description',
 					'label'       => __( 'Meal Plan Archive Description', 'mixmymeals' ),
 					'description' => __( 'This description will be used by the corresponding shortcode.',
@@ -418,6 +583,11 @@ class Mixmymeals_Settings {
 						$this,
 						'archive_description_callback'
 					),
+				),
+				array(
+					'id'    => 'mealplans_group_cleanup',
+					'type'  => 'heading',
+					'label' => __( 'Cleanup', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'enable_cleanup',
@@ -446,7 +616,7 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'cleanup_report_enabled',
 					'label'       => __( 'Cleanup Report', 'mixmymeals' ),
-					'description' => __( 'E-mail a summary after each cleanup run (only when something was deleted).',
+					'description' => __( 'E-mail a summary after each cleanup run, including deletions made by the mail log, the Instagram image cleanup and the subscription retention (only when something was deleted).',
 						'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
@@ -476,6 +646,11 @@ class Mixmymeals_Settings {
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
+					'id'    => 'email_group_sender',
+					'type'  => 'heading',
+					'label' => __( 'Sender Identity', 'mixmymeals' ),
+				),
+				array(
 					'id'          => 'mail_from_name',
 					'label'       => __( 'Sender Name', 'mixmymeals' ),
 					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
@@ -495,6 +670,11 @@ class Mixmymeals_Settings {
 						$this,
 						'mail_from_email_callback'
 					),
+				),
+				array(
+					'id'    => 'email_group_content',
+					'type'  => 'heading',
+					'label' => __( 'Content & Privacy', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'mail_footer',
@@ -541,6 +721,11 @@ class Mixmymeals_Settings {
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
+					'id'    => 'subs_group_activation',
+					'type'  => 'heading',
+					'label' => __( 'Activation', 'mixmymeals' ),
+				),
+				array(
 					'id'          => 'subscriptions_enabled',
 					'label'       => __( 'Enable Subscriptions', 'mixmymeals' ),
 					'description' => __( 'Allow visitors to subscribe to meal plans and run the sending schedule.',
@@ -552,13 +737,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'subscription_schedule',
 					'label'       => __( 'Sending Rules', 'mixmymeals' ),
-					'description' => /*__(
-						'Each rule has a trigger (when to send), a subject and a template (the .html file that decides what the e-mail shows). Every template can use the same placeholders — e.g. {{ greeting }}, {{ weekday }}, {{ plan_url }}, {{ meal_list_html }}, {{ shopping_list_html }} — so a “meals” template simply uses {{ meal_list_html }} and a “shopping” template uses {{ shopping_list_html }}. Triggers are relative to the subscribed plan: “On the first plan day”, “The day before the plan starts”, “Each day in the plan” and “The evening before each plan day” all send at the chosen time; “On confirmation” sends immediately after opt-in and ignores the time.',
-						'mixmymeals'
-					)*/'',
+					'description' => __( 'Each rule combines a trigger (when to send), a subject and an e-mail template. Triggers are relative to the subscribed plan; templates share the same placeholders (e.g. {{ greeting }}, {{ plan_url }}, {{ meal_list_html }}, {{ shopping_list_html }}).', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_schedule_callback' ),
+				),
+				array(
+					'id'    => 'subs_group_pages',
+					'type'  => 'heading',
+					'label' => __( 'Pages & Redirects', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'subscription_privacy_url',
@@ -614,6 +801,38 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'subscription_rate_page_callback' ),
 				),
 				array(
+					'id'          => 'subscription_upload_page',
+					'label'       => __( 'Photo Upload Page', 'mixmymeals' ),
+					'description' => __(
+						'Page that contains the [mmm_photo_upload_form] shortcode. The "upload your photo" links in the e-mails and the gallery upload button point here. Leave empty to omit those links.',
+						'mixmymeals'
+					),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_upload_page_callback' ),
+				),
+				array(
+					'id'    => 'subs_group_photos',
+					'type'  => 'heading',
+					'label' => __( 'Meal Photos', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'photos_auto_approve',
+					'label'       => __( 'Auto-Approve Meal Photos', 'mixmymeals' ),
+					'description' => __(
+						'Publish uploaded meal photos immediately, without an admin approving them first.',
+						'mixmymeals'
+					),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'photos_auto_approve_callback' ),
+				),
+				array(
+					'id'    => 'subs_group_lifecycle',
+					'type'  => 'heading',
+					'label' => __( 'Lifecycle & Privacy', 'mixmymeals' ),
+				),
+				array(
 					'id'          => 'subscription_pending_hours',
 					'label'       => __( 'Confirmation Window (hours)', 'mixmymeals' ),
 					'description' => __( 'Unconfirmed subscriptions are deleted after this many hours.',
@@ -641,12 +860,414 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'subscription_log_ip_callback' ),
 				),
 				array(
+					'id'    => 'subs_group_content',
+					'type'  => 'heading',
+					'label' => __( 'E-Mail Content', 'mixmymeals' ),
+				),
+				array(
 					'id'          => 'subscription_append_text',
 					'label'       => __( 'Appended Text Block', 'mixmymeals' ),
 					'description' => __( 'HTML or plain text. Each sending rule whose “Append” box is ticked adds this block to the end of its e-mail.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_append_text_callback' ),
+				),
+			),
+		);
+
+		$settings['mixmymeals-instagram'] = array(
+			'title'       => __( 'Instagram', 'mixmymeals' ),
+			'description' => __( 'Configure the Instagram carousel images generated from meal plans (one overview slide plus one slide per day). Images are temporary files below the uploads directory and are cleaned up automatically.', 'mixmymeals' ),
+			'fields'      => array(
+				array(
+					'id'    => 'instagram_group_fonts',
+					'type'  => 'heading',
+					'label' => __( 'Fonts & Logo', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_title_font_id',
+					'label'       => __( 'Title Font', 'mixmymeals' ),
+					'description' => __( 'TTF or OTF file from the media library, used for headlines and badges. Required — the image renderer cannot use web fonts (woff2). Fallback: first font file in the child theme folder assets/fonts/.', 'mixmymeals' ),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'placeholder_image_id_callback' ),
+				),
+				array(
+					'id'          => 'instagram_text_font_id',
+					'label'       => __( 'Text Font', 'mixmymeals' ),
+					'description' => __( 'Optional second font for meta lines and dish names. Falls back to the title font.', 'mixmymeals' ),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'placeholder_image_id_callback' ),
+				),
+				array(
+					'id'          => 'instagram_logo_id',
+					'label'       => __( 'Logo', 'mixmymeals' ),
+					'description' => __( 'Optional PNG from the media library. Replaces the text wordmark on the slides.', 'mixmymeals' ),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'placeholder_image_id_callback' ),
+				),
+				array(
+					'id'          => 'instagram_wordmark',
+					'label'       => __( 'Wordmark', 'mixmymeals' ),
+					'description' => __( 'Brand text on the slides, shown exactly as written here. Leave empty to use the site title.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => get_bloginfo( 'name' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'instagram_logo_position',
+					'label'       => __( 'Logo Position', 'mixmymeals' ),
+					'description' => __( 'Alignment of the logo / wordmark on the cover slide.', 'mixmymeals' ),
+					'default'     => 'left',
+					'placeholder' => '',
+					'options'     => array(
+						'left'   => __( 'Left', 'mixmymeals' ),
+						'center' => __( 'Centered', 'mixmymeals' ),
+					),
+					'callback'    => array( $this, 'instagram_logo_position_callback' ),
+				),
+				array(
+					'id'          => 'instagram_logo_size',
+					'label'       => __( 'Logo Size (%)', 'mixmymeals' ),
+					'description' => __( 'Size of the logo / wordmark in the header of the cover and overview slides, 50–200%.', 'mixmymeals' ),
+					'default'     => 100,
+					'placeholder' => '100',
+					'min'         => 50,
+					'max'         => 200,
+					'callback'    => array( $this, 'instagram_logo_size_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_design',
+					'type'  => 'heading',
+					'label' => __( 'Format & Colors', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_style_preset',
+					'label'       => __( 'Style Preset', 'mixmymeals' ),
+					'description' => __( 'A ready-made colour theme. Choose “Custom” to use the individual colours below.', 'mixmymeals' ),
+					'default'     => 'custom',
+					'placeholder' => '',
+					'options'     => array(
+						'custom'    => __( 'Custom (use colours below)', 'mixmymeals' ),
+						'frisch'    => __( 'Fresh (brand green)', 'mixmymeals' ),
+						'editorial' => __( 'Editorial (warm, muted)', 'mixmymeals' ),
+						'kraeftig'  => __( 'Bold (dark, vibrant)', 'mixmymeals' ),
+						'minimal'   => __( 'Minimal (black & white)', 'mixmymeals' ),
+					),
+					'callback'    => array( $this, 'instagram_style_preset_callback' ),
+				),
+				array(
+					'id'          => 'instagram_format',
+					'label'       => __( 'Image Format', 'mixmymeals' ),
+					'description' => __( 'Portrait (4:5) is recommended for the Instagram feed.', 'mixmymeals' ),
+					'default'     => '4x5',
+					'placeholder' => '',
+					'options'     => array(
+						'4x5'  => __( 'Portrait 1080 × 1350 (4:5)', 'mixmymeals' ),
+						'1x1'  => __( 'Square 1080 × 1080 (1:1)', 'mixmymeals' ),
+						'9x16' => __( 'Story / Reels 1080 × 1920 (9:16)', 'mixmymeals' ),
+					),
+					'callback'    => array( $this, 'instagram_format_callback' ),
+				),
+				array(
+					'id'          => 'instagram_color_background',
+					'label'       => __( 'Background Color', 'mixmymeals' ),
+					'description' => __( 'Background of the overview slide.', 'mixmymeals' ),
+					'default'     => '#FBF8F1',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_color_callback' ),
+				),
+				array(
+					'id'          => 'instagram_color_primary',
+					'label'       => __( 'Primary Color', 'mixmymeals' ),
+					'description' => __( 'Day badges and the footer bar.', 'mixmymeals' ),
+					'default'     => '#5C9E2E',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_color_callback' ),
+				),
+				array(
+					'id'          => 'instagram_color_accent',
+					'label'       => __( 'Accent Color', 'mixmymeals' ),
+					'description' => __( 'Meal type labels and the wordmark dot.', 'mixmymeals' ),
+					'default'     => '#E8743B',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_color_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_layout',
+					'type'  => 'heading',
+					'label' => __( 'Day Slide Layout', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_day_layout',
+					'label'       => __( 'Layout', 'mixmymeals' ),
+					'description' => __( 'How the day slides are composed.', 'mixmymeals' ),
+					'default'     => 'full',
+					'placeholder' => '',
+					'options'     => array(
+						'full'     => __( 'Full-bleed (photo edge to edge, text on top)', 'mixmymeals' ),
+						'magazine' => __( 'Magazine (photo top, text below)', 'mixmymeals' ),
+						'split'    => __( 'Split (photo and text half each)', 'mixmymeals' ),
+						'card'     => __( 'Card (photo in a rounded card)', 'mixmymeals' ),
+					),
+					'callback'    => array( $this, 'instagram_day_layout_callback' ),
+				),
+				array(
+					'id'          => 'instagram_overlay_style',
+					'label'       => __( 'Text Overlay (full-bleed)', 'mixmymeals' ),
+					'description' => __( 'How the text is set off from the photo in the full-bleed layout.', 'mixmymeals' ),
+					'default'     => 'gradient',
+					'placeholder' => '',
+					'options'     => array(
+						'gradient' => __( 'Gradient', 'mixmymeals' ),
+						'plate'    => __( 'Text plate', 'mixmymeals' ),
+						'minimal'  => __( 'Minimal', 'mixmymeals' ),
+					),
+					'callback'    => array( $this, 'instagram_overlay_style_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_content',
+					'type'  => 'heading',
+					'label' => __( 'Content & Elements', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_footer_text',
+					'label'       => __( 'Footer Text', 'mixmymeals' ),
+					'description' => __( 'Call-to-action in the footer bar of the overview slide. Leave empty for the default text.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => __( 'Full plan & shopping list: mixmymeals.de', 'mixmymeals' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'instagram_meal_types',
+					'label'       => __( 'Meal Types', 'mixmymeals' ),
+					'description' => __( 'Which meal types appear on the slides.', 'mixmymeals' ),
+					'default'     => array( 'lunch', 'dinner' ),
+					'placeholder' => '',
+					'options'     => Mixmymeals_Meal::get_plaintext_meal_type_map(),
+					'callback'    => array( $this, 'instagram_meal_types_callback' ),
+				),
+				array(
+					'id'          => 'instagram_hero_meal_type',
+					'label'       => __( 'Main Meal', 'mixmymeals' ),
+					'description' => __( 'The recipe photo of this meal type fills the day slide.', 'mixmymeals' ),
+					'default'     => 'dinner',
+					'placeholder' => '',
+					'options'     => Mixmymeals_Meal::get_plaintext_meal_type_map(),
+					'callback'    => array( $this, 'instagram_hero_meal_type_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_kind_pill',
+					'label'       => __( 'Plan Type Badge', 'mixmymeals' ),
+					'description' => __( 'Show the “Weekly plan” badge in the top right corner of the overview slide.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_meta',
+					'label'       => __( 'Meta Line', 'mixmymeals' ),
+					'description' => __( 'Show days, servings and dish count below the plan title.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_day_pill',
+					'label'       => __( 'Day Badge', 'mixmymeals' ),
+					'description' => __( 'Show day number and weekday in the top left corner of the day slides.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_also',
+					'label'       => __( 'Further Meals', 'mixmymeals' ),
+					'description' => __( 'On days with several recipes, list every further recipe (with its meal time) below the title on day slides.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_footer_bar',
+					'label'       => __( 'Footer Bar', 'mixmymeals' ),
+					'description' => __( 'Show the colored call-to-action bar at the bottom of the overview slide.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_brand_footer',
+					'label'       => __( 'Brand Footer', 'mixmymeals' ),
+					'description' => __( 'Show wordmark and site address at the bottom of the day slides.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_counter',
+					'label'       => __( 'Slide Counter', 'mixmymeals' ),
+					'description' => __( 'Show a “2/9” counter in the top right corner of each slide.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_diet_tag',
+					'label'       => __( 'Diet Tag', 'mixmymeals' ),
+					'description' => __( 'Show a “vegan”/“vegetarian” tag next to the badges when the recipe has that category.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_badges',
+					'label'       => __( 'Nutrition Badges', 'mixmymeals' ),
+					'description' => __( 'Facts shown as badges on the day slides (per serving of the main recipe). A badge is hidden automatically when its value is missing.', 'mixmymeals' ),
+					'default'     => array( 'calories', 'protein', 'time' ),
+					'placeholder' => '',
+					'options'     => array(
+						'calories' => __( 'Calories (kcal)', 'mixmymeals' ),
+						'protein'  => __( 'Protein', 'mixmymeals' ),
+						'carbs'    => __( 'Carbohydrates', 'mixmymeals' ),
+						'fat'      => __( 'Fat', 'mixmymeals' ),
+						'time'     => __( 'Preparation time', 'mixmymeals' ),
+					),
+					'callback'    => array( $this, 'instagram_badges_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_carousel',
+					'type'  => 'heading',
+					'label' => __( 'Cover & Call-to-Action', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_show_cover',
+					'label'       => __( 'Cover Slide', 'mixmymeals' ),
+					'description' => __( 'Add a cover slide as the first image: the week’s best recipe photo with the plan title and facts. The scroll-stopper.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_show_cta',
+					'label'       => __( 'Closing Slide', 'mixmymeals' ),
+					'description' => __( 'Add a closing call-to-action slide as the last image (“save this plan”, link in bio, handle).', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array( $this, 'instagram_checkbox_callback' ),
+				),
+				array(
+					'id'          => 'instagram_cover_image_id',
+					'label'       => __( 'Cover Photo', 'mixmymeals' ),
+					'description' => __( 'Optional image for the cover slide. Leave empty to use the week’s best recipe photo automatically.', 'mixmymeals' ),
+					'default'     => 0,
+					'placeholder' => '',
+					'callback'    => array( $this, 'placeholder_image_id_callback' ),
+				),
+				array(
+					'id'          => 'instagram_cover_title',
+					'label'       => __( 'Cover Title', 'mixmymeals' ),
+					'description' => __( 'Headline on the cover slide. Leave empty to use the plan title.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'instagram_cover_subtitle',
+					'label'       => __( 'Cover Subtitle', 'mixmymeals' ),
+					'description' => __( 'Facts line under the cover title. Leave empty to build it automatically (diet, servings, average calories).', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'instagram_cta_text',
+					'label'       => __( 'Closing Headline', 'mixmymeals' ),
+					'description' => __( 'Headline on the closing slide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => __( 'Save this plan', 'mixmymeals' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'instagram_cta_subtext',
+					'label'       => __( 'Closing Subtext', 'mixmymeals' ),
+					'description' => __( 'Smaller line below the closing headline.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => __( 'Full recipes & shopping list — link in bio', 'mixmymeals' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'instagram_handle',
+					'label'       => __( 'Instagram Handle', 'mixmymeals' ),
+					'description' => __( 'Shown on the day, cover and closing slides. Leave empty to use the connected account’s username.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '@yourhandle',
+					'callback'    => array( $this, 'instagram_handle_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_finetune',
+					'type'  => 'heading',
+					'label' => __( 'Fine-Tuning', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_font_scale',
+					'label'       => __( 'Font Size (%)', 'mixmymeals' ),
+					'description' => __( 'Scales all text on the slides, 50–150%.', 'mixmymeals' ),
+					'default'     => 100,
+					'placeholder' => '100',
+					'min'         => 50,
+					'max'         => 150,
+					'callback'    => array( $this, 'instagram_font_scale_callback' ),
+				),
+				array(
+					'id'          => 'instagram_scrim_opacity',
+					'label'       => __( 'Photo Darkening (%)', 'mixmymeals' ),
+					'description' => __( 'Strength of the dark gradient over the photo on day slides, 0–100%.', 'mixmymeals' ),
+					'default'     => 60,
+					'placeholder' => '60',
+					'min'         => 0,
+					'max'         => 100,
+					'callback'    => array( $this, 'instagram_scrim_opacity_callback' ),
+				),
+				array(
+					'id'          => 'instagram_corner_radius',
+					'label'       => __( 'Corner Radius (px)', 'mixmymeals' ),
+					'description' => __( 'Roundness of badges and bars, 0–60 pixels.', 'mixmymeals' ),
+					'default'     => 24,
+					'placeholder' => '24',
+					'min'         => 0,
+					'max'         => 60,
+					'callback'    => array( $this, 'instagram_corner_radius_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_posting',
+					'type'  => 'heading',
+					'label' => __( 'Publishing', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_hashtags',
+					'label'       => __( 'Hashtags', 'mixmymeals' ),
+					'description' => __( 'Appended to the suggested caption in the meta box.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '#mealprep #wochenplan',
+					'callback'    => array( $this, 'instagram_hashtags_callback' ),
+				),
+				array(
+					'id'    => 'instagram_group_cleanup',
+					'type'  => 'heading',
+					'label' => __( 'Cleanup', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'instagram_retention_days',
+					'label'       => __( 'Retention (days)', 'mixmymeals' ),
+					'description' => __( 'Generated images are deleted automatically after this many days.', 'mixmymeals' ),
+					'default'     => 7,
+					'placeholder' => '7',
+					'min'         => 1,
+					'max'         => 365,
+					'callback'    => array( $this, 'instagram_retention_days_callback' ),
 				),
 			),
 		);
@@ -794,6 +1415,22 @@ class Mixmymeals_Settings {
 
 				foreach ( $data['fields'] as $field ) {
 
+					// Group headings are display-only rows without an option.
+					if ( isset( $field['type'] ) && 'heading' === $field['type'] ) {
+						add_settings_field(
+							$field['id'],
+							'',
+							array( $this, 'settings_group_heading' ),
+							$this->parent->_token . '_settings',
+							$section,
+							array(
+								'field' => $field,
+								'class' => 'mmm-settings-group',
+							)
+						);
+						continue;
+					}
+
 					$args = array();
 					if ( isset( $field['callback'] ) ) {
 						$args['sanitize_callback'] = $field['callback'];
@@ -828,6 +1465,30 @@ class Mixmymeals_Settings {
 					break;
 				}
 			}
+		}
+	}
+
+	/**
+	 * Renders a visual group heading between settings rows. Registered for
+	 * fields with 'type' => 'heading'; the row carries the CSS class
+	 * mmm-settings-group (styled in admin.css).
+	 *
+	 * @param array $args Field arguments ('field' key).
+	 *
+	 * @return void
+	 */
+	public function settings_group_heading( array $args ): void {
+
+		$field = $args['field'] ?? array();
+
+		echo '<h3 class="mmm-settings-group-title">'
+			. esc_html( (string) ( $field['label'] ?? '' ) )
+			. '</h3>';
+
+		if ( ! empty( $field['description'] ) ) {
+			echo '<p class="mmm-settings-group-desc">'
+				. esc_html( (string) $field['description'] )
+				. '</p>';
 		}
 	}
 
@@ -1232,19 +1893,6 @@ class Mixmymeals_Settings {
 	}
 
 	/**
-	 * Sanitizes the selected recipe hero categories (array of term slugs).
-	 *
-	 * @param mixed $input Submitted value.
-	 * @return array
-	 */
-	public function recipe_hero_categories_callback( mixed $input ): array {
-		if ( ! is_array( $input ) ) {
-			return array();
-		}
-		return array_values( array_filter( array_unique( array_map( 'sanitize_title', $input ) ) ) );
-	}
-
-	/**
 	 * Sanitizes a plain text setting value.
 	 *
 	 * @param mixed $input Raw input value.
@@ -1272,6 +1920,27 @@ class Mixmymeals_Settings {
 	 */
 	public function recipe_disclaimer_text_callback( mixed $input ): string {
 		return sanitize_textarea_field( $input );
+	}
+
+	/**
+	 * Sanitizes a plain on/off checkbox setting. An unchecked box is not
+	 * submitted at all, so anything falsy becomes ''.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function checkbox_callback( mixed $input ): string {
+		return $input ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the rich-text note shown in place of the recipe steps.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string
+	 */
+	public function recipe_steps_notice_callback( mixed $input ): string {
+		return wp_kses_post( $input );
 	}
 
 	/**
@@ -1498,6 +2167,26 @@ class Mixmymeals_Settings {
 	}
 
 	/**
+	 * Sanitizes the photo upload page ID.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function subscription_upload_page_callback( mixed $input ): int {
+		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the auto-approve meal photos checkbox.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function photos_auto_approve_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	/**
 	 * Sanitizes the confirmation window (hours).
 	 *
 	 * @param mixed $input Raw input value.
@@ -1575,6 +2264,196 @@ class Mixmymeals_Settings {
 		}
 
 		return $clean;
+	}
+
+	/**
+	 * Sanitizes the Instagram image format option.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string Either '4x5' or '1x1'.
+	 */
+	public function instagram_format_callback( mixed $input ): string {
+		return in_array( $input, array( '1x1', '9x16' ), true ) ? (string) $input : '4x5';
+	}
+
+	/**
+	 * Sanitizes the Instagram style preset.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string One of custom|frisch|editorial|kraeftig|minimal.
+	 */
+	public function instagram_style_preset_callback( mixed $input ): string {
+		return in_array( $input, array( 'frisch', 'editorial', 'kraeftig', 'minimal' ), true ) ? (string) $input : 'custom';
+	}
+
+	/**
+	 * Sanitizes the Instagram logo position.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string Either left or center.
+	 */
+	public function instagram_logo_position_callback( mixed $input ): string {
+		return 'center' === $input ? 'center' : 'left';
+	}
+
+	/**
+	 * Sanitizes the Instagram logo size (percent).
+	 *
+	 * @param mixed $input Raw value.
+	 * @return int Value between 50 and 200.
+	 */
+	public function instagram_logo_size_callback( mixed $input ): int {
+		return max( 50, min( 200, absint( $input ) ?: 100 ) );
+	}
+
+	/**
+	 * Sanitizes the Instagram day-slide layout.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string One of full|magazine|split|card.
+	 */
+	public function instagram_day_layout_callback( mixed $input ): string {
+		return in_array( $input, array( 'magazine', 'split', 'card' ), true ) ? (string) $input : 'full';
+	}
+
+	/**
+	 * Sanitizes the Instagram full-bleed overlay style.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string One of gradient|plate|minimal.
+	 */
+	public function instagram_overlay_style_callback( mixed $input ): string {
+		return in_array( $input, array( 'plate', 'minimal' ), true ) ? (string) $input : 'gradient';
+	}
+
+	/**
+	 * Sanitizes an Instagram color option.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string Hex color or '' (renderer falls back to its default).
+	 */
+	public function instagram_color_callback( mixed $input ): string {
+		return (string) sanitize_hex_color( (string) $input );
+	}
+
+	/**
+	 * Sanitizes an Instagram element toggle.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string Either 'on' or ''.
+	 */
+	public function instagram_checkbox_callback( mixed $input ): string {
+		return $input ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the Instagram font scale (percent).
+	 *
+	 * @param mixed $input Raw value.
+	 * @return int Value between 50 and 150.
+	 */
+	public function instagram_font_scale_callback( mixed $input ): int {
+		return max( 50, min( 150, absint( $input ) ?: 100 ) );
+	}
+
+	/**
+	 * Sanitizes the Instagram photo darkening strength (percent).
+	 *
+	 * @param mixed $input Raw value.
+	 * @return int Value between 0 and 100.
+	 */
+	public function instagram_scrim_opacity_callback( mixed $input ): int {
+		return min( 100, absint( $input ) );
+	}
+
+	/**
+	 * Sanitizes the Instagram corner radius (pixels).
+	 *
+	 * @param mixed $input Raw value.
+	 * @return int Value between 0 and 60.
+	 */
+	public function instagram_corner_radius_callback( mixed $input ): int {
+		return min( 60, absint( $input ) );
+	}
+
+	/**
+	 * Sanitizes the Instagram meal type selection.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return array Valid meal type keys.
+	 */
+	public function instagram_meal_types_callback( mixed $input ): array {
+
+		if ( ! is_array( $input ) ) {
+			return array();
+		}
+
+		$valid = array_keys( Mixmymeals_Meal::get_plaintext_meal_type_map() );
+
+		return array_values( array_intersect( $valid, array_map( 'sanitize_key', $input ) ) );
+	}
+
+	/**
+	 * Sanitizes the Instagram nutrition badge selection.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return array Valid badge keys, in a stable order.
+	 */
+	public function instagram_badges_callback( mixed $input ): array {
+
+		if ( ! is_array( $input ) ) {
+			return array();
+		}
+
+		$valid = array( 'calories', 'protein', 'carbs', 'fat', 'time' );
+
+		return array_values( array_intersect( $valid, array_map( 'sanitize_key', $input ) ) );
+	}
+
+	/**
+	 * Sanitizes the Instagram handle (stored without a leading '@').
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string
+	 */
+	public function instagram_handle_callback( mixed $input ): string {
+		return ltrim( sanitize_text_field( (string) $input ), '@' );
+	}
+
+	/**
+	 * Sanitizes the Instagram hero meal type.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string A valid meal type key.
+	 */
+	public function instagram_hero_meal_type_callback( mixed $input ): string {
+
+		$valid = array_keys( Mixmymeals_Meal::get_plaintext_meal_type_map() );
+
+		return in_array( $input, $valid, true ) ? (string) $input : 'dinner';
+	}
+
+	/**
+	 * Sanitizes the Instagram image retention period.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return int Days, at least 1.
+	 */
+	public function instagram_retention_days_callback( mixed $input ): int {
+		return min( 365, max( 1, absint( $input ) ) );
+	}
+
+
+
+
+	/**
+	 * Sanitizes the Instagram hashtag block.
+	 *
+	 * @param mixed $input Raw value.
+	 * @return string
+	 */
+	public function instagram_hashtags_callback( mixed $input ): string {
+		return sanitize_textarea_field( (string) $input );
 	}
 
 }

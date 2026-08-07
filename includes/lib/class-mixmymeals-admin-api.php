@@ -76,6 +76,8 @@ class Mixmymeals_Admin_API {
 		switch ( $field['id'] ) {
 
 			case 'placeholder_image_id':
+			case 'instagram_logo_id':
+			case 'instagram_cover_image_id':
 				$html .= '<div class="media-field-wrapper">';
 
 				$html .= '<input type="hidden" name="' . esc_attr( $option_name ) . '" 
@@ -96,10 +98,102 @@ class Mixmymeals_Admin_API {
 				$html .= '</div>';
 				break;
 
+			case 'instagram_title_font_id':
+			case 'instagram_text_font_id':
+				$filename = '—';
+				if ( $data ) {
+					$file = get_attached_file( (int) $data );
+					if ( $file ) {
+						$filename = basename( $file );
+					}
+				}
+
+				$html .= '<div class="mmm-file-field">';
+				$html .= '<input type="hidden" name="' . esc_attr( $option_name )
+				         . '" id="' . esc_attr( $field['id'] )
+				         . '" value="' . esc_attr( $data ) . '" />';
+				$html .= '<code class="mmm-file-name" style="margin-right:10px;">'
+				         . esc_html( $filename ) . '</code>';
+				$html .= '<button type="button" class="button mmm-select-file-button" data-target="'
+				         . esc_attr( $field['id'] ) . '" data-title="'
+				         . esc_attr__( 'Select font file', 'mixmymeals' ) . '">'
+				         . esc_html__( 'Select file', 'mixmymeals' ) . '</button> ';
+				$html .= '<button type="button" class="button-link mmm-clear-file-button" data-target="'
+				         . esc_attr( $field['id'] ) . '">'
+				         . esc_html__( 'Remove', 'mixmymeals' ) . '</button>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				$html .= '</div>';
+				break;
+
+			case 'instagram_color_background':
+			case 'instagram_color_primary':
+			case 'instagram_color_accent':
+				if ( ! is_string( $data ) || '' === $data ) {
+					$data = (string) ( $field['default'] ?? '#000000' );
+				}
+				$html .= '<input type="color" id="' . esc_attr( $field['id'] )
+				         . '" name="' . esc_attr( $option_name )
+				         . '" value="' . esc_attr( $data ) . '" />'
+				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'instagram_format':
+			case 'instagram_hero_meal_type':
+			case 'instagram_day_layout':
+			case 'instagram_overlay_style':
+			case 'instagram_style_preset':
+			case 'instagram_logo_position':
+				if ( ! is_string( $data ) || '' === $data ) {
+					$data = (string) ( $field['default'] ?? '' );
+				}
+				$html .= '<select id="' . esc_attr( $field['id'] )
+				         . '" name="' . esc_attr( $option_name ) . '">';
+				foreach ( (array) ( $field['options'] ?? array() ) as $value => $label ) {
+					$html .= '<option value="' . esc_attr( $value ) . '" '
+					         . selected( $data, (string) $value, false ) . '>'
+					         . esc_html( $label ) . '</option>';
+				}
+				$html .= '</select>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'instagram_meal_types':
+			case 'instagram_badges':
+				$selected = is_array( $data ) && $data
+					? $data
+					: (array) ( $field['default'] ?? array() );
+				$html .= '<div class="mmm-checkbox-set">';
+				foreach ( (array) ( $field['options'] ?? array() ) as $value => $label ) {
+					$html .= '<label>'
+					         . '<input type="checkbox" name="' . esc_attr( $option_name ) . '[]" value="'
+					         . esc_attr( $value ) . '" '
+					         . checked( in_array( $value, $selected, true ), true, false )
+					         . '/> ' . esc_html( $label ) . '</label>';
+				}
+				$html .= '</div>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'instagram_font_scale':
+			case 'instagram_logo_size':
+			case 'instagram_scrim_opacity':
+			case 'instagram_corner_radius':
+			case 'instagram_retention_days':
+				$html .= '<input type="number" min="' . esc_attr( $field['min'] ?? 0 )
+				         . '" max="' . esc_attr( $field['max'] ?? 9999 )
+				         . '" name="' . esc_attr( $option_name )
+				         . '" id="' . esc_attr( $field['id'] )
+				         . '" placeholder="' . esc_attr( $field['placeholder'] )
+				         . '" value="' . esc_attr( $data ) . '" />'
+				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
 			case 'all_recipes_description':
 			case 'all_ingredients_description':
+			case 'all_equipment_description':
 			case 'all_meal_plans_description':
 			case 'individual_meal_plans_description':
+			case 'recipe_steps_notice':
 			case 'mail_footer':
 
 				$editor_id    = esc_attr( $field['id'] );
@@ -128,10 +222,18 @@ class Mixmymeals_Admin_API {
 			case 'meal_slug':
 			case 'recipe_slug':
 			case 'ingredient_slug':
+			case 'equipment_slug':
 			case 'currency':
 			case 'individual_tab_label':
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
+			case 'instagram_footer_text':
+			case 'instagram_cta_text':
+			case 'instagram_cta_subtext':
+			case 'instagram_handle':
+			case 'instagram_cover_title':
+			case 'instagram_cover_subtitle':
+			case 'instagram_wordmark':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 				         . '" type="text" name="' . esc_attr( $option_name )
 				         . '" placeholder="'
@@ -141,37 +243,24 @@ class Mixmymeals_Admin_API {
 				break;
 
 			case 'recipe_disclaimer_text':
+			case 'affiliate_disclosure':
+			case 'notice_rating':
+			case 'notice_photo':
+			case 'notice_subscribe':
+			case 'notice_plan':
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
-				         . '" rows="10" cols="60" name="'
+				         . '" rows="4" cols="60" name="'
 				         . esc_attr( $option_name ) . '" placeholder="'
 				         . esc_attr( $field['placeholder'] ) . '">'
 				         . esc_html( $data )
 				         . '</textarea>';
-				break;
-
-			case 'recipe_hero_categories':
-				$selected = is_array( $data ) ? $data : array();
-				$terms    = get_terms(
-					array(
-						'taxonomy'   => 'mmm_recipe_category',
-						'hide_empty' => false,
-					)
-				);
-				$html .= '<select multiple size="8" id="' . esc_attr( $field['id'] )
-				         . '" name="' . esc_attr( $option_name ) . '[]" style="min-width:280px;">';
-				if ( ! is_wp_error( $terms ) && $terms ) {
-					foreach ( $terms as $term ) {
-						$html .= '<option value="' . esc_attr( $term->slug ) . '" '
-						         . selected( in_array( $term->slug, $selected, true ), true, false )
-						         . '>' . esc_html( $term->name ) . '</option>';
-					}
+				if ( ! empty( $field['description'] ) ) {
+					$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				}
-				$html .= '</select>';
-				$html .= '<p class="description">' . esc_html( $field['description'] )
-				         . ' ' . esc_html__( 'Hold Ctrl/Cmd to select several.', 'mixmymeals' ) . '</p>';
 				break;
 
 			case 'subscription_append_text':
+			case 'instagram_hashtags':
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
 						. '" rows="6" name="' . esc_attr( $option_name )
 						. '" class="large-text code" placeholder="'
@@ -198,7 +287,20 @@ class Mixmymeals_Admin_API {
 			case 'mail_log_enabled':
 			case 'subscriptions_enabled':
 			case 'subscription_log_ip':
+			case 'photos_auto_approve':
 			case 'public_mode':
+			case 'show_recipe_steps':
+			case 'delete_data_on_uninstall':
+			case 'instagram_show_kind_pill':
+			case 'instagram_show_meta':
+			case 'instagram_show_day_pill':
+			case 'instagram_show_also':
+			case 'instagram_show_footer_bar':
+			case 'instagram_show_brand_footer':
+			case 'instagram_show_counter':
+			case 'instagram_show_cover':
+			case 'instagram_show_cta':
+			case 'instagram_show_diet_tag':
 				$checked = '';
 				if ( $data && 'on' === $data ) {
 					$checked = 'checked="checked"';
@@ -251,6 +353,7 @@ class Mixmymeals_Admin_API {
 			case 'subscription_confirm_page':
 			case 'subscription_unsubscribe_page':
 			case 'subscription_rate_page':
+			case 'subscription_upload_page':
 
 				$current = (int) get_option( $option_name, 0 );
 

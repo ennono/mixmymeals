@@ -48,6 +48,9 @@ require_once 'includes/lib/class-mixmymeals-mailer.php';
 require_once 'includes/lib/class-mixmymeals-subscriptions.php';
 require_once 'includes/lib/class-mixmymeals-importer.php';
 require_once 'includes/lib/class-mixmymeals-ratings.php';
+require_once 'includes/lib/class-mixmymeals-instagram.php';
+require_once 'includes/lib/class-mixmymeals-pinterest.php';
+require_once 'includes/lib/class-mixmymeals-user-meta.php';
 
 
 /**
@@ -56,13 +59,13 @@ require_once 'includes/lib/class-mixmymeals-ratings.php';
  * @param mixed $message String, array, or object to log.
  * @return void
  */
-function write_to_log( $message ) {
+function mmm_write_to_log( $message ) {
 	if ( defined( 'WP_DEBUG' ) && WP_DEBUG === true && defined( 'WP_DEBUG_LOG' )
 		&& WP_DEBUG_LOG === true ) {
 		if ( is_array( $message ) || is_object( $message ) ) {
-			error_log( print_r( $message, true ) );
+			error_log( print_r( $message, true ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log, WordPress.PHP.DevelopmentFunctions.error_log_print_r
 		} else {
-			error_log( $message );
+			error_log( $message ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
 	}
 }
@@ -94,3 +97,6 @@ mixmymeals()->add_cleanup();
 mixmymeals()->add_subscriptions();
 mixmymeals()->add_importer();
 mixmymeals()->add_ratings();
+mixmymeals()->add_instagram();
+mixmymeals()->add_pinterest();
+mixmymeals()->add_user_meta();

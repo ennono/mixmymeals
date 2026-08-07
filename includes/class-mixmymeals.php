@@ -258,6 +258,37 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Instantiates the Instagram image generator class (meta box on the
+	 * meal plan edit screen, GD rendering, temporary file storage and the
+	 * daily image cleanup cron).
+	 *
+	 * @return Mixmymeals_Instagram
+	 */
+	public function add_instagram(): Mixmymeals_Instagram {
+		return new Mixmymeals_Instagram( $this->file );
+	}
+
+	/**
+	 * Instantiates the Pinterest class (pin meta box on plans and recipes,
+	 * immediate and scheduled pinning via the Pinterest API v5).
+	 *
+	 * @return Mixmymeals_Pinterest
+	 */
+	public function add_pinterest(): Mixmymeals_Pinterest {
+		return new Mixmymeals_Pinterest();
+	}
+
+	/**
+	 * Instantiates the user meta class (profile fields, currently the own
+	 * Instagram/Pinterest credentials).
+	 *
+	 * @return Mixmymeals_User_Meta
+	 */
+	public function add_user_meta(): Mixmymeals_User_Meta {
+		return new Mixmymeals_User_Meta();
+	}
+
+	/**
 	 * Instantiates the post types class.
 	 *
 	 * @return Mixmymeals_Post_Types
