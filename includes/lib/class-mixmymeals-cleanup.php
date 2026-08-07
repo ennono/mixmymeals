@@ -28,6 +28,13 @@ class Mixmymeals_Cleanup {
 	const DEFAULT_MIN_AGE_DAYS = 30;
 
 	/**
+	 * Option collecting deletions made by other routines between two reports.
+	 *
+	 * @var string
+	 */
+	const TALLY_OPTION = 'mixmymeals_cleanup_tally';
+
+	/**
 	 * Constructor. Wires cron scheduling and the deactivation hook.
 	 *
 	 * @param string $plugin_file Main plugin file, used for the deactivation hook.
@@ -142,20 +149,72 @@ class Mixmymeals_Cleanup {
 		}
 
 		// Erst Pläne (löscht deren Meals mit), dann übrig gebliebene Waisen.
-		$deleted_plans = $this->delete_uncategorized_meal_plans();
-		$deleted_meals = $this->delete_orphaned_meals();
+		$plans   = $this->delete_uncategorized_meal_plans();
+		$orphans = $this->delete_orphaned_meals();
 
-		if ( $deleted_plans || $deleted_meals ) {
-			write_to_log(
+		$stats = array(
+			'plans'        => $plans['plans'],
+			'plan_meals'   => $plans['meals'],
+			'orphan_meals' => $orphans['meals'],
+			'failed'       => $plans['failed'] + $plans['meals_failed'] + $orphans['failed'],
+			'capped'       => $plans['capped'] || $orphans['capped'],
+		);
+
+		if ( $stats['plans'] || $stats['plan_meals'] || $stats['orphan_meals'] || $stats['failed'] ) {
+			mmm_write_to_log(
 				sprintf(
-					'MixMyMeals cleanup: deleted %d meal plan(s) and %d orphaned meal(s).',
-					$deleted_plans,
-					$deleted_meals
+					'MixMyMeals cleanup: deleted %1$d meal plan(s), %2$d meal(s) belonging to them and %3$d orphaned meal(s); %4$d deletion(s) failed.',
+					$stats['plans'],
+					$stats['plan_meals'],
+					$stats['orphan_meals'],
+					$stats['failed']
 				)
 			);
 		}
 
-		$this->maybe_send_report( $deleted_plans, $deleted_meals );
+		$this->maybe_send_report( $stats );
+	}
+
+	/**
+	 * Records deletions made by another routine so the daily report can list
+	 * them alongside its own.
+	 *
+	 * A no-op unless cleanup *and* report are enabled: only then does a run
+	 * exist that empties the tally again, so it cannot grow unbounded on sites
+	 * that never send a report. Cron scheduling stays independent — this only
+	 * passes numbers along.
+	 *
+	 * @param string $key   Identifier, see tally_line().
+	 * @param int    $count Number of deleted items.
+	 *
+	 * @return void
+	 */
+	public static function record( string $key, int $count ): void {
+
+		if ( '' === $key || $count < 1 ) {
+			return;
+		}
+
+		if ( ! self::is_enabled() || ! self::is_report_enabled() ) {
+			return;
+		}
+
+		$tally         = self::get_tally();
+		$tally[ $key ] = ( $tally[ $key ] ?? 0 ) + $count;
+
+		update_option( self::TALLY_OPTION, $tally, false );
+	}
+
+	/**
+	 * Reads the tally of deletions reported by other routines.
+	 *
+	 * @return array<string, int>
+	 */
+	private static function get_tally(): array {
+
+		$tally = get_option( self::TALLY_OPTION, array() );
+
+		return is_array( $tally ) ? array_map( 'absint', $tally ) : array();
 	}
 
 	/**
@@ -166,18 +225,20 @@ class Mixmymeals_Cleanup {
 	 * Mixmymeals_Mailer as a forced, transactional admin/ops message (bypasses
 	 * the suppression list) wrapped in the branded layout.
 	 *
-	 * @param int $deleted_plans Number of deleted meal plans.
-	 * @param int $deleted_meals Number of deleted orphaned meals.
+	 * @param array $stats Run statistics as assembled by run().
 	 *
 	 * @return void
 	 */
-	private function maybe_send_report( int $deleted_plans, int $deleted_meals ): void {
+	private function maybe_send_report( array $stats ): void {
 
 		if ( ! self::is_report_enabled() ) {
 			return;
 		}
 
-		$total = $deleted_plans + $deleted_meals;
+		$tally = self::get_tally();
+
+		$total = $stats['plans'] + $stats['plan_meals'] + $stats['orphan_meals']
+			+ $stats['failed'] + array_sum( $tally );
 
 		/**
 		 * Filters whether the report is also sent when nothing was deleted.
@@ -210,26 +271,72 @@ class Mixmymeals_Cleanup {
 				$when
 			)
 		) . '</p><ul>';
-		$body .= '<li>' . esc_html(
-			sprintf(
-				/* translators: %d: number of deleted meal plans. */
-				_n( '%d meal plan deleted', '%d meal plans deleted', $deleted_plans, 'mixmymeals' ),
-				$deleted_plans
-			)
-		) . '</li>';
-		$body .= '<li>' . esc_html(
-			sprintf(
-				/* translators: %d: number of deleted orphaned meals. */
-				_n( '%d orphaned meal deleted', '%d orphaned meals deleted', $deleted_meals, 'mixmymeals' ),
-				$deleted_meals
-			)
-		) . '</li></ul>';
+		$body .= self::report_line(
+			/* translators: %d: number of deleted meal plans. */
+			_n( '%d meal plan deleted', '%d meal plans deleted', $stats['plans'], 'mixmymeals' ),
+			$stats['plans']
+		);
+		$body .= self::report_line(
+			/* translators: %d: number of meals deleted together with their plan. */
+			_n(
+				'%d meal belonging to those plans deleted',
+				'%d meals belonging to those plans deleted',
+				$stats['plan_meals'],
+				'mixmymeals'
+			),
+			$stats['plan_meals']
+		);
+		$body .= self::report_line(
+			/* translators: %d: number of deleted orphaned meals. */
+			_n( '%d orphaned meal deleted', '%d orphaned meals deleted', $stats['orphan_meals'], 'mixmymeals' ),
+			$stats['orphan_meals']
+		);
+		$body .= '</ul>';
+
+		if ( $stats['failed'] > 0 ) {
+			$body .= '<p><strong>' . esc_html(
+				sprintf(
+					/* translators: %d: number of failed deletions. */
+					_n(
+						'%d deletion failed and will be retried on the next run.',
+						'%d deletions failed and will be retried on the next run.',
+						$stats['failed'],
+						'mixmymeals'
+					),
+					$stats['failed']
+				)
+			) . '</strong></p>';
+		}
+
+		if ( $stats['capped'] ) {
+			$body .= '<p>' . esc_html(
+				sprintf(
+					/* translators: %d: maximum number of deletions per post type and run. */
+					__(
+						'The limit of %d deletions per post type and run was reached, so items are left over for the next run.',
+						'mixmymeals'
+					),
+					self::get_batch_limit()
+				)
+			) . '</p>';
+		}
+
+		if ( ! empty( $tally ) ) {
+			$body .= '<h2>' . esc_html__( 'Other cleanup since the last report', 'mixmymeals' ) . '</h2><ul>';
+
+			foreach ( $tally as $key => $count ) {
+				$body .= self::tally_line( (string) $key, (int) $count );
+			}
+
+			$body .= '</ul>';
+		}
+
 		$body .= '<p>' . esc_html(
 			sprintf(
 				/* translators: %d: minimum age in days. */
 				_n(
-					'Only items older than %d day are removed.',
-					'Only items older than %d days are removed.',
+					'Meal plans without a category and orphaned meals are removed once they are older than %d day.',
+					'Meal plans without a category and orphaned meals are removed once they are older than %d days.',
 					$min_age,
 					'mixmymeals'
 				),
@@ -242,6 +349,9 @@ class Mixmymeals_Cleanup {
 			__( '[%s] Cleanup report', 'mixmymeals' ),
 			$site_name
 		);
+
+		// Erst leeren, wenn der Bericht wirklich rausgeht.
+		delete_option( self::TALLY_OPTION );
 
 		Mixmymeals_Mailer::send_template(
 			$recipient,
@@ -258,15 +368,86 @@ class Mixmymeals_Cleanup {
 	}
 
 	/**
+	 * Renders one list item of the report.
+	 *
+	 * @param string $text  Already pluralised text with a single %d placeholder.
+	 * @param int    $count Number to fill in.
+	 *
+	 * @return string
+	 */
+	private static function report_line( string $text, int $count ): string {
+		return '<li>' . esc_html( sprintf( $text, $count ) ) . '</li>';
+	}
+
+	/**
+	 * Renders one list item for a deletion reported via record().
+	 *
+	 * @param string $key   Identifier passed to record().
+	 * @param int    $count Number of deleted items.
+	 *
+	 * @return string
+	 */
+	private static function tally_line( string $key, int $count ): string {
+
+		switch ( $key ) {
+			case 'instagram_folders':
+				/* translators: %d: number of deleted image folders. */
+				$text = _n(
+					'%d Instagram image folder deleted',
+					'%d Instagram image folders deleted',
+					$count,
+					'mixmymeals'
+				);
+				break;
+
+			case 'mail_log_entries':
+				/* translators: %d: number of deleted mail log entries. */
+				$text = _n(
+					'%d mail log entry deleted',
+					'%d mail log entries deleted',
+					$count,
+					'mixmymeals'
+				);
+				break;
+
+			case 'subscriptions_unconfirmed':
+				/* translators: %d: number of deleted unconfirmed subscriptions. */
+				$text = _n(
+					'%d unconfirmed subscription deleted',
+					'%d unconfirmed subscriptions deleted',
+					$count,
+					'mixmymeals'
+				);
+				break;
+
+			case 'subscriptions_retention':
+				/* translators: %d: number of subscriptions deleted after the retention period. */
+				$text = _n(
+					'%d finished subscription deleted after the retention period',
+					'%d finished subscriptions deleted after the retention period',
+					$count,
+					'mixmymeals'
+				);
+				break;
+
+			default:
+				return '<li>' . esc_html( sprintf( '%1$s: %2$d', $key, $count ) ) . '</li>';
+		}
+
+		return self::report_line( $text, $count );
+	}
+
+	/**
 	 * Deletes meals whose parent meal plan no longer exists.
 	 *
 	 * A meal counts as orphaned if its post_parent is 0, points to a
 	 * deleted post, or points to a post that is no longer a meal plan.
 	 * Plans in the trash still exist, so their meals are not orphaned.
 	 *
-	 * @return int Number of deleted meals.
+	 * @return array{meals:int,failed:int,capped:bool} Deleted, failed, and
+	 *               whether the batch limit cut the run short.
 	 */
-	public function delete_orphaned_meals(): int {
+	public function delete_orphaned_meals(): array {
 
 		global $wpdb;
 
@@ -274,6 +455,8 @@ class Mixmymeals_Cleanup {
 			'Y-m-d H:i:s',
 			time() - self::get_min_age_days() * DAY_IN_SECONDS
 		);
+
+		$limit = self::get_batch_limit();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$orphan_ids = $wpdb->get_col(
@@ -288,11 +471,12 @@ class Mixmymeals_Cleanup {
 					AND meal.post_date_gmt < %s
 				LIMIT %d",
 				$threshold,
-				self::get_batch_limit()
+				$limit
 			)
 		);
 
 		$deleted = 0;
+		$failed  = 0;
 
 		foreach ( $orphan_ids as $meal_id ) {
 			$meal_id = (int) $meal_id;
@@ -304,25 +488,35 @@ class Mixmymeals_Cleanup {
 
 			if ( wp_delete_post( $meal_id, true ) ) {
 				++$deleted;
+			} else {
+				++$failed;
 			}
 		}
 
-		return $deleted;
+		return array(
+			'meals'  => $deleted,
+			'failed' => $failed,
+			'capped' => count( $orphan_ids ) >= $limit,
+		);
 	}
 
 	/**
 	 * Deletes old meal plans that have no meal plan category, including
 	 * their child meals.
 	 *
-	 * @return int Number of deleted meal plans.
+	 * @return array{plans:int,meals:int,failed:int,meals_failed:int,capped:bool}
+	 *               Deleted plans, meals removed with them, failures per kind,
+	 *               and whether the batch limit cut the run short.
 	 */
-	public function delete_uncategorized_meal_plans(): int {
+	public function delete_uncategorized_meal_plans(): array {
+
+		$limit = self::get_batch_limit();
 
 		$plan_ids = get_posts(
 			array(
 				'post_type'        => 'mmm_meal_plan',
 				'post_status'      => 'any',
-				'posts_per_page'   => self::get_batch_limit(),
+				'posts_per_page'   => $limit,
 				'fields'           => 'ids',
 				'no_found_rows'    => true,
 				'date_query'       => array(
@@ -341,7 +535,10 @@ class Mixmymeals_Cleanup {
 			)
 		);
 
-		$deleted = 0;
+		$deleted      = 0;
+		$failed       = 0;
+		$meals        = 0;
+		$meals_failed = 0;
 
 		foreach ( $plan_ids as $plan_id ) {
 			$plan_id = (int) $plan_id;
@@ -363,14 +560,26 @@ class Mixmymeals_Cleanup {
 			);
 
 			foreach ( $meal_ids as $meal_id ) {
-				wp_delete_post( (int) $meal_id, true );
+				if ( wp_delete_post( (int) $meal_id, true ) ) {
+					++$meals;
+				} else {
+					++$meals_failed;
+				}
 			}
 
 			if ( wp_delete_post( $plan_id, true ) ) {
 				++$deleted;
+			} else {
+				++$failed;
 			}
 		}
 
-		return $deleted;
+		return array(
+			'plans'        => $deleted,
+			'meals'        => $meals,
+			'failed'       => $failed,
+			'meals_failed' => $meals_failed,
+			'capped'       => count( $plan_ids ) >= $limit,
+		);
 	}
 }

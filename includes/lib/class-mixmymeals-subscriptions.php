@@ -1969,9 +1969,12 @@ class Mixmymeals_Subscriptions {
 	/**
 	 * Deletes unconfirmed expired and old finished subscriptions.
 	 *
-	 * @return void
+	 * Reports both counts to Mixmymeals_Cleanup so they appear in the cleanup
+	 * report — this removes personal data and should not happen silently.
+	 *
+	 * @return array{unconfirmed:int,retention:int} Number of deleted records.
 	 */
-	private function prune(): void {
+	private function prune(): array {
 
 		$pending_before   = time() - self::get_pending_hours() * HOUR_IN_SECONDS;
 		$retention_before = time() - self::get_retention_days() * DAY_IN_SECONDS;
@@ -1994,10 +1997,13 @@ class Mixmymeals_Subscriptions {
 			)
 		);
 
+		$deleted_pending  = 0;
+		$deleted_finished = 0;
+
 		foreach ( $pending as $sub_id ) {
 			$consent = (int) get_post_meta( (int) $sub_id, '_mmm_sub_consent_time', true );
-			if ( $consent && $consent < $pending_before ) {
-				wp_delete_post( (int) $sub_id, true );
+			if ( $consent && $consent < $pending_before && wp_delete_post( (int) $sub_id, true ) ) {
+				++$deleted_pending;
 			}
 		}
 
@@ -2023,10 +2029,21 @@ class Mixmymeals_Subscriptions {
 
 		foreach ( $finished as $sub_id ) {
 			$post = get_post( (int) $sub_id );
-			if ( $post && strtotime( $post->post_modified_gmt . ' UTC' ) < $retention_before ) {
-				wp_delete_post( (int) $sub_id, true );
+			if ( $post && strtotime( $post->post_modified_gmt . ' UTC' ) < $retention_before
+				&& wp_delete_post( (int) $sub_id, true ) ) {
+				++$deleted_finished;
 			}
 		}
+
+		if ( class_exists( 'Mixmymeals_Cleanup' ) ) {
+			Mixmymeals_Cleanup::record( 'subscriptions_unconfirmed', $deleted_pending );
+			Mixmymeals_Cleanup::record( 'subscriptions_retention', $deleted_finished );
+		}
+
+		return array(
+			'unconfirmed' => $deleted_pending,
+			'retention'   => $deleted_finished,
+		);
 	}
 
 	/* ----------------------------------------------------------

@@ -134,6 +134,14 @@ Recipes and plans carry `featured_image` (attachment ID, `0` removes it) on crea
 
 On the MCP side `mmm_upload_image` reads a local file and posts it as multipart; `url`/`attachment_id` go out as plain JSON.
 
+### Cleanup report
+
+Deletions are permanent (`wp_delete_post( …, true )`, no trash), so the report is the only trace they leave. It must therefore stay **complete**: `delete_uncategorized_meal_plans()` and `delete_orphaned_meals()` return a stats array — deleted items, meals removed alongside their plan, failures, and whether the batch limit cut the run short — and every one of those numbers appears in the mail. Counting only the plans hides the far larger number of child meals that go with them.
+
+Cleanup does not only happen here, though: `Mixmymeals_Instagram::cleanup_expired()`, `Mixmymeals_Mail_Log::prune()` and `Mixmymeals_Subscriptions::prune()` run on their own crons. They report their counts via `Mixmymeals_Cleanup::record( $key, $count )`, which accumulates into the option `mixmymeals_cleanup_tally`; the daily report lists them under "Other cleanup" and empties the option once the mail actually goes out. `record()` is a no-op unless cleanup **and** report are enabled — otherwise no run exists that would ever drain the tally. Labels for new keys go into `tally_line()`.
+
+**Every routine that deletes data must call `record()`** — the subscription pruning in particular removes personal data under a GDPR retention rule and must not disappear silently.
+
 ### Settings
 
 Settings are registered via `Mixmymeals_Settings` using the WordPress Settings API. All option names are prefixed `mixmymeals_`. Notable options: `mixmymeals_public_mode` (allow guest plan creation), `mixmymeals_published_meal_plans_per_hour_limit`, `mixmymeals_save_meal_plans_published_by_visitors_as_draft`, `mixmymeals_placeholder_image_id`.

@@ -101,6 +101,7 @@ Mixmymeals_Meal_Plan::register_bring();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();
+mixmymeals()->add_mail_log();
 mixmymeals()->add_subscriptions();
 mixmymeals()->add_importer();
 mixmymeals()->add_ratings();

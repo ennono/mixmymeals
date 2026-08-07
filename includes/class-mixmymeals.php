@@ -227,6 +227,16 @@ class Mixmymeals {
 	}
 
 	/**
+	 * Wires the mail log's own daily pruning cron, which enforces the age limit
+	 * on the stored send metadata independently of the (optional) cleanup cron.
+	 *
+	 * @return void
+	 */
+	public function add_mail_log(): void {
+		Mixmymeals_Mail_Log::register( $this->file );
+	}
+
+	/**
 	 * Instantiates the meal plan subscriptions class (CPT, double opt-in,
 	 * token endpoints and the drip-sending WP-Cron event).
 	 *
