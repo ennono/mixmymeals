@@ -144,6 +144,18 @@ class Mixmymeals_Post_Meta {
 			);
 			add_action( 'save_post_' . $mmm_credit_type, array( $this, 'save_image_credit_meta' ) );
 		}
+
+		// Visibility: "unlisted" flag. Query side lives in Mixmymeals_Post_Types.
+		foreach ( Mixmymeals_Post_Types::UNLISTED_POST_TYPES as $mmm_visibility_type ) {
+			add_action(
+				'add_meta_boxes_' . $mmm_visibility_type,
+				array( $this, 'register_visibility_metabox' )
+			);
+			add_action(
+				'save_post_' . $mmm_visibility_type,
+				array( $this, 'save_visibility_meta' )
+			);
+		}
 		/*
 		add_action( 'save_post_mmm_meal_plan', [ $this, 'prevent_overlapping_meal_plans' ], 10, 3 );
 		add_action( 'admin_notices', function() {
@@ -2825,6 +2837,80 @@ class Mixmymeals_Post_Meta {
 		$data = self::get_image_credit( $post_id );
 
 		return implode( ' / ', array_filter( array( $data['creator'], $data['source'] ) ) );
+	}
+
+	/**
+	 * Nonce action/field for the visibility meta box.
+	 *
+	 * @var string
+	 */
+	const VISIBILITY_NONCE_ACTION = 'mmm_visibility_meta_box';
+	const VISIBILITY_NONCE_FIELD  = 'mmm_visibility_nonce';
+
+	/**
+	 * Visibility Metabox: keep a single recipe or plan out of all listings.
+	 *
+	 * @param WP_Post $post Post being edited.
+	 * @return void
+	 */
+	public function register_visibility_metabox( $post ): void {
+		add_meta_box(
+			'mmm_visibility_meta_box',
+			__( 'Visibility', 'mixmymeals' ),
+			array( $this, 'render_visibility_metabox' ),
+			$post->post_type,
+			'side'
+		);
+	}
+
+	/**
+	 * Renders the "hide from listings" checkbox.
+	 *
+	 * @param WP_Post $post Post being edited.
+	 * @return void
+	 */
+	public function render_visibility_metabox( WP_Post $post ): void {
+
+		wp_nonce_field( self::VISIBILITY_NONCE_ACTION, self::VISIBILITY_NONCE_FIELD );
+
+		echo '<label><input type="checkbox" name="mmm_unlisted" value="1" '
+			. checked( Mixmymeals_Post_Types::is_unlisted( $post->ID ), true, false ) . ' /> '
+			. esc_html__( 'Hide from listings', 'mixmymeals' )
+			. '</label>'
+			. '<p class="description">'
+			. esc_html__( 'Keeps the page reachable under its own URL but removes it from archives, category pages, the search and the browse rows.', 'mixmymeals' )
+			. '</p>';
+	}
+
+	/**
+	 * Saves the visibility checkbox.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public function save_visibility_meta( int $post_id ): void {
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified right here.
+		if (
+			! isset( $_POST[ self::VISIBILITY_NONCE_FIELD ] )
+			|| ! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST[ self::VISIBILITY_NONCE_FIELD ] ) ),
+				self::VISIBILITY_NONCE_ACTION
+			)
+		) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		Mixmymeals_Post_Types::set_unlisted( $post_id, ! empty( $_POST['mmm_unlisted'] ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 }

@@ -15,6 +15,138 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Mixmymeals_Post_Types {
 
 	/**
+	 * "Unlisted" flag for single recipes and meal plans. The post keeps its own
+	 * public URL and stays indexable, it just disappears from every listing —
+	 * archives, taxonomy archives, the search and the browse shortcodes.
+	 *
+	 * Listed = no meta at all (same idea as the cook counter), so the exclusion
+	 * is a cheap NOT EXISTS and existing posts need no migration. The editor UI
+	 * lives in Mixmymeals_Post_Meta.
+	 *
+	 * @var string
+	 */
+	const META_UNLISTED = '_mmm_unlisted';
+
+	/**
+	 * Post types offering the unlisted flag.
+	 *
+	 * @var string[]
+	 */
+	const UNLISTED_POST_TYPES = array( 'mmm_recipe', 'mmm_meal_plan' );
+
+	/**
+	 * Whether the post is hidden from listings.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_unlisted( int $post_id ): bool {
+		return '1' === (string) get_post_meta( $post_id, self::META_UNLISTED, true );
+	}
+
+	/**
+	 * Sets or clears the flag. Listed posts carry no meta at all.
+	 *
+	 * @param int  $post_id  Post ID.
+	 * @param bool $unlisted Whether to hide the post from listings.
+	 * @return void
+	 */
+	public static function set_unlisted( int $post_id, bool $unlisted ): void {
+
+		if ( $unlisted ) {
+			update_post_meta( $post_id, self::META_UNLISTED, '1' );
+			return;
+		}
+
+		delete_post_meta( $post_id, self::META_UNLISTED );
+	}
+
+	/**
+	 * The meta_query clause that keeps unlisted posts out of a query.
+	 *
+	 * @return array
+	 */
+	public static function unlisted_clause(): array {
+		return array(
+			'key'     => self::META_UNLISTED,
+			'compare' => 'NOT EXISTS',
+		);
+	}
+
+	/**
+	 * Adds the exclusion to a get_posts()/WP_Query argument array, preserving
+	 * any meta_query the caller already set. Used by the listing shortcodes,
+	 * which run their own queries past the main query.
+	 *
+	 * @param array $args Query arguments.
+	 * @return array
+	 */
+	public static function exclude_unlisted( array $args ): array {
+
+		$existing = isset( $args['meta_query'] ) && is_array( $args['meta_query'] )
+			? $args['meta_query']
+			: array();
+
+		if ( empty( $existing ) ) {
+			$args['meta_query'] = array( self::unlisted_clause() ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			return $args;
+		}
+
+		// Wrap the caller's clauses so their own relation keeps working.
+		$args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'relation' => 'AND',
+			$existing,
+			self::unlisted_clause(),
+		);
+
+		return $args;
+	}
+
+	/**
+	 * Keeps unlisted posts out of the public listings driven by the main query:
+	 * post type archives, taxonomy archives and the site search.
+	 *
+	 * Singular views are untouched on purpose — an unlisted post stays reachable
+	 * under its own URL. Admin and feeds are untouched as well, so the editor
+	 * still sees everything.
+	 *
+	 * @param WP_Query $query Query about to run.
+	 * @return void
+	 */
+	public function filter_unlisted_from_main_query( $query ): void {
+
+		if ( is_admin() || ! $query instanceof WP_Query || ! $query->is_main_query() ) {
+			return;
+		}
+
+		if ( $query->is_singular() ) {
+			return;
+		}
+
+		$relevant = $query->is_search()
+			|| $query->is_post_type_archive( self::UNLISTED_POST_TYPES )
+			|| $query->is_tax(
+				array(
+					'mmm_recipe_category',
+					'mmm_recipe_tag',
+					'mmm_meal_plan_category',
+					'mmm_meal_plan_tag',
+				)
+			);
+
+		if ( ! $relevant ) {
+			return;
+		}
+
+		$meta_query = $query->get( 'meta_query' );
+		$meta_query = is_array( $meta_query ) ? $meta_query : array();
+
+		$meta_query[] = self::unlisted_clause();
+
+		$query->set( 'meta_query', $meta_query );
+	}
+
+	/**
 	 * Post types constructor.
 	 */
 	public function __construct() {
