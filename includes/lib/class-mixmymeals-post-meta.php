@@ -652,7 +652,6 @@ class Mixmymeals_Post_Meta {
 		}
 
 		$recipe_obj = new Mixmymeals_Recipe( $post_ID );
-		write_to_log( $recipe_obj );
 
 		// Portionen speichern
 		if ( isset( $_POST['mmm_servings'] ) ) {
@@ -1539,7 +1538,7 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 1;
-		write_to_log( $plan_start );
+		mmm_write_to_log( $plan_start );
 		$plan_end = $parent_id ? intval(
 			get_post_meta(
 				$parent_id,
@@ -1547,7 +1546,7 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 7;
-		write_to_log( $plan_end );
+		mmm_write_to_log( $plan_end );
 
 		echo '<p><label><strong>' . esc_html__(
 			'Day (within Meal Plan)',
@@ -1621,7 +1620,7 @@ class Mixmymeals_Post_Meta {
 				'mmm_meal_meta_box'
 			)
 		) {
-			// write_to_log( sanitize_text_field( wp_unslash( $_POST['mmm_meal_meta_nonce']  ) ) );
+			// mmm_write_to_log( sanitize_text_field( wp_unslash( $_POST['mmm_meal_meta_nonce']  ) ) );
 			return;
 		}
 
