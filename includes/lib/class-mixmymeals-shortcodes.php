@@ -1229,6 +1229,9 @@ class Mixmymeals_Shortcodes {
 					. '</a>';
 			}
 			echo '<div class="mmm-recipe-row__body">';
+			// Above the title, like in print: a disclosure that only appears
+			// after the click does not do its job.
+			echo self::disclosure_pill( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 			echo '<h3 class="mmm-recipe-row__name"><a href="' . esc_url( $permalink ) . '">'
 				. esc_html( get_the_title( $id ) ) . '</a></h3>';
 			// These slim browse cards deliberately omit the meta pills; only the
@@ -1530,6 +1533,7 @@ class Mixmymeals_Shortcodes {
 					. '</a>';
 			}
 			echo '<div class="mmm-recipe-row__body">';
+			echo self::disclosure_pill( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 			echo '<h3 class="mmm-recipe-row__name"><a href="' . esc_url( $permalink ) . '">'
 				. esc_html( get_the_title( $id ) ) . '</a></h3>';
 			echo $this->render_meal_plan_card_meta( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
@@ -4912,6 +4916,37 @@ class Mixmymeals_Shortcodes {
 		 * @param string $type Disclosure type.
 		 */
 		return (string) apply_filters( 'mixmymeals_disclosure_label_text', $text, $type );
+	}
+
+	/**
+	 * The bare disclosure pill for listings: no paragraph wrapper, no sponsor
+	 * name. Cards are tight and repetitive, so they carry the label only — the
+	 * legally required part — while the sponsor stays on the single page.
+	 *
+	 * Returns '' for editorial content and unpaid guest contributions, so card
+	 * renderers can call it unconditionally.
+	 *
+	 * @param int $post_id Recipe or plan ID. Meals resolve to their recipe.
+	 * @return string
+	 */
+	public static function disclosure_pill( int $post_id ): string {
+
+		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+		if ( ! $post_id || ! Mixmymeals_Post_Meta::requires_disclosure_label( $post_id ) ) {
+			return '';
+		}
+
+		$type = Mixmymeals_Post_Meta::get_disclosure_type( $post_id );
+		$text = self::disclosure_label_text( $type );
+
+		if ( '' === trim( $text ) ) {
+			return '';
+		}
+
+		return '<p class="mmm-disclosure mmm-disclosure--card mmm-disclosure--' . esc_attr( $type ) . '">'
+			. '<span class="mmm-disclosure__label">' . esc_html( $text ) . '</span>'
+			. '</p>';
 	}
 
 	/**

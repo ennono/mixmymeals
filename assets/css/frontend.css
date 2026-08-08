@@ -506,3 +506,9 @@ body.mmm-cook-mode-open {
     line-height: 1;
     white-space: nowrap;
 }
+
+/* Card variant: sits above the title in browse rows and archive entries,
+   label only — the sponsor name stays on the single page. */
+.mmm-disclosure--card {
+    margin: 0 0 var(--mmm-s1, 4px);
+}

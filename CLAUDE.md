@@ -169,7 +169,9 @@ The markup is `[mmm_disclosure_label]` in `Mixmymeals_Shortcodes`, wording from 
 
 The structural CSS in `assets/css/frontend.css` pins `display` and `visibility` with `!important`, unlike every other block in that file: design belongs to the theme, but a legally required label must not be themable into invisibility. The theme styles it as a pill in the accent colour, deliberately not the green of `.mmm-badge` — green is the brand/positive tone and an ad label must not read as a quality mark.
 
-Still missing: listings/archives, schema.org `sponsor`, and REST/MCP exposure.
+Listings use `Mixmymeals_Shortcodes::disclosure_pill()` instead — the bare label above the card title, without the sponsor name, since cards are tight and repetitive. It is wired into `render_recipe_browse_cards()` and `render_meal_plan_browse_cards()` (which `render_related_recipe_cards()` reuses), and into the archives through the child theme's `mmm_add_disclosure_to_archive_posts()` on `astra_blog_archive_title_before`.
+
+Still missing: schema.org `sponsor`, REST/MCP exposure, and the PDF/e-mail/social channels.
 
 ### Images over REST
 
