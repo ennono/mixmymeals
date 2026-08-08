@@ -389,16 +389,24 @@ class Mixmymeals_Cleanup {
 	 */
 	private static function tally_line( string $key, int $count ): string {
 
+		/**
+		 * Lets whoever reported a tally key supply its wording.
+		 *
+		 * Anything that calls record() with a key of its own — an add-on, say —
+		 * would otherwise land in the fallback below and read as a raw
+		 * identifier. Returning a finished `<li>` here takes over the line.
+		 *
+		 * @param string|null $line  Finished list item, or null for the default.
+		 * @param string      $key   Identifier passed to record().
+		 * @param int         $count Number of deleted items.
+		 */
+		$line = apply_filters( 'mixmymeals_cleanup_tally_line', null, $key, $count );
+
+		if ( null !== $line ) {
+			return (string) $line;
+		}
+
 		switch ( $key ) {
-			case 'instagram_folders':
-				/* translators: %d: number of deleted image folders. */
-				$text = _n(
-					'%d Instagram image folder deleted',
-					'%d Instagram image folders deleted',
-					$count,
-					'mixmymeals'
-				);
-				break;
 
 			case 'mail_log_entries':
 				/* translators: %d: number of deleted mail log entries. */

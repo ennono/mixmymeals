@@ -2695,14 +2695,26 @@ class Mixmymeals_Shortcodes {
 			'future'  => __( 'Scheduled', 'mixmymeals' ),
 		];
 
-		$has_pinterest = class_exists( 'Mixmymeals_Pinterest' ) && '' !== Mixmymeals_Pinterest::get_access_token();
-		$min_when      = wp_date( 'Y-m-d\TH:i', time() + 10 * MINUTE_IN_SECONDS );
-		$trash_url     = admin_url( 'edit.php?post_type=' . get_post_type( $id ) );
+		$min_when  = wp_date( 'Y-m-d\TH:i', time() + 10 * MINUTE_IN_SECONDS );
+		$trash_url = admin_url( 'edit.php?post_type=' . get_post_type( $id ) );
 
-		$services = [ 'instagram' => [ 'Instagram', Mixmymeals_Instagram::META_SCHEDULED_AT, Mixmymeals_Instagram::META_LAST_RESULT, 'permalink' ] ];
-		if ( $has_pinterest ) {
-			$services['pinterest'] = [ 'Pinterest', Mixmymeals_Pinterest::META_SCHEDULED_AT, Mixmymeals_Pinterest::META_LAST_RESULT, 'pin_url' ];
-		}
+		/**
+		 * Filters the publishing services offered by the admin board.
+		 *
+		 * The board itself only knows WordPress: status changes and trash. Any
+		 * posting target is contributed by whoever implements it — currently the
+		 * MixMyMeals Social add-on. With no add-on the loop simply renders
+		 * nothing and the WordPress section stands on its own.
+		 *
+		 * Each entry is keyed by the service slug the REST routes use
+		 * (`mixmymeals/v1/{slug}/{id}/publish`) and holds, in this order:
+		 * label, post meta key of the scheduled timestamp, post meta key of the
+		 * last result, and the key inside that result holding the public URL.
+		 *
+		 * @param array $services Service slug => [ label, meta_at, meta_result, url_key ].
+		 * @param int   $post_id  Recipe or meal plan being shown.
+		 */
+		$services = (array) apply_filters( 'mixmymeals_admin_board_services', array(), $id );
 
 		ob_start();
 		?>

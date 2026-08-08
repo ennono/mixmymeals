@@ -73,11 +73,35 @@ class Mixmymeals_Admin_API {
 
 		$html = '';
 
+		/**
+		 * Lets a plugin render a settings field this class does not know.
+		 *
+		 * The switch below dispatches on the field id, which add-ons cannot
+		 * extend. Returning anything other than null here short-circuits it, so
+		 * a plugin that contributes fields through `mixmymeals_settings_fields`
+		 * can also bring the markup for them instead of having to get its field
+		 * types merged into this file.
+		 *
+		 * @param string|null $rendered    Markup, or null to let the switch handle it.
+		 * @param array       $field       Field definition.
+		 * @param mixed       $data        Current value.
+		 * @param string      $option_name Option (or post meta) name.
+		 */
+		$rendered = apply_filters( 'mixmymeals_render_settings_field', null, $field, $data, $option_name );
+
+		if ( null !== $rendered ) {
+			if ( ! $echo ) {
+				return (string) $rendered;
+			}
+
+			echo $rendered; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the renderer owns its escaping.
+
+			return true;
+		}
+
 		switch ( $field['id'] ) {
 
 			case 'placeholder_image_id':
-			case 'instagram_logo_id':
-			case 'instagram_cover_image_id':
 				$html .= '<div class="media-field-wrapper">';
 
 				$html .= '<input type="hidden" name="' . esc_attr( $option_name ) . '" 
@@ -98,95 +122,10 @@ class Mixmymeals_Admin_API {
 				$html .= '</div>';
 				break;
 
-			case 'instagram_title_font_id':
-			case 'instagram_text_font_id':
-				$filename = '—';
-				if ( $data ) {
-					$file = get_attached_file( (int) $data );
-					if ( $file ) {
-						$filename = basename( $file );
-					}
-				}
 
-				$html .= '<div class="mmm-file-field">';
-				$html .= '<input type="hidden" name="' . esc_attr( $option_name )
-				         . '" id="' . esc_attr( $field['id'] )
-				         . '" value="' . esc_attr( $data ) . '" />';
-				$html .= '<code class="mmm-file-name" style="margin-right:10px;">'
-				         . esc_html( $filename ) . '</code>';
-				$html .= '<button type="button" class="button mmm-select-file-button" data-target="'
-				         . esc_attr( $field['id'] ) . '" data-title="'
-				         . esc_attr__( 'Select font file', 'mixmymeals' ) . '">'
-				         . esc_html__( 'Select file', 'mixmymeals' ) . '</button> ';
-				$html .= '<button type="button" class="button-link mmm-clear-file-button" data-target="'
-				         . esc_attr( $field['id'] ) . '">'
-				         . esc_html__( 'Remove', 'mixmymeals' ) . '</button>';
-				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
-				$html .= '</div>';
-				break;
 
-			case 'instagram_color_background':
-			case 'instagram_color_primary':
-			case 'instagram_color_accent':
-				if ( ! is_string( $data ) || '' === $data ) {
-					$data = (string) ( $field['default'] ?? '#000000' );
-				}
-				$html .= '<input type="color" id="' . esc_attr( $field['id'] )
-				         . '" name="' . esc_attr( $option_name )
-				         . '" value="' . esc_attr( $data ) . '" />'
-				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
-				break;
 
-			case 'instagram_format':
-			case 'instagram_hero_meal_type':
-			case 'instagram_day_layout':
-			case 'instagram_overlay_style':
-			case 'instagram_style_preset':
-			case 'instagram_logo_position':
-				if ( ! is_string( $data ) || '' === $data ) {
-					$data = (string) ( $field['default'] ?? '' );
-				}
-				$html .= '<select id="' . esc_attr( $field['id'] )
-				         . '" name="' . esc_attr( $option_name ) . '">';
-				foreach ( (array) ( $field['options'] ?? array() ) as $value => $label ) {
-					$html .= '<option value="' . esc_attr( $value ) . '" '
-					         . selected( $data, (string) $value, false ) . '>'
-					         . esc_html( $label ) . '</option>';
-				}
-				$html .= '</select>';
-				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
-				break;
 
-			case 'instagram_meal_types':
-			case 'instagram_badges':
-				$selected = is_array( $data ) && $data
-					? $data
-					: (array) ( $field['default'] ?? array() );
-				$html .= '<div class="mmm-checkbox-set">';
-				foreach ( (array) ( $field['options'] ?? array() ) as $value => $label ) {
-					$html .= '<label>'
-					         . '<input type="checkbox" name="' . esc_attr( $option_name ) . '[]" value="'
-					         . esc_attr( $value ) . '" '
-					         . checked( in_array( $value, $selected, true ), true, false )
-					         . '/> ' . esc_html( $label ) . '</label>';
-				}
-				$html .= '</div>';
-				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
-				break;
-
-			case 'instagram_font_scale':
-			case 'instagram_logo_size':
-			case 'instagram_scrim_opacity':
-			case 'instagram_corner_radius':
-			case 'instagram_retention_days':
-				$html .= '<input type="number" min="' . esc_attr( $field['min'] ?? 0 )
-				         . '" max="' . esc_attr( $field['max'] ?? 9999 )
-				         . '" name="' . esc_attr( $option_name )
-				         . '" id="' . esc_attr( $field['id'] )
-				         . '" placeholder="' . esc_attr( $field['placeholder'] )
-				         . '" value="' . esc_attr( $data ) . '" />'
-				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
-				break;
 
 			case 'all_recipes_description':
 			case 'all_ingredients_description':
@@ -227,13 +166,6 @@ class Mixmymeals_Admin_API {
 			case 'individual_tab_label':
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
-			case 'instagram_footer_text':
-			case 'instagram_cta_text':
-			case 'instagram_cta_subtext':
-			case 'instagram_handle':
-			case 'instagram_cover_title':
-			case 'instagram_cover_subtitle':
-			case 'instagram_wordmark':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 				         . '" type="text" name="' . esc_attr( $option_name )
 				         . '" placeholder="'
@@ -260,7 +192,6 @@ class Mixmymeals_Admin_API {
 				break;
 
 			case 'subscription_append_text':
-			case 'instagram_hashtags':
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
 						. '" rows="6" name="' . esc_attr( $option_name )
 						. '" class="large-text code" placeholder="'
@@ -291,16 +222,6 @@ class Mixmymeals_Admin_API {
 			case 'public_mode':
 			case 'show_recipe_steps':
 			case 'delete_data_on_uninstall':
-			case 'instagram_show_kind_pill':
-			case 'instagram_show_meta':
-			case 'instagram_show_day_pill':
-			case 'instagram_show_also':
-			case 'instagram_show_footer_bar':
-			case 'instagram_show_brand_footer':
-			case 'instagram_show_counter':
-			case 'instagram_show_cover':
-			case 'instagram_show_cta':
-			case 'instagram_show_diet_tag':
 				$checked = '';
 				if ( $data && 'on' === $data ) {
 					$checked = 'checked="checked"';

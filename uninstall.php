@@ -28,9 +28,6 @@ $mmm_delete_personal_data = ( 'on' === get_option( 'mixmymeals_delete_data_on_un
  * 1. Scheduled events
  * ---------------------------------------------------------------------- */
 $mmm_cron_hooks = array(
-	'mixmymeals_instagram_cleanup',
-	'mixmymeals_instagram_scheduled_publish',
-	'mixmymeals_pinterest_scheduled_publish',
 	'mmm_subscription_dispatch',
 	'mixmymeals_daily_cleanup',
 	'mixmymeals_mail_log_prune',
@@ -94,16 +91,6 @@ $wpdb->query(
 	)
 );
 
-// Per-user social credentials (Instagram/Pinterest tokens are secrets).
-foreach ( array( 'mmm_instagram_', 'mmm_pinterest_' ) as $mmm_um_prefix ) {
-	$wpdb->query(
-		$wpdb->prepare(
-			"DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s",
-			$wpdb->esc_like( $mmm_um_prefix ) . '%'
-		)
-	);
-}
-
 // Plugin transients (status caches, rate limits, board lists …).
 foreach ( array( '_transient_mmm_', '_transient_timeout_mmm_', '_transient_mixmymeals_', '_transient_timeout_mixmymeals_' ) as $mmm_prefix ) {
 	$wpdb->query(
@@ -112,28 +99,4 @@ foreach ( array( '_transient_mmm_', '_transient_timeout_mmm_', '_transient_mixmy
 			$wpdb->esc_like( $mmm_prefix ) . '%'
 		)
 	);
-}
-
-/* -------------------------------------------------------------------------
- * 4. Temporary generated images
- * ---------------------------------------------------------------------- */
-$mmm_uploads = wp_get_upload_dir();
-if ( empty( $mmm_uploads['error'] ) && ! empty( $mmm_uploads['basedir'] ) ) {
-	$mmm_ig_dir = trailingslashit( $mmm_uploads['basedir'] ) . 'mixmymeals-instagram';
-
-	// Only remove a directory that sits inside the uploads base directory.
-	if ( is_dir( $mmm_ig_dir ) && 0 === strpos( $mmm_ig_dir, trailingslashit( $mmm_uploads['basedir'] ) ) ) {
-		$mmm_it = new RecursiveIteratorIterator(
-			new RecursiveDirectoryIterator( $mmm_ig_dir, FilesystemIterator::SKIP_DOTS ),
-			RecursiveIteratorIterator::CHILD_FIRST
-		);
-		foreach ( $mmm_it as $mmm_file ) {
-			if ( $mmm_file->isDir() ) {
-				@rmdir( $mmm_file->getPathname() ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
-			} else {
-				@unlink( $mmm_file->getPathname() ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.unlink_unlink
-			}
-		}
-		@rmdir( $mmm_ig_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
-	}
 }

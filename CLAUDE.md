@@ -108,9 +108,6 @@ Amounts in all of these go through `Mixmymeals_Ingredient::format_amount()`: no 
 
 | Class | Purpose |
 |---|---|
-| `Mixmymeals_Instagram` | GD-rendered carousel/recipe images, immediate + scheduled posting via Instagram Graph API, per-user credentials (user meta `mmm_instagram_*`, no site fallback), scheduled-posts admin overview, temp-image cleanup cron, REST routes `mixmymeals/v1/instagram/…` |
-| `Mixmymeals_Pinterest` | Pin plans/recipes (reuses Instagram images), immediate + scheduled, per-user credentials `mmm_pinterest_*`, REST routes `mixmymeals/v1/pinterest/…` |
-| `Mixmymeals_User_Meta` | The plugin's fields on the WordPress user profile — currently the per-user Instagram/Pinterest credentials (`render_social_fields()` / `save_social_fields()`), including the "Connect with Pinterest" OAuth button, which only ever appears in one's own profile |
 | `Mixmymeals_Privacy` | GDPR personal-data exporters/erasers (subscriptions, photos), suggested privacy-policy text |
 | `Mixmymeals_Subscriptions` | Meal-plan e-mail subscriptions: double opt-in, consent records, drip sending via WP-Cron, token endpoints |
 | `Mixmymeals_Mailer` / `Mixmymeals_Mail_Log` | wp_mail wrapper with GDPR footer + send log |
@@ -193,9 +190,22 @@ On the MCP side `mmm_upload_image` reads a local file and posts it as multipart;
 
 Deletions are permanent (`wp_delete_post( …, true )`, no trash), so the report is the only trace they leave. It must therefore stay **complete**: `delete_uncategorized_meal_plans()` and `delete_orphaned_meals()` return a stats array — deleted items, meals removed alongside their plan, failures, and whether the batch limit cut the run short — and every one of those numbers appears in the mail. Counting only the plans hides the far larger number of child meals that go with them.
 
-Cleanup does not only happen here, though: `Mixmymeals_Instagram::cleanup_expired()`, `Mixmymeals_Mail_Log::prune()` and `Mixmymeals_Subscriptions::prune()` run on their own crons. They report their counts via `Mixmymeals_Cleanup::record( $key, $count )`, which accumulates into the option `mixmymeals_cleanup_tally`; the daily report lists them under "Other cleanup" and empties the option once the mail actually goes out. `record()` is a no-op unless cleanup **and** report are enabled — otherwise no run exists that would ever drain the tally. Labels for new keys go into `tally_line()`.
+Cleanup does not only happen here, though: `Mixmymeals_Mail_Log::prune()` and `Mixmymeals_Subscriptions::prune()` run on their own crons, as does the Social add-on's image cleanup. They report their counts via `Mixmymeals_Cleanup::record( $key, $count )`, which accumulates into the option `mixmymeals_cleanup_tally`; the daily report lists them under "Other cleanup" and empties the option once the mail actually goes out. `record()` is a no-op unless cleanup **and** report are enabled — otherwise no run exists that would ever drain the tally. Labels for new keys go into `tally_line()`; a plugin reporting its own key supplies the wording through the `mixmymeals_cleanup_tally_line` filter instead.
 
 **Every routine that deletes data must call `record()`** — the subscription pruning in particular removes personal data under a GDPR retention rule and must not disappear silently.
+
+### Add-on extension points
+
+Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-social`), which depends on this one but is not known to it. Four hooks carry everything it contributes — anything else an add-on needs should become a fifth rather than a reference back into the host:
+
+| Hook | Purpose |
+|---|---|
+| `mixmymeals_settings_fields` | Adds a settings tab. Options keep the host's `mixmymeals_` prefix, so a tab can move between plugins without touching stored values. |
+| `mixmymeals_render_settings_field` | Renders a field the host's id-switch in `Mixmymeals_Admin_API::display_field()` does not know. Return non-null to take over; that switch cannot be extended otherwise. |
+| `mixmymeals_admin_board_services` | Contributes a publishing target to `[mmm_admin_actions]`. The board itself only knows WordPress status and trash. |
+| `mixmymeals_cleanup_tally_line` | Supplies the wording for a key reported via `Mixmymeals_Cleanup::record()`. |
+
+The add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server and `admin-board.js` address those paths, and a separate namespace would break both for no gain.
 
 ### Settings
 
