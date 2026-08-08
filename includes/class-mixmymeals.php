@@ -145,8 +145,11 @@ class Mixmymeals {
 			$this->admin = new Mixmymeals_Admin_API();
 		}
 
-		// Handle localisation.
-		$this->load_plugin_textdomain();
+		// Handle localisation. Must wait for init: since WP 6.7 a textdomain
+		// loaded earlier is refused with a _doing_it_wrong notice and the
+		// strings silently stay English. This used to run straight from the
+		// constructor, i.e. at plugin load time.
+		add_action( 'init', array( $this, 'load_plugin_textdomain' ), 0 );
 		add_action( 'init', array( $this, 'load_localisation' ), 0 );
 
 		add_action( 'wp_login', function( $user_login, $user ) {
