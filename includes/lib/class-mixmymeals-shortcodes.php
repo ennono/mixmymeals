@@ -4893,12 +4893,20 @@ class Mixmymeals_Shortcodes {
 	public static function disclosure_label_text( string $type ): string {
 
 		switch ( $type ) {
+			// Both commercial types share one wording. What the law asks is
+			// that the reader sees it is advertising — not which internal
+			// arrangement produced it.
 			case Mixmymeals_Post_Meta::DISCLOSURE_SPONSORED:
+			case Mixmymeals_Post_Meta::DISCLOSURE_COOPERATION:
 				$text = __( 'Advertisement', 'mixmymeals' );
 				break;
 
-			case Mixmymeals_Post_Meta::DISCLOSURE_COOPERATION:
-				$text = __( 'Advertisement', 'mixmymeals' );
+			// Editorial transparency, not a legal disclosure: this one says who
+			// wrote it, not that someone paid for it. Styled differently on
+			// purpose so it can never be mistaken for the advertising label —
+			// see requires_disclosure_label() for the legal subset.
+			case Mixmymeals_Post_Meta::DISCLOSURE_GUEST:
+				$text = __( 'Guest author', 'mixmymeals' );
 				break;
 
 			default:
@@ -4920,11 +4928,11 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * The bare disclosure pill for listings: no paragraph wrapper, no sponsor
-	 * name. Cards are tight and repetitive, so they carry the label only — the
-	 * legally required part — while the sponsor stays on the single page.
+	 * name. Cards are tight and repetitive, so they carry the label only, while
+	 * the sponsor stays on the single page.
 	 *
-	 * Returns '' for editorial content and unpaid guest contributions, so card
-	 * renderers can call it unconditionally.
+	 * Returns '' for editorial content, so card renderers can call it
+	 * unconditionally.
 	 *
 	 * @param int $post_id Recipe or plan ID. Meals resolve to their recipe.
 	 * @return string
@@ -4933,7 +4941,7 @@ class Mixmymeals_Shortcodes {
 
 		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
 
-		if ( ! $post_id || ! Mixmymeals_Post_Meta::requires_disclosure_label( $post_id ) ) {
+		if ( ! $post_id || ! Mixmymeals_Post_Meta::is_disclosed( $post_id ) ) {
 			return '';
 		}
 
@@ -4951,9 +4959,13 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_disclosure_label].
-	 * Renders the "Anzeige" pill for commercial content — paid placements and
-	 * cooperations. Editorial and unpaid guest contributions render nothing:
-	 * a guest recipe is credited through the author box and is not advertising.
+	 * Renders the origin pill: "Werbung" for paid placements and cooperations,
+	 * "Gastautor" for unpaid guest contributions. Editorial content renders
+	 * nothing.
+	 *
+	 * The two are one mechanism but not one statement — the first is a legal
+	 * disclosure, the second is editorial transparency. They are styled apart
+	 * so the advertising label stays unmistakable; see disclosure_label_text().
 	 *
 	 * Resolves meals to the recipe they plan, like every other crediting
 	 * feature, so a meal never drops the recipe's disclosure.
@@ -4981,7 +4993,7 @@ class Mixmymeals_Shortcodes {
 
 		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
 
-		if ( ! $post_id || ! Mixmymeals_Post_Meta::requires_disclosure_label( $post_id ) ) {
+		if ( ! $post_id || ! Mixmymeals_Post_Meta::is_disclosed( $post_id ) ) {
 			return '';
 		}
 

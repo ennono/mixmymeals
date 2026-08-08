@@ -155,7 +155,7 @@ Four states, of which editorial is the absence of any meta (same convention as t
 | Value | Meaning | Visible label |
 |---|---|---|
 | *(no meta)* | editorial, our own | no |
-| `guest` | unpaid guest contribution | no — the author box credits it |
+| `guest` | unpaid guest contribution | "Gastautor" — transparency, not a legal disclosure |
 | `cooperation` | goods/services provided, no money | **yes** |
 | `sponsored` | paid placement | **yes** |
 
@@ -165,7 +165,11 @@ Four states, of which editorial is the absence of any meta (same convention as t
 
 `get_disclosure_type()` maps any unknown stored value back to editorial rather than trusting it through, since the type decides whether that label is printed. `save_disclosure()` clears the sponsor whenever the type is not one of `DISCLOSURE_LABELLED_TYPES`, so a name from an earlier classification can never surface in a label or in structured data.
 
-The markup is `[mmm_disclosure_label]` in `Mixmymeals_Shortcodes`, wording from `disclosure_label_text()` (filter `mixmymeals_disclosure_label_text`, German default **"Anzeige"** — the source string is `Advertisement`, so that translation is load-bearing, not cosmetic). Like every crediting feature it resolves through `Mixmymeals_Meal::resolve_credit_source()`, so a meal inherits the disclosure of the recipe it plans. The child theme calls it via `mmm_render_disclosure_label()` directly after the hero on all three singles — above the content, because a label below the fold does not discharge the obligation.
+The markup is `[mmm_disclosure_label]` in `Mixmymeals_Shortcodes`, wording from `disclosure_label_text()` (filter `mixmymeals_disclosure_label_text`). Two pills out of one mechanism: **"Werbung"** for both commercial types, **"Gastautor"** for guest contributions. The source strings are `Advertisement` and `Guest author`, so those German translations are load-bearing, not cosmetic.
+
+They render from one code path but must never look alike — the theme gives "Werbung" the accent colour in caps and "Gastautor" a muted, bordered chip in normal case. If both pills shout equally, "Werbung" loses the signal value that is its entire purpose. Only the commercial pair is a legal disclosure; `requires_disclosure_label()` remains the code-level answer to *must this be labelled*, while rendering keys off the broader `is_disclosed()`.
+
+Like every crediting feature it resolves through `Mixmymeals_Meal::resolve_credit_source()`, so a meal inherits the disclosure of the recipe it plans. The child theme calls it via `mmm_render_disclosure_label()` directly after the hero on all three singles — above the content, because a label below the fold does not discharge the obligation.
 
 The structural CSS in `assets/css/frontend.css` pins `display` and `visibility` with `!important`, unlike every other block in that file: design belongs to the theme, but a legally required label must not be themable into invisibility. The theme styles it as a pill in the accent colour, deliberately not the green of `.mmm-badge` — green is the brand/positive tone and an ad label must not read as a quality mark.
 
