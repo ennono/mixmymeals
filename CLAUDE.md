@@ -173,7 +173,11 @@ Like every crediting feature it resolves through `Mixmymeals_Meal::resolve_credi
 
 The structural CSS in `assets/css/frontend.css` pins `display` and `visibility` with `!important`, unlike every other block in that file: design belongs to the theme, but a legally required label must not be themable into invisibility. The theme styles it as a pill in the accent colour, deliberately not the green of `.mmm-badge` — green is the brand/positive tone and an ad label must not read as a quality mark.
 
-Listings use `Mixmymeals_Shortcodes::disclosure_pill()` instead — the bare label above the card title, without the sponsor name, since cards are tight and repetitive. It is wired into `render_recipe_browse_cards()` and `render_meal_plan_browse_cards()` (which `render_related_recipe_cards()` reuses), and into the archives through the child theme's `mmm_add_disclosure_to_archive_posts()` on `astra_blog_archive_title_before`.
+`disclosure_label_for()` is the single place that resolves the meal and decides whether there is anything to show; all three renderings build on it, so they cannot disagree.
+
+Where a pill row already exists, the label joins it rather than floating above it: `disclosure_chip( $post_id, $base )` takes the surrounding row's base class and emits `{$base} {$base}--disclosure {$base}--disclosure-{type}`. That is `mmm-chip` in the three heroes (`mmm_recipe_hero`, `mmm_meal_plan_hero`, `mmm_meal_hero`, always as the first item) and `mmm-meta__item` in `build_recipe_archive_meta_chips()`, which the recipe archive already renders. The theme keeps its own colour on the modifier — the label sits in the row but must not read as another statistic.
+
+Browse cards have no pill row, so they keep `disclosure_pill()`: the bare label above the card title, without the sponsor name. It is wired into `render_recipe_browse_cards()` and `render_meal_plan_browse_cards()` (which `render_related_recipe_cards()` reuses).
 
 Still missing: schema.org `sponsor`, REST/MCP exposure, and the PDF/e-mail/social channels.
 

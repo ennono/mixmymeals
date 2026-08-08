@@ -715,6 +715,14 @@ class Mixmymeals_Shortcodes {
 		$recipe    = new Mixmymeals_Recipe( $post_id );
 		$nutrition = $recipe->calculate_nutrition_per_serving();
 		$items     = [];
+
+		// Disclosure leads the row, in the row's own vocabulary — a label that
+		// sits apart from the meta reads as decoration rather than as a notice.
+		$disclosure = self::disclosure_chip( $post_id, 'mmm-meta__item' );
+		if ( '' !== $disclosure ) {
+			$items[] = $disclosure;
+		}
+
 		if ( ! empty( $nutrition['calories'] ) ) {
 			$items[] = '<span class="mmm-meta__item mmm-meta__item--calories">'
 			           . esc_html( round( $nutrition['calories'] ) )
@@ -4502,6 +4510,11 @@ class Mixmymeals_Shortcodes {
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
+				<?php
+				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
+				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
+				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				?>
 				<?php if ( $num_of_days ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php
 						/* translators: %s = number of days */
@@ -4617,6 +4630,11 @@ class Mixmymeals_Shortcodes {
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
+				<?php
+				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
+				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
+				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				?>
 				<?php if ( $servings ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
 						printf(
@@ -4927,6 +4945,62 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Type and wording of a post's disclosure, or an empty array for editorial
+	 * content. The single place that resolves meals to their recipe and decides
+	 * whether there is anything to label at all — every rendering variant below
+	 * builds on this, so they can never disagree about what gets a label.
+	 *
+	 * @param int $post_id Recipe or plan ID. Meals resolve to their recipe.
+	 * @return array{type:string,text:string} Empty when nothing is to be shown.
+	 */
+	public static function disclosure_label_for( int $post_id ): array {
+
+		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+		if ( ! $post_id || ! Mixmymeals_Post_Meta::is_disclosed( $post_id ) ) {
+			return array();
+		}
+
+		$type = Mixmymeals_Post_Meta::get_disclosure_type( $post_id );
+		$text = trim( self::disclosure_label_text( $type ) );
+
+		return '' === $text ? array() : array(
+			'type' => $type,
+			'text' => $text,
+		);
+	}
+
+	/**
+	 * The disclosure as one item of an existing pill row, in that row's own
+	 * vocabulary: `mmm-chip` in the heroes, `mmm-meta__item` in the archive.
+	 *
+	 * Takes the base class rather than inventing a third look, so the label
+	 * lines up with the chips already there instead of floating above them —
+	 * while the modifier keeps it colour-coded as a label, not a statistic.
+	 *
+	 * @param int    $post_id Recipe, plan or meal ID.
+	 * @param string $base    Base class of the surrounding row.
+	 * @return string
+	 */
+	public static function disclosure_chip( int $post_id, string $base = 'mmm-chip' ): string {
+
+		$label = self::disclosure_label_for( $post_id );
+
+		if ( empty( $label ) ) {
+			return '';
+		}
+
+		$base = sanitize_html_class( $base );
+
+		return sprintf(
+			'<span class="%1$s %1$s--disclosure %1$s--disclosure-%2$s">%3$s</span>',
+			esc_attr( $base ),
+			esc_attr( $label['type'] ),
+			esc_html( $label['text'] )
+		);
+	}
+
+	/**
 	 * The bare disclosure pill for listings: no paragraph wrapper, no sponsor
 	 * name. Cards are tight and repetitive, so they carry the label only, while
 	 * the sponsor stays on the single page.
@@ -4939,21 +5013,14 @@ class Mixmymeals_Shortcodes {
 	 */
 	public static function disclosure_pill( int $post_id ): string {
 
-		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+		$label = self::disclosure_label_for( $post_id );
 
-		if ( ! $post_id || ! Mixmymeals_Post_Meta::is_disclosed( $post_id ) ) {
+		if ( empty( $label ) ) {
 			return '';
 		}
 
-		$type = Mixmymeals_Post_Meta::get_disclosure_type( $post_id );
-		$text = self::disclosure_label_text( $type );
-
-		if ( '' === trim( $text ) ) {
-			return '';
-		}
-
-		return '<p class="mmm-disclosure mmm-disclosure--card mmm-disclosure--' . esc_attr( $type ) . '">'
-			. '<span class="mmm-disclosure__label">' . esc_html( $text ) . '</span>'
+		return '<p class="mmm-disclosure mmm-disclosure--card mmm-disclosure--' . esc_attr( $label['type'] ) . '">'
+			. '<span class="mmm-disclosure__label">' . esc_html( $label['text'] ) . '</span>'
 			. '</p>';
 	}
 
@@ -5107,6 +5174,11 @@ class Mixmymeals_Shortcodes {
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
+				<?php
+				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
+				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
+				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				?>
 				<?php if ( $day_label ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo esc_html( $day_label ); ?></span>
 				<?php endif; ?>
