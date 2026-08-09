@@ -2255,12 +2255,12 @@ class Mixmymeals_Shortcodes {
 						 * the case the plan's own label would not cover. Resolved
 						 * through the meal, which credits its recipe.
 						 *
-						 * Stays in the flow above the title rather than sitting
-						 * over the picture as on the browse cards — this card's
-						 * thumbnail is 124px square (84px on phones), too small
-						 * to overlay a word without crowding it.
+						 * Joins the card's existing chip row instead of standing
+						 * on its own: the card already has a pill vocabulary, and
+						 * the browse cards' overlay is no option here — this
+						 * thumbnail is 124px square, 84px on phones.
 						 */
-						$meal_disclosure = self::disclosure_pill( (int) $meal->get_id() );
+						$meal_disclosure = self::disclosure_chip( (int) $meal->get_id() );
 						?>
                         <a class="mmm-recipe-card<?php echo $thumb_id ? '' : ' mmm-recipe-card--noimg'; ?>" href="<?php echo esc_url( $meal_url ); ?>">
 							<?php if ( $thumb_id ) : ?>
@@ -2276,10 +2276,10 @@ class Mixmymeals_Shortcodes {
 							<?php endif; ?>
 
                             <div class="mmm-recipe-card__body">
-								<?php echo $meal_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
                                 <h3 class="mmm-recipe-card__title"><?php echo esc_html( $title ); ?></h3>
 
                                 <div class="mmm-recipe-card__meta">
+									<?php echo $meal_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 									<?php if ( $meal->get_servings() ) : ?>
                                         <span class="mmm-chip"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
 											printf(
