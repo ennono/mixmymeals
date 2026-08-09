@@ -68,6 +68,8 @@ class Mixmymeals_Settings {
 		add_action( 'add_option_mixmymeals_ingredient_slug', array( $this, 'schedule_rewrite_flush' ) );
 		add_action( 'update_option_mixmymeals_equipment_slug', array( $this, 'schedule_rewrite_flush' ) );
 		add_action( 'add_option_mixmymeals_equipment_slug', array( $this, 'schedule_rewrite_flush' ) );
+		add_action( 'update_option_mixmymeals_author_slug', array( $this, 'schedule_rewrite_flush' ) );
+		add_action( 'add_option_mixmymeals_author_slug', array( $this, 'schedule_rewrite_flush' ) );
 		add_action( 'init', array( $this, 'maybe_flush_rewrite' ), 99 );
 
 		// Handle the "send test e-mail" button on the E-Mail tab.
@@ -192,6 +194,18 @@ class Mixmymeals_Settings {
 					'id'          => 'meal_slug',
 					'label'       => __( 'Meal Slug', 'mixmymeals' ),
 					'description' => __( 'Set the prefix for meals in the URL.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
+				array(
+					'id'          => 'author_slug',
+					'label'       => __( 'Author Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for author archives in the URL. Must not be "author" — WordPress uses that for its own user archives.',
 						'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',

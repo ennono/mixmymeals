@@ -2452,7 +2452,7 @@ class Mixmymeals_Post_Meta {
 	 * @return string
 	 */
 	public static function get_author_name( int $post_id ): string {
-		return trim( (string) get_post_meta( $post_id, self::AUTHOR_NAME, true ) );
+		return trim( (string) self::get_author_data( $post_id )['name'] );
 	}
 
 	/**
@@ -2462,7 +2462,7 @@ class Mixmymeals_Post_Meta {
 	 * @return string
 	 */
 	public static function get_author_text( int $post_id ): string {
-		return trim( (string) get_post_meta( $post_id, self::AUTHOR_TEXT, true ) );
+		return trim( (string) self::get_author_data( $post_id )['text'] );
 	}
 
 	/**
@@ -2472,7 +2472,7 @@ class Mixmymeals_Post_Meta {
 	 * @return string
 	 */
 	public static function get_author_url( int $post_id ): string {
-		return trim( (string) get_post_meta( $post_id, self::AUTHOR_URL, true ) );
+		return trim( (string) self::get_author_data( $post_id )['url'] );
 	}
 
 	/**
@@ -2484,7 +2484,7 @@ class Mixmymeals_Post_Meta {
 	 */
 	public static function get_author_link_text( int $post_id ): string {
 
-		$text = trim( (string) get_post_meta( $post_id, self::AUTHOR_LINK_TEXT, true ) );
+		$text = trim( (string) self::get_author_data( $post_id )['link_text'] );
 
 		if ( '' !== $text ) {
 			return $text;
@@ -2502,7 +2502,7 @@ class Mixmymeals_Post_Meta {
 	 * @return bool
 	 */
 	public static function get_author_nofollow( int $post_id ): bool {
-		return '1' === (string) get_post_meta( $post_id, self::AUTHOR_NOFOLLOW, true );
+		return (bool) self::get_author_data( $post_id )['nofollow'];
 	}
 
 	/**
@@ -2516,7 +2516,7 @@ class Mixmymeals_Post_Meta {
 	 */
 	public static function get_author_social( int $post_id ): array {
 
-		$stored = get_post_meta( $post_id, self::AUTHOR_SOCIAL, true );
+		$stored = self::get_author_data( $post_id )['social'];
 
 		return is_array( $stored ) ? array_values( array_filter( $stored ) ) : array();
 	}
@@ -2530,7 +2530,7 @@ class Mixmymeals_Post_Meta {
 	 * @return int
 	 */
 	public static function get_author_image_id( int $post_id ): int {
-		return (int) get_post_meta( $post_id, self::AUTHOR_IMAGE, true );
+		return (int) self::get_author_data( $post_id )['image'];
 	}
 
 	/**
@@ -2577,20 +2577,48 @@ class Mixmymeals_Post_Meta {
 	 */
 	public static function get_author_data( int $post_id ): array {
 
+		/*
+		 * The author lives on a term since the taxonomy was introduced, so that
+		 * one person exists once and gets an archive of their contributions.
+		 * This method is the only place that decides where the fields come from
+		 * — every get_author_*() reads through here, so they cannot disagree.
+		 *
+		 * The legacy per-post meta stays readable as a fallback: an install that
+		 * has not run the migration yet, or a post restored from an older
+		 * backup, must show its credit rather than silently drop it.
+		 */
+		$term = Mixmymeals_Author::get_post_data( $post_id );
+
+		if ( ! empty( $term ) ) {
+			return $term;
+		}
+
+		$social = get_post_meta( $post_id, self::AUTHOR_SOCIAL, true );
+
 		return array(
-			'name'      => self::get_author_name( $post_id ),
-			'text'      => self::get_author_text( $post_id ),
-			'url'       => self::get_author_url( $post_id ),
+			'name'      => trim( (string) get_post_meta( $post_id, self::AUTHOR_NAME, true ) ),
+			'text'      => trim( (string) get_post_meta( $post_id, self::AUTHOR_TEXT, true ) ),
+			'url'       => trim( (string) get_post_meta( $post_id, self::AUTHOR_URL, true ) ),
 			'link_text' => trim( (string) get_post_meta( $post_id, self::AUTHOR_LINK_TEXT, true ) ),
-			'nofollow'  => self::get_author_nofollow( $post_id ),
-			'social'    => self::get_author_social( $post_id ),
-			'image'     => self::get_author_image_id( $post_id ),
+			'nofollow'  => '1' === (string) get_post_meta( $post_id, self::AUTHOR_NOFOLLOW, true ),
+			'social'    => is_array( $social ) ? array_values( array_filter( $social ) ) : array(),
+			'image'     => (int) get_post_meta( $post_id, self::AUTHOR_IMAGE, true ),
 		);
 	}
 
 	/**
-	 * Stores the author fields. Empty values delete their meta so the post
-	 * cleanly falls back to the WordPress author.
+	 * Stores the author fields. An empty name removes the credit so the post
+	 * cleanly falls back to its WordPress author.
+	 *
+	 * The fields live on the author term, not on the post: the name identifies
+	 * the person, and everything else describes them rather than this one
+	 * contribution. Editing the bio here therefore updates it everywhere that
+	 * author appears — which is the point of the taxonomy, and the reason a
+	 * typo in the name creates a second person rather than renaming the first.
+	 *
+	 * Legacy post meta is cleared for this post on the way, so a half-migrated
+	 * install cannot end up with the term saying one thing and the old fallback
+	 * another.
 	 *
 	 * @param int   $post_id Post ID.
 	 * @param array $data    name, text, url, link_text, nofollow, social, image.
@@ -2598,39 +2626,47 @@ class Mixmymeals_Post_Meta {
 	 */
 	public static function save_author_data( int $post_id, array $data ): void {
 
-		$map = array(
-			self::AUTHOR_NAME      => isset( $data['name'] ) ? sanitize_text_field( $data['name'] ) : '',
-			self::AUTHOR_TEXT      => isset( $data['text'] ) ? wp_kses_post( $data['text'] ) : '',
-			self::AUTHOR_URL       => isset( $data['url'] ) ? esc_url_raw( $data['url'] ) : '',
-			self::AUTHOR_LINK_TEXT => isset( $data['link_text'] ) ? sanitize_text_field( $data['link_text'] ) : '',
-			self::AUTHOR_NOFOLLOW  => ! empty( $data['nofollow'] ) ? '1' : '',
-		);
+		$name = isset( $data['name'] ) ? trim( sanitize_text_field( $data['name'] ) ) : '';
 
-		foreach ( $map as $key => $value ) {
-			if ( '' === trim( (string) $value ) ) {
-				delete_post_meta( $post_id, $key );
-				continue;
-			}
+		self::clear_legacy_author_meta( $post_id );
 
-			update_post_meta( $post_id, $key, $value );
-		}
-
-		$image = isset( $data['image'] ) ? absint( $data['image'] ) : 0;
-
-		if ( $image ) {
-			update_post_meta( $post_id, self::AUTHOR_IMAGE, $image );
-		} else {
-			delete_post_meta( $post_id, self::AUTHOR_IMAGE );
-		}
-
-		$social = isset( $data['social'] ) ? self::parse_author_social( $data['social'] ) : array();
-
-		if ( empty( $social ) ) {
-			delete_post_meta( $post_id, self::AUTHOR_SOCIAL );
+		if ( '' === $name ) {
+			Mixmymeals_Author::assign( $post_id, 0 );
 			return;
 		}
 
-		update_post_meta( $post_id, self::AUTHOR_SOCIAL, $social );
+		$term_id = Mixmymeals_Author::find_or_create( $name );
+
+		if ( ! $term_id ) {
+			return;
+		}
+
+		Mixmymeals_Author::save_term_data( $term_id, $data );
+		Mixmymeals_Author::assign( $post_id, $term_id );
+	}
+
+	/**
+	 * Drops the pre-taxonomy author meta of one post.
+	 *
+	 * Only ever called when that post's credit is being rewritten, so the
+	 * fallback in get_author_data() keeps covering posts nobody has touched yet.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	private static function clear_legacy_author_meta( int $post_id ): void {
+
+		foreach ( array(
+			self::AUTHOR_NAME,
+			self::AUTHOR_TEXT,
+			self::AUTHOR_URL,
+			self::AUTHOR_LINK_TEXT,
+			self::AUTHOR_NOFOLLOW,
+			self::AUTHOR_SOCIAL,
+			self::AUTHOR_IMAGE,
+		) as $key ) {
+			delete_post_meta( $post_id, $key );
+		}
 	}
 
 	/**
@@ -2641,7 +2677,7 @@ class Mixmymeals_Post_Meta {
 	 * @param string|array $raw One entry per line, or a list of entries.
 	 * @return string[]
 	 */
-	private static function parse_author_social( $raw ): array {
+	public static function parse_author_social( $raw ): array {
 
 		$lines = is_array( $raw )
 			? array_map( 'strval', $raw )

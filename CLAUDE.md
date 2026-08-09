@@ -123,7 +123,15 @@ A companion MCP server for AI automation lives in `tools/mcp-server.mjs` (exclud
 
 ### Author box
 
-The external author credit shared by recipes and meal plans lives in `Mixmymeals_Post_Meta` next to the image credit and follows the same split: the `AUTHOR_*` constants map the seven `_mmm_author_*` meta keys, with `get_author_name/text/url/link_text/nofollow/social/image_id/image_url()`, `get_author_data()`, `save_author_data()` and `has_external_author()` beside the meta box (`render_author_metabox()` / `save_author_meta()`) that edits them. An empty name falls the box back to the post's WordPress author.
+The external author credit shared by recipes and meal plans is read through `Mixmymeals_Post_Meta` — `get_author_name/text/url/link_text/nofollow/social/image_id/image_url()`, `get_author_data()`, `save_author_data()` and `has_external_author()`, beside the meta box (`render_author_metabox()` / `save_author_meta()`) that edits them. An empty name falls the box back to the post's WordPress author.
+
+**The data itself lives on a term, not on the post.** `Mixmymeals_Author` owns the taxonomy `mmm_author` (`Mixmymeals_Author::TAXONOMY`, registered in `Mixmymeals_Taxonomies::register_author_taxonomy()` for `mmm_recipe` and `mmm_meal_plan`, hooks attached once per request via `Mixmymeals_Author::register()` in `mixmymeals.php`). The term name is the author's name, the term description their bio, and five term metas carry the rest under the *same* `_mmm_author_*` keys the post meta used. An author therefore exists once instead of being re-typed per contribution, and gets a public archive of everything they wrote — which is the page a guest author links to from their own site, and the whole reason the taxonomy is public.
+
+The archive slug comes from `mixmymeals_author_slug` and defaults to the **plural** `authors`: WordPress core owns `/author/` through its `author_base`, and registering a taxonomy on the same base makes one of the two unreachable.
+
+`get_author_data()` is the single place that decides where the fields come from — every other getter reads through it, so they cannot disagree. It prefers the term and falls back to the legacy per-post meta, so an install that has not run the migration, or a post restored from an older backup, still shows its credit. `save_author_data()` writes the term (find-or-create by name), assigns it, and clears that post's legacy meta so the two can never contradict each other. Note the consequence: editing the bio on one recipe changes it everywhere that author appears, and a typo in the name creates a second person rather than renaming the first.
+
+The one-off move of legacy meta into terms is `Mixmymeals_Author::migrate()`, gated on `mixmymeals_author_taxonomy_version`. It deliberately leaves the old rows in place — they are inert once a term exists, and they are the only way back if two people who happened to share a name were merged.
 
 The markup is `render_author_box()` in `Mixmymeals_Shortcodes`, shared by `[mmm_recipe_author_box]` and `[mmm_meal_plan_author_box]` so both post types render identically. A picture (`_mmm_author_image`, attachment ID) is rendered with the same classes and size (`AUTHOR_AVATAR_SIZE`) as `get_avatar()`, so both sources look identical; without one the media block is omitted.
 

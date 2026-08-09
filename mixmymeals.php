@@ -33,6 +33,7 @@ require_once 'includes/lib/class-mixmymeals-post-types.php';
 require_once 'includes/lib/class-mixmymeals-taxonomies.php';
 require_once 'includes/lib/class-mixmymeals-shortcodes.php';
 require_once 'includes/lib/class-mixmymeals-post-meta.php';
+require_once 'includes/lib/class-mixmymeals-author.php';
 require_once 'includes/lib/class-mixmymeals-recipe.php';
 require_once 'includes/lib/class-mixmymeals-ingredient.php';
 require_once 'includes/lib/class-mixmymeals-ingredient-amount.php';
@@ -103,6 +104,9 @@ Mixmymeals_Recipe::register_cook_count();
 // Bring!-Importansicht: ebenso statisch, Pläne werden pro Post instanziiert,
 // Query-Var und template_redirect brauchen aber einen Hook pro Request.
 Mixmymeals_Meal_Plan::register_bring();
+// Autoren-Taxonomie: Term-Felder und die einmalige Migration der alten
+// Post-Meta-Felder, ebenfalls ein Hook-Satz pro Request.
+Mixmymeals_Author::register();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();

@@ -31,6 +31,70 @@ class Mixmymeals_Taxonomies {
 		);
 		add_action( 'init', array( $this, 'register_meal_plan_category_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_meal_plan_tag_taxonomy' ) );
+		add_action( 'init', array( $this, 'register_author_taxonomy' ) );
+	}
+
+	/**
+	 * Registers the non-hierarchical taxonomy "Authors", shared by recipes and
+	 * meal plans.
+	 *
+	 * An author used to be seven free-text meta fields repeated on every post,
+	 * which meant the same person was re-typed for every contribution and had
+	 * nowhere to point to. As a term they exist once and get an archive of
+	 * everything they contributed — which is the thing a guest author can link
+	 * to from their own site, and the reason this taxonomy is public at all.
+	 *
+	 * The slug deliberately defaults to the plural: WordPress core owns
+	 * "/author/" through its author_base, and registering a taxonomy on the
+	 * same base makes one of the two unreachable.
+	 */
+	public function register_author_taxonomy(): void {
+
+		$labels = array(
+			'name'                       => _x( 'Authors', 'taxonomy general name', 'mixmymeals' ),
+			'singular_name'              => _x( 'Author', 'taxonomy singular name', 'mixmymeals' ),
+			'search_items'               => __( 'Search Authors', 'mixmymeals' ),
+			'popular_items'              => __( 'Frequent Authors', 'mixmymeals' ),
+			'all_items'                  => __( 'All Authors', 'mixmymeals' ),
+			'edit_item'                  => __( 'Edit Author', 'mixmymeals' ),
+			'update_item'                => __( 'Update Author', 'mixmymeals' ),
+			'add_new_item'               => __( 'Add New Author', 'mixmymeals' ),
+			'new_item_name'              => __( 'New Author Name', 'mixmymeals' ),
+			'separate_items_with_commas' => __( 'Separate authors with commas', 'mixmymeals' ),
+			'add_or_remove_items'        => __( 'Add or remove authors', 'mixmymeals' ),
+			'choose_from_most_used'      => __( 'Choose from the most used', 'mixmymeals' ),
+			'not_found'                  => __( 'No authors found.', 'mixmymeals' ),
+			'back_to_items'              => __( '← Back to authors', 'mixmymeals' ),
+			'menu_name'                  => __( 'Authors', 'mixmymeals' ),
+		);
+
+		$slug = trim( (string) get_option( 'mixmymeals_author_slug' ) );
+
+		if ( '' === $slug ) {
+			$slug = _x( 'authors', 'author archive URL slug', 'mixmymeals' );
+		}
+
+		$args = array(
+			'labels'             => $labels,
+			'public'             => true,
+			'publicly_queryable' => true,
+			'show_ui'            => true,
+			'show_admin_column'  => true,
+			'hierarchical'       => false,
+			'show_in_rest'       => true,
+			'query_var'          => true,
+			'rewrite'            => array(
+				'slug'       => $slug,
+				'with_front' => false,
+				'feeds'      => false,
+			),
+		);
+
+		register_taxonomy(
+			Mixmymeals_Author::TAXONOMY,
+			array( 'mmm_recipe', 'mmm_meal_plan' ),
+			$args
+		);
 	}
 
 	/**
