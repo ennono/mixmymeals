@@ -516,11 +516,13 @@ body.mmm-cook-mode-open {
    not a line in the flow: these rows are dense, and a line of its own both
    shifted the layout and read as part of the heading. Cards without a photo
    keep the in-flow position, so the rules stay scoped to the media block. */
-.mmm-recipe-row__media {
+.mmm-recipe-row__media,
+.mmm-plan-teaser__media {
     position: relative;
 }
 
-.mmm-recipe-row__media .mmm-disclosure--card {
+.mmm-recipe-row__media .mmm-disclosure--card,
+.mmm-plan-teaser__media .mmm-disclosure--card {
     position: absolute;
     top: var(--mmm-s2, 8px);
     left: var(--mmm-s2, 8px);

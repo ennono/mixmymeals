@@ -526,6 +526,11 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 
 		echo '<div class="mmm-meal-plan-meta">';
+
+		// Leads the row, same as in the recipe archive: the plan list is where
+		// a paid plan has to be recognisable without opening it first.
+		echo self::disclosure_chip( (int) $plan_id, 'mmm-meta__item' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+
 		if ( $num_of_days ) {
 			echo '<span class="mmm-meta__item mmm-meta__item--days">'
 			     . esc_html( str_replace( '%s', $num_of_days, _n( '%s Day', '%s Days', $num_of_days, 'mixmymeals' ) ) )
@@ -1366,12 +1371,21 @@ class Mixmymeals_Shortcodes {
 				<h2 class="mmm-recipe-row__title"><?php echo esc_html( (string) $atts['title'] ); ?></h2>
 			<?php endif; ?>
 			<a class="mmm-plan-teaser__card" href="<?php echo esc_url( $url ); ?>">
+				<?php
+				// Same placement rule as the browse cards: over the picture when
+				// there is one, in the body when there is not.
+				$mmm_disclosure = self::disclosure_pill( (int) $plan_id );
+				?>
 				<?php if ( '' !== $thumb ) : ?>
 					<div class="mmm-plan-teaser__media">
 						<?php echo $thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- image markup from get_the_post_thumbnail(). ?>
+						<?php echo $mmm_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 					</div>
 				<?php endif; ?>
 				<div class="mmm-plan-teaser__body">
+					<?php if ( '' === $thumb ) : ?>
+						<?php echo $mmm_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<?php endif; ?>
 					<span class="mmm-plan-teaser__kicker"><?php esc_html_e( 'Latest meal plan', 'mixmymeals' ); ?></span>
 					<h3 class="mmm-plan-teaser__heading"><?php echo esc_html( get_the_title( $plan_id ) ); ?></h3>
 					<?php echo $meta; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
@@ -2234,6 +2248,19 @@ class Mixmymeals_Shortcodes {
 						$thumb_id = (int) get_post_thumbnail_id( $recipe_id );
 
 						$cost = $recipe->calculate_cost_per_serving();
+
+						/*
+						 * Per meal, not per plan: an editorial plan may well
+						 * contain a single sponsored recipe, and that is exactly
+						 * the case the plan's own label would not cover. Resolved
+						 * through the meal, which credits its recipe.
+						 *
+						 * Stays in the flow above the title rather than sitting
+						 * over the picture as on the browse cards — this card's
+						 * thumbnail is 124px square (84px on phones), too small
+						 * to overlay a word without crowding it.
+						 */
+						$meal_disclosure = self::disclosure_pill( (int) $meal->get_id() );
 						?>
                         <a class="mmm-recipe-card<?php echo $thumb_id ? '' : ' mmm-recipe-card--noimg'; ?>" href="<?php echo esc_url( $meal_url ); ?>">
 							<?php if ( $thumb_id ) : ?>
@@ -2249,6 +2276,7 @@ class Mixmymeals_Shortcodes {
 							<?php endif; ?>
 
                             <div class="mmm-recipe-card__body">
+								<?php echo $meal_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
                                 <h3 class="mmm-recipe-card__title"><?php echo esc_html( $title ); ?></h3>
 
                                 <div class="mmm-recipe-card__meta">
