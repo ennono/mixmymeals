@@ -64,12 +64,16 @@ class Mixmymeals_Author {
 	const MIGRATION_VERSION = 1;
 
 	/**
-	 * Attaches the hooks once per request. Called from mixmymeals.php, the same
-	 * pattern as Mixmymeals_Recipe::register_cook_count().
+	 * Attaches the admin-side hooks once per request: the extra fields on the
+	 * term forms and the one-off migration. Called from mixmymeals.php, the
+	 * same pattern as Mixmymeals_Recipe::register_cook_count().
+	 *
+	 * The taxonomy itself is NOT registered here — that belongs in
+	 * Mixmymeals_Taxonomies::register_author_taxonomy(), next to the other six.
 	 *
 	 * @return void
 	 */
-	public static function register(): void {
+	public static function register_term_admin(): void {
 
 		static $done = false;
 
@@ -551,9 +555,7 @@ class Mixmymeals_Author {
 	 * @param int $term_id Term ID.
 	 * @return void
 	 */
-	public static function save_term_fields( $term_id ): void {
-
-		$term_id = (int) $term_id;
+	public static function save_term_fields( int $term_id ): void {
 
 		if ( ! isset( $_POST['mmm_author_term_nonce'] )
 			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mmm_author_term_nonce'] ) ), 'mmm_author_term' ) ) {

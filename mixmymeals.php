@@ -105,8 +105,9 @@ Mixmymeals_Recipe::register_cook_count();
 // Query-Var und template_redirect brauchen aber einen Hook pro Request.
 Mixmymeals_Meal_Plan::register_bring();
 // Autoren-Taxonomie: Term-Felder und die einmalige Migration der alten
-// Post-Meta-Felder, ebenfalls ein Hook-Satz pro Request.
-Mixmymeals_Author::register();
+// Post-Meta-Felder, ebenfalls ein Hook-Satz pro Request. Die Taxonomie selbst
+// registriert Mixmymeals_Taxonomies wie alle anderen auch.
+Mixmymeals_Author::register_term_admin();
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();
