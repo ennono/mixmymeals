@@ -1230,16 +1230,23 @@ class Mixmymeals_Shortcodes {
 
 			// Recipes without a photo render cookbook-style: no media block,
 			// just the (nicely typeset) title — flagged via modifier class.
+			// Over the picture rather than above the title: these browse rows are
+			// dense, and a line of its own between image and heading both shifted
+			// the layout and read as part of the heading. Cards without a photo
+			// have nothing to overlay, so there it keeps the old place.
+			$disclosure = self::disclosure_pill( $id );
+
 			echo '<article class="mmm-recipe-row__card' . ( $thumb ? '' : ' mmm-recipe-row__card--noimg' ) . '">';
 			if ( $thumb ) {
 				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '">'
 					. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
+					. $disclosure // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 					. '</a>';
 			}
 			echo '<div class="mmm-recipe-row__body">';
-			// Above the title, like in print: a disclosure that only appears
-			// after the click does not do its job.
-			echo self::disclosure_pill( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			if ( ! $thumb ) {
+				echo $disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			}
 			echo '<h3 class="mmm-recipe-row__name"><a href="' . esc_url( $permalink ) . '">'
 				. esc_html( get_the_title( $id ) ) . '</a></h3>';
 			// These slim browse cards deliberately omit the meta pills; only the
@@ -1535,13 +1542,20 @@ class Mixmymeals_Shortcodes {
 			$thumb     = $this->get_meal_plan_card_thumbnail( $id );
 
 			echo '<article class="mmm-recipe-row__card mmm-recipe-row__card--plan">';
+			// Same placement as the recipe cards: over the picture when there is
+			// one, above the title when there is not.
+			$disclosure = self::disclosure_pill( $id );
+
 			if ( '' !== $thumb ) {
 				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '">'
 					. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
+					. $disclosure // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 					. '</a>';
 			}
 			echo '<div class="mmm-recipe-row__body">';
-			echo self::disclosure_pill( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			if ( '' === $thumb ) {
+				echo $disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			}
 			echo '<h3 class="mmm-recipe-row__name"><a href="' . esc_url( $permalink ) . '">'
 				. esc_html( get_the_title( $id ) ) . '</a></h3>';
 			echo $this->render_meal_plan_card_meta( $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.

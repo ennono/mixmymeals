@@ -507,8 +507,25 @@ body.mmm-cook-mode-open {
     white-space: nowrap;
 }
 
-/* Card variant: sits above the title in browse rows and archive entries,
-   label only — the sponsor name stays on the single page. */
+/* Card variant: label only — the sponsor name stays on the single page. */
 .mmm-disclosure--card {
     margin: 0 0 var(--mmm-s1, 4px);
+}
+
+/* Inside a browse card's picture the label is an overlay in the top corner,
+   not a line in the flow: these rows are dense, and a line of its own both
+   shifted the layout and read as part of the heading. Cards without a photo
+   keep the in-flow position, so the rules stay scoped to the media block. */
+.mmm-recipe-row__media {
+    position: relative;
+}
+
+.mmm-recipe-row__media .mmm-disclosure--card {
+    position: absolute;
+    top: var(--mmm-s2, 8px);
+    left: var(--mmm-s2, 8px);
+    margin: 0;
+    z-index: 1;
+    /* The picture is a link; the label must not swallow the click. */
+    pointer-events: none;
 }
