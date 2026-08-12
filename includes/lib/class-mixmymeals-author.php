@@ -91,6 +91,46 @@ class Mixmymeals_Author {
 
 		// One-off move of the legacy per-post fields into terms.
 		add_action( 'admin_init', array( __CLASS__, 'maybe_migrate' ) );
+
+		add_filter( 'rest_prepare_taxonomy', array( __CLASS__, 'hide_block_editor_panel' ), 10, 3 );
+	}
+
+	/**
+	 * Keeps the block editor from rendering its automatic taxonomy panel for
+	 * authors.
+	 *
+	 * Gutenberg builds that panel for every taxonomy it can see over REST, which
+	 * would put a second control for the same relation next to the author box —
+	 * one that assigns any number of authors, while everything downstream reads
+	 * exactly one. Worse, the panel saves with the post's REST request, before
+	 * the meta boxes POST, so the two would take turns overwriting each other.
+	 *
+	 * Only the REST *representation* is changed, so the Authors screen under the
+	 * post type menu — where an author is actually edited — stays where it is.
+	 *
+	 * @param WP_REST_Response $response Response object.
+	 * @param WP_Taxonomy      $taxonomy Taxonomy being prepared.
+	 * @param WP_REST_Request  $request  Request object.
+	 * @return WP_REST_Response
+	 */
+	public static function hide_block_editor_panel( $response, $taxonomy, $request ) {
+
+		if ( ! isset( $taxonomy->name ) || self::TAXONOMY !== $taxonomy->name ) {
+			return $response;
+		}
+
+		if ( 'edit' !== $request->get_param( 'context' ) ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( isset( $data['visibility'] ) ) {
+			$data['visibility']['show_ui'] = false;
+			$response->set_data( $data );
+		}
+
+		return $response;
 	}
 
 	/* ---------------------------------------------------------------------

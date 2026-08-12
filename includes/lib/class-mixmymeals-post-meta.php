@@ -2335,12 +2335,77 @@ class Mixmymeals_Post_Meta {
 			)
 			. '</p>';
 
+		/*
+		 * Picking beats typing: the author is a term now, so a re-typed name is
+		 * not the same person but a second one. The select is therefore the
+		 * primary control and the name field only exists for creating someone
+		 * who is not in the list yet — while an existing author is selected it
+		 * is read-only, because a changed name there is far more likely to mean
+		 * "credit somebody else" than "rename this person". Renaming belongs on
+		 * the term screen, which the link next to the select opens.
+		 */
+		$current_term = Mixmymeals_Author::get_post_term( $post->ID );
+		$current_id   = $current_term ? (int) $current_term->term_id : 0;
+
+		$authors = get_terms(
+			array(
+				'taxonomy'   => Mixmymeals_Author::TAXONOMY,
+				'hide_empty' => false,
+				'orderby'    => 'name',
+			)
+		);
+
+		$authors = is_wp_error( $authors ) ? array() : $authors;
+
+		// Every author's fields travel to the browser so switching the select
+		// fills the form immediately instead of needing a save first.
+		$records = array();
+
+		foreach ( $authors as $author ) {
+			$record = Mixmymeals_Author::get_term_data( (int) $author->term_id );
+
+			$record['image_url'] = $record['image']
+				? (string) wp_get_attachment_image_url( $record['image'], 'thumbnail' )
+				: '';
+			$record['edit_url']  = (string) get_edit_term_link( (int) $author->term_id, Mixmymeals_Author::TAXONOMY );
+
+			$records[ (int) $author->term_id ] = $record;
+		}
+
 		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
+
+		echo '<tr><th scope="row"><label for="mmm_author_term">'
+			. esc_html__( 'Author', 'mixmymeals' ) . '</label></th><td>';
+
+		echo '<select id="mmm_author_term" name="mmm_author_term">';
+		echo '<option value="0"' . selected( $current_id, 0, false ) . '>'
+			. esc_html__( '— WordPress author —', 'mixmymeals' ) . '</option>';
+
+		foreach ( $authors as $author ) {
+			echo '<option value="' . esc_attr( (string) $author->term_id ) . '"'
+				. selected( $current_id, (int) $author->term_id, false ) . '>'
+				. esc_html( $author->name ) . '</option>';
+		}
+
+		echo '<option value="-1">' . esc_html__( '— New author —', 'mixmymeals' ) . '</option>';
+		echo '</select> ';
+
+		echo '<a href="' . esc_url( (string) get_edit_term_link( $current_id, Mixmymeals_Author::TAXONOMY ) )
+			. '" class="mmm-author-edit-link"' . ( $current_id ? '' : ' style="display:none;"' ) . '>'
+			. esc_html__( 'Edit this author', 'mixmymeals' ) . '</a>';
+
+		echo '<p class="description">'
+			. esc_html__( 'The fields below belong to the author, not to this post — changing them updates every recipe and plan they are credited on.', 'mixmymeals' )
+			. '</p></td></tr>';
 
 		echo '<tr><th scope="row"><label for="mmm_author_name">'
 			. esc_html__( 'Author Name', 'mixmymeals' ) . '</label></th>'
 			. '<td><input type="text" class="regular-text" id="mmm_author_name" name="mmm_author_name" value="'
-			. esc_attr( self::get_author_name( $post->ID ) ) . '" /></td></tr>';
+			. esc_attr( self::get_author_name( $post->ID ) ) . '"'
+			. ( $current_id ? ' readonly="readonly"' : '' ) . ' />'
+			. '<p class="description">'
+			. esc_html__( 'Only editable for a new author. Rename an existing one on their own screen.', 'mixmymeals' )
+			. '</p></td></tr>';
 
 		// Plain textarea, upgraded to a slim TinyMCE by admin.js. Deliberately
 		// NOT wp_editor(): in the block editor classic meta boxes are moved into
@@ -2403,6 +2468,121 @@ class Mixmymeals_Post_Meta {
 			. '</p></td></tr>';
 
 		echo '</tbody></table>';
+
+		/*
+		 * Inline rather than in admin.js: this behaviour is meaningless outside
+		 * this one box, and admin.js ships as a .js/.min.js pair that would have
+		 * to be kept in sync for it.
+		 */
+		?>
+		<script>
+		( function () {
+			var records = <?php echo wp_json_encode( (object) $records ); ?>;
+			var select  = document.getElementById( 'mmm_author_term' );
+
+			if ( ! select ) {
+				return;
+			}
+
+			var name    = document.getElementById( 'mmm_author_name' );
+			var link    = document.querySelector( '.mmm-author-edit-link' );
+			var rows    = select.closest( 'tbody' ).querySelectorAll( 'tr' );
+			var preview = document.querySelector( '.mmm-author-image-preview' );
+
+			function field( id ) {
+				return document.getElementById( id );
+			}
+
+			function fill( record ) {
+				var text = field( 'mmm_author_text' );
+
+				// The bio may have been upgraded to TinyMCE; writing only the
+				// textarea would leave the visible editor showing the previous
+				// author's text.
+				if ( text ) {
+					text.value = record.text || '';
+
+					if ( window.tinymce ) {
+						var editor = window.tinymce.get( 'mmm_author_text' );
+
+						if ( editor ) {
+							editor.setContent( record.text || '' );
+						}
+					}
+				}
+
+				field( 'mmm_author_url' ).value       = record.url || '';
+				field( 'mmm_author_link_text' ).value = record.link_text || '';
+				field( 'mmm_author_social' ).value    = ( record.social || [] ).join( '\n' );
+				field( 'mmm_author_nofollow' ).checked = !! record.nofollow;
+				field( 'mmm_author_image' ).value     = record.image || '';
+
+				if ( preview ) {
+					preview.src = record.image_url || '';
+					preview.style.display = record.image_url ? '' : 'none';
+				}
+
+				var remove = document.querySelector( '.mmm-author-image-remove' );
+
+				if ( remove ) {
+					remove.style.display = record.image_url ? '' : 'none';
+				}
+			}
+
+			var empty = { text: '', url: '', link_text: '', social: [], nofollow: false, image: '', image_url: '' };
+
+			select.addEventListener( 'change', function () {
+				var value  = select.value;
+				var chosen = records[ value ];
+
+				// "WordPress author" hides everything: there is no external
+				// author to describe, so the fields would only invite input
+				// that is then thrown away on save.
+				rows.forEach( function ( row, index ) {
+					if ( index > 0 ) {
+						row.style.display = '0' === value ? 'none' : '';
+					}
+				} );
+
+				if ( link ) {
+					link.style.display = chosen ? '' : 'none';
+
+					if ( chosen ) {
+						link.href = chosen.edit_url;
+					}
+				}
+
+				if ( '0' === value ) {
+					name.value = '';
+					name.readOnly = false;
+					fill( empty );
+					return;
+				}
+
+				if ( chosen ) {
+					name.value = select.options[ select.selectedIndex ].text;
+					name.readOnly = true;
+					fill( chosen );
+					return;
+				}
+
+				// New author.
+				name.value = '';
+				name.readOnly = false;
+				name.focus();
+				fill( empty );
+			} );
+
+			if ( '0' === select.value ) {
+				rows.forEach( function ( row, index ) {
+					if ( index > 0 ) {
+						row.style.display = 'none';
+					}
+				} );
+			}
+		}() );
+		</script>
+		<?php
 	}
 
 	/**
@@ -2430,18 +2610,35 @@ class Mixmymeals_Post_Meta {
 			return;
 		}
 
-		self::save_author_data(
-			$post_id,
-			array(
-				'name'      => wp_unslash( $_POST['mmm_author_name'] ?? '' ),
-				'text'      => wp_unslash( $_POST['mmm_author_text'] ?? '' ),
-				'url'       => wp_unslash( $_POST['mmm_author_url'] ?? '' ),
-				'link_text' => wp_unslash( $_POST['mmm_author_link_text'] ?? '' ),
-				'social'    => wp_unslash( $_POST['mmm_author_social'] ?? '' ),
-				'image'     => absint( $_POST['mmm_author_image'] ?? 0 ),
-				'nofollow'  => ! empty( $_POST['mmm_author_nofollow'] ),
-			)
+		$fields = array(
+			'text'      => wp_unslash( $_POST['mmm_author_text'] ?? '' ),
+			'url'       => wp_unslash( $_POST['mmm_author_url'] ?? '' ),
+			'link_text' => wp_unslash( $_POST['mmm_author_link_text'] ?? '' ),
+			'social'    => wp_unslash( $_POST['mmm_author_social'] ?? '' ),
+			'image'     => absint( $_POST['mmm_author_image'] ?? 0 ),
+			'nofollow'  => ! empty( $_POST['mmm_author_nofollow'] ),
 		);
+
+		$choice = isset( $_POST['mmm_author_term'] ) ? (int) $_POST['mmm_author_term'] : 0;
+
+		/*
+		 * An existing author is addressed by term, never by the name field: it
+		 * is read-only in that case, and honouring a tampered value would
+		 * quietly create a second person instead of failing.
+		 */
+		if ( $choice > 0 && term_exists( $choice, Mixmymeals_Author::TAXONOMY ) ) {
+			self::clear_legacy_author_meta( $post_id );
+			Mixmymeals_Author::save_term_data( $choice, $fields );
+			Mixmymeals_Author::assign( $post_id, $choice );
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			return;
+		}
+
+		// "New author", or the credit being removed — both are decided by the
+		// name, which is what save_author_data() keys off.
+		$fields['name'] = 0 === $choice ? '' : wp_unslash( $_POST['mmm_author_name'] ?? '' );
+
+		self::save_author_data( $post_id, $fields );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
