@@ -25,8 +25,22 @@
 		day_kcal / day_cost / currency
 		day_nutrition_html    Nährwerte des Tages als fertige Zeile: kcal, Eiweiß,
 		                      Kohlenhydrate, Fett — pro Person, eine Portion je
-		                      Mahlzeit (leer, wenn für den Tag nichts vorliegt)
+		                      Mahlzeit (leer, wenn für den Tag nichts vorliegt).
+		                      Ballaststoffe und Salz kommen dazu, sobald sie
+		                      erfasst sind.
+		nutrition_table_html  Alle sieben Werte als Tabelle, mit Anteil an der
+		                      Referenzmenge — aufgebaut wie die Nährwerttabelle
+		                      auf einer Packung, samt Fußnote. Die Fußnote ist
+		                      Teil des Bausteins und darf nicht entfernt werden:
+		                      ohne sie liest sich eine Prozentangabe wie eine
+		                      persönliche Empfehlung.
+		meal_nutrition_html   Energie und Makros je Gericht des Tages, damit die
+		                      Tagessumme nachvollziehbar wird
+		week_nutrition_html   Schnitt pro Tag über den ganzen Plan (leer bei
+		                      einem Plan mit nur einem belegten Tag)
 		day_protein / day_carbs / day_fat   Gramm, pro Person
+		day_sugar / day_fiber / day_salt    Gramm, pro Person
+		day_kcal_percent      Tagesenergie in Prozent der Referenzmenge (nur Zahl)
 		day_ingredients_html  Zutaten für diesen Tag (fertige Liste)
 		shopping_list_html    Komplette Einkaufsliste des Plans
 		site_name / site_url / year
@@ -40,6 +54,14 @@
 {{ day_summary_html }}
 
 {{ day_nutrition_html }}
+
+<h2>Was du heute zu dir nimmst</h2>
+
+{{ meal_nutrition_html }}
+
+{{ nutrition_table_html }}
+
+{{ week_nutrition_html }}
 
 <h2>Zutaten für heute</h2>
 

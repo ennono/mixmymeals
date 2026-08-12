@@ -498,6 +498,134 @@ class Mixmymeals_Meal_Plan {
 	const NUTRITION_KEYS = array( 'calories', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt' );
 
 	/**
+	 * Reference intakes for an average adult, used to put a figure in context:
+	 * "1 850 kcal" says little on its own, "93 % of the reference intake" says
+	 * what it means.
+	 *
+	 * Six of the seven are the reference intakes of EU Regulation 1169/2011,
+	 * Annex XIII — the same values a supermarket label prints, so the numbers
+	 * here and on a packet are directly comparable. Fibre is not part of that
+	 * annex; 30 g follows the DGE recommendation.
+	 *
+	 * These are a *labelling* reference for an average adult (2 000 kcal), not
+	 * a personal recommendation: actual needs vary with age, sex, weight and
+	 * activity. Anything rendering them has to say so — see
+	 * Mixmymeals_Meal_Plan::reference_intake_note().
+	 *
+	 * @var array<string,float>
+	 */
+	const REFERENCE_INTAKE = array(
+		'calories' => 2000.0,
+		'fat'      => 70.0,
+		'carbs'    => 260.0,
+		'protein'  => 50.0,
+		'sugar'    => 90.0,
+		'fiber'    => 30.0,
+		'salt'     => 6.0,
+	);
+
+	/**
+	 * The reference intakes, filterable so a site aimed at a specific audience
+	 * (sports nutrition, children's catering) can set its own.
+	 *
+	 * @return array<string,float>
+	 */
+	public static function reference_intake(): array {
+
+		$values = (array) apply_filters( 'mixmymeals_reference_intake', self::REFERENCE_INTAKE );
+
+		// A filter returning nonsense must not turn into a division by zero
+		// wherever a percentage is worked out.
+		foreach ( self::NUTRITION_KEYS as $key ) {
+			$value = (float) ( $values[ $key ] ?? 0.0 );
+
+			$values[ $key ] = $value > 0 ? $value : self::REFERENCE_INTAKE[ $key ];
+		}
+
+		return $values;
+	}
+
+	/**
+	 * The wording that has to accompany any percentage of the reference intake,
+	 * so a number never reads as personal dietary advice.
+	 *
+	 * @return string
+	 */
+	public static function reference_intake_note(): string {
+
+		return (string) apply_filters(
+			'mixmymeals_reference_intake_note',
+			__( 'Percentages refer to the reference intake of an average adult (2 000 kcal). Your own needs may differ.', 'mixmymeals' )
+		);
+	}
+
+	/**
+	 * Expresses nutrition figures as a percentage of the reference intake.
+	 * Keys without a figure come back as 0.0, so callers can always index all
+	 * seven.
+	 *
+	 * @param array<string,float> $nutrition Absolute figures (kcal and grams).
+	 * @return array<string,float> Percentages, rounded to whole numbers.
+	 */
+	public static function nutrition_percentages( array $nutrition ): array {
+
+		$reference = self::reference_intake();
+		$out       = array();
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+			$value       = (float) ( $nutrition[ $key ] ?? 0.0 );
+			$out[ $key ] = round( $value / $reference[ $key ] * 100 );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Localised labels for the seven nutrition keys, in the order a food label
+	 * lists them.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function nutrition_labels(): array {
+
+		return array(
+			'calories' => __( 'Energy', 'mixmymeals' ),
+			'fat'      => __( 'Fat', 'mixmymeals' ),
+			'carbs'    => __( 'Carbohydrate', 'mixmymeals' ),
+			'sugar'    => __( 'of which sugars', 'mixmymeals' ),
+			'fiber'    => __( 'Fibre', 'mixmymeals' ),
+			'protein'  => __( 'Protein', 'mixmymeals' ),
+			'salt'     => __( 'Salt', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * Formats one nutrition value with its unit: kcal for energy, grams for
+	 * everything else. Salt gets two decimals because a meaningful salt figure
+	 * lives in tenths of a gram, where 0 or 1 would be useless.
+	 *
+	 * @param string $key   Nutrition key.
+	 * @param float  $value Absolute value.
+	 * @return string
+	 */
+	public static function format_nutrition_value( string $key, float $value ): string {
+
+		if ( 'calories' === $key ) {
+			return sprintf(
+				/* translators: %s: kilocalories. */
+				__( '%s kcal', 'mixmymeals' ),
+				number_format_i18n( round( $value ) )
+			);
+		}
+
+		return sprintf(
+			/* translators: %s: an amount in grams. */
+			__( '%s g', 'mixmymeals' ),
+			number_format_i18n( $value, 'salt' === $key ? 2 : 1 )
+		);
+	}
+
+	/**
 	 * Aggregates the plan's nutrition, optionally for a single plan weekday.
 	 * The counterpart to calc_shopping_list() and deliberately built on the same
 	 * per-serving figures the recipe pages and the PDF already use, so all views

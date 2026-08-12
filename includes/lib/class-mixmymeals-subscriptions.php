@@ -1502,9 +1502,24 @@ class Mixmymeals_Subscriptions {
 	 *                                and a token is available).
 	 *  - {{ day_summary_html }}      The day's calorie/cost total (or empty).
 	 *  - {{ day_kcal }} {{ day_cost }} {{ currency }}
-	 *  - {{ day_nutrition_html }}    The day's kcal/protein/carbs/fat as one line,
-	 *                                per person; empty when the day has no data.
+	 *  - {{ day_nutrition_html }}    The day's figures as one line, per person;
+	 *                                empty when the day has no data. Fibre and
+	 *                                salt join it only when recorded.
+	 *  - {{ nutrition_table_html }}  All seven figures with their share of the
+	 *                                reference intake, laid out like a food
+	 *                                label — including the note that the
+	 *                                percentages are a labelling reference and
+	 *                                not personal advice.
+	 *  - {{ meal_nutrition_html }}   Energy and macros of one serving of each of
+	 *                                the day's dishes, so the day's total can be
+	 *                                traced to what caused it.
+	 *  - {{ week_nutrition_html }}   The plan's daily average per person, over
+	 *                                the days that carry meals. Empty for a plan
+	 *                                of a single day.
 	 *  - {{ day_protein }} {{ day_carbs }} {{ day_fat }}  Grams, per person.
+	 *  - {{ day_sugar }} {{ day_fiber }} {{ day_salt }}   Grams, per person.
+	 *  - {{ day_kcal_percent }}      The day's energy as a percentage of the
+	 *                                reference intake (a bare number).
 	 *  - {{ day_ingredients_html }}  Ingredients needed for this day's meals.
 	 *  - {{ shopping_list_html }}    The whole plan's shopping list.
 	 *
@@ -1543,7 +1558,14 @@ class Mixmymeals_Subscriptions {
 			'day_protein'          => number_format_i18n( $nutrition['protein'], 1 ),
 			'day_carbs'            => number_format_i18n( $nutrition['carbs'], 1 ),
 			'day_fat'              => number_format_i18n( $nutrition['fat'], 1 ),
+			'day_sugar'            => number_format_i18n( $nutrition['sugar'], 1 ),
+			'day_fiber'            => number_format_i18n( $nutrition['fiber'], 1 ),
+			'day_salt'             => number_format_i18n( $nutrition['salt'], 2 ),
+			'day_kcal_percent'     => (string) (int) Mixmymeals_Meal_Plan::nutrition_percentages( $nutrition )['calories'],
 			'day_nutrition_html'   => $this->render_day_nutrition( $nutrition ),
+			'nutrition_table_html' => $this->render_nutrition_table( $nutrition ),
+			'meal_nutrition_html'  => $this->render_meal_nutrition( $plan, $day ),
+			'week_nutrition_html'  => $this->render_week_nutrition( $plan ),
 			'currency'             => (string) get_option( 'mixmymeals_currency', '€' ),
 			'day_ingredients_html' => $this->render_ingredient_list( $plan, $day, __( 'No ingredients needed for this day.', 'mixmymeals' ) ),
 			'shopping_list_html'   => $this->render_ingredient_list( $plan, null, __( 'The shopping list is empty.', 'mixmymeals' ) ),
@@ -1587,8 +1609,237 @@ class Mixmymeals_Subscriptions {
 			),
 		);
 
+		/*
+		 * Fibre and salt only when there is something to say. Both are computed
+		 * for every plan but are the two an ingredient database most often
+		 * leaves empty, and a flat "0 g salt" on a day of ready meals would be
+		 * worse than saying nothing. Sugar stays out of this line and lives in
+		 * the table, where it can sit under carbohydrate as a label does it.
+		 */
+		if ( ! empty( $nutrition['fiber'] ) ) {
+			$parts[] = sprintf(
+				/* translators: %s: grams of fibre. */
+				__( '%s g fibre', 'mixmymeals' ),
+				number_format_i18n( (float) $nutrition['fiber'], 1 )
+			);
+		}
+
+		if ( ! empty( $nutrition['salt'] ) ) {
+			$parts[] = sprintf(
+				/* translators: %s: grams of salt. */
+				__( '%s g salt', 'mixmymeals' ),
+				number_format_i18n( (float) $nutrition['salt'], 2 )
+			);
+		}
+
 		return '<p style="margin:0 0 8px;color:#6B665B;font-size:14px;">'
 			. esc_html( implode( ' · ', $parts ) )
+			. '</p>';
+	}
+
+	/**
+	 * The day's nutrition as a full table: all seven figures with their share of
+	 * the reference intake, laid out like the panel on a food packet so the
+	 * numbers are comparable to one.
+	 *
+	 * Table-based and inline-styled on purpose — mail clients have no flexbox
+	 * and strip <style> blocks.
+	 *
+	 * @param array<string,float> $nutrition Per-person figures for the day.
+	 * @return string
+	 */
+	private function render_nutrition_table( array $nutrition ): string {
+
+		if ( empty( $nutrition['calories'] ) ) {
+			return '';
+		}
+
+		$labels      = Mixmymeals_Meal_Plan::nutrition_labels();
+		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $nutrition );
+
+		$rows = '';
+
+		foreach ( $labels as $key => $label ) {
+
+			$value = (float) ( $nutrition[ $key ] ?? 0.0 );
+
+			// A nutrient nobody recorded is left out rather than printed as
+			// zero: "0 g fibre" reads as a measurement, not as a gap.
+			if ( empty( $value ) ) {
+				continue;
+			}
+
+			// "of which sugars" is a sub-entry of carbohydrate on every label,
+			// so it is indented rather than listed as an equal.
+			$indent = 'sugar' === $key ? 'padding-left:16px;' : '';
+
+			$rows .= '<tr>'
+				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;">'
+				. esc_html( $label ) . '</td>'
+				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
+				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $value ) ) . '</td>'
+				. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;">'
+				. esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ) . '</td>'
+				. '</tr>';
+		}
+
+		if ( '' === $rows ) {
+			return '';
+		}
+
+		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
+			. '<tr>'
+			. '<th align="left" style="padding:0 0 4px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;">'
+			. esc_html__( 'Per person, this day', 'mixmymeals' ) . '</th>'
+			. '<th></th>'
+			. '<th align="right" style="padding:0 0 4px 12px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;white-space:nowrap;">'
+			. esc_html__( 'of RI*', 'mixmymeals' ) . '</th>'
+			. '</tr>'
+			. $rows
+			. '</table>'
+			. '<p style="margin:0 0 8px;color:#8A8478;font-size:11px;line-height:1.4;">'
+			. esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() )
+			. '</p>';
+	}
+
+	/**
+	 * The day's meals with the energy and macros of one serving each, so the
+	 * day's total can be traced to the dish it came from — "which of these was
+	 * the heavy one" is the question a single day figure cannot answer.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * @param int                  $day  Weekday (1-7).
+	 * @return string
+	 */
+	private function render_meal_nutrition( Mixmymeals_Meal_Plan $plan, int $day ): string {
+
+		$types = Mixmymeals_Meal::get_plaintext_meal_type_map();
+		$rows  = '';
+
+		foreach ( $plan->get_meals() as $meal_post ) {
+
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+
+			if ( (int) $meal->get_day() !== $day ) {
+				continue;
+			}
+
+			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$per_serving = $recipe->calculate_nutrition_per_serving();
+
+			if ( empty( $per_serving['calories'] ) ) {
+				continue;
+			}
+
+			$type = $meal->get_type() ?: 'other';
+
+			$macros = sprintf(
+				/* translators: 1: grams of protein, 2: grams of carbohydrates, 3: grams of fat. */
+				__( '%1$s g P · %2$s g C · %3$s g F', 'mixmymeals' ),
+				number_format_i18n( (float) ( $per_serving['protein'] ?? 0 ), 1 ),
+				number_format_i18n( (float) ( $per_serving['carbs'] ?? 0 ), 1 ),
+				number_format_i18n( (float) ( $per_serving['fat'] ?? 0 ), 1 )
+			);
+
+			$rows .= '<tr>'
+				. '<td style="padding:6px 0;color:#2C2A24;font-size:14px;">'
+				. esc_html( get_the_title( $recipe->get_id() ) )
+				. '<br><span style="color:#8A8478;font-size:12px;">'
+				. esc_html( $types[ $type ] ?? '' ) . '</span></td>'
+				. '<td style="padding:6px 0 6px 12px;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
+				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', (float) $per_serving['calories'] ) )
+				. '<br><span style="color:#8A8478;font-size:12px;">' . esc_html( $macros ) . '</span></td>'
+				. '</tr>';
+		}
+
+		if ( '' === $rows ) {
+			return '';
+		}
+
+		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
+			. '<tr><th align="left" colspan="2" style="padding:0 0 4px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;">'
+			. esc_html__( 'Per serving, by dish', 'mixmymeals' )
+			. '</th></tr>'
+			. $rows
+			. '</table>';
+	}
+
+	/**
+	 * The whole plan at a glance: the daily average per person plus the number
+	 * of days it covers. A single day says nothing about whether the week
+	 * balances out — this does.
+	 *
+	 * Averaged over the days that actually carry meals, not over the plan's
+	 * length: a plan with two empty days would otherwise look far lighter than
+	 * anything anyone eats.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * @return string
+	 */
+	private function render_week_nutrition( Mixmymeals_Meal_Plan $plan ): string {
+
+		$days_with_meals = 0;
+		$sum             = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0.0 );
+
+		foreach ( $plan->calc_nutrition_by_day() as $figures ) {
+
+			if ( empty( $figures['per_person']['calories'] ) ) {
+				continue;
+			}
+
+			++$days_with_meals;
+
+			foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+				$sum[ $key ] += (float) ( $figures['per_person'][ $key ] ?? 0.0 );
+			}
+		}
+
+		if ( $days_with_meals < 2 ) {
+			return '';
+		}
+
+		$average = array();
+
+		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+			$average[ $key ] = $sum[ $key ] / $days_with_meals;
+		}
+
+		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $average );
+
+		// Each figure carries its label: "670 kcal · 46,4 g · 47,2 g" leaves the
+		// reader guessing which gram is which.
+		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
+		$parts  = array();
+
+		foreach ( array( 'calories', 'protein', 'carbs', 'fat' ) as $key ) {
+
+			$value = Mixmymeals_Meal_Plan::format_nutrition_value( $key, $average[ $key ] );
+
+			$parts[] = 'calories' === $key
+				? $value
+				: sprintf(
+					/* translators: 1: an amount with unit, 2: the nutrient's name. */
+					__( '%1$s %2$s', 'mixmymeals' ),
+					$value,
+					$labels[ $key ]
+				);
+		}
+
+		return '<p style="margin:0 0 8px;color:#6B665B;font-size:14px;">'
+			. esc_html(
+				sprintf(
+					/* translators: 1: number of days with meals, 2: the averaged nutrition figures, 3: percentage of the reference intake. */
+					__( 'Across the %1$d days of this plan, on average per day: %2$s (%3$d %% of the reference intake).', 'mixmymeals' ),
+					$days_with_meals,
+					implode( ' · ', $parts ),
+					(int) $percentages['calories']
+				)
+			)
 			. '</p>';
 	}
 
