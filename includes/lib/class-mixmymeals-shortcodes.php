@@ -5621,62 +5621,56 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
 		}
 
-		$keys           = [ 'calories', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt' ];
-		$totals         = array_fill_keys( $keys, 0.0 );
-		$total_servings = 0.0;
+		$keys = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
 
-		foreach ( $meals as $meal_post ) {
-			$meal      = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe_id = $meal->get_recipe_id();
-			if ( ! $recipe_id ) {
+		/*
+		 * Built on calc_nutrition() rather than on a servings-weighted average
+		 * of its own. This block used to divide the plan's totals by the number
+		 * of servings and scale by meals-per-day, which gave a different answer
+		 * from the subscription mail and the PDF as soon as the days were
+		 * unevenly filled — the same plan quoting two sets of figures depending
+		 * on where you read it. One method, one number, everywhere.
+		 */
+		$person_total = $plan->calc_nutrition()['per_person'];
+
+		// Averaged over the days that carry meals, not over the plan's length,
+		// exactly as the mail does it: two empty days would otherwise make the
+		// plan look lighter than anyone eats.
+		$days_with_meals = 0;
+		$day_sum         = array_fill_keys( $keys, 0.0 );
+
+		foreach ( $plan->calc_nutrition_by_day() as $figures ) {
+
+			if ( empty( $figures['per_person']['calories'] ) ) {
 				continue;
 			}
-			$recipe = new Mixmymeals_Recipe( $recipe_id );
-			if ( ! $recipe->is_valid() ) {
-				continue;
-			}
-			$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
-			$meal_servings         = max( 1.0, floatval( $meal->get_servings() ) );
-			$total_servings       += $meal_servings;
+
+			++$days_with_meals;
 
 			foreach ( $keys as $key ) {
-				$totals[ $key ] += ( $nutrition_per_serving[ $key ] ?? 0.0 ) * $meal_servings;
+				$day_sum[ $key ] += (float) ( $figures['per_person'][ $key ] ?? 0.0 );
 			}
 		}
 
-		$num_days       = max( 1, $plan->count_days() );
-		$num_meals      = max( 1, count( $meals ) );
-		$total_servings = max( 1.0, $total_servings );
-		$meals_per_day  = $num_meals / $num_days;
+		$num_meals   = max( 1, count( $meals ) );
+		$person_day  = [];
+		$person_meal = [];
 
-		// Servings-weighted per-person figures: average nutrition of one
-		// portion, scaled by how many meals a single person eats per day / in
-		// total.
-		$person_total = [];
-		$person_day   = [];
-		$person_meal  = [];
 		foreach ( $keys as $key ) {
-			$portion              = $totals[ $key ] / $total_servings;
-			$person_meal[ $key ]  = $portion;
-			$person_day[ $key ]   = $portion * $meals_per_day;
-			$person_total[ $key ] = $portion * $num_meals;
+			$person_day[ $key ]  = $days_with_meals ? $day_sum[ $key ] / $days_with_meals : 0.0;
+			$person_meal[ $key ] = $person_total[ $key ] / $num_meals;
 		}
 
-		$labels = [
-			'calories' => [ __( 'Calories', 'mixmymeals' ), 'kcal' ],
-			'protein'  => [ __( 'Protein', 'mixmymeals' ), 'g' ],
-			'carbs'    => [ __( 'Carbohydrates', 'mixmymeals' ), 'g' ],
-			'fat'      => [ __( 'Fat', 'mixmymeals' ), 'g' ],
-			'sugar'    => [ __( 'Sugar', 'mixmymeals' ), 'g' ],
-			'fiber'    => [ __( 'Fiber', 'mixmymeals' ), 'g' ],
-			'salt'     => [ __( 'Salt', 'mixmymeals' ), 'g' ],
-		];
+		// Shared with the mail and the PDF so the three never word the same
+		// figure differently.
+		$labels      = Mixmymeals_Meal_Plan::nutrition_labels();
+		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $person_day );
 
 		$stat_cards = [
-			'calories' => [ __( 'Ø Calories / day / person', 'mixmymeals' ), 'kcal', 0 ],
-			'protein'  => [ __( 'Ø Protein / day / person', 'mixmymeals' ), 'g', 1 ],
-			'carbs'    => [ __( 'Ø Carbohydrates / day / person', 'mixmymeals' ), 'g', 1 ],
-			'fat'      => [ __( 'Ø Fat / day / person', 'mixmymeals' ), 'g', 1 ],
+			'calories' => __( 'Ø Energy / day / person', 'mixmymeals' ),
+			'protein'  => __( 'Ø Protein / day / person', 'mixmymeals' ),
+			'carbs'    => __( 'Ø Carbohydrate / day / person', 'mixmymeals' ),
+			'fat'      => __( 'Ø Fat / day / person', 'mixmymeals' ),
 		];
 
 		ob_start();
@@ -5684,11 +5678,11 @@ class Mixmymeals_Shortcodes {
         <div class="mmm-meal-plan-nutrition">
 
             <div class="mmm-nutri-stats">
-				<?php foreach ( $stat_cards as $stat_key => [ $stat_label, $stat_unit, $stat_decimals ] ) : ?>
+				<?php foreach ( $stat_cards as $stat_key => $stat_label ) : ?>
                     <div class="mmm-nutri-stat">
                         <div class="mmm-nutri-stat__k"><?php echo esc_html( $stat_label ); ?></div>
-                        <div class="mmm-nutri-stat__v"><?php echo esc_html( number_format_i18n( $person_day[ $stat_key ], $stat_decimals ) ); ?></div>
-                        <div class="mmm-nutri-stat__u"><?php echo esc_html( $stat_unit ); ?></div>
+                        <div class="mmm-nutri-stat__v"><?php echo esc_html( number_format_i18n( $person_day[ $stat_key ], 'calories' === $stat_key ? 0 : 1 ) ); ?></div>
+                        <div class="mmm-nutri-stat__u"><?php echo esc_html( 'calories' === $stat_key ? __( 'kcal', 'mixmymeals' ) : __( 'g', 'mixmymeals' ) ); ?></div>
                     </div>
 				<?php endforeach; ?>
             </div>
@@ -5699,25 +5693,26 @@ class Mixmymeals_Shortcodes {
                     <th><?php esc_html_e( 'Nutrition', 'mixmymeals' ); ?></th>
                     <th><?php esc_html_e( 'Total / person', 'mixmymeals' ); ?></th>
                     <th><?php esc_html_e( 'Avg. per day / person', 'mixmymeals' ); ?></th>
+                    <th><?php esc_html_e( 'of RI*', 'mixmymeals' ); ?></th>
                     <th><?php esc_html_e( 'Avg. per meal / person', 'mixmymeals' ); ?></th>
                 </tr>
                 </thead>
                 <tbody>
-				<?php foreach ( $labels as $key => [ $label, $unit ] ) :
-					$total    = $person_total[ $key ];
-					$per_day  = $person_day[ $key ];
-					$per_meal = $person_meal[ $key ];
-					$decimals = ( $key === 'calories' ) ? 0 : 1;
-					?>
-                    <tr>
+				<?php foreach ( $labels as $key => $label ) : ?>
+                    <tr<?php echo 'sugar' === $key ? ' class="mmm-nutri-table__sub"' : ''; ?>>
                         <td data-label="<?php echo esc_attr__( 'Nutrition', 'mixmymeals' ); ?>"><?php echo esc_html( $label ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'Total / person', 'mixmymeals' ); ?>"><?php echo esc_html( number_format_i18n( $total, $decimals ) ); ?> <?php echo esc_html( $unit ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'Avg. per day / person', 'mixmymeals' ); ?>"><?php echo esc_html( number_format_i18n( $per_day, $decimals ) ); ?> <?php echo esc_html( $unit ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'Avg. per meal / person', 'mixmymeals' ); ?>"><?php echo esc_html( number_format_i18n( $per_meal, $decimals ) ); ?> <?php echo esc_html( $unit ); ?></td>
+                        <td data-label="<?php echo esc_attr__( 'Total / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_total[ $key ] ) ); ?></td>
+                        <td data-label="<?php echo esc_attr__( 'Avg. per day / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_day[ $key ] ) ); ?></td>
+                        <td data-label="<?php echo esc_attr__( 'of RI*', 'mixmymeals' ); ?>"><?php echo esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ); ?></td>
+                        <td data-label="<?php echo esc_attr__( 'Avg. per meal / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_meal[ $key ] ) ); ?></td>
                     </tr>
 				<?php endforeach; ?>
                 </tbody>
             </table>
+
+            <p class="mmm-nutri-note">
+				<?php echo esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() ); ?>
+            </p>
         </div>
 		<?php
 
