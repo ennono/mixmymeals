@@ -8,7 +8,7 @@ Stable tag: 2.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data, PDF export and social publishing.
+Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data and PDF export.
 
 == Description ==
 
@@ -17,9 +17,7 @@ and ingredient database, assemble weekly meal plans, and automatically generate
 categorised shopping lists.
 
 Visitors can build their own plan in a frontend planner, review the combined
-shopping list and nutrition totals, and export everything as a PDF. Publish
-your plans and recipes to Instagram and Pinterest — immediately or on a
-schedule — with automatically generated, branded images.
+shopping list and nutrition totals, and export everything as a PDF.
 
 = Features =
 
@@ -34,16 +32,12 @@ schedule — with automatically generated, branded images.
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
 * **Meal-plan e-mail subscriptions** with GDPR-friendly double opt-in.
-* **Instagram publishing**: branded carousel images generated from meal plans
-  (cover, overview, one slide per recipe, call-to-action) or single recipe
-  images — post immediately or schedule; images render fresh at publish time.
-* **Pinterest publishing**: pin plans and recipes with a backlink to your
-  site, immediately or scheduled.
-* **Per-user social accounts**: every user connects their own
-  Instagram/Pinterest credentials on their profile and posts to their own
-  channels; a scheduled-posts overview covers all channels and users.
-* **Frontend admin panel** on plan and recipe pages (admins only): post,
-  schedule, set to draft or trash without leaving the page.
+* **Frontend admin panel** on plan and recipe pages (admins only): set to
+  draft or trash without leaving the page. Add-ons can contribute their own
+  actions to it.
+* **Social publishing** is available separately as the MixMyMeals Social
+  add-on (Instagram and Pinterest). This plugin makes no external API calls
+  of its own.
 * **SEO built in**: schema.org Recipe markup for Google rich results (rating,
   nutrition, steps), ItemList for plans, Open Graph / Twitter Cards.
 * **Related recipes** (“goes well with” / “fits with”) and a “featured in
@@ -68,17 +62,16 @@ schedule — with automatically generated, branded images.
 2. Activate the plugin through the "Plugins" screen in WordPress. Permalinks
    are flushed automatically.
 3. Open Settings → MixMyMeals and configure the basics on the General tab
-   (slugs, public planner mode, limits, social image fonts).
-4. To publish to Instagram/Pinterest, each user stores their own access token
-   on their WordPress profile (Users → Profile → MixMyMeals: Social accounts).
+   (slugs, public planner mode, limits).
 
 == Frequently Asked Questions ==
 
 = Does it require any external service? =
 
-No — all core features work with your WordPress database alone. Only the
-optional Instagram/Pinterest publishing talks to the Meta/Pinterest APIs, and
-only when a user connects their own account.
+No. This plugin makes no external requests at all — everything runs against
+your own WordPress database. Social publishing, which does talk to the Meta
+and Pinterest APIs, lives in the separate MixMyMeals Social add-on and only
+acts when a user connects their own account there.
 
 = Can visitors create meal plans without an account? =
 

@@ -80,7 +80,10 @@ function mixmymeals_write_to_log( $message ) {
  */
 function mixmymeals() {
 
-	$instance = Mixmymeals::instance( __FILE__, '2.3.0' );
+	// Must match the Version header above: this string is the cache buster on
+	// every enqueued script and stylesheet, so a stale value serves old assets
+	// to everyone who already has them cached.
+	$instance = Mixmymeals::instance( __FILE__, '2.4.1' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
