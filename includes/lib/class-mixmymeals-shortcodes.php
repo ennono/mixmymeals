@@ -3232,70 +3232,22 @@ class Mixmymeals_Shortcodes {
                 </tr>
                 </thead>
                 <tbody>
-                <tr>
-                    <td><?php esc_html_e( 'Calories', 'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['calories'],
-							1 ) ); ?> kcal
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['calories'],
-							1 ) ); ?> kcal
-                    </td>
+				<?php
+				/*
+				 * Labels, order and formatting come from Mixmymeals_Meal_Plan, the
+				 * same source the plan page, the PDF and the subscription mail use.
+				 * The order is a food label's — energy, fat, carbohydrate, of which
+				 * sugars, fibre, protein, salt — so a recipe reads like the panel on
+				 * a packet rather than in its own sequence.
+				 */
+				foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $mmm_key => $mmm_label ) :
+					?>
+                <tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
+                    <td><?php echo esc_html( $mmm_label ); ?></td>
+                    <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_serving[ $mmm_key ] ?? 0 ) ) ); ?></td>
+                    <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_100g[ $mmm_key ] ?? 0 ) ) ); ?></td>
                 </tr>
-                <tr>
-                    <td><?php esc_html_e( 'Protein', 'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['protein'],
-							1 ) ); ?> g
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['protein'],
-							1 ) ); ?> g
-                    </td>
-                </tr>
-                <tr>
-                    <td><?php esc_html_e( 'Carbohydrates',
-							'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['carbs'],
-							1 ) ); ?> g
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['carbs'],
-							1 ) ); ?> g
-                    </td>
-                </tr>
-                <tr>
-                    <td><?php esc_html_e( 'Fat', 'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['fat'],
-							1 ) ); ?> g
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['fat'],
-							1 ) ); ?> g
-                    </td>
-                </tr>
-                <tr>
-                    <td><?php esc_html_e( 'Sugar', 'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['sugar'],
-							1 ) ); ?> g
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['sugar'],
-							1 ) ); ?> g
-                    </td>
-                </tr>
-                <tr>
-                    <td><?php esc_html_e( 'Fiber', 'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['fiber'],
-							1 ) ); ?> g
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['fiber'],
-							1 ) ); ?> g
-                    </td>
-                </tr>
-                <tr>
-                    <td><?php esc_html_e( 'Salt', 'mixmymeals' ); ?></td>
-                    <td><?php echo esc_html( round( $nutrition_per_serving['salt'],
-							2 ) ); ?> g
-                    </td>
-                    <td><?php echo esc_html( round( $nutrition_per_100g['salt'],
-							2 ) ); ?> g
-                    </td>
-                </tr>
+				<?php endforeach; ?>
                 </tbody>
             </table>
         </div>
@@ -5758,14 +5710,20 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
 		}
 
-		$columns = [
-			'calories' => [ __( 'Calories', 'mixmymeals' ), 'kcal', 0 ],
-			'protein'  => [ __( 'Protein', 'mixmymeals' ), 'g', 1 ],
-			'carbs'    => [ __( 'Carbohydrates', 'mixmymeals' ), 'g', 1 ],
-			'fat'      => [ __( 'Fat', 'mixmymeals' ), 'g', 1 ],
-		];
+		/*
+		 * Labels and formatting from Mixmymeals_Meal_Plan, like the overview,
+		 * the PDF and the subscription mail — the figures here were always
+		 * right, but this table called them "Calories" and "Carbohydrates"
+		 * where the other three said "Energy" and "Carbohydrate".
+		 *
+		 * Four macros, not all seven: this table already spends a column per
+		 * nutrient across every weekday, and the full breakdown belongs to
+		 * [mmm_nutrition_overview_for_a_single_meal_plan].
+		 */
+		$labels  = Mixmymeals_Meal_Plan::nutrition_labels();
+		$columns = [ 'calories', 'protein', 'carbs', 'fat' ];
 
-		$sums = array_fill_keys( array_keys( $columns ), 0.0 );
+		$sums = array_fill_keys( $columns, 0.0 );
 
 		ob_start();
 		?>
@@ -5774,8 +5732,8 @@ class Mixmymeals_Shortcodes {
                 <thead>
                 <tr>
                     <th><?php esc_html_e( 'Day', 'mixmymeals' ); ?></th>
-					<?php foreach ( $columns as [ $label, $unit ] ) : ?>
-                        <th><?php echo esc_html( $label ); ?></th>
+					<?php foreach ( $columns as $key ) : ?>
+                        <th><?php echo esc_html( $labels[ $key ] ); ?></th>
 					<?php endforeach; ?>
                 </tr>
                 </thead>
@@ -5784,13 +5742,12 @@ class Mixmymeals_Shortcodes {
                     <tr<?php echo 0 === $nutrition['meals'] ? ' class="mmm-nutri-days-table__empty"' : ''; ?>>
                         <th scope="row"><?php echo esc_html( Mixmymeals_Meal_Plan::weekday_name( (int) $day ) ); ?></th>
 						<?php
-						foreach ( $columns as $key => [ $label, $unit, $decimals ] ) :
-							$value          = (float) ( $nutrition[ $bucket ][ $key ] ?? 0.0 );
-							$sums[ $key ]  += $value;
+						foreach ( $columns as $key ) :
+							$value         = (float) ( $nutrition[ $bucket ][ $key ] ?? 0.0 );
+							$sums[ $key ] += $value;
 							?>
-                            <td data-label="<?php echo esc_attr( $label ); ?>">
-								<?php echo esc_html( number_format_i18n( $value, $decimals ) ); ?>
-								<?php echo esc_html( $unit ); ?>
+                            <td data-label="<?php echo esc_attr( $labels[ $key ] ); ?>">
+								<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $value ) ); ?>
                             </td>
 						<?php endforeach; ?>
                     </tr>
@@ -5799,10 +5756,9 @@ class Mixmymeals_Shortcodes {
                 <tfoot>
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Total', 'mixmymeals' ); ?></th>
-					<?php foreach ( $columns as $key => [ $label, $unit, $decimals ] ) : ?>
-                        <td data-label="<?php echo esc_attr( $label ); ?>">
-							<?php echo esc_html( number_format_i18n( $sums[ $key ], $decimals ) ); ?>
-							<?php echo esc_html( $unit ); ?>
+					<?php foreach ( $columns as $key ) : ?>
+                        <td data-label="<?php echo esc_attr( $labels[ $key ] ); ?>">
+							<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $sums[ $key ] ) ); ?>
                         </td>
 					<?php endforeach; ?>
                 </tr>
@@ -7117,14 +7073,20 @@ class Mixmymeals_Shortcodes {
 	 */
 	private function render_ingredient_nutrition_table( array $nutri ): string {
 
+		// Same labels and order as everywhere else; only the energy key differs,
+		// because an ingredient stores its calories per 100 g.
+		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
+
+		// The value key differs from the nutrition key only for energy, which an
+		// ingredient stores per 100 g.
 		$rows = array(
-			array( __( 'Calories', 'mixmymeals' ), 'calories_100', 'kcal', 1 ),
-			array( __( 'Protein', 'mixmymeals' ), 'protein', 'g', 1 ),
-			array( __( 'Carbohydrates', 'mixmymeals' ), 'carbs', 'g', 1 ),
-			array( __( 'Fat', 'mixmymeals' ), 'fat', 'g', 1 ),
-			array( __( 'Sugar', 'mixmymeals' ), 'sugar', 'g', 1 ),
-			array( __( 'Fiber', 'mixmymeals' ), 'fiber', 'g', 1 ),
-			array( __( 'Salt', 'mixmymeals' ), 'salt', 'g', 2 ),
+			array( 'calories', 'calories_100' ),
+			array( 'fat', 'fat' ),
+			array( 'carbs', 'carbs' ),
+			array( 'sugar', 'sugar' ),
+			array( 'fiber', 'fiber' ),
+			array( 'protein', 'protein' ),
+			array( 'salt', 'salt' ),
 		);
 
 		$has = false;
@@ -7149,11 +7111,11 @@ class Mixmymeals_Shortcodes {
 				</tr>
 				</thead>
 				<tbody>
-				<?php foreach ( $rows as $r ) : ?>
-					<?php $val = isset( $nutri[ $r[1] ] ) ? (float) $nutri[ $r[1] ] : 0.0; ?>
-					<tr>
-						<td><?php echo esc_html( $r[0] ); ?></td>
-						<td><?php echo esc_html( round( $val, $r[3] ) ); ?> <?php echo esc_html( $r[2] ); ?></td>
+				<?php foreach ( $rows as list( $mmm_key, $mmm_field ) ) : ?>
+					<?php $val = isset( $nutri[ $mmm_field ] ) ? (float) $nutri[ $mmm_field ] : 0.0; ?>
+					<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
+						<td><?php echo esc_html( $labels[ $mmm_key ] ); ?></td>
+						<td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, $val ) ); ?></td>
 					</tr>
 				<?php endforeach; ?>
 				</tbody>
@@ -7629,24 +7591,26 @@ class Mixmymeals_Shortcodes {
                    value="0">
 
             <div class="mmmm-meal-nutrition-calculator-result">
-                <p><?php esc_html_e( 'Calories', 'mixmymeals' ); ?>: <span
-                            class="mmmm-meal-nutrition-calculator-cal">–</span>
+				<?php
+				// Same labels as every other nutrition output; the CSS class names
+				// stay as they are, because the calculator's JS addresses them.
+				$mmm_labels = Mixmymeals_Meal_Plan::nutrition_labels();
+
+				$mmm_slots = array(
+					'calories' => 'cal',
+					'fat'      => 'fat',
+					'carbs'    => 'carbs',
+					'sugar'    => 'sugar',
+					'fiber'    => 'fiber',
+					'protein'  => 'protein',
+				);
+
+				foreach ( $mmm_slots as $mmm_key => $mmm_slot ) :
+					?>
+                <p><?php echo esc_html( $mmm_labels[ $mmm_key ] ); ?>: <span
+                            class="mmmm-meal-nutrition-calculator-<?php echo esc_attr( $mmm_slot ); ?>">–</span>
                 </p>
-                <p><?php esc_html_e( 'Fat', 'mixmymeals' ); ?>: <span
-                            class="mmmm-meal-nutrition-calculator-fat">–</span>
-                </p>
-                <p><?php esc_html_e( 'Carbs', 'mixmymeals' ); ?>: <span
-                            class="mmmm-meal-nutrition-calculator-carbs">–</span>
-                </p>
-                <p><?php esc_html_e( 'Protein', 'mixmymeals' ); ?>: <span
-                            class="mmmm-meal-nutrition-calculator-protein">–</span>
-                </p>
-                <p><?php esc_html_e( 'Sugar', 'mixmymeals' ); ?>: <span
-                            class="mmmm-meal-nutrition-calculator-sugar">–</span>
-                </p>
-                <p><?php esc_html_e( 'Fiber', 'mixmymeals' ); ?>: <span
-                            class="mmmm-meal-nutrition-calculator-fiber">–</span>
-                </p>
+				<?php endforeach; ?>
             </div>
 
         </div>
