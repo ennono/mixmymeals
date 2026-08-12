@@ -193,7 +193,7 @@ class Mixmymeals_Recipe {
 			'post_status'    => 'publish',
 			'orderby'        => 'date',
 			'order'          => 'DESC',
-			'tax_query'      => array(
+			'tax_query'      => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- term filter on an indexed taxonomy; no API alternative.
 				array(
 					'taxonomy' => 'mmm_recipe_category',
 					'field'    => 'term_id',
@@ -222,7 +222,7 @@ class Mixmymeals_Recipe {
 			'post_status'    => 'publish',
 			'orderby'        => 'date',
 			'order'          => 'DESC',
-			'tax_query'      => array(
+			'tax_query'      => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- term filter on an indexed taxonomy; no API alternative.
 				array(
 					'taxonomy' => 'mmm_recipe_category',
 					'operator' => 'NOT EXISTS',
@@ -730,11 +730,11 @@ class Mixmymeals_Recipe {
 			'posts_per_page' => -1,
 			'post_status'    => $status,
 			'fields'         => 'ids',
-			'post__not_in'   => [ $this->post_id ],
+			'post__not_in'   => [ $this->post_id ], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
 			'orderby'        => 'title',
 			'order'          => 'ASC',
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-			'meta_key'       => '_mmm_related_recipes',
+			'meta_key'       => '_mmm_related_recipes', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
 		] );
 
 		$out = [];
@@ -767,9 +767,8 @@ class Mixmymeals_Recipe {
 			'posts_per_page' => -1,
 			'fields'         => 'id=>parent',
 			'no_found_rows'  => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-			'meta_key'       => 'recipe_id',
-			'meta_value'     => (string) $this->post_id,
+			'meta_key'       => 'recipe_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			'meta_value'     => (string) $this->post_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
 		] );
 
 		$plan_ids = array_values( array_unique( array_filter( array_map( 'intval', $parents ) ) ) );

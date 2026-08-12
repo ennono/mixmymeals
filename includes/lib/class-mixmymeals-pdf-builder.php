@@ -88,166 +88,26 @@ class Mixmymeals_PDF_Builder {
 			}
 		}
 
-		$styles = <<<CSS
-<style>
-/* Seitenlayout */
-@page {
-    margin-top: 3.5cm;
-    margin-right: 2.5cm;
-    margin-bottom: 2.5cm;
-    margin-left: 2.5cm;
-}
+		/*
+		 * The stylesheet lives in assets/css/pdf.css rather than in a heredoc
+		 * here: it is 130 lines of static CSS with nothing to interpolate, and as
+		 * a real .css file it is editable like every other stylesheet in the
+		 * plugin. Heredoc syntax is also rejected by Plugin Check.
+		 */
+		$css_file = plugin_dir_path( __FILE__ ) . '../../assets/css/pdf.css';
+		$css      = is_readable( $css_file ) ? (string) file_get_contents( $css_file ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local plugin asset, not a remote request.
+		$styles   = '<style>' . $css . '</style>';
 
-body, body * {
-    font-family: "DejaVu Sans", sans-serif !important; /* global für alles */
-    color: #222;
-    line-height: 1.5;
-    background: #fff;
-    box-sizing: border-box;
-}
-
-/* Header / Footer */
-.mmm-pdf-header {
-    position: fixed;
-    top: -2.5cm;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-weight: 700;
-    font-size: 16pt;
-    color: #111;
-}
-
-.mmm-pdf-footer {
-    position: fixed;
-    bottom: -2cm;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 9pt;
-    color: #666;
-}
-
-/* Page break */
-.mmm-pdf-page { page-break-after: always; }
-.mmm-pdf-page:last-child { page-break-after: auto; }
-.mmm-page-break { page-break-before: always; }
-
-/* Überschriften */
-h1 { font-size: 18pt; margin: 0 0 0.6cm; color: #111; border-bottom: 2px solid #444; padding-bottom: 0.2cm; }
-h2 { font-size: 12pt; margin: 0.8cm 0 0.4cm; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 0.15cm; }
-h3 { font-size: 10pt; margin: 0.5cm 0 0.2cm; color: #444; }
-h4 { font-size: 8pt; margin: 0.4cm 0 0.2cm; color: #222; font-weight: 600; }
-
-/* Textausrichtung */
-.align-left { text-align: left; }
-.align-right { text-align: right; }
-
-/* Tabellen für Mahlzeiten und Einkaufsliste */
-table {
-    border-collapse: collapse;
-    width: 100%;
-    margin-bottom: 0.5cm;
-    font-size: 8pt;
-}
-
-table th, table td {
-    border: 1px solid #ccc;
-    padding: 0.1cm 0.2cm;
-    vertical-align: top;
-    font-size: 8pt;
-}
-
-table th {
-    background: #f0f0f0;
-    font-weight: bold;
-    font-size: 8pt;
-}
-
-/* Allgemeine Listen */
-ul { padding-left: 1.2em; margin: 0.2cm 0; }
-li { margin: 0.15cm 0; }
-
-/* Meal Plan Overview */
-
-.mmm-meal-plan-overview-table {
-    table-layout: auto;
-    width: 100%;
-}
-
-.mmm-meal-plan-overview-table th:nth-child(1),
-.mmm-meal-plan-overview-table td:nth-child(1) { width: 20%; }
-
-.mmm-meal-plan-overview-table th:nth-child(2),
-.mmm-meal-plan-overview-table td:nth-child(2) { width: 70%; }
-
-.mmm-meal-plan-overview-table th:nth-child(3),
-.mmm-meal-plan-overview-table td:nth-child(3) { width: 10%; }
-
-/* Shopping List */
-
-.mmm-meal-plan-shopping-list-table {
-    table-layout: fixed;
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.mmm-meal-plan-shopping-list-table th,
-.mmm-meal-plan-shopping-list-table td {
-    border: 1px solid #ccc;
-    padding: 0.15cm 0.2cm;
-    font-size: 8pt;
-    vertical-align: top;
-}
-
-.mmm-meal-plan-shopping-list-table th:nth-child(1),
-.mmm-meal-plan-shopping-list-table td:nth-child(1) { width: 5%; text-align: center; }  /* Checkbox oder Typ */
-.mmm-meal-plan-shopping-list-table th:nth-child(2),
-.mmm-meal-plan-shopping-list-table td:nth-child(2) { width: 75%; text-align: left; }   /* Mahlzeit / Zutat */
-.mmm-meal-plan-shopping-list-table th:nth-child(3),
-.mmm-meal-plan-shopping-list-table td:nth-child(3) { width: 20%; text-align: right; }  /* Portion / Menge */
-
-/* Recipes */
-
-.mmm-meal-ingredients-overview {
-    font-size: 8pt;
-    line-height: 1.35;
-}
-
-.mmm-recipe-meta {
-    font-size: 8pt;
-    line-height: 1.35;
-}
-
-.mmm-recipe-steps {
-    font-size: 8pt;
-    line-height: 1.35;
-}
-
-</style>
-
-CSS;
-
-		return <<<HTML
-<html>
-<head>
-<meta charset="UTF-8">
-{$styles}
-</head>
-<body>
-
-<div class="mmm-pdf-header">
-{$header_html}
-</div>
-
-{$pages_html}
-
-<div class="mmm-pdf-footer">
-{$this->footer_html}
-</div>
-
-</body>
-</html>
-HTML;
+		return '<html>' .
+			'<head>' .
+			'<meta charset="UTF-8">' .
+			$styles .
+			'</head>' .
+			'<body>' .
+			'<div class="mmm-pdf-header">' . $header_html . '</div>' .
+			$pages_html .
+			'<div class="mmm-pdf-footer">' . $this->footer_html . '</div>' .
+			'</body>' .
+			'</html>';
 	}
 }

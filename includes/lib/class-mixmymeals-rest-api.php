@@ -1898,9 +1898,8 @@ class Mixmymeals_Rest_Api {
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-			'meta_key'       => 'recipe_id',
-			'meta_value'     => (string) $recipe_id,
+			'meta_key'       => 'recipe_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			'meta_value'     => (string) $recipe_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
 		) );
 
 		$out = array();

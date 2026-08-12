@@ -890,10 +890,14 @@ class Mixmymeals_Settings {
 		);
 
 
+		// _token is 'mixmymeals', so the hook is mixmymeals_settings_fields —
+		// the sniff simply cannot resolve the property.
+		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- resolves to mixmymeals_settings_fields.
 		return apply_filters(
 			$this->parent->_token . '_settings_fields',
 			$settings
 		);
+		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 	}
 
 	/**
@@ -945,6 +949,8 @@ class Mixmymeals_Settings {
 	 * @return mixed|void
 	 */
 	private function menu_settings(): mixed {
+		// base is 'mixmymeals_', so this is mixmymeals_menu_settings.
+		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- resolves to mixmymeals_menu_settings.
 		return apply_filters(
 			$this->base . 'menu_settings',
 			array(
@@ -960,6 +966,7 @@ class Mixmymeals_Settings {
 				'position'    => null,
 			)
 		);
+		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 	}
 
 	/**

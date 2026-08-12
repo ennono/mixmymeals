@@ -170,11 +170,11 @@ class Mixmymeals_Meal {
 	 */
 	public function set_parent_plan_id( int $parent_id ): void {
 
-		mmm_write_to_log( 'Start setting parent ID...' );
+		mixmymeals_write_to_log( 'Start setting parent ID...' );
 
 		$new_parent = intval( $parent_id );
 
-		mmm_write_to_log( '... New Parent: ' . $new_parent );
+		mixmymeals_write_to_log( '... New Parent: ' . $new_parent );
 
 		/*
 		// Example of direct database update (commented out).
@@ -196,7 +196,7 @@ class Mixmymeals_Meal {
 			)
 		);
 
-		mmm_write_to_log( '... Done.' );
+		mixmymeals_write_to_log( '... Done.' );
 
 		clean_post_cache( $this->post_id );
 	}
@@ -228,22 +228,22 @@ class Mixmymeals_Meal {
 	public function save_meta_from_post( $post_data ): void {
 
 		if ( isset( $post_data['recipe_id'] ) ) {
-			mmm_write_to_log( 'Setting Recipe ID.' );
+			mixmymeals_write_to_log( 'Setting Recipe ID.' );
 			$this->set_recipe_id( $post_data['recipe_id'] );
 		}
 
 		if ( isset( $post_data['servings'] ) ) {
-			mmm_write_to_log( 'Setting Servings.' );
+			mixmymeals_write_to_log( 'Setting Servings.' );
 			$this->set_servings( $post_data['servings'] );
 		}
 
 		if ( isset( $post_data['note'] ) ) {
-			mmm_write_to_log( 'Setting Note.' );
+			mixmymeals_write_to_log( 'Setting Note.' );
 			$this->set_note( $post_data['note'] );
 		}
 
 		if ( isset( $post_data['mmm_parent_id'] ) ) {
-			mmm_write_to_log( 'Setting Parent ID.' );
+			mixmymeals_write_to_log( 'Setting Parent ID.' );
 			$this->set_parent_plan_id( $post_data['mmm_parent_id'] );
 		}
 	}

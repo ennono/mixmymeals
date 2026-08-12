@@ -482,7 +482,7 @@ class Mixmymeals_Subscriptions {
 		$plan_id = isset( $_POST['plan_id'] ) ? absint( wp_unslash( $_POST['plan_id'] ) ) : 0;
 		$email   = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 		$name    = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
-		$agree   = isset( $_POST['agree'] ) && '1' === (string) wp_unslash( $_POST['agree'] );
+		$agree   = isset( $_POST['agree'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['agree'] ) );
 		$start   = isset( $_POST['start'] ) ? sanitize_text_field( wp_unslash( $_POST['start'] ) ) : '';
 
 		if ( get_post_type( $plan_id ) !== 'mmm_meal_plan' || 'publish' !== get_post_status( $plan_id ) ) {

@@ -170,13 +170,23 @@ class Mixmymeals {
 	public function load_plugin_textdomain(): void {
 		$domain = 'mixmymeals';
 
-		$locale = apply_filters( 'plugin_locale', get_locale(), $domain );
+		// A core filter, not one this plugin invents — the prefix rule does not
+		// apply to hooks WordPress itself defines.
+		$locale = apply_filters( 'plugin_locale', get_locale(), $domain ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
 
 		load_textdomain(
 			$domain,
 			WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale
 			. '.mo'
 		);
+		/*
+		 * Kept despite being discouraged: that advice assumes translations come
+		 * from translate.wordpress.org, which core then loads on its own. This
+		 * plugin ships its own catalogue in lang/, and without this call a
+		 * German site falls back to the English source strings — verified, not
+		 * assumed. Losing that would take the disclosure labels with it.
+		 */
+		// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- plugin ships its own catalogue in lang/.
 		load_plugin_textdomain(
 			$domain,
 			false,
@@ -500,6 +510,7 @@ class Mixmymeals {
 	 * @return  void
 	 */
 	public function load_localisation(): void {
+		// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- see load_plugin_textdomain() above.
 		load_plugin_textdomain(
 			'mixmymeals',
 			false,

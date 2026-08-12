@@ -102,8 +102,7 @@ class Mixmymeals_Photos {
 			return new WP_Error( 'mmm_photo_recipe', __( 'This recipe does not exist.', 'mixmymeals' ) );
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce/token checked by the shortcode caller.
-		$file = isset( $_FILES[ $file_key ] ) ? $_FILES[ $file_key ] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- handled by media_handle_upload().
+		$file = isset( $_FILES[ $file_key ] ) ? $_FILES[ $file_key ] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification.Missing -- handled by media_handle_upload(); nonce/token checked by the shortcode caller.
 		if ( ! is_array( $file ) || empty( $file['name'] ) || ! empty( $file['error'] ) ) {
 			return new WP_Error( 'mmm_photo_missing', __( 'Please choose a photo to upload.', 'mixmymeals' ) );
 		}

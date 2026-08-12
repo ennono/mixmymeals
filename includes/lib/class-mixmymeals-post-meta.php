@@ -304,6 +304,7 @@ class Mixmymeals_Post_Meta {
 		// translators: Number of step
 		echo '<h3>' . esc_html(
 			sprintf(
+				/* translators: %d: position of the step, starting at 1. */
 				__( 'Step %d', 'mixmymeals' ),
 				$index + 1
 			)
@@ -515,7 +516,7 @@ class Mixmymeals_Post_Meta {
 				printf(
 					/* translators: %d: how often the recipe sits on a published meal plan. */
 					esc_html__( 'Freely editable, zero included. The counter keeps counting on from the value you enter whenever the recipe lands on a published meal plan. Currently planned: %d times.', 'mixmymeals' ),
-					$recipe->count_cooked()
+					absint( $recipe->count_cooked() )
 				);
 				?>
 			</span>
@@ -529,7 +530,7 @@ class Mixmymeals_Post_Meta {
 		if (
 			! isset( $_POST['mmm_recipe_details_nonce_field'] ) ||
 			! wp_verify_nonce(
-				$_POST['mmm_recipe_details_nonce_field'],
+				sanitize_key( wp_unslash( $_POST['mmm_recipe_details_nonce_field'] ) ),
 				'mmm_recipe_details_nonce'
 			)
 		) {
@@ -552,7 +553,7 @@ class Mixmymeals_Post_Meta {
 		// Wert speichern
 		if ( isset( $_POST['mmm_preparation_time'] ) ) {
 			$recipe = new Mixmymeals_Recipe( $post_ID );
-			$recipe->set_preparation_time( $_POST['mmm_preparation_time'] );
+			$recipe->set_preparation_time( absint( wp_unslash( $_POST['mmm_preparation_time'] ) ) );
 		}
 
 		// Favorite flag (featured in the recipe archive).
@@ -566,7 +567,7 @@ class Mixmymeals_Post_Meta {
 		// from the stored one, so re-saving a recipe never rewrites the starting
 		// point behind the editor's back.
 		if ( isset( $_POST['mmm_cook_count'] ) ) {
-			$mmm_total  = trim( (string) wp_unslash( $_POST['mmm_cook_count'] ) );
+			$mmm_total  = sanitize_text_field( wp_unslash( $_POST['mmm_cook_count'] ) );
 			$mmm_recipe = new Mixmymeals_Recipe( $post_ID );
 
 			if ( '' !== $mmm_total && absint( $mmm_total ) !== $mmm_recipe->get_cook_count() ) {
@@ -696,8 +697,13 @@ class Mixmymeals_Post_Meta {
 						),
 					);
 				},
-				// THIS IS PERFECTLY SANITIZED ABOVE!
-				wp_unslash( $_POST['mmm_recipe_steps'] )
+				/*
+				 * Every field of every step is sanitised inside the callback
+				 * above — intval/floatval on the ingredient parts, the text
+				 * fields through their own filters. The sniff cannot follow
+				 * into a closure, so it only sees the raw array here.
+				 */
+				wp_unslash( $_POST['mmm_recipe_steps'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each element is sanitised in the callback above.
 			);
 
 			// Leere Schritte herausfiltern
@@ -784,6 +790,7 @@ class Mixmymeals_Post_Meta {
 			// translators: Meal ID
 			echo '<td>' . esc_html(
 				$meal->post_title
+				/* translators: %d: ID of the meal, used when it has no title yet. */
 				?: sprintf( __( 'Meal #%d', 'mixmymeals' ), $meal->ID )
 			)
 				. '</td>';
@@ -950,8 +957,9 @@ class Mixmymeals_Post_Meta {
 		// ----------------- Ingredient Amounts -----------------
 		if ( isset( $_POST['mmm_ingredient_amounts'] )
 			&& is_array( $_POST['mmm_ingredient_amounts'] ) ) {
-			$amounts
-				= wp_unslash( $_POST['mmm_ingredient_amounts'] ); // 🟢 Array unslashen
+			// Keys and values are sanitised element-wise in the loop below;
+			// the sniff only sees the array as it arrives.
+			$amounts = wp_unslash( $_POST['mmm_ingredient_amounts'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per element below.
 
 			foreach ( $amounts as $id => $amount_data ) {
 				$id = sanitize_key( $id ); // ID absichern
@@ -1372,7 +1380,7 @@ class Mixmymeals_Post_Meta {
 			'post_type'      => 'mmm_meal_plan',
 			'post_status'    => 'publish',
 			'posts_per_page' => -1,
-			'post__not_in'   => [ $post_id ],
+			'post__not_in'   => [ $post_id ], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
 		];
 		$plans = get_posts( $args );
 
@@ -1538,7 +1546,7 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 1;
-		mmm_write_to_log( $plan_start );
+		mixmymeals_write_to_log( $plan_start );
 		$plan_end = $parent_id ? intval(
 			get_post_meta(
 				$parent_id,
@@ -1546,7 +1554,7 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 7;
-		mmm_write_to_log( $plan_end );
+		mixmymeals_write_to_log( $plan_end );
 
 		echo '<p><label><strong>' . esc_html__(
 			'Day (within Meal Plan)',
@@ -1620,7 +1628,7 @@ class Mixmymeals_Post_Meta {
 				'mmm_meal_meta_box'
 			)
 		) {
-			// mmm_write_to_log( sanitize_text_field( wp_unslash( $_POST['mmm_meal_meta_nonce']  ) ) );
+			// mixmymeals_write_to_log( sanitize_text_field( wp_unslash( $_POST['mmm_meal_meta_nonce']  ) ) );
 			return;
 		}
 
@@ -2154,8 +2162,8 @@ class Mixmymeals_Post_Meta {
 	}
 
 	public function save_equipment_metabox( int $post_id ): void {
-		if (!isset($_POST['mmm_equipment_nonce']) ||
-		    !wp_verify_nonce($_POST['mmm_equipment_nonce'], 'mmm_equipment_save')) {
+		if ( ! isset( $_POST['mmm_equipment_nonce'] )
+			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mmm_equipment_nonce'] ) ), 'mmm_equipment_save' ) ) {
 			return;
 		}
 		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
@@ -2168,7 +2176,9 @@ class Mixmymeals_Post_Meta {
 		$equipment = isset($_POST['mmm_equipment']) ? array_map('intval', $_POST['mmm_equipment']) : [];
 		//update_post_meta($post_id, '_mmm_equipment', $equipment);
 		$recipe = new Mixmymeals_Recipe( $post_id );
-		$recipe->set_equipment( $_POST['mmm_equipment'] ?? [] );
+		$recipe->set_equipment(
+			array_map( 'absint', (array) wp_unslash( $_POST['mmm_equipment'] ?? [] ) )
+		);
 	}
 
 	public function render_equipment_meta_box_content( WP_Post $post ): void {
@@ -2214,7 +2224,7 @@ class Mixmymeals_Post_Meta {
 			printf(
 				'<li><label><input type="checkbox" name="mmm_equipment[]" value="%d" %s> %s</label></li>',
 				esc_attr( $piece_of_equipment->ID ),
-				$checked,
+				esc_attr( $checked ),
 				esc_html( get_the_title( $piece_of_equipment ) )
 			);
 		}
@@ -2610,11 +2620,17 @@ class Mixmymeals_Post_Meta {
 			return;
 		}
 
+		/*
+		 * Sanitised here as well as in the save methods further down. The
+		 * duplication is deliberate: these functions are idempotent, and a
+		 * reader (or a static analyser) should not have to follow two more
+		 * calls to establish that nothing raw enters the database.
+		 */
 		$fields = array(
-			'text'      => wp_unslash( $_POST['mmm_author_text'] ?? '' ),
-			'url'       => wp_unslash( $_POST['mmm_author_url'] ?? '' ),
-			'link_text' => wp_unslash( $_POST['mmm_author_link_text'] ?? '' ),
-			'social'    => wp_unslash( $_POST['mmm_author_social'] ?? '' ),
+			'text'      => wp_kses_post( wp_unslash( $_POST['mmm_author_text'] ?? '' ) ),
+			'url'       => esc_url_raw( wp_unslash( $_POST['mmm_author_url'] ?? '' ) ),
+			'link_text' => sanitize_text_field( wp_unslash( $_POST['mmm_author_link_text'] ?? '' ) ),
+			'social'    => sanitize_textarea_field( wp_unslash( $_POST['mmm_author_social'] ?? '' ) ),
 			'image'     => absint( $_POST['mmm_author_image'] ?? 0 ),
 			'nofollow'  => ! empty( $_POST['mmm_author_nofollow'] ),
 		);
@@ -2636,7 +2652,9 @@ class Mixmymeals_Post_Meta {
 
 		// "New author", or the credit being removed — both are decided by the
 		// name, which is what save_author_data() keys off.
-		$fields['name'] = 0 === $choice ? '' : wp_unslash( $_POST['mmm_author_name'] ?? '' );
+		$fields['name'] = 0 === $choice
+			? ''
+			: sanitize_text_field( wp_unslash( $_POST['mmm_author_name'] ?? '' ) );
 
 		self::save_author_data( $post_id, $fields );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
@@ -2999,7 +3017,11 @@ class Mixmymeals_Post_Meta {
 		$data = array();
 
 		foreach ( array_keys( self::IMAGE_CREDIT_FIELDS ) as $key ) {
-			$data[ $key ] = wp_unslash( $_POST[ 'mmm_image_credit_' . $key ] ?? '' );
+			// The URL field needs esc_url_raw, the three text fields plain text;
+			// save_image_credit() applies the same again, harmlessly.
+			$data[ $key ] = 'url' === $key
+				? esc_url_raw( wp_unslash( $_POST[ 'mmm_image_credit_url' ] ?? '' ) )
+				: sanitize_text_field( wp_unslash( $_POST[ 'mmm_image_credit_' . $key ] ?? '' ) );
 		}
 
 		self::save_image_credit( $post_id, $data );
@@ -3271,8 +3293,8 @@ class Mixmymeals_Post_Meta {
 		self::save_disclosure(
 			$post_id,
 			array(
-				'type'    => wp_unslash( $_POST['mmm_disclosure_type'] ?? '' ),
-				'sponsor' => wp_unslash( $_POST['mmm_disclosure_sponsor'] ?? '' ),
+				'type'    => sanitize_key( wp_unslash( $_POST['mmm_disclosure_type'] ?? '' ) ),
+				'sponsor' => sanitize_text_field( wp_unslash( $_POST['mmm_disclosure_sponsor'] ?? '' ) ),
 			)
 		);
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
@@ -3632,7 +3654,7 @@ class Mixmymeals_Post_Meta {
 			'post_type'      => 'mmm_recipe',
 			'posts_per_page' => -1,
 			'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
-			'post__not_in'   => [ $post->ID ],
+			'post__not_in'   => [ $post->ID ], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
 			'orderby'        => 'title',
 			'order'          => 'ASC',
 		] );

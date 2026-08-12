@@ -46,7 +46,8 @@ class Mixmymeals_Taxonomies {
 	 *
 	 * The slug deliberately defaults to the plural: WordPress core owns
 	 * "/author/" through its author_base, and registering a taxonomy on the
-	 * same base makes one of the two unreachable.
+	 * same base makes one of the two unreachable. The author archive is
+     * disable at present.
 	 */
 	public function register_author_taxonomy(): void {
 
@@ -76,18 +77,24 @@ class Mixmymeals_Taxonomies {
 
 		$args = array(
 			'labels'             => $labels,
-			'public'             => true,
-			'publicly_queryable' => true,
+			//'public'             => true,
+			//'publicly_queryable' => true,
 			'show_ui'            => true,
 			'show_admin_column'  => true,
 			'hierarchical'       => false,
 			'show_in_rest'       => true,
-			'query_var'          => true,
+			//'query_var'          => true,
+            'public'                     => true,  // Bleibt im Admin-Bereich sichtbar
+            'publicly_queryable'         => false, // DEAKTIVIERT die Frontend-Archiv-URLs
+            'query_var'                  => false, // Verhindert URL-Abfragen
+            'rewrite'                    => false, // Schaltet URL-Rewrites für die Taxonomie ab
+            /*
 			'rewrite'            => array(
 				'slug'       => $slug,
 				'with_front' => false,
 				'feeds'      => false,
 			),
+            */
 		);
 
 		register_taxonomy(

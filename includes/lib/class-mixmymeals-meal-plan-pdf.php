@@ -42,11 +42,19 @@ class Mixmymeals_Meal_Plan_PDF {
 	 */
 	public static function mmm_generate_pdf_ajax_callback(): void {
 
+		/*
+		 * Deliberately nonce-free: a PDF of a published plan has to be
+		 * shareable and cacheable by anonymous visitors, who have no nonce. The
+		 * guard is that only published plans are served, plus the per-IP rate
+		 * limit further down.
+		 */
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- public, cacheable endpoint; see comment above.
 		if ( empty( $_GET['meal_plan_id'] ) ) {
 			wp_die( esc_html__( 'Meal Plan ID missing.', 'mixmymeals' ) );
 		}
 
 		$meal_plan_id = intval( $_GET['meal_plan_id'] );
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$post = get_post( $meal_plan_id );
 		if ( ! $post || $post->post_type !== 'mmm_meal_plan' || $post->post_status !== 'publish' ) {
@@ -149,6 +157,7 @@ class Mixmymeals_Meal_Plan_PDF {
 
             <h3>
 				<?php echo esc_html( $weekdays[ $day_number ] ??
+				                     /* translators: %d: weekday number, used when the name is unavailable. */
 				                     sprintf( __( 'Day %d', 'mixmymeals' ),
 					                     $day_number ) ); ?>
             </h3>
@@ -245,7 +254,9 @@ class Mixmymeals_Meal_Plan_PDF {
 
                         <td class="align-left">
 							<?php
-							echo implode( '<br>', $titles );
+							// Both arrays are escaped where they are filled
+							// (see above); the <br> is the separator we add.
+							echo implode( '<br>', $titles ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- elements escaped at source.
 							echo '<br><small>';
 							echo esc_html__( 'Per serving', 'mixmymeals' )
 							     . ': '
@@ -257,7 +268,7 @@ class Mixmymeals_Meal_Plan_PDF {
                         </td>
 
                         <td class="align-right">
-							<?php echo implode( '<br>', $servings ); ?>
+							<?php echo implode( '<br>', $servings ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- elements escaped at source. ?>
                         </td>
                     </tr>
 
@@ -511,6 +522,7 @@ class Mixmymeals_Meal_Plan_PDF {
 							<?php if ( ! empty( $step['title'] ) ) : ?>
                                 <h3>
 									<?php echo esc_html(
+										/* translators: %d: position of the step, starting at 1. */
 										sprintf( __( 'Step %d', 'mixmymeals' ), $index + 1 )
 										. ': ' . $step['title']
 									); ?>

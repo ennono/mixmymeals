@@ -85,9 +85,8 @@ class Mixmymeals_Privacy {
 			'posts_per_page' => 500,
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-			'meta_key'       => '_mmm_sub_email',
-			'meta_value'     => strtolower( $email ),
+			'meta_key'       => '_mmm_sub_email', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			'meta_value'     => strtolower( $email ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
 		) );
 	}
 
@@ -236,7 +235,7 @@ class Mixmymeals_Privacy {
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
 			'author'         => $user_id,
-			'meta_key'       => '_mmm_meal_photo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => '_mmm_meal_photo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
 		) );
 	}
 

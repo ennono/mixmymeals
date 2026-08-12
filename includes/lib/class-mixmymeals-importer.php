@@ -331,14 +331,20 @@ class Mixmymeals_Ingredient_Importer {
 			wp_die( esc_html__( 'No permission.', 'mixmymeals' ) );
 		}
 		if ( ! isset( $_POST['mixmymeals_import_nonce_field'] ) ||
-			! wp_verify_nonce( wp_unslash( $_POST['mixmymeals_import_nonce_field'] ), 'mixmymeals_import_nonce' ) ) {
+			! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mixmymeals_import_nonce_field'] ) ), 'mixmymeals_import_nonce' ) ) {
 			wp_die( esc_html__( 'Invalid request.', 'mixmymeals' ) );
 		}
 		if ( empty( $_POST['json_text'] ) ) {
 			wp_die( esc_html__( 'No JSON data entered.', 'mixmymeals' ) );
 		}
 
-		$json = wp_unslash( $_POST['json_text'] );
+		/*
+		 * Not run through a sanitiser: this is a JSON document, and
+		 * sanitize_text_field() would strip the very characters that make it
+		 * parseable. json_decode() rejects anything malformed, and every field
+		 * taken out of the result below goes through its own filter.
+		 */
+		$json = wp_unslash( $_POST['json_text'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload, validated by json_decode() and sanitised field by field below.
 		$data = json_decode( $json, true );
 
 		if ( ! is_array( $data ) ) {
@@ -798,14 +804,20 @@ class Mixmymeals_Recipe_Importer {
 			wp_die( esc_html__( 'No permission.', 'mixmymeals' ) );
 		}
 		if ( ! isset( $_POST['mmm_recipes_nonce'] ) ||
-			! wp_verify_nonce( wp_unslash( $_POST['mmm_recipes_nonce'] ), 'mixmymeals_import_recipes_nonce' ) ) {
+			! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mmm_recipes_nonce'] ) ), 'mixmymeals_import_recipes_nonce' ) ) {
 			wp_die( esc_html__( 'Invalid request.', 'mixmymeals' ) );
 		}
 		if ( empty( $_POST['json_text'] ) ) {
 			wp_die( esc_html__( 'No JSON data entered.', 'mixmymeals' ) );
 		}
 
-		$json = wp_unslash( $_POST['json_text'] );
+		/*
+		 * Not run through a sanitiser: this is a JSON document, and
+		 * sanitize_text_field() would strip the very characters that make it
+		 * parseable. json_decode() rejects anything malformed, and every field
+		 * taken out of the result below goes through its own filter.
+		 */
+		$json = wp_unslash( $_POST['json_text'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload, validated by json_decode() and sanitised field by field below.
 		$data = json_decode( $json, true );
 
 		if ( ! is_array( $data ) || JSON_ERROR_NONE !== json_last_error() ) {
@@ -966,7 +978,6 @@ class Mixmymeals_Recipe_Importer {
 	}
 
 	private function resolve_ingredient( array $ingr ): ?array {
-		global $wpdb;
 
 		$ingredient_id = (int) ( $ingr['ingredient_id'] ?? 0 );
 		$unit_id       = (int) ( $ingr['unit_id'] ?? 0 );
@@ -976,29 +987,26 @@ class Mixmymeals_Recipe_Importer {
 			return null;
 		}
 
-		$valid = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT ID FROM {$wpdb->posts} WHERE ID = %d AND post_type = %s AND post_status = 'publish' LIMIT 1",
-				$ingredient_id,
-				'mmm_ingredient'
-			)
-		);
+		/*
+		 * get_post() rather than a hand-written SELECT: it answers exactly the
+		 * same question, goes through the object cache, and an importer run
+		 * asks it once per ingredient of every recipe in the file.
+		 */
+		$ingredient_post = get_post( $ingredient_id );
 
-		if ( ! $valid ) {
+		if ( ! $ingredient_post
+			|| 'mmm_ingredient' !== $ingredient_post->post_type
+			|| 'publish' !== $ingredient_post->post_status ) {
 			return null;
 		}
 
 		if ( $unit_id ) {
-			$valid_unit = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					"SELECT ID FROM {$wpdb->posts} WHERE ID = %d AND post_type = %s AND post_parent = %d AND post_status = 'publish' LIMIT 1",
-					$unit_id,
-					'mmm_ingr_unit',
-					$ingredient_id
-				)
-			);
+			$unit_post = get_post( $unit_id );
 
-			if ( ! $valid_unit ) {
+			if ( ! $unit_post
+				|| 'mmm_ingr_unit' !== $unit_post->post_type
+				|| 'publish' !== $unit_post->post_status
+				|| (int) $unit_post->post_parent !== $ingredient_id ) {
 				$unit_id = 0;
 			}
 		}

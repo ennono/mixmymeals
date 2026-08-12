@@ -533,11 +533,13 @@ class Mixmymeals_Shortcodes {
 
 		if ( $num_of_days ) {
 			echo '<span class="mmm-meta__item mmm-meta__item--days">'
+			     /* translators: %s: number of days in the plan. */
 			     . esc_html( str_replace( '%s', $num_of_days, _n( '%s Day', '%s Days', $num_of_days, 'mixmymeals' ) ) )
 			     . '</span>';
 		}
 		if ( $num_of_meals ) {
 			echo '<span class="mmm-meta__item mmm-meta__item--meals">'
+			     /* translators: %s: number of recipes in the plan. */
 			     . esc_html( sprintf( _n( '%s Recipe', '%s Recipes', $num_of_meals, 'mixmymeals' ), $num_of_meals ) )
 			     . '</span>';
 		}
@@ -1666,12 +1668,14 @@ class Mixmymeals_Shortcodes {
 		if ( $days ) {
 			/* translators: %s: number of days. */
 			$out .= '<span class="mmm-meta__item mmm-meta__item--days">'
+				/* translators: %s: number of days in the plan. */
 				. esc_html( sprintf( _n( '%s Day', '%s Days', $days, 'mixmymeals' ), $days ) )
 				. '</span>';
 		}
 		if ( $meals ) {
 			/* translators: %s: number of recipes. */
 			$out .= '<span class="mmm-meta__item mmm-meta__item--meals">'
+				/* translators: %s: number of recipes in the plan. */
 				. esc_html( sprintf( _n( '%s Recipe', '%s Recipes', $meals, 'mixmymeals' ), $meals ) )
 				. '</span>';
 		}
@@ -1758,6 +1762,7 @@ class Mixmymeals_Shortcodes {
                             <h3 class="mmm-step-title">
 								<?php
 								echo esc_html(
+									/* translators: %d: position of the step, starting at 1. */
 									sprintf( __( 'Step %d', 'mixmymeals' ),
 										$index + 1 ) . ': ' . $step['title']
 								);
@@ -3027,6 +3032,7 @@ class Mixmymeals_Shortcodes {
                             <h3 class="mmm-step-title">
 								<?php
 								echo esc_html(
+									/* translators: %d: position of the step, starting at 1. */
 									sprintf( __( 'Step %d', 'mixmymeals' ),
 										$index + 1 ) . ': ' . $step['title']
 								);
@@ -3474,14 +3480,17 @@ class Mixmymeals_Shortcodes {
 		// -------------------------
 		if ( $prep_minutes > 0 ) {
 			if ( $prep_minutes < 60 ) {
+				/* translators: %s: preparation time in minutes. */
 				$prep_string = sprintf( __( '%s min', 'mixmymeals' ),
 					number_format_i18n( $prep_minutes ) );
 			} else {
 				$hours       = floor( $prep_minutes / 60 );
 				$minutes     = $prep_minutes % 60;
+				/* translators: %s: preparation time in full hours. */
 				$prep_string = sprintf( __( '%s h', 'mixmymeals' ),
 					number_format_i18n( $hours ) );
 				if ( $minutes > 0 ) {
+					/* translators: %s: remaining minutes on top of the full hours. */
 					$prep_string .= ' ' . sprintf( __( '%s min', 'mixmymeals' ),
 							number_format_i18n( $minutes ) );
 				}
@@ -3579,9 +3588,12 @@ class Mixmymeals_Shortcodes {
 
 		$atts = shortcode_atts(
 			array(
-				'label_singular' => __( '', 'mixmymeals' ),
-				'label_plural'   => __( '',
-					'mixmymeals' ),
+				// Deliberately untranslated empty defaults: the wording comes
+				// from the shortcode attributes. Wrapping "" in __() does not
+				// return "" — an empty msgid is the catalogue header, so a
+				// translated site printed the .po metadata into the badge.
+				'label_singular' => '',
+				'label_plural'   => '',
 				'class'          => 'mmm-cart-badge',
 			),
 			$atts
@@ -3984,7 +3996,10 @@ class Mixmymeals_Shortcodes {
 			}
 		}
 
-		$items = $_POST['items'] ?? [];
+		// Sanitised element-wise into $clean_items further down — recipe IDs
+		// through absint, servings through (int), type through
+		// sanitize_text_field. The sniff only sees the array as it arrives.
+		$items = isset( $_POST['items'] ) ? wp_unslash( $_POST['items'] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per element below.
 
 		if ( empty( $items ) || ! is_array( $items ) ) {
 			wp_send_json_error(
@@ -4003,6 +4018,7 @@ class Mixmymeals_Shortcodes {
 			wp_send_json_error(
 				[
 					'code'    => 'max_items',
+					/* translators: %d: highest number of recipes a plan may hold. */
 					'message' => sprintf( __( 'Maximum %d recipes per plan.',
 						'mixmymeals' ), $max ),
 					'max'     => $max,
@@ -4366,7 +4382,9 @@ class Mixmymeals_Shortcodes {
 		$url   = get_permalink( $meal_plan_id );
 
 		// Mailto vorbereiten
+		/* translators: %s: title of the meal plan. */
 		$mail_subject = sprintf( __( 'Meal Plan: %s', 'mixmymeals' ), $title );
+		/* translators: %s: public URL of the meal plan. */
 		$mail_body    = sprintf( __( "My Meal Plan:\n\n%s", 'mixmymeals' ), $url );
 
 		$mailto_link = sprintf(
@@ -4547,7 +4565,9 @@ class Mixmymeals_Shortcodes {
 		$currency             = get_option( 'mixmymeals_currency', '€' );
 
 		// Aktionen (Logik identisch zu mmm_meal_plan_actions)
+		/* translators: %s: title of the meal plan. */
 		$mail_subject = sprintf( __( 'Meal Plan: %s', 'mixmymeals' ), $title );
+		/* translators: %s: public URL of the meal plan. */
 		$mail_body    = sprintf( __( "My Meal Plan:\n\n%s", 'mixmymeals' ), $url );
 		$mailto_link  = sprintf(
 			'mailto:?subject=%s&body=%s',
@@ -4693,7 +4713,7 @@ class Mixmymeals_Shortcodes {
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
 						printf(
 							'%d %s',
-							$servings,
+							absint( $servings ),
 							1 === $servings
 								? esc_html__( 'Serving', 'mixmymeals' )
 								: esc_html__( 'Servings', 'mixmymeals' )
@@ -4725,13 +4745,15 @@ class Mixmymeals_Shortcodes {
 				<?php
 				// Same renderer as the recipe cards, only as a full button —
 				// so there is one place that knows this control's markup.
-				echo $this->render_add_to_planner_button( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
+				$mmm_planner_button = $this->render_add_to_planner_button(
 					(int) $recipe_id,
 					array(
 						'element'  => 'button',
 						'servings' => $servings,
 					)
 				);
+
+				echo $mmm_planner_button; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
 				?>
             </div>
         </section>
@@ -5243,7 +5265,7 @@ class Mixmymeals_Shortcodes {
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
 						printf(
 							'%d %s',
-							$servings,
+							absint( $servings ),
 							1 === $servings
 								? esc_html__( 'Serving', 'mixmymeals' )
 								: esc_html__( 'Servings', 'mixmymeals' )
@@ -5370,6 +5392,7 @@ class Mixmymeals_Shortcodes {
 
 				if ( $prep_minutes < 60 ) {
 					$prep_string = sprintf(
+						/* translators: %s: preparation time in minutes. */
 						__( '%s min', 'mixmymeals' ),
 						number_format_i18n( $prep_minutes )
 					);
@@ -5378,12 +5401,14 @@ class Mixmymeals_Shortcodes {
 					$minutes = $prep_minutes % 60;
 
 					$prep_string = sprintf(
+						/* translators: %s: preparation time in full hours. */
 						__( '%s h', 'mixmymeals' ),
 						number_format_i18n( $hours )
 					);
 
 					if ( $minutes > 0 ) {
 						$prep_string .= ' ' . sprintf(
+								/* translators: %s: remaining minutes on top of the full hours. */
 								__( '%s min', 'mixmymeals' ),
 								number_format_i18n( $minutes )
 							);
@@ -5902,7 +5927,7 @@ class Mixmymeals_Shortcodes {
 
 					if ( $show_count ) {
 						echo ' <span class="mmm-term-list__count">('
-						     . number_format_i18n( (int) $term->count )
+						     . esc_html( number_format_i18n( (int) $term->count ) )
 						     . ')</span>';
 					}
 
@@ -5916,7 +5941,7 @@ class Mixmymeals_Shortcodes {
 
 					if ( $show_count ) {
 						echo ' <span class="mmm-term-list__count">('
-						     . number_format_i18n( (int) $term->count )
+						     . esc_html( number_format_i18n( (int) $term->count ) )
 						     . ')</span>';
 					}
 
@@ -5926,7 +5951,9 @@ class Mixmymeals_Shortcodes {
 				// Kinder rendern, wenn depth=0 (unbegrenzt) oder level < depth
 				$can_go_deeper = ( $depth === 0 ) || ( $level < $depth );
 				if ( $can_go_deeper ) {
-					echo $render_terms( (int) $term->term_id, $level + 1 );
+					// The closure escapes every value it prints; it returns
+					// finished markup, which cannot be escaped again.
+					echo $render_terms( (int) $term->term_id, $level + 1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup assembled with escaping inside the closure.
 				}
 
 				echo '</li>';
@@ -5943,13 +5970,13 @@ class Mixmymeals_Shortcodes {
 		if ( $show_heading && $parent > 0 ) {
 			$parent_term = get_term( $parent, $taxonomy );
 			if ( $parent_term && ! is_wp_error( $parent_term ) ) {
-				echo '<' . $heading_tag . ' class="mmm-term-list__heading">';
+				echo '<' . tag_escape( $heading_tag ) . ' class="mmm-term-list__heading">';
 				echo esc_html( $parent_term->name );
-				echo '</' . $heading_tag . '>';
+				echo '</' . tag_escape( $heading_tag ) . '>';
 			}
 		}
 
-		echo $render_terms( $parent, 1 );
+		echo $render_terms( $parent, 1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup assembled with escaping inside the closure.
 
 		return ob_get_clean();
 	}
@@ -6221,7 +6248,7 @@ class Mixmymeals_Shortcodes {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- token-authenticated public link; the POST additionally carries a nonce.
 		$token     = isset( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : '';
 		$recipe_id = isset( $_GET['recipe'] ) ? absint( wp_unslash( $_GET['recipe'] ) ) : 0;
-		$is_post   = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( (string) wp_unslash( $_SERVER['REQUEST_METHOD'] ) );
+		$is_post   = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		if ( '' === $token || ! $recipe_id ) {
@@ -6466,7 +6493,7 @@ class Mixmymeals_Shortcodes {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- token-authenticated public link; the POST additionally carries a nonce.
 		$token     = isset( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : '';
 		$recipe_id = isset( $_GET['recipe'] ) ? absint( wp_unslash( $_GET['recipe'] ) ) : 0;
-		$is_post   = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( (string) wp_unslash( $_SERVER['REQUEST_METHOD'] ) );
+		$is_post   = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		if ( ! $recipe_id || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {

@@ -61,7 +61,7 @@ require_once 'includes/lib/class-mixmymeals-privacy.php';
  * @param mixed $message String, array, or object to log.
  * @return void
  */
-function mmm_write_to_log( $message ) {
+function mixmymeals_write_to_log( $message ) {
 	if ( defined( 'WP_DEBUG' ) && WP_DEBUG === true && defined( 'WP_DEBUG_LOG' )
 		&& WP_DEBUG_LOG === true ) {
 		if ( is_array( $message ) || is_object( $message ) ) {

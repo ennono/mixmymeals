@@ -161,7 +161,7 @@ class Mixmymeals_Cleanup {
 		);
 
 		if ( $stats['plans'] || $stats['plan_meals'] || $stats['orphan_meals'] || $stats['failed'] ) {
-			mmm_write_to_log(
+			mixmymeals_write_to_log(
 				sprintf(
 					'MixMyMeals cleanup: deleted %1$d meal plan(s), %2$d meal(s) belonging to them and %3$d orphaned meal(s); %4$d deletion(s) failed.',
 					$stats['plans'],

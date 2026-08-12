@@ -435,9 +435,9 @@ class Mixmymeals_Cart {
 		$item['servings'] = isset( $_POST['servings'] )
 			? intval( $_POST['servings'] ) : $item['servings'] ?? 1;
 		$item['type']     = isset( $_POST['type'] )
-			? sanitize_text_field( $_POST['type'] ) : $item['type'] ?? '';
+			? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : $item['type'] ?? '';
 		$item['note']     = isset( $_POST['note'] )
-			? sanitize_textarea_field( $_POST['note'] ) : $item['note'] ?? '';
+			? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : $item['note'] ?? '';
 		$item['day']      = isset( $_POST['day'] ) ? intval( $_POST['day'] )
 			: $item['day'] ?? null;
 
