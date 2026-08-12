@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.4.1
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,49 @@ privacy text under Settings → Privacy after installation.
 
 == Changelog ==
 
+= 3.0.0 =
+
+**Instagram and Pinterest publishing has moved into a separate plugin,
+MixMyMeals Social.** Install and activate it to keep posting; your connected
+accounts, scheduled posts and settings carry over untouched, because the
+option names, user meta and cron hooks are unchanged. Without it this plugin
+keeps every recipe, plan and shopping-list feature but posts nowhere — and it
+now makes no external API calls at all.
+
+Added:
+* Disclosure labelling for commercial and guest content. A recipe or plan can
+  be marked as a paid placement, a cooperation or an unpaid guest
+  contribution; the first two render a visible "Advertisement" label, guest
+  contributions a quieter "Guest author" one. The label appears on single
+  pages, archives, browse cards and inside meal plans, and a meal inherits it
+  from the recipe it plans. In German-speaking markets this is a legal
+  requirement (§ 5a UWG, § 22 MStV), not a display option, which is why its
+  structural CSS cannot be themed away.
+* External authors are now entities rather than free text repeated on every
+  post. An author exists once, is picked from a list on the recipe or plan,
+  and is edited on their own screen — so a bio or link is corrected in one
+  place instead of per contribution. Existing author fields are migrated
+  automatically; the old values are left in the database untouched.
+* A `mixmymeals_admin_board_services` filter so add-ons can contribute their
+  own actions to the frontend admin panel, plus filters for settings tabs,
+  settings fields and cleanup reporting.
+
+Fixed:
+* A fatal error that broke saving recipes entirely. Every meta box on the
+  recipe screen — steps, details, equipment, image credit — silently failed
+  to save.
+* Translations were loaded too early for WordPress 6.7, which refused them
+  and fell back to the English source strings.
+* `[mmm_cart_badge]` printed the translation catalogue's header metadata into
+  the page on translated sites, because its default labels were an empty
+  translatable string.
+
+Changed:
+* The PDF stylesheet moved to `assets/css/pdf.css` and is now editable like
+  any other stylesheet.
+* `mmm_write_to_log()` is now `mixmymeals_write_to_log()`.
+* The plugin passes WordPress's Plugin Check with no findings.
+
 = 2.4.1 =
 * Fixed a fatal error on the recipe list in wp-admin (and on any page showing
   recipe nutrition) when an ingredient had a nutrition field that was never
@@ -164,6 +207,12 @@ privacy text under Settings → Privacy after installation.
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.0.0 =
+Instagram and Pinterest publishing has moved to the separate MixMyMeals Social
+plugin. Install and activate it before updating if you post to either — your
+accounts, scheduled posts and settings carry over. Everything else is
+unaffected. Also fixes a fatal error that prevented recipes from saving.
 
 = 2.0.0 =
 Major release: social publishing (Instagram/Pinterest) with per-user accounts,
