@@ -313,19 +313,33 @@ class Mixmymeals_Ingredient_Amount {
 
 		global $wpdb;
 
-		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration over a meta key with no API equivalent.
+		/*
+		 * Every row carrying the flag, whatever its value — the falsy ones have
+		 * to be deleted too, or the fallback in get_divisor() keeps reading
+		 * them forever.
+		 */
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration over a meta key with no API equivalent.
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value != ''",
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
 				self::META_LEGACY_INDIVISIBLE
 			)
 		);
 
-		foreach ( $ids as $post_id ) {
-			$post_id = (int) $post_id;
+		$migrated = 0;
 
-			// Only where nothing newer has been written already.
-			if ( ! get_post_meta( $post_id, self::META_DIVISOR, true ) ) {
+		foreach ( $rows as $row ) {
+			$post_id = (int) $row->post_id;
+
+			/*
+			 * Only a truthy flag becomes a divisor. "0" and "" mean the unit was
+			 * explicitly divisible, and SQL does not agree with PHP about that:
+			 * `meta_value != ''` matches the string "0", so filtering in the
+			 * query turned "may be split" into "whole ones only" — the exact
+			 * opposite — for any row stored that way.
+			 */
+			if ( $row->meta_value && ! get_post_meta( $post_id, self::META_DIVISOR, true ) ) {
 				update_post_meta( $post_id, self::META_DIVISOR, 1 );
+				++$migrated;
 			}
 
 			delete_post_meta( $post_id, self::META_LEGACY_INDIVISIBLE );
@@ -333,7 +347,7 @@ class Mixmymeals_Ingredient_Amount {
 
 		update_option( self::MIGRATION_OPTION, 1, false );
 
-		return count( $ids );
+		return $migrated;
 	}
 
 	public function get_amount_usage_count(): int {
