@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.0.0
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,16 +22,27 @@ shopping list and nutrition totals, and export everything as a PDF.
 = Features =
 
 * **Recipes** with step-by-step instructions, per-step ingredients and images.
-* **Ingredients** with nutrition values (calories, fat, carbs, protein, sugar,
-  fibre, salt), configurable units and an optional price per 100 g.
+* **Ingredients** with nutrition values (energy, fat, carbohydrate, sugars,
+  fibre, protein, salt), configurable units and an optional price per 100 g.
+  A unit can state how finely it may be split — whole ones only, or in
+  halves, quarters and so on, so a recipe asks for half a tin instead of an
+  arbitrary fraction of one.
 * **Meals & meal plans** spanning any range of weekdays, grouped by meal type
   (breakfast, lunch, dinner, snack), with per-day calorie totals.
 * **Shopping list generator** that scales ingredient amounts to the chosen
-  servings and groups items by ingredient category.
+  servings and groups items by ingredient category. Quantities are rounded up
+  once over the whole plan, so two recipes each needing half a tin buy one
+  tin, not two.
+* **Nutrition in context**: every figure can be shown against the reference
+  intake of an average adult (EU Regulation 1169/2011), laid out like the
+  panel on a food packet — on recipes, on plans, in the PDF and in the
+  subscription mails, all quoting the same numbers.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
-* **Meal-plan e-mail subscriptions** with GDPR-friendly double opt-in.
+* **Meal-plan e-mail subscriptions** with GDPR-friendly double opt-in, and
+  placeholders for the day's nutrition, a breakdown per dish and the plan's
+  daily average.
 * **Frontend admin panel** on plan and recipe pages (admins only): set to
   draft or trash without leaving the page. Add-ons can contribute their own
   actions to it.
@@ -90,6 +101,40 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.1.0 =
+
+Added:
+* Subscription mails can report the full nutrition picture, not just energy
+  and the three macros. Sugars, fibre and salt were being calculated for
+  every plan and then discarded. New placeholders cover a food-label style
+  table with each figure's share of the reference intake, a breakdown per
+  dish, and the plan's daily average — see templates/emails/example.html.
+* Reference intakes for an average adult (EU Regulation 1169/2011, fibre per
+  DGE) put the numbers in context: "1 045 kcal" says little, "52 % of the
+  reference intake" says what it means. Values and the accompanying note are
+  filterable via `mixmymeals_reference_intake` and
+  `mixmymeals_reference_intake_note`.
+* Ingredient units can state how finely they may be split. A tin that can be
+  halved carries a divisor of 2, so a scaled recipe asks for half a tin
+  rather than 0.37 of one, and the shopping list buys in halves too.
+
+Fixed:
+* The plan page computed its nutrition differently from the mail and the
+  PDF — a servings-weighted average against one serving of each meal — so
+  the same plan quoted different figures depending on where you read it. All
+  three now average the days that actually carry meals.
+* The shopping list treated any unit that was not marked indivisible as
+  something to weigh, and printed counts as whole numbers. Half a tin came
+  out as a whole one.
+
+Changed:
+* One set of nutrition labels everywhere. Recipes said "Calories" where
+  plans said "Energy" and the calculator said "Carbs", for the identical
+  figure. Tables now follow a food label's order and wording, with "of which
+  sugars" as the sub-entry of carbohydrate.
+* The PDF gained a table for an average day with all seven figures and their
+  share of the reference intake, after the existing per-day breakdown.
 
 = 3.0.0 =
 
@@ -207,6 +252,12 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.1.0 =
+Nutrition figures now agree across recipes, plans, the PDF and mails, and are
+shown against the EU reference intake. Expect changed numbers and labels on
+the plan page, which had been averaging differently. Units can now be split
+in halves or quarters.
 
 = 3.0.0 =
 Instagram and Pinterest publishing has moved to the separate MixMyMeals Social
