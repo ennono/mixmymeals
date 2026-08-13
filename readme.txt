@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.1.0
+Stable tag: 3.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,9 +24,9 @@ shopping list and nutrition totals, and export everything as a PDF.
 * **Recipes** with step-by-step instructions, per-step ingredients and images.
 * **Ingredients** with nutrition values (energy, fat, carbohydrate, sugars,
   fibre, protein, salt), configurable units and an optional price per 100 g.
-  A unit can state how finely it may be split — whole ones only, or in
-  halves, quarters and so on, so a recipe asks for half a tin instead of an
-  arbitrary fraction of one.
+  A unit states how finely it may be split — one number: 1 for whole ones
+  only, 2 for halves, 4 for quarters — so a recipe asks for half a tin
+  instead of an arbitrary fraction of one.
 * **Meals & meal plans** spanning any range of weekdays, grouped by meal type
   (breakfast, lunch, dinner, snack), with per-day calorie totals.
 * **Shopping list generator** that scales ingredient amounts to the chosen
@@ -101,6 +101,36 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.2.0 =
+
+**How divisible a unit is, is now a single number on the unit.** 1 means
+whole ones only, 2 that it can be halved, 4 quarters, and an empty field that
+any amount will do. The "Indivisible" checkbox next to it is gone: it said
+the same thing as a divisor of 1, which meant the state had two
+representations, every save had to reconcile them, and entering 1 in the
+field did the *opposite* of what it reads like, because the divisor only
+counted from 2 upwards.
+
+Existing units are converted automatically on the first visit to wp-admin
+after the update — the flag becomes a divisor of 1. Nothing changes about how
+a unit behaves at any point: until the conversion runs, the old flag is still
+read, so a site whose admin nobody opens keeps working exactly as before. As
+with any data migration, take a backup first.
+
+Changed:
+* `set_indivisible( false )` now clears the restriction entirely rather than
+  only the "whole ones" part. False means "may be split", so leaving a
+  divisor of 4 in place would contradict the caller.
+* Over REST a unit carries `divisor` and a read-only `step_divisor`.
+  `is_indivisible` still works, reads as `divisor === 1` and writes as 1 or
+  0; prefer `divisor`, which wins when both are sent.
+* The MCP server gained `divisor` on `mmm_create_ingr_unit` and
+  `mmm_update_ingr_unit`; its `is_indivisible` parameter is marked deprecated.
+* The readme and the code no longer name specific regulations for the
+  nutrition reference intakes or the disclosure label. What a site has to
+  show, and in what form, depends on its content and market — not on a
+  plugin.
 
 = 3.1.0 =
 
@@ -252,6 +282,12 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.2.0 =
+A unit's divisibility is one number now (1 = whole ones, 2 = halves); the
+Indivisible checkbox is gone. Existing units convert automatically on the
+first wp-admin visit and behave unchanged until then. Take a backup, as with
+any data migration.
 
 = 3.1.0 =
 Nutrition figures now agree across recipes, plans, the PDF and mails, and are
