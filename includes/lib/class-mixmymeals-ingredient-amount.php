@@ -225,17 +225,29 @@ class Mixmymeals_Ingredient_Amount {
 
 	/**
 	 * Setter: How finely this unit can be split. 2 means halves, 4 quarters.
-	 * Anything below 2 removes the restriction, so the unit is freely
-	 * divisible again.
 	 *
-	 * Ignored while the unit is marked indivisible — that flag already says
-	 * "whole ones only", which is the same statement as a divisor of 1.
+	 * A divisor of 1 marks the unit indivisible rather than being discarded:
+	 * 1/1 *is* the whole unit, so someone entering it means "whole ones only",
+	 * and silently reading that as "any amount" would be the exact opposite of
+	 * what they asked for. It is stored as the flag, not as a divisor of 1, so
+	 * there is one representation of that state instead of two.
 	 *
-	 * @param int $divisor Smallest usable fraction is 1/$divisor.
+	 * 0 removes the restriction. Anything else is ignored while the unit is
+	 * already marked indivisible — that flag is the coarser setting and wins.
+	 *
+	 * @param int $divisor Smallest usable fraction is 1/$divisor; 1 = whole
+	 *                     units only, 0 = any amount.
 	 * @return void
 	 */
 	public function set_divisor( int $divisor ): void {
 		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( 1 === $divisor ) {
+			// Clears the divisor meta on the way, so the two never disagree.
+			$this->set_indivisible( true );
+
 			return;
 		}
 

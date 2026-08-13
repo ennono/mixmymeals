@@ -1903,7 +1903,7 @@ class Mixmymeals_Post_Meta {
 					. '" class="small-text" placeholder="—"'
 					. ( $is_indivisible ? ' disabled="disabled"' : '' ) . '>';
 				echo '<p class="description">'
-					. esc_html__( '2 = halves, 4 = quarters. Empty means any amount.', 'mixmymeals' )
+					. esc_html__( '2 = halves, 4 = quarters, 1 = whole ones only (ticks the box above). Empty means any amount.', 'mixmymeals' )
 					. '</p>';
 				echo '</td>';
 
