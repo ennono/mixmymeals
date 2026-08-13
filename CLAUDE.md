@@ -171,7 +171,7 @@ Four states, of which editorial is the absence of any meta (same convention as t
 
 **This is deliberately not the same axis as the author box.** A guest recipe has an external author but is not advertising; a sponsored recipe may well be written in-house. Collapsing both into one "external" badge is exactly what makes a disclosure legally worthless — `has_external_author()` answers *who wrote it*, `requires_disclosure_label()` answers *must this be labelled*. Never substitute one for the other.
 
-**Every feature that renders a recipe or plan publicly must honour `requires_disclosure_label()`** — for commercial content the label is a legal requirement (§ 5a UWG, § 22 MStV), not a display preference, and it has to be visible without scrolling and in listings too, not only on the single page. German-language markets need "Anzeige"/"Werbung" as the wording; "Kooperation"/"sponsored by" has repeatedly been held insufficient.
+**Every feature that renders a recipe or plan publicly must honour `requires_disclosure_label()`** — for commercial content the label is the whole point of the setting, not a display preference, and it has to be visible without scrolling and in listings too, not only on the single page. The German wording is "Anzeige"/"Werbung"; softer phrasings like "Kooperation" or "sponsored by" are widely regarded as too weak, which is why the source strings are `Advertisement` and `Guest author` and their German translations are load-bearing.
 
 `get_disclosure_type()` maps any unknown stored value back to editorial rather than trusting it through, since the type decides whether that label is printed. `save_disclosure()` clears the sponsor whenever the type is not one of `DISCLOSURE_LABELLED_TYPES`, so a name from an earlier classification can never surface in a label or in structured data.
 
@@ -181,7 +181,7 @@ They render from one code path but must never look alike — the theme gives "We
 
 Like every crediting feature it resolves through `Mixmymeals_Meal::resolve_credit_source()`, so a meal inherits the disclosure of the recipe it plans. The child theme calls it via `mmm_render_disclosure_label()` directly after the hero on all three singles — above the content, because a label below the fold does not discharge the obligation.
 
-The structural CSS in `assets/css/frontend.css` pins `display` and `visibility` with `!important`, unlike every other block in that file: design belongs to the theme, but a legally required label must not be themable into invisibility. The theme styles it as a pill in the accent colour, deliberately not the green of `.mmm-badge` — green is the brand/positive tone and an ad label must not read as a quality mark.
+The structural CSS in `assets/css/frontend.css` pins `display` and `visibility` with `!important`, unlike every other block in that file: design belongs to the theme, but a disclosure the site owner has switched on must not be themable into invisibility. The theme styles it as a pill in the accent colour, deliberately not the green of `.mmm-badge` — green is the brand/positive tone and an ad label must not read as a quality mark.
 
 `disclosure_label_for()` is the single place that resolves the meal and decides whether there is anything to show; all three renderings build on it, so they cannot disagree.
 

@@ -486,8 +486,8 @@ body.mmm-cook-mode-open {
 /* ==========================================================
    Disclosure label ([mmm_disclosure_label]) – structural basics.
    Design lives in the theme, but deliberately NOT the visibility:
-   a legally required label must not be themable into invisibility,
-   so display and visibility are pinned here.
+   a disclosure the site owner has switched on must not be themable into
+   invisibility, so display and visibility are pinned here.
    ========================================================== */
 
 .mmm-disclosure {

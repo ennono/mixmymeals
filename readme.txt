@@ -33,10 +33,10 @@ shopping list and nutrition totals, and export everything as a PDF.
   servings and groups items by ingredient category. Quantities are rounded up
   once over the whole plan, so two recipes each needing half a tin buy one
   tin, not two.
-* **Nutrition in context**: every figure can be shown against the reference
-  intake of an average adult (EU Regulation 1169/2011), laid out like the
-  panel on a food packet — on recipes, on plans, in the PDF and in the
-  subscription mails, all quoting the same numbers.
+* **Nutrition in context**: every figure can be shown against a reference
+  intake for an average adult (2 000 kcal), laid out like the panel on a food
+  packet — on recipes, on plans, in the PDF and in the subscription mails,
+  all quoting the same numbers. The values are configurable.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
@@ -110,11 +110,11 @@ Added:
   every plan and then discarded. New placeholders cover a food-label style
   table with each figure's share of the reference intake, a breakdown per
   dish, and the plan's daily average — see templates/emails/example.html.
-* Reference intakes for an average adult (EU Regulation 1169/2011, fibre per
-  DGE) put the numbers in context: "1 045 kcal" says little, "52 % of the
-  reference intake" says what it means. Values and the accompanying note are
-  filterable via `mixmymeals_reference_intake` and
-  `mixmymeals_reference_intake_note`.
+* Reference intakes for an average adult (2 000 kcal) put the numbers in
+  context: "1 045 kcal" says little, "52 % of the reference intake" says what
+  it means. The values and the accompanying note are filterable via
+  `mixmymeals_reference_intake` and `mixmymeals_reference_intake_note`, so a
+  site aimed at a specific audience can set its own.
 * Ingredient units can state how finely they may be split. A tin that can be
   halved carries a divisor of 2, so a scaled recipe asks for half a tin
   rather than 0.37 of one, and the shopping list buys in halves too.
@@ -151,9 +151,9 @@ Added:
   contribution; the first two render a visible "Advertisement" label, guest
   contributions a quieter "Guest author" one. The label appears on single
   pages, archives, browse cards and inside meal plans, and a meal inherits it
-  from the recipe it plans. In German-speaking markets this is a legal
-  requirement (§ 5a UWG, § 22 MStV), not a display option, which is why its
-  structural CSS cannot be themed away.
+  from the recipe it plans. The label is not meant as a display option: its
+  structural CSS cannot be themed away, so a disclosure a site owner has
+  chosen to show cannot be hidden again by accident.
 * External authors are now entities rather than free text repeated on every
   post. An author exists once, is picked from a list on the recipe or plan,
   and is edited on their own screen — so a bio or link is corrected in one
@@ -255,7 +255,7 @@ Changed:
 
 = 3.1.0 =
 Nutrition figures now agree across recipes, plans, the PDF and mails, and are
-shown against the EU reference intake. Expect changed numbers and labels on
+shown against a reference intake. Expect changed numbers and labels on
 the plan page, which had been averaging differently. Units can now be split
 in halves or quarters.
 

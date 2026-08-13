@@ -3329,8 +3329,8 @@ class Mixmymeals_Post_Meta {
 	/**
 	 * The stored disclosure type, or '' for editorial content. An unknown value
 	 * reads as editorial rather than being trusted through — the type decides
-	 * whether a legally required label is printed, so it must never be a value
-	 * the rendering side does not know.
+	 * whether a disclosure label is printed at all, so it must never be a
+	 * value the rendering side does not know.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return string
@@ -3415,9 +3415,10 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
-	 * Whether the post must show a visible disclosure label. **Every feature
-	 * that renders a recipe or plan publicly must honour this** — the label is a
-	 * legal requirement for commercial content, not a display preference.
+	 * Whether the post is to show a visible disclosure label. **Every feature
+	 * that renders a recipe or plan publicly must honour this** — for
+	 * commercial content the label is the point of the setting, not a display
+	 * preference to weigh against the layout.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return bool

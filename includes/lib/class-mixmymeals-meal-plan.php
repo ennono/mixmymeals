@@ -502,15 +502,15 @@ class Mixmymeals_Meal_Plan {
 	 * "1 850 kcal" says little on its own, "93 % of the reference intake" says
 	 * what it means.
 	 *
-	 * Six of the seven are the reference intakes of EU Regulation 1169/2011,
-	 * Annex XIII — the same values a supermarket label prints, so the numbers
-	 * here and on a packet are directly comparable. Fibre is not part of that
-	 * annex; 30 g follows the DGE recommendation.
+	 * The figures are the customary reference values for an average adult, the
+	 * same ones a supermarket label prints, so a recipe and a packet can be
+	 * compared directly.
 	 *
-	 * These are a *labelling* reference for an average adult (2 000 kcal), not
-	 * a personal recommendation: actual needs vary with age, sex, weight and
-	 * activity. Anything rendering them has to say so — see
-	 * Mixmymeals_Meal_Plan::reference_intake_note().
+	 * They describe an average adult on 2 000 kcal, not the person reading
+	 * them: actual needs vary with age, sex, weight and activity. Anything
+	 * rendering them has to say so — see
+	 * Mixmymeals_Meal_Plan::reference_intake_note(). Sites with a specific
+	 * audience should set their own via the filter below.
 	 *
 	 * @var array<string,float>
 	 */
