@@ -216,6 +216,69 @@ class Mixmymeals_Ingredient_Amount {
 		);
 	}
 
+	/**
+	 * Setter: How finely this unit can be split. 2 means halves, 4 quarters.
+	 * Anything below 2 removes the restriction, so the unit is freely
+	 * divisible again.
+	 *
+	 * Ignored while the unit is marked indivisible — that flag already says
+	 * "whole ones only", which is the same statement as a divisor of 1.
+	 *
+	 * @param int $divisor Smallest usable fraction is 1/$divisor.
+	 * @return void
+	 */
+	public function set_divisor( int $divisor ): void {
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( $divisor >= 2 ) {
+			update_post_meta( $this->post_id, '_mmm_unit_divisor', $divisor );
+		} else {
+			delete_post_meta( $this->post_id, '_mmm_unit_divisor' );
+		}
+	}
+
+	/**
+	 * Getter: The stored divisor, or 0 when the unit may be split freely.
+	 *
+	 * @return int
+	 */
+	public function get_divisor(): int {
+		if ( ! $this->is_valid() ) {
+			return 0;
+		}
+
+		$divisor = (int) get_post_meta( $this->post_id, '_mmm_unit_divisor', true );
+
+		return $divisor >= 2 ? $divisor : 0;
+	}
+
+	/**
+	 * The divisor every calculation should work with: 1 for an indivisible
+	 * unit, the stored divisor for one that splits into fractions, 0 when the
+	 * unit may take any value.
+	 *
+	 * This is the single place that reconciles the checkbox with the number.
+	 * "Indivisible" and "divisor 1" are the same statement, and the checkbox
+	 * wins — it is the coarser, more deliberate setting, and a leftover
+	 * divisor from before someone ticked it must not quietly reintroduce
+	 * halves.
+	 *
+	 * A quantity is then always a multiple of 1/divisor: round for a recipe,
+	 * round up for a shopping list.
+	 *
+	 * @return int
+	 */
+	public function get_step_divisor(): int {
+
+		if ( $this->is_indivisible() ) {
+			return 1;
+		}
+
+		return $this->get_divisor();
+	}
+
 	public function get_amount_usage_count(): int {
 
 		$amount_id = $this->post_id;

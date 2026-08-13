@@ -990,6 +990,12 @@ class Mixmymeals_Post_Meta {
 					$is_indivisible = ! empty( $amount_data['indivisible'] );
 					$amount_obj->set_indivisible( $is_indivisible );
 
+					// Teiler: bei einer unteilbaren Einheit bedeutungslos, also
+					// gleich löschen statt ihn stumm liegen zu lassen.
+					$amount_obj->set_divisor(
+						$is_indivisible ? 0 : absint( $amount_data['divisor'] ?? 0 )
+					);
+
 				} else {
 					// Neue Menge anlegen
 					if ( ! empty( $amount_data['title'] ) ) {
@@ -1005,7 +1011,11 @@ class Mixmymeals_Post_Meta {
 						}
 
 						// Unteilbarkeit setzen
-						$amount_obj->set_indivisible( ! empty( $amount_data['indivisible'] ) );
+						$new_indivisible = ! empty( $amount_data['indivisible'] );
+						$amount_obj->set_indivisible( $new_indivisible );
+						$amount_obj->set_divisor(
+							$new_indivisible ? 0 : absint( $amount_data['divisor'] ?? 0 )
+						);
 					}
 				}
 			}
@@ -2011,6 +2021,7 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'Used', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Weight', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Indivisible', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Divisor', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
 		echo '</tr>';
 		echo '</thead>';
@@ -2061,6 +2072,18 @@ class Mixmymeals_Post_Meta {
 				echo '</label>';
 				echo '</td>';
 
+				// Teiler: wie fein die Einheit geteilt werden darf.
+				echo '<td>';
+				echo '<input type="number" step="1" min="0" name="mmm_ingredient_amounts['
+					. esc_attr( $unit->ID ) . '][divisor]" value="'
+					. esc_attr( (string) ( $amount->get_divisor() ?: '' ) )
+					. '" class="small-text" placeholder="—"'
+					. ( $is_indivisible ? ' disabled="disabled"' : '' ) . '>';
+				echo '<p class="description">'
+					. esc_html__( '2 = halves, 4 = quarters. Empty means any amount.', 'mixmymeals' )
+					. '</p>';
+				echo '</td>';
+
 				// Löschen-Checkbox
 				echo '<td>';
 				echo '<label>';
@@ -2090,6 +2113,9 @@ class Mixmymeals_Post_Meta {
 		echo '<td>';
 		echo '<input type="checkbox" name="mmm_ingredient_amounts[new][indivisible]" value="1"> ';
 		echo esc_html__( 'Yes', 'mixmymeals' );
+		echo '</td>';
+		echo '<td>';
+		echo '<input type="number" step="1" min="0" name="mmm_ingredient_amounts[new][divisor]" value="" class="small-text" placeholder="—">';
 		echo '</td>';
 		echo '<td>';
 		echo '<em>' . esc_html__( '–', 'mixmymeals' ) . '</em>';

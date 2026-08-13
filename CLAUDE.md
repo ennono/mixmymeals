@@ -57,7 +57,11 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 
 **Ingredient** — nutrition stored per-key in post meta: `_rmm_calories_100`, `_rmm_fat`, `_rmm_carbs`, `_rmm_protein`, `_rmm_sugar`, `_rmm_fiber`, `_rmm_salt`. Units are child posts (`mmm_ingr_unit`).
 
-**Ingredient_Amount** (`mmm_ingr_unit`) — child post of an ingredient. Meta: `_mmm_ingr_unit_weight` (g per unit), `_mmm_is_sale_unit` (preferred for shopping lists), `_mmm_is_indivisible` (quantity rounds to whole number).
+**Ingredient_Amount** (`mmm_ingr_unit`) — child post of an ingredient. Meta: `_mmm_ingr_unit_weight` (g per unit), `_mmm_is_sale_unit` (preferred for shopping lists), `_mmm_is_indivisible` (whole units only), `_mmm_unit_divisor` (how finely the unit splits: 2 = halves, 4 = quarters).
+
+`get_step_divisor()` is the **only** method calculations should ask: it returns 1 for an indivisible unit, the stored divisor for a fractional one, and 0 when the unit takes any value. It is also the single place that reconciles the two settings — "indivisible" and "divisor 1" are the same statement, and the checkbox wins, so a divisor left over from before someone ticked it cannot quietly reintroduce halves. A quantity is then always a multiple of 1/divisor, computed on the integer multiple (`round( $amount * $d ) / $d`) so thirds do not drift into 0.33333.
+
+The two call sites round in opposite directions on purpose: `Mixmymeals_Recipe::get_ingredients_scaled()` rounds to nearest, because scaling four servings down to three must not silently add a tin, while `Mixmymeals_Meal_Plan::calc_shopping_list()` rounds **up**, once over the aggregated requirement — at the shop too little is worse than too much, but buying two tins for two half-tin recipes is the error that aggregation exists to prevent.
 
 **Meal** — child post of a meal plan. Meta: `recipe_id`, `servings`, `mmm_meal_type` (breakfast/lunch/dinner/snack/other), `_mmm_day` (1–7).
 
@@ -67,7 +71,8 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 
 `Mixmymeals_Recipe::get_ingredients_scaled($scale)` is the canonical method for getting ingredient lists with correct weights. It:
 1. Multiplies each ingredient's stored amount by `$scale`
-2. If the unit is indivisible, rounds to nearest whole number (min 1)
+2. Snaps the result to the unit's `get_step_divisor()` (min one step): whole
+   ones when indivisible, halves at a divisor of 2
 3. Multiplies by the unit's weight in grams to get `weight_g`
 4. Falls back to treating the amount as grams directly if no unit is set
 

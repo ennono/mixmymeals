@@ -456,17 +456,19 @@ class Mixmymeals_Recipe {
 	 * calculation, and shopping lists.
 	 *
 	 * Special handling:
-	 * - If an ingredient unit is marked as indivisible, the scaled amount
-	 *   will be rounded to the nearest whole number (minimum 1).
+	 * - The scaled amount is snapped to what the unit can be split into: whole
+	 *   ones when it is marked indivisible, halves when it carries a divisor
+	 *   of 2, and so on. A unit without either takes any value.
 	 * - The resulting weight (in grams) is adjusted accordingly to ensure
 	 *   correct nutrition calculations.
 	 *
 	 * Each returned item contains:
 	 * - id (int)            Ingredient post ID
 	 * - name (string)       Ingredient name
-	 * - amount (float)      Scaled amount (rounded if indivisible)
+	 * - amount (float)      Scaled amount, snapped to the unit's divisor
 	 * - unit (string)       Unit label (e.g. "g", "pcs", "can")
 	 * - weight_g (float)    Total weight in grams after scaling
+	 * - step_divisor (int)  1 = whole units only, n = 1/n steps, 0 = any value
 	 * - amount_id (int)     Unit/amount post ID (if applicable)
 	 *
 	 * @param float $scale Scaling factor (e.g. 0.5 for half, 2 for double).
@@ -574,17 +576,32 @@ class Mixmymeals_Recipe {
 				$unit_title      = '';
 				$weight_per_unit = 0.0;
 				$is_indivisible  = false;
+				$step_divisor    = 0;
 
 				if ( $amount_id > 0 ) {
 					$unit_obj        = new Mixmymeals_Ingredient_Amount( $amount_id );
 					$unit_title      = $unit_obj->get_title();
 					$weight_per_unit = floatval( $unit_obj->get_weight() );
 					$is_indivisible  = $unit_obj->is_indivisible();
+					$step_divisor    = $unit_obj->get_step_divisor();
 				}
 
-				// 💥 HIER: Unteilbarkeit anwenden
-				if ( $is_indivisible ) {
-					$amount = max( 1, round( $amount ) );
+				/*
+				 * Snap the scaled amount to what the unit can actually be split
+				 * into: whole ones for an indivisible unit (divisor 1), halves
+				 * for a tin that can be halved (divisor 2), and so on. A unit
+				 * without a divisor takes any value.
+				 *
+				 * Rounded, not rounded up: this is what the recipe uses, and
+				 * scaling four servings down to three should not silently add
+				 * a tin. The shopping list rounds up instead — see
+				 * Mixmymeals_Meal_Plan::calc_shopping_list().
+				 *
+				 * The arithmetic runs on the integer multiple rather than on a
+				 * 1/divisor step, so thirds do not drift into 0.33333.
+				 */
+				if ( $step_divisor > 0 ) {
+					$amount = max( 1, round( $amount * $step_divisor ) ) / $step_divisor;
 				}
 
 				// Gewicht berechnen
@@ -604,6 +621,7 @@ class Mixmymeals_Recipe {
 					'weight_g'        => $total_weight,
 					'weight_per_unit' => $weight_per_unit,
 					'is_indivisible'  => $is_indivisible,
+					'step_divisor'    => $step_divisor,
 					'amount_id'       => $amount_id,
 					'optional'        => ! empty( $ing['optional'] ),
 					'step'            => $step_index,

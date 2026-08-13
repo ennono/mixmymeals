@@ -202,6 +202,7 @@ class Mixmymeals_Rest_Api {
 		// mmm_ingr_unit
 		register_post_meta( 'mmm_ingr_unit', '_mmm_ingr_unit_weight', array( 'type' => 'number',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_ingr_unit', '_mmm_is_indivisible',   array( 'type' => 'boolean', 'single' => true, 'show_in_rest' => true, 'auth_callback' => $can_edit ) );
+		register_post_meta( 'mmm_ingr_unit', '_mmm_unit_divisor',     array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'auth_callback' => $can_edit ) );
 
 		// mmm_meal_plan
 		register_post_meta( 'mmm_meal_plan', 'start_day', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
@@ -309,6 +310,7 @@ class Mixmymeals_Rest_Api {
 				'title'          => array( 'required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'weight_g'       => array( 'required' => true,  'type' => 'number' ),
 				'is_indivisible' => array( 'required' => false, 'type' => 'boolean' ),
+				'divisor'        => array( 'required' => false, 'type' => 'integer', 'minimum' => 0 ),
 			),
 		) );
 		register_rest_route( 'mixmymeals/v1', '/units/(?P<id>\d+)', array(
@@ -326,6 +328,7 @@ class Mixmymeals_Rest_Api {
 				'title'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'weight_g'       => array( 'required' => false, 'type' => 'number' ),
 				'is_indivisible' => array( 'required' => false, 'type' => 'boolean' ),
+				'divisor'        => array( 'required' => false, 'type' => 'integer', 'minimum' => 0 ),
 			),
 		) );
 
@@ -470,6 +473,8 @@ class Mixmymeals_Rest_Api {
 			'parent'         => $unit->get_parent_ingredient_id(),
 			'weight_g'       => $unit->get_weight(),
 			'is_indivisible' => $unit->is_indivisible(),
+			'divisor'        => $unit->get_divisor(),
+			'step_divisor'   => $unit->get_step_divisor(),
 		);
 	}
 
@@ -1199,6 +1204,7 @@ class Mixmymeals_Rest_Api {
 
 		$unit->set_weight( floatval( $request->get_param( 'weight_g' ) ) );
 		if ( $request->has_param( 'is_indivisible' ) ) $unit->set_indivisible( (bool) $request->get_param( 'is_indivisible' ) );
+		if ( $request->has_param( 'divisor' ) ) $unit->set_divisor( (int) $request->get_param( 'divisor' ) );
 
 		return new WP_REST_Response( $this->serialize_ingr_unit( $unit->get_id() ), 201 );
 	}
@@ -1228,6 +1234,7 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'title' ) )         $unit->set_title( $request->get_param( 'title' ) );
 		if ( $request->has_param( 'weight_g' ) )       $unit->set_weight( floatval( $request->get_param( 'weight_g' ) ) );
 		if ( $request->has_param( 'is_indivisible' ) ) $unit->set_indivisible( (bool) $request->get_param( 'is_indivisible' ) );
+		if ( $request->has_param( 'divisor' ) ) $unit->set_divisor( (int) $request->get_param( 'divisor' ) );
 
 		return new WP_REST_Response( $this->serialize_ingr_unit( $id ), 200 );
 	}

@@ -800,6 +800,7 @@ class Mixmymeals_Meal_Plan {
 						'raw_amount'      => 0.0,
 						'weight_per_unit' => $weight_per_unit,
 						'is_indivisible'  => ! empty( $ing['is_indivisible'] ),
+						'step_divisor'    => (int) ( $ing['step_divisor'] ?? 0 ),
 						'unit_title'      => $unit,
 					];
 				}
@@ -820,15 +821,24 @@ class Mixmymeals_Meal_Plan {
 			return [];
 		}
 
-		// Unteilbare Einheiten einmal über den Gesamtbedarf aufrunden
-		// (beim Einkaufen ist zu wenig schlimmer als zu viel),
-		// dann Bedarf und Gewicht je Einheit festhalten und summieren.
+		/*
+		 * Round up once over the whole requirement, not per meal — buying two
+		 * tins for two half-tin recipes when one would do is exactly the error
+		 * a shopping list must not make. Rounded up rather than to nearest,
+		 * because at the shop too little is worse than too much.
+		 *
+		 * The step is what the unit can be split into: whole ones when it is
+		 * indivisible, halves at a divisor of 2. So half a tin needed becomes
+		 * half a tin bought, not a whole one.
+		 */
 		foreach ( $ingredient_totals as &$data ) {
 			$total = 0.0;
 			foreach ( $data['units'] as &$unit_data ) {
-				$amount = $unit_data['raw_amount'];
-				if ( $unit_data['is_indivisible'] ) {
-					$amount = max( 1.0, ceil( $amount ) );
+				$amount  = $unit_data['raw_amount'];
+				$divisor = (int) ( $unit_data['step_divisor'] ?? 0 );
+
+				if ( $divisor > 0 ) {
+					$amount = max( 1.0, ceil( $amount * $divisor ) ) / $divisor;
 				}
 
 				$weight = $unit_data['weight_per_unit'] > 0
@@ -1159,16 +1169,62 @@ class Mixmymeals_Meal_Plan {
 	 * @param float $total_weight Total weight in grams.
 	 * @return string E.g. "3× Stück + 150 g (≈ 405 g)".
 	 */
+	/**
+	 * A countable quantity for human eyes: locale separators, and only as many
+	 * decimals as the value actually needs — "1", "0,5", "0,75".
+	 *
+	 * Deliberately not Mixmymeals_Ingredient::format_amount(), which is the
+	 * parser-facing format: it prints a decimal point on purpose, because
+	 * Bring! reads "0,5" as something else entirely. That one belongs in the
+	 * Bring! lines, this one on the page.
+	 *
+	 * @param float $value Quantity in units.
+	 * @return string
+	 */
+	private static function format_count_i18n( float $value ): string {
+
+		$decimals = 0;
+
+		if ( abs( $value - round( $value ) ) > 0.001 ) {
+			$decimals = abs( $value * 10 - round( $value * 10 ) ) < 0.001 ? 1 : 2;
+		}
+
+		return number_format_i18n( $value, $decimals );
+	}
+
+	/**
+	 * Whether a shopping-list unit is something you count rather than weigh.
+	 *
+	 * True for anything that can only be taken in fixed steps — whole ones
+	 * when indivisible, halves at a divisor of 2. Those belong in the list as
+	 * "1,5× Dose", because that is what goes in the basket; a unit without a
+	 * step is better expressed as a weight.
+	 *
+	 * @param array $unit One entry of an ingredient's 'units' array.
+	 * @return bool
+	 */
+	private static function unit_is_counted( array $unit ): bool {
+
+		return ! empty( $unit['is_indivisible'] ) || (int) ( $unit['step_divisor'] ?? 0 ) > 0;
+	}
+
 	public static function build_needed_amount_string( array $units, float $total_weight ): string {
 
 		$piece_parts = [];
 		$loose_grams = 0.0;
 
 		foreach ( $units as $unit ) {
-			if ( ! empty( $unit['is_indivisible'] ) ) {
+			/*
+			 * Counted, not weighed, whenever the unit has a step at all — a
+			 * divisor of 2 makes "1,5× Dose" the honest answer, and turning it
+			 * into grams would hide what to put in the basket. format_amount()
+			 * rather than %d for exactly that reason: %d turned half a tin
+			 * into a whole one.
+			 */
+			if ( self::unit_is_counted( $unit ) ) {
 				$piece_parts[] = trim( sprintf(
-					'%d× %s',
-					(int) ( $unit['amount'] ?? 0 ),
+					'%s× %s',
+					self::format_count_i18n( (float) ( $unit['amount'] ?? 0 ) ),
 					$unit['unit_title'] ?? ''
 				) );
 			} else {
@@ -1215,7 +1271,7 @@ class Mixmymeals_Meal_Plan {
 
 		$divisible = array_filter(
 			$units,
-			static fn( $unit ) => empty( $unit['is_indivisible'] )
+			static fn( $unit ) => ! self::unit_is_counted( $unit )
 		);
 
 		// Nur Stückgut: Anzahl und Einheit sagen mehr als ein Gewicht.
@@ -1225,11 +1281,11 @@ class Mixmymeals_Meal_Plan {
 			$label = '';
 
 			foreach ( $units as $unit ) {
-				$count += (int) ( $unit['amount'] ?? 0 );
+				$count += (float) ( $unit['amount'] ?? 0 );
 				$label  = (string) ( $unit['unit_title'] ?? '' );
 			}
 
-			return trim( number_format_i18n( $count ) . ' ' . $label );
+			return trim( self::format_count_i18n( $count ) . ' ' . $label );
 		}
 
 		$grams = (int) round( $total_weight );
@@ -1493,7 +1549,7 @@ class Mixmymeals_Meal_Plan {
 				$added       = false;
 
 				foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
-					if ( ! empty( $unit['is_indivisible'] ) ) {
+					if ( self::unit_is_counted( $unit ) ) {
 						$lines[] = trim( sprintf(
 							'%s %s %s',
 							Mixmymeals_Ingredient::format_amount( (float) ( $unit['amount'] ?? 0 ) ),
