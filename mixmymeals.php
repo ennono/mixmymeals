@@ -111,6 +111,8 @@ Mixmymeals_Meal_Plan::register_bring();
 // Post-Meta-Felder, ebenfalls ein Hook-Satz pro Request. Die Taxonomie selbst
 // registriert Mixmymeals_Taxonomies wie alle anderen auch.
 Mixmymeals_Author::register_term_admin();
+// Einmalige Überführung des alten Unteilbar-Flags in den Teiler der Einheit.
+add_action( 'admin_init', array( 'Mixmymeals_Ingredient_Amount', 'migrate_indivisible' ) );
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();

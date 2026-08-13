@@ -57,13 +57,15 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 
 **Ingredient** — nutrition stored per-key in post meta: `_rmm_calories_100`, `_rmm_fat`, `_rmm_carbs`, `_rmm_protein`, `_rmm_sugar`, `_rmm_fiber`, `_rmm_salt`. Units are child posts (`mmm_ingr_unit`).
 
-**Ingredient_Amount** (`mmm_ingr_unit`) — child post of an ingredient. Meta: `_mmm_ingr_unit_weight` (g per unit), `_mmm_is_sale_unit` (preferred for shopping lists), `_mmm_is_indivisible` (whole units only), `_mmm_unit_divisor` (how finely the unit splits: 2 = halves, 4 = quarters).
+**Ingredient_Amount** (`mmm_ingr_unit`) — child post of an ingredient. Meta: `_mmm_ingr_unit_weight` (g per unit), `_mmm_is_sale_unit` (preferred for shopping lists), `_mmm_unit_divisor` (how finely the unit may be split).
 
-`get_step_divisor()` is the **only** method calculations should ask: it returns 1 for an indivisible unit, the stored divisor for a fractional one, and 0 when the unit takes any value. It is also the single place that reconciles the two settings — "indivisible" and "divisor 1" are the same statement, and the checkbox wins. The storage keeps them from contradicting each other in the first place: `set_indivisible( true )` deletes the divisor, `set_divisor()` refuses to store one while the unit is indivisible, and `set_divisor( 1 )` sets the flag instead of storing a divisor — 1/1 *is* the whole unit, so entering it means "whole ones only", and the earlier behaviour of discarding it silently meant the exact opposite. Neither write order nor which editor was used can leave the two disagreeing.
+**Divisibility is one number.** `_mmm_unit_divisor`: 1 = whole ones only, 2 = halves, 4 = quarters, absent = any amount. `get_divisor()` reads it and `get_step_divisor()` is the same value under the name calculations use. It used to be two settings — this divisor plus a `_mmm_is_indivisible` boolean — which gave "whole ones only" two representations, forced every writer to reconcile them, and made entering 1 mean the *opposite* of what it reads like, because the divisor only counted from 2 upwards. `is_indivisible()` survives as a derived accessor (`1 === get_divisor()`) and `set_indivisible()` as a wrapper, because both the REST API and MCP still expose the field; note that `set_indivisible( false )` clears the restriction entirely rather than only the "whole ones" part.
 
-Over REST the unit carries both `divisor` (stored, 0 = any amount) and a read-only `step_divisor` (what calculations actually use). MCP exposes `divisor` on `mmm_create_ingr_unit` and `mmm_update_ingr_unit`. A quantity is then always a multiple of 1/divisor, computed on the integer multiple (`round( $amount * $d ) / $d`) so thirds do not drift into 0.33333.
+`get_divisor()` falls back to the old boolean for units the migration has not reached, so an install part-way through an upgrade never treats its eggs as divisible. `migrate_indivisible()` moves the rows once, gated on `mixmymeals_unit_divisor_version` and attached on `admin_init` from `mixmymeals.php`.
 
-The two call sites round in opposite directions on purpose: `Mixmymeals_Recipe::get_ingredients_scaled()` rounds to nearest, because scaling four servings down to three must not silently add a tin, while `Mixmymeals_Meal_Plan::calc_shopping_list()` rounds **up**, once over the aggregated requirement — at the shop too little is worse than too much, but buying two tins for two half-tin recipes is the error that aggregation exists to prevent.
+The two call sites round in opposite directions on purpose: `Mixmymeals_Recipe::get_ingredients_scaled()` rounds to nearest, because scaling four servings down to three must not silently add a tin, while `Mixmymeals_Meal_Plan::calc_shopping_list()` rounds **up**, once over the aggregated requirement — at the shop too little is worse than too much, but buying two tins for two half-tin recipes is the error that aggregation exists to prevent. The arithmetic runs on the integer multiple (`round( $amount * $d ) / $d`) so thirds do not drift into 0.33333.
+
+Over REST a unit carries `divisor`, a read-only `step_divisor` and the older `is_indivisible`; MCP exposes `divisor` on `mmm_create_ingr_unit` / `mmm_update_ingr_unit` and keeps `is_indivisible` marked deprecated.
 
 **Meal** — child post of a meal plan. Meta: `recipe_id`, `servings`, `mmm_meal_type` (breakfast/lunch/dinner/snack/other), `_mmm_day` (1–7).
 
@@ -74,7 +76,7 @@ The two call sites round in opposite directions on purpose: `Mixmymeals_Recipe::
 `Mixmymeals_Recipe::get_ingredients_scaled($scale)` is the canonical method for getting ingredient lists with correct weights. It:
 1. Multiplies each ingredient's stored amount by `$scale`
 2. Snaps the result to the unit's `get_step_divisor()` (min one step): whole
-   ones when indivisible, halves at a divisor of 2
+   ones at a divisor of 1, halves at 2, any amount when there is none
 3. Multiplies by the unit's weight in grams to get `weight_g`
 4. Falls back to treating the amount as grams directly if no unit is set
 

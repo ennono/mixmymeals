@@ -201,7 +201,6 @@ class Mixmymeals_Rest_Api {
 
 		// mmm_ingr_unit
 		register_post_meta( 'mmm_ingr_unit', '_mmm_ingr_unit_weight', array( 'type' => 'number',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
-		register_post_meta( 'mmm_ingr_unit', '_mmm_is_indivisible',   array( 'type' => 'boolean', 'single' => true, 'show_in_rest' => true, 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_ingr_unit', '_mmm_unit_divisor',     array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'auth_callback' => $can_edit ) );
 
 		// mmm_meal_plan

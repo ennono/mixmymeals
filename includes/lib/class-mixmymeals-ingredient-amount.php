@@ -181,62 +181,39 @@ class Mixmymeals_Ingredient_Amount {
 	}
 
 	/**
-	 * Setter: Marks the unit as indivisible or removes the flag.
+	 * Meta key holding how finely the unit may be split.
 	 *
-	 * @param bool $is_indivisible Whether the unit is indivisible.
-	 *
-	 * @return void
+	 * @var string
 	 */
-	public function set_indivisible( bool $is_indivisible ): void {
-		if ( ! $this->is_valid() ) {
-			return;
-		}
-
-		if ( $is_indivisible ) {
-			update_post_meta( $this->post_id, '_mmm_is_indivisible', 1 );
-
-			// A divisor alongside "whole ones only" is a contradiction, and
-			// which of the two wins would then depend on who wrote last.
-			// Cleared here rather than in every caller: the admin screen used
-			// to do it and the REST endpoint did not, so the same unit ended
-			// up with different rows depending on how it was edited.
-			delete_post_meta( $this->post_id, '_mmm_unit_divisor' );
-		} else {
-			delete_post_meta( $this->post_id, '_mmm_is_indivisible' );
-		}
-	}
+	const META_DIVISOR = '_mmm_unit_divisor';
 
 	/**
-	 * Getter: Checks whether the unit is indivisible.
+	 * The pre-3.2 boolean flag. Only read, and only until migrate_indivisible()
+	 * has run — see get_divisor().
 	 *
-	 * @return bool True if indivisible, false otherwise.
+	 * @var string
 	 */
-	public function is_indivisible(): bool {
-		if ( ! $this->is_valid() ) {
-			return false;
-		}
-
-		return (bool) get_post_meta(
-			$this->post_id,
-			'_mmm_is_indivisible',
-			true
-		);
-	}
+	const META_LEGACY_INDIVISIBLE = '_mmm_is_indivisible';
 
 	/**
-	 * Setter: How finely this unit can be split. 2 means halves, 4 quarters.
+	 * Option gating the one-off move of the flag into the divisor.
 	 *
-	 * A divisor of 1 marks the unit indivisible rather than being discarded:
-	 * 1/1 *is* the whole unit, so someone entering it means "whole ones only",
-	 * and silently reading that as "any amount" would be the exact opposite of
-	 * what they asked for. It is stored as the flag, not as a divisor of 1, so
-	 * there is one representation of that state instead of two.
+	 * @var string
+	 */
+	const MIGRATION_OPTION = 'mixmymeals_unit_divisor_version';
+
+	/**
+	 * Setter: How finely this unit may be split. 1 = whole ones only, 2 =
+	 * halves, 4 = quarters. 0 (or anything below) removes the restriction, so
+	 * the unit takes any amount.
 	 *
-	 * 0 removes the restriction. Anything else is ignored while the unit is
-	 * already marked indivisible — that flag is the coarser setting and wins.
+	 * One number, one statement. Divisibility used to be two settings — a
+	 * boolean flag and this divisor — which meant "whole ones only" had two
+	 * representations and every writer had to reconcile them. It also meant
+	 * entering 1 did the opposite of what it reads like, because the divisor
+	 * only started counting at 2.
 	 *
-	 * @param int $divisor Smallest usable fraction is 1/$divisor; 1 = whole
-	 *                     units only, 0 = any amount.
+	 * @param int $divisor Smallest usable portion is 1/$divisor; 0 = any amount.
 	 * @return void
 	 */
 	public function set_divisor( int $divisor ): void {
@@ -244,24 +221,23 @@ class Mixmymeals_Ingredient_Amount {
 			return;
 		}
 
-		if ( 1 === $divisor ) {
-			// Clears the divisor meta on the way, so the two never disagree.
-			$this->set_indivisible( true );
-
-			return;
-		}
-
-		// The other half of the same invariant: an indivisible unit stores no
-		// divisor, whichever order the two are written in.
-		if ( $divisor >= 2 && ! $this->is_indivisible() ) {
-			update_post_meta( $this->post_id, '_mmm_unit_divisor', $divisor );
+		if ( $divisor >= 1 ) {
+			update_post_meta( $this->post_id, self::META_DIVISOR, $divisor );
 		} else {
-			delete_post_meta( $this->post_id, '_mmm_unit_divisor' );
+			delete_post_meta( $this->post_id, self::META_DIVISOR );
 		}
+
+		// Never leave the superseded flag behind to be picked up as a
+		// fallback below.
+		delete_post_meta( $this->post_id, self::META_LEGACY_INDIVISIBLE );
 	}
 
 	/**
-	 * Getter: The stored divisor, or 0 when the unit may be split freely.
+	 * Getter: How finely the unit may be split, 0 when it takes any amount.
+	 *
+	 * Falls back to the old boolean flag for units the migration has not
+	 * reached yet — an install restoring a backup mid-upgrade must not
+	 * suddenly treat its eggs as divisible.
 	 *
 	 * @return int
 	 */
@@ -270,34 +246,94 @@ class Mixmymeals_Ingredient_Amount {
 			return 0;
 		}
 
-		$divisor = (int) get_post_meta( $this->post_id, '_mmm_unit_divisor', true );
+		$divisor = (int) get_post_meta( $this->post_id, self::META_DIVISOR, true );
 
-		return $divisor >= 2 ? $divisor : 0;
+		if ( $divisor >= 1 ) {
+			return $divisor;
+		}
+
+		return get_post_meta( $this->post_id, self::META_LEGACY_INDIVISIBLE, true ) ? 1 : 0;
 	}
 
 	/**
-	 * The divisor every calculation should work with: 1 for an indivisible
-	 * unit, the stored divisor for one that splits into fractions, 0 when the
-	 * unit may take any value.
-	 *
-	 * This is the single place that reconciles the checkbox with the number.
-	 * "Indivisible" and "divisor 1" are the same statement, and the checkbox
-	 * wins — it is the coarser, more deliberate setting, and a leftover
-	 * divisor from before someone ticked it must not quietly reintroduce
-	 * halves.
-	 *
-	 * A quantity is then always a multiple of 1/divisor: round for a recipe,
-	 * round up for a shopping list.
+	 * The divisor every calculation works with. Identical to get_divisor() —
+	 * kept as the name calling code uses, because it says what the number is
+	 * for: a quantity is always a multiple of 1/divisor, rounded for a recipe
+	 * and rounded up for a shopping list.
 	 *
 	 * @return int
 	 */
 	public function get_step_divisor(): int {
+		return $this->get_divisor();
+	}
 
-		if ( $this->is_indivisible() ) {
-			return 1;
+	/**
+	 * Whether the unit only comes in whole ones.
+	 *
+	 * Derived rather than stored since 3.2. Kept because it reads better at
+	 * the call sites that only care about this one case, and because the REST
+	 * API and the MCP server still expose it.
+	 *
+	 * @return bool
+	 */
+	public function is_indivisible(): bool {
+		return 1 === $this->get_divisor();
+	}
+
+	/**
+	 * Setter: Convenience wrapper for the two divisor values that answer
+	 * "whole ones only?".
+	 *
+	 * Switching it off clears the restriction entirely rather than only the
+	 * "whole ones" part — false means "may be split", and leaving a divisor of
+	 * 4 in place would contradict the caller. A unit that should go from whole
+	 * ones to quarters is set with set_divisor( 4 ).
+	 *
+	 * @param bool $is_indivisible Whether the unit only comes in whole ones.
+	 * @return void
+	 */
+	public function set_indivisible( bool $is_indivisible ): void {
+		$this->set_divisor( $is_indivisible ? 1 : 0 );
+	}
+
+	/**
+	 * Moves the pre-3.2 boolean flag into the divisor, once per install.
+	 *
+	 * Attached from mixmymeals.php. The fallback in get_divisor() means an
+	 * un-migrated unit already behaves correctly; this only tidies the rows so
+	 * the fallback can be dropped later.
+	 *
+	 * @return int Number of units migrated.
+	 */
+	public static function migrate_indivisible(): int {
+
+		if ( (int) get_option( self::MIGRATION_OPTION ) >= 1 ) {
+			return 0;
 		}
 
-		return $this->get_divisor();
+		global $wpdb;
+
+		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration over a meta key with no API equivalent.
+			$wpdb->prepare(
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value != ''",
+				self::META_LEGACY_INDIVISIBLE
+			)
+		);
+
+		foreach ( $ids as $post_id ) {
+			$post_id = (int) $post_id;
+
+			// Only where nothing newer has been written already.
+			if ( ! get_post_meta( $post_id, self::META_DIVISOR, true ) ) {
+				update_post_meta( $post_id, self::META_DIVISOR, 1 );
+			}
+
+			delete_post_meta( $post_id, self::META_LEGACY_INDIVISIBLE );
+		}
+
+		update_option( self::MIGRATION_OPTION, 1, false );
+
+		return count( $ids );
 	}
 
 	public function get_amount_usage_count(): int {

@@ -968,12 +968,6 @@ class Mixmymeals_Post_Meta {
 						$amount_obj->set_weight( floatval( $amount_data['weight'] ) );
 					}
 
-					// Unteilbarkeit setzen
-					$is_indivisible = ! empty( $amount_data['indivisible'] );
-					$amount_obj->set_indivisible( $is_indivisible );
-
-					// set_divisor() weiß selbst, dass eine unteilbare Einheit
-					// keinen Teiler speichert.
 					$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
 
 				} else {
@@ -991,7 +985,6 @@ class Mixmymeals_Post_Meta {
 						}
 
 						// Unteilbarkeit setzen
-						$amount_obj->set_indivisible( ! empty( $amount_data['indivisible'] ) );
 						$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
 					}
 				}
@@ -1843,8 +1836,7 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'Title', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Used', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Weight', 'mixmymeals' ) . '</th>';
-		echo '<th>' . esc_html__( 'Indivisible', 'mixmymeals' ) . '</th>';
-		echo '<th>' . esc_html__( 'Divisor', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Divisibility', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
 		echo '</tr>';
 		echo '</thead>';
@@ -1860,7 +1852,6 @@ class Mixmymeals_Post_Meta {
 					continue; // Skip if unit is invalid.
 				}
 
-				$is_indivisible = $amount->is_indivisible();
 				$usage_count = $amount->get_amount_usage_count();
 
 				echo '<tr data-id="' . esc_attr( $unit->ID ) . '">';
@@ -1885,25 +1876,14 @@ class Mixmymeals_Post_Meta {
 					. '" class="small-text">';
 				echo '</td>';
 
-                // Chekbox für Teilbarkeit
-				echo '<td>';
-				echo '<label>';
-				echo '<input type="checkbox" name="mmm_ingredient_amounts['
-				     . esc_attr( $unit->ID ) . '][indivisible]" value="1" '
-				     . checked( $is_indivisible, true, false ) . '> ';
-				echo esc_html__( 'Yes', 'mixmymeals' );
-				echo '</label>';
-				echo '</td>';
-
-				// Teiler: wie fein die Einheit geteilt werden darf.
+				// Teilbarkeit: eine Zahl, eine Aussage.
 				echo '<td>';
 				echo '<input type="number" step="1" min="0" name="mmm_ingredient_amounts['
 					. esc_attr( $unit->ID ) . '][divisor]" value="'
 					. esc_attr( (string) ( $amount->get_divisor() ?: '' ) )
-					. '" class="small-text" placeholder="—"'
-					. ( $is_indivisible ? ' disabled="disabled"' : '' ) . '>';
+					. '" class="small-text" placeholder="—">';
 				echo '<p class="description">'
-					. esc_html__( '2 = halves, 4 = quarters, 1 = whole ones only (ticks the box above). Empty means any amount.', 'mixmymeals' )
+					. esc_html__( '1 = whole ones only, 2 = can be halved, 4 = quarters. Empty means any amount.', 'mixmymeals' )
 					. '</p>';
 				echo '</td>';
 
@@ -1932,10 +1912,6 @@ class Mixmymeals_Post_Meta {
         echo '</td>';
 		echo '<td>';
 		echo '<input type="number" step="0.01" min="0" name="mmm_ingredient_amounts[new][weight]" value="" class="small-text">';
-		echo '</td>';
-		echo '<td>';
-		echo '<input type="checkbox" name="mmm_ingredient_amounts[new][indivisible]" value="1"> ';
-		echo esc_html__( 'Yes', 'mixmymeals' );
 		echo '</td>';
 		echo '<td>';
 		echo '<input type="number" step="1" min="0" name="mmm_ingredient_amounts[new][divisor]" value="" class="small-text" placeholder="—">';

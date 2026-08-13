@@ -608,7 +608,7 @@ const TOOLS = [
 
   {
     name: "mmm_get_ingr_unit",
-    description: "Einzelne Einheit abrufen (Gewicht, Flags, Teilbarkeit). Verwendet /mixmymeals/v1/units/{id}. Die Antwort enthält divisor (gespeicherter Teiler, 0 = beliebig teilbar) und step_divisor (der Wert, mit dem tatsächlich gerechnet wird: 1 bei unteilbar, sonst der Teiler, 0 = beliebig).",
+    description: "Einzelne Einheit abrufen (Gewicht, Verkaufseinheit, Teilbarkeit). Verwendet /mixmymeals/v1/units/{id}. divisor gibt die Teilbarkeit an: 1 = nur ganze, 2 = halbierbar, 0 = beliebige Menge. step_divisor ist derselbe Wert und wird für die Mengenrundung verwendet; is_indivisible ist die veraltete Kurzform für divisor === 1.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -629,8 +629,8 @@ const TOOLS = [
         title:          { type: "string", description: "Name der Einheit" },
         weight_g:       { type: "number", description: "Gewicht in g" },
         is_sale_unit:   { type: "boolean", default: false },
-        is_indivisible: { type: "boolean", default: false, description: "Nur ganze Einheiten (z.B. ein Ei)." },
-        divisor:        { type: "number", default: 0, description: "Teilbarkeit: 2 = nur halbierbar, 4 = Viertel, 1 = nur ganze Einheiten (setzt is_indivisible, weil 1/1 die ganze Einheit ist). 0 oder weglassen = beliebig teilbar. Wird ignoriert, solange is_indivisible bereits gesetzt ist — die gröbere Angabe gewinnt." },
+        is_indivisible: { type: "boolean", default: false, description: "Veraltet — entspricht divisor 1 (true) bzw. 0 (false). Bevorzugt divisor verwenden; wird divisor mitgesendet, gewinnt divisor." },
+        divisor:        { type: "number", default: 0, description: "Teilbarkeit der Einheit: 1 = nur ganze (z.B. ein Ei), 2 = halbierbar (z.B. eine Dose), 4 = Viertel. 0 oder weglassen = beliebige Menge. Dies ist die maßgebliche Angabe." },
       },
     },
   },
@@ -646,8 +646,8 @@ const TOOLS = [
         title:          { type: "string" },
         weight_g:       { type: "number", description: "Gewicht in g" },
         is_sale_unit:   { type: "boolean" },
-        is_indivisible: { type: "boolean", description: "Nur ganze Einheiten (z.B. ein Ei)." },
-        divisor:        { type: "number", description: "Teilbarkeit: 2 = nur halbierbar, 4 = Viertel, 1 = nur ganze Einheiten (setzt is_indivisible, weil 1/1 die ganze Einheit ist). 0 oder weglassen = beliebig teilbar. Wird ignoriert, solange is_indivisible bereits gesetzt ist — die gröbere Angabe gewinnt." },
+        is_indivisible: { type: "boolean", description: "Veraltet — entspricht divisor 1 (true) bzw. 0 (false). Bevorzugt divisor verwenden; wird divisor mitgesendet, gewinnt divisor." },
+        divisor:        { type: "number", description: "Teilbarkeit der Einheit: 1 = nur ganze (z.B. ein Ei), 2 = halbierbar (z.B. eine Dose), 4 = Viertel. 0 oder weglassen = beliebige Menge. Dies ist die maßgebliche Angabe." },
       },
     },
   },
