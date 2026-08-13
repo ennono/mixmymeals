@@ -990,11 +990,9 @@ class Mixmymeals_Post_Meta {
 					$is_indivisible = ! empty( $amount_data['indivisible'] );
 					$amount_obj->set_indivisible( $is_indivisible );
 
-					// Teiler: bei einer unteilbaren Einheit bedeutungslos, also
-					// gleich löschen statt ihn stumm liegen zu lassen.
-					$amount_obj->set_divisor(
-						$is_indivisible ? 0 : absint( $amount_data['divisor'] ?? 0 )
-					);
+					// set_divisor() weiß selbst, dass eine unteilbare Einheit
+					// keinen Teiler speichert.
+					$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
 
 				} else {
 					// Neue Menge anlegen
@@ -1011,11 +1009,8 @@ class Mixmymeals_Post_Meta {
 						}
 
 						// Unteilbarkeit setzen
-						$new_indivisible = ! empty( $amount_data['indivisible'] );
-						$amount_obj->set_indivisible( $new_indivisible );
-						$amount_obj->set_divisor(
-							$new_indivisible ? 0 : absint( $amount_data['divisor'] ?? 0 )
-						);
+						$amount_obj->set_indivisible( ! empty( $amount_data['indivisible'] ) );
+						$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
 					}
 				}
 			}

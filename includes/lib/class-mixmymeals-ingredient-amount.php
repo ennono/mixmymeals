@@ -194,6 +194,13 @@ class Mixmymeals_Ingredient_Amount {
 
 		if ( $is_indivisible ) {
 			update_post_meta( $this->post_id, '_mmm_is_indivisible', 1 );
+
+			// A divisor alongside "whole ones only" is a contradiction, and
+			// which of the two wins would then depend on who wrote last.
+			// Cleared here rather than in every caller: the admin screen used
+			// to do it and the REST endpoint did not, so the same unit ended
+			// up with different rows depending on how it was edited.
+			delete_post_meta( $this->post_id, '_mmm_unit_divisor' );
 		} else {
 			delete_post_meta( $this->post_id, '_mmm_is_indivisible' );
 		}
@@ -232,7 +239,9 @@ class Mixmymeals_Ingredient_Amount {
 			return;
 		}
 
-		if ( $divisor >= 2 ) {
+		// The other half of the same invariant: an indivisible unit stores no
+		// divisor, whichever order the two are written in.
+		if ( $divisor >= 2 && ! $this->is_indivisible() ) {
 			update_post_meta( $this->post_id, '_mmm_unit_divisor', $divisor );
 		} else {
 			delete_post_meta( $this->post_id, '_mmm_unit_divisor' );

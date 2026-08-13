@@ -608,7 +608,7 @@ const TOOLS = [
 
   {
     name: "mmm_get_ingr_unit",
-    description: "Einzelne Einheit abrufen (inkl. Gewicht und Flags). Verwendet /mixmymeals/v1/units/{id}.",
+    description: "Einzelne Einheit abrufen (Gewicht, Flags, Teilbarkeit). Verwendet /mixmymeals/v1/units/{id}. Die Antwort enthält divisor (gespeicherter Teiler, 0 = beliebig teilbar) und step_divisor (der Wert, mit dem tatsächlich gerechnet wird: 1 bei unteilbar, sonst der Teiler, 0 = beliebig).",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -629,14 +629,15 @@ const TOOLS = [
         title:          { type: "string", description: "Name der Einheit" },
         weight_g:       { type: "number", description: "Gewicht in g" },
         is_sale_unit:   { type: "boolean", default: false },
-        is_indivisible: { type: "boolean", default: false },
+        is_indivisible: { type: "boolean", default: false, description: "Nur ganze Einheiten (z.B. ein Ei)." },
+        divisor:        { type: "number", default: 0, description: "Teilbarkeit: 2 = nur halbierbar, 4 = Viertel. 0 oder weglassen = beliebig teilbar. Wird ignoriert, solange is_indivisible gesetzt ist — \"unteilbar\" und \"Teiler 1\" sind dieselbe Aussage, und die Checkbox gewinnt." },
       },
     },
   },
 
   {
     name: "mmm_update_ingr_unit",
-    description: "Einheit einer Zutat aktualisieren (Gewicht, Flags, Titel). Verwendet /mixmymeals/v1/units/{id}.",
+    description: "Einheit einer Zutat aktualisieren (Gewicht, Flags, Teilbarkeit, Titel). Verwendet /mixmymeals/v1/units/{id}.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -645,7 +646,8 @@ const TOOLS = [
         title:          { type: "string" },
         weight_g:       { type: "number", description: "Gewicht in g" },
         is_sale_unit:   { type: "boolean" },
-        is_indivisible: { type: "boolean" },
+        is_indivisible: { type: "boolean", description: "Nur ganze Einheiten (z.B. ein Ei)." },
+        divisor:        { type: "number", description: "Teilbarkeit: 2 = nur halbierbar, 4 = Viertel. 0 oder weglassen = beliebig teilbar. Wird ignoriert, solange is_indivisible gesetzt ist — \"unteilbar\" und \"Teiler 1\" sind dieselbe Aussage, und die Checkbox gewinnt." },
       },
     },
   },
@@ -1205,20 +1207,22 @@ async function handleTool(name, args) {
       return mmm("GET", `/units/${args.id}`);
 
     case "mmm_create_ingr_unit": {
-      const { ingredient_id, title, weight_g, is_sale_unit = false, is_indivisible = false } = args;
+      const { ingredient_id, title, weight_g, is_sale_unit = false, is_indivisible = false, divisor = 0 } = args;
       const body = { ingredient_id, title, weight_g };
       if (is_sale_unit)   body.is_sale_unit   = true;
       if (is_indivisible) body.is_indivisible = true;
+      if (divisor) body.divisor = divisor;
       return mmm("POST", "/units", body);
     }
 
     case "mmm_update_ingr_unit": {
-      const { id, title, weight_g, is_sale_unit, is_indivisible } = args;
+      const { id, title, weight_g, is_sale_unit, is_indivisible, divisor } = args;
       const body = {};
       if (title          !== undefined) body.title          = title;
       if (weight_g       !== undefined) body.weight_g       = weight_g;
       if (is_sale_unit   !== undefined) body.is_sale_unit   = is_sale_unit;
       if (is_indivisible !== undefined) body.is_indivisible = is_indivisible;
+      if (divisor !== undefined) body.divisor = divisor;
       return mmm("POST", `/units/${id}`, body);
     }
 
