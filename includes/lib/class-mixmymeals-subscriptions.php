@@ -1500,7 +1500,9 @@ class Mixmymeals_Subscriptions {
 	 *  - {{ upload_links_html }}     Per-recipe "upload your photo" links for the day
 	 *                                (empty unless a photo upload page is configured
 	 *                                and a token is available).
-	 *  - {{ day_summary_html }}      The day's calorie/cost total (or empty).
+	 *  - {{ day_summary_html }}      The day's figures as one highlighted line:
+	 *                                the same numbers as day_nutrition_html,
+	 *                                with a label and in the accent colour.
 	 *  - {{ day_kcal }} {{ day_cost }} {{ currency }}
 	 *  - {{ day_nutrition_html }}    The day's figures as one line, per person;
 	 *                                empty when the day has no data. Fibre and
@@ -1556,7 +1558,7 @@ class Mixmymeals_Subscriptions {
 			'meal_images_html'     => $this->render_meal_images( $plan, $day ),
 			'rating_links_html'    => $this->render_rating_links( $plan, $day, $rate_token ),
 			'upload_links_html'    => $this->render_upload_links( $plan, $day, $rate_token ),
-			'day_summary_html'     => $meals['summary_html'],
+			'day_summary_html'     => $this->render_day_summary( $nutrition ),
 			'day_kcal'             => $meals['day_kcal'],
 			'day_cost'             => $meals['day_cost'],
 			'day_protein'          => number_format_i18n( $nutrition['protein'], 1 ),
@@ -1585,10 +1587,64 @@ class Mixmymeals_Subscriptions {
 	 * @param array<string,float> $nutrition Per-person figures for the day.
 	 * @return string
 	 */
+	/**
+	 * The day's headline: the same figures as the nutrition line, under a label
+	 * and set in the accent colour, for templates that want one prominent line
+	 * above the meals instead of a quiet one below them.
+	 *
+	 * Built from the plan's nutrition like every other figure in the mail, so a
+	 * template using both cannot show two different numbers.
+	 *
+	 * @param array<string,float> $nutrition Per-person figures for the day.
+	 * @return string
+	 */
+	private function render_day_summary( array $nutrition ): string {
+
+		$parts = $this->nutrition_parts( $nutrition );
+
+		if ( empty( $parts ) ) {
+			return '';
+		}
+
+		return '<p style="font-weight:700;color:#3F6F1E;">'
+			. esc_html(
+				sprintf(
+					/* translators: %s: the day's nutrition figures, already formatted. */
+					__( 'Day total per person: %s', 'mixmymeals' ),
+					implode( ' · ', $parts )
+				)
+			)
+			. '</p>';
+	}
+
 	private function render_day_nutrition( array $nutrition ): string {
 
-		if ( empty( $nutrition['calories'] ) ) {
+		$parts = $this->nutrition_parts( $nutrition );
+
+		if ( empty( $parts ) ) {
 			return '';
+		}
+
+		return '<p style="margin:0 0 8px;">'
+			. esc_html( implode( ' · ', $parts ) )
+			. '</p>';
+	}
+
+	/**
+	 * The day's figures as a list of ready-made strings — "~1.045 kcal",
+	 * "82,4 g Eiweiß" and so on.
+	 *
+	 * Split out so the nutrition line and the day summary above the meals are
+	 * built from one source. They used to disagree: the summary carried energy
+	 * and a price, the line carried energy and the macros.
+	 *
+	 * @param array<string,float> $nutrition Per-person figures for the day.
+	 * @return string[] Empty when the day carries no energy at all.
+	 */
+	private function nutrition_parts( array $nutrition ): array {
+
+		if ( empty( $nutrition['calories'] ) ) {
+			return array();
 		}
 
 		$parts = array(
@@ -1637,9 +1693,7 @@ class Mixmymeals_Subscriptions {
 			);
 		}
 
-		return '<p style="margin:0 0 8px;">'
-			. esc_html( implode( ' · ', $parts ) )
-			. '</p>';
+		return $parts;
 	}
 
 	/**
@@ -2117,7 +2171,6 @@ class Mixmymeals_Subscriptions {
 	private function render_meal_list( Mixmymeals_Meal_Plan $plan, int $day ): array {
 
 		$types    = Mixmymeals_Meal::get_plaintext_meal_type_map();
-		$currency = (string) get_option( 'mixmymeals_currency', '€' );
 
 		$items      = array();
 		$total_cal  = 0.0;
@@ -2198,23 +2251,14 @@ class Mixmymeals_Subscriptions {
 			);
 		}
 
+		/*
+		 * The summary line is composed in mail_vars() from the plan's nutrition,
+		 * not here: this method only knows the energy it added up itself, and
+		 * the line used to read "Day total per person: ~1 951 kcal · approx.
+		 * 7,40 €" — a money figure under a heading that promises the day's
+		 * intake. The price is still available on its own as {{ day_cost }}.
+		 */
 		$summary_html = '';
-		if ( $total_cal > 0 ) {
-			$summary = sprintf(
-				/* translators: %s: total kilocalories for the day, per person. */
-				__( 'Day total per person: ~%s kcal', 'mixmymeals' ),
-				number_format_i18n( round( $total_cal ) )
-			);
-			if ( $total_cost > 0 ) {
-				$summary .= ' · ' . sprintf(
-					/* translators: 1: estimated cost, 2: currency symbol. */
-					__( 'approx. %1$s %2$s', 'mixmymeals' ),
-					number_format_i18n( $total_cost, 2 ),
-					$currency
-				);
-			}
-			$summary_html = '<p style="font-weight:700;color:#3F6F1E;">' . esc_html( $summary ) . '</p>';
-		}
 
 		return array(
 			'list_html'    => '<ul style="list-style-type:none;padding:0;margin:0 0 16px;">' . implode( '', $items ) . '</ul>',
