@@ -1424,7 +1424,7 @@ class Mixmymeals_Subscriptions {
 		$body .= '<p><a href="' . esc_url( $confirm_url )
 			. '" style="display:inline-block;padding:11px 18px;border-radius:999px;background:#5C9E2E;color:#ffffff;font-weight:800;text-decoration:none;">'
 			. esc_html__( 'Confirm subscription', 'mixmymeals' ) . '</a></p>';
-		$body .= '<p style="color:#6B665B;">'
+		$body .= '<p>'
 			. esc_html__( 'If you did not request this, simply ignore this e-mail — no e-mails will be sent without your confirmation.', 'mixmymeals' )
 			. '</p>';
 
@@ -1637,7 +1637,7 @@ class Mixmymeals_Subscriptions {
 			);
 		}
 
-		return '<p style="margin:0 0 8px;color:#6B665B;">'
+		return '<p style="margin:0 0 8px;">'
 			. esc_html( implode( ' · ', $parts ) )
 			. '</p>';
 	}
@@ -1702,7 +1702,7 @@ class Mixmymeals_Subscriptions {
 			. '</tr>'
 			. $rows
 			. '</table>'
-			. '<p style="margin:0 0 8px;color:#8A8478;line-height:1.4;">'
+			. '<p style="margin:0 0 8px;line-height:1.4;">'
 			. esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() )
 			. '</p>';
 	}
@@ -1835,7 +1835,7 @@ class Mixmymeals_Subscriptions {
 				);
 		}
 
-		return '<p style="margin:0 0 8px;color:#6B665B;">'
+		return '<p style="margin:0 0 8px;">'
 			. esc_html(
 				sprintf(
 					/* translators: 1: number of days with meals, 2: the averaged nutrition figures, 3: percentage of the reference intake. */

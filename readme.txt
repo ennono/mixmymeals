@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.2.0
+Stable tag: 3.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.2.1 =
+
+Fixed:
+* Paragraphs in subscription mails came out at different sizes and in
+  different colours depending on whether the plugin or the template had
+  written them. The body's size and colour lived only in the mail layout's
+  <style> block, on a class — the least reliable place to put them, since
+  Gmail drops that block in clipped and forwarded messages and Outlook
+  handles class selectors poorly. When it went, paragraphs carrying no inline
+  style of their own fell back to the client's defaults while the rest kept
+  theirs. Size, line height and colour now sit inline on the body container,
+  in both the plugin's layout and any theme override, and the paragraphs the
+  plugin renders no longer carry their own.
+* Tables, captions and the day summary keep their smaller, quieter styling on
+  purpose: a nutrition table is tabular data laid out like a food label, not
+  prose.
 
 = 3.2.0 =
 
@@ -282,6 +299,10 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.2.1 =
+Fixes uneven text size and colour in subscription mails. Worth updating if
+you send them; nothing else changes.
 
 = 3.2.0 =
 A unit's divisibility is one number now (1 = whole ones, 2 = halves); the
