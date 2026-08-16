@@ -1522,6 +1522,10 @@ class Mixmymeals_Subscriptions {
 	 *                                reference intake (a bare number).
 	 *  - {{ day_ingredients_html }}  Ingredients needed for this day's meals.
 	 *  - {{ shopping_list_html }}    The whole plan's shopping list.
+	 *  - {{ bring_url }}             Deep link that imports the plan's shopping
+	 *                                list into Bring!. A mail carrying a
+	 *                                shopping list is exactly where someone
+	 *                                wants to send it to their phone.
 	 *
 	 * Shared by the live drip (send_drip_mail) and the per-rule test send.
 	 *
@@ -1569,6 +1573,7 @@ class Mixmymeals_Subscriptions {
 			'currency'             => (string) get_option( 'mixmymeals_currency', '€' ),
 			'day_ingredients_html' => $this->render_ingredient_list( $plan, $day, __( 'No ingredients needed for this day.', 'mixmymeals' ) ),
 			'shopping_list_html'   => $this->render_ingredient_list( $plan, null, __( 'The shopping list is empty.', 'mixmymeals' ) ),
+			'bring_url'            => Mixmymeals_Meal_Plan::bring_deeplink( $plan->get_id() ),
 		);
 	}
 
