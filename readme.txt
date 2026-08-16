@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.2.1
+Stable tag: 3.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.2.2 =
+
+Fixed:
+* The day summary in subscription mails, {{ day_summary_html }}, read "Day
+  total per person: ~1 951 kcal · approx. 7,40 €". A price has no business
+  under a heading that promises what you take in that day, least of all as
+  the most prominent line above the meals. It now carries the day's
+  nutrition. The price is unchanged as data and still available on its own
+  through {{ day_cost }} and {{ currency }}.
+* The summary and the nutrition line were assembled separately — one from the
+  energy the meal list added up itself, the other from the plan's nutrition —
+  so the same day could be described by two different numbers. Both are built
+  from one source now.
 
 = 3.2.1 =
 
@@ -299,6 +313,11 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.2.2 =
+The day summary in subscription mails shows nutrition instead of a price. If
+your template uses {{ day_summary_html }} and you want the cost somewhere,
+{{ day_cost }} still provides it.
 
 = 3.2.1 =
 Fixes uneven text size and colour in subscription mails. Worth updating if
