@@ -9,14 +9,51 @@ MixMyMeals is a WordPress plugin (v3.2.2, text domain `mixmymeals`) for meal pla
 ## Development commands
 
 ```bash
-# Lint a file against WordPress coding standards
-phpcs --standard=phpcs.xml <file>
+# Lint a file against WordPress coding standards (binary is not on PATH)
+./vendor/bin/phpcs --standard=phpcs.xml <file>
 
 # Auto-fix coding standard violations
-phpcbf --standard=phpcs.xml <file>
+./vendor/bin/phpcbf --standard=phpcs.xml <file>
+
+# WordPress.org's own checks. Install once: wp plugin install plugin-check
+wp plugin check mixmymeals --format=json
 ```
 
-There is no automated test suite. PHP 8.0+ is required. The codebase runs inside XAMPP at `/Applications/XAMPP/xamppfiles/htdocs/mixmymeals/working-wp/`.
+`phpcs.xml` currently **aborts** on some files: the bundled PHPCompatibility
+sniff triggers a PHP deprecation of its own and stops checking the file, which
+looks like a clean result. When that happens, run `--standard=WordPress` to get
+real output.
+
+Plugin Check reports findings for `.DS_Store`, `.idea/`, `.claude/`, `CLAUDE.md`
+and the like. Those are working-directory noise — `.distignore` keeps all of
+them out of the package, and a build made from it comes back with none. Judge
+the package, not the checkout.
+
+There is no automated test suite. PHP 8.0+ is required.
+
+## Environment
+
+Development runs under **Local (by Flywheel)**: the site is `mixmymeals.local`,
+rooted at `/Users/timo/Local Sites/mixmymeals/app/public/`. MySQL listens on a
+private socket, so wp-cli needs `DB_HOST` predefined — a one-line `--require`
+file pointing at
+`~/Library/Application Support/Local/run/<id>/mysql/mysqld.sock` does it. The
+directory id changes when Local restarts, and more than one site may be
+running, so **check `home_url()` before writing anything**: the sockets sit
+side by side and the wrong one silently belongs to a different site.
+
+Two things about this install regularly mislead:
+
+- The active theme is **Twenty Twenty-Five**, not `mixmymeals-astra-child`.
+  Loading a page therefore proves nothing about the child theme's templates,
+  and `get_stylesheet_directory()` does not point at it. Read those files by
+  path.
+- It holds almost no content. Anything to do with plans, nutrition or shopping
+  lists needs test data built first — and removed afterwards.
+
+The production site is **stopfnicht.de**. Pushing to GitHub does not deploy it;
+the plugin version in the page source (`?ver=`) tells you what is actually
+live, which is the reason each user-visible fix gets its own patch release.
 
 JavaScript is served in two flavours: `assets/js/*.js` (debug) and `assets/js/*.min.js` (production). The main class picks between them based on `SCRIPT_DEBUG`. When editing JS, keep both in sync.
 
