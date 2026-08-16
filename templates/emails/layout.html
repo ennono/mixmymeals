@@ -56,10 +56,18 @@
 			<div class="mmm-mail-header">
 				<p class="mmm-mail-brand">{{ site_name }}</p>
 			</div>
-			<div class="mmm-mail-body">
+			<!--
+				Schriftgröße und Zeilenhöhe stehen hier INLINE, nicht nur in der
+				Klasse oben: Gmail entfernt den <style>-Block in geclippten und
+				weitergeleiteten Mails, Outlook wertet Klassenselektoren nur
+				eingeschränkt aus. Fällt die Klasse weg, erben Absätze ohne
+				eigenen inline-Stil die Grundgröße des Clients, während Absätze
+				mit inline-Stil ihre behalten — so gehen die Größen auseinander.
+			-->
+			<div class="mmm-mail-body" style="padding:32px;font-size:16px;line-height:1.55;">
 				{{ content }}
 			</div>
-			<div class="mmm-mail-footer">
+			<div class="mmm-mail-footer" style="padding:20px 32px;border-top:1px solid #ECE6D9;font-size:12px;line-height:1.5;color:#9A9485;text-align:center;">
 				<p>&copy; {{ year }} <a href="{{ site_url }}">{{ site_name }}</a></p>
 				<p>{{ footer_note }}</p>
 				{{ unsubscribe_html }}
