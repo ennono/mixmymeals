@@ -121,9 +121,10 @@ class Mixmymeals_Subscriptions {
 	 * has not chosen — "the evening before" did, and fired at eight in the
 	 * morning unless someone changed it.
 	 *
-	 * Note that 'before_start' and 'the day before each plan day' both produce
-	 * a mail on the day before the plan starts, both about its first day. A
-	 * site running both sends two.
+	 * 'before_start' and 'evening_before' would both produce a mail on the day
+	 * before the plan starts, both about its first day. When both are
+	 * configured, compute_sends() drops the second one's first slot so that
+	 * morning carries one mail, not two — see the note there.
 	 *
 	 * @return array<string,string>
 	 */
@@ -1024,6 +1025,11 @@ class Mixmymeals_Subscriptions {
 
 		$plan_start = $this->plan_start_date( $plan, $anchor_time ?? time() );
 
+		$has_before_start = (bool) array_filter(
+			$triggers,
+			static fn( $t ) => 'before_start' === ( $t['trigger'] ?? '' )
+		);
+
 		$sends = array();
 
 		foreach ( $triggers as $trigger ) {
@@ -1053,6 +1059,23 @@ class Mixmymeals_Subscriptions {
 				case 'evening_before':
 					list( $h, $m ) = array_map( 'intval', explode( ':', $trigger['time'] ) );
 					foreach ( $day_range as $i => $weekday ) {
+
+						/*
+						 * The slot for the first plan day falls on the day
+						 * before the plan starts — exactly where before_start
+						 * already sits, and about the same day. A site running
+						 * both sent two mails that morning covering the same
+						 * ground, so the more specific one wins and this rule
+						 * starts a day later.
+						 *
+						 * Only when before_start is actually configured: on its
+						 * own, this rule has to keep its first slot, or nobody
+						 * hears about day one before it arrives.
+						 */
+						if ( 0 === $i && $has_before_start ) {
+							continue;
+						}
+
 						$dt      = $plan_start->modify( "+{$i} days" )->modify( '-1 day' )->setTime( $h, $m );
 						$sends[] = $this->make_send( $trigger, $dt->getTimestamp(), (int) $weekday );
 					}

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.2.2
+Stable tag: 3.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.2.3 =
+
+Changed:
+* The sending rule "The evening before each plan day" is now called "The day
+  before each plan day". Every rule carries its own time, defaulting to 08:00,
+  so the old label promised an evening the rule never set — out of the box it
+  sent at eight in the morning.
+
+Fixed:
+* That rule and "The day before the plan starts" both produced a mail on the
+  day before the plan begins, both about its first day, so a site running
+  both sent two mails covering the same ground. The more specific one wins
+  now and the per-day rule starts a day later. On its own it is unchanged and
+  still covers the first day — otherwise nobody would hear about it in
+  advance. Existing subscriptions drop the redundant slot at their next
+  resync unless it has already gone out.
 
 = 3.2.2 =
 
@@ -313,6 +330,11 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.2.3 =
+A sending rule was renamed and no longer duplicates the mail sent the day
+before a plan starts. Check Settings → Subscriptions if you run both rules;
+subscribers get one mail that morning instead of two.
 
 = 3.2.2 =
 The day summary in subscription mails shows nutrition instead of a price. If
