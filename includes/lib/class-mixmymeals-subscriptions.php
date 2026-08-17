@@ -113,12 +113,26 @@ class Mixmymeals_Subscriptions {
 	 *
 	 * @return array<string,string>
 	 */
+	/**
+	 * The sending rules a site can configure, keyed by trigger.
+	 *
+	 * The wording matters more than it looks. Each rule carries its own time,
+	 * defaulting to 08:00, so a label must not promise a time of day the site
+	 * has not chosen — "the evening before" did, and fired at eight in the
+	 * morning unless someone changed it.
+	 *
+	 * Note that 'before_start' and 'the day before each plan day' both produce
+	 * a mail on the day before the plan starts, both about its first day. A
+	 * site running both sends two.
+	 *
+	 * @return array<string,string>
+	 */
 	public static function trigger_labels(): array {
 		return array(
 			'each_day'       => __( 'Each day in the plan', 'mixmymeals' ),
 			'on_start'       => __( 'On the first plan day', 'mixmymeals' ),
 			'before_start'   => __( 'The day before the plan starts', 'mixmymeals' ),
-			'evening_before' => __( 'The evening before each plan day', 'mixmymeals' ),
+			'evening_before' => __( 'The day before each plan day', 'mixmymeals' ),
 			'on_confirm'     => __( 'On confirmation (immediately)', 'mixmymeals' ),
 		);
 	}
