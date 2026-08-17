@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.2.3
+Stable tag: 3.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.3.0 =
+
+Added:
+* Two sending rules for the end of a plan: "On the last plan day" and "The
+  day after the last plan day", with templates on-end.html and
+  after-end.html. The first is a normal day mail that says it is the last
+  one; the second looks back and asks for a rating or a photo.
+* Note for anyone writing their own after-end template: the plan is over by
+  then, so there is no "today" to talk about. Every day-scoped placeholder —
+  the weekday, the meal list, the ingredients, all day_* values — resolves to
+  the LAST plan day, not to the day the mail goes out.
 
 = 3.2.3 =
 
@@ -330,6 +342,10 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.3.0 =
+Adds two sending rules for the end of a plan. Nothing changes unless you add
+them under Settings → Subscriptions.
 
 = 3.2.3 =
 A sending rule was renamed and no longer duplicates the mail sent the day

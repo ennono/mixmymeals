@@ -134,6 +134,8 @@ class Mixmymeals_Subscriptions {
 			'on_start'       => __( 'On the first plan day', 'mixmymeals' ),
 			'before_start'   => __( 'The day before the plan starts', 'mixmymeals' ),
 			'evening_before' => __( 'The day before each plan day', 'mixmymeals' ),
+			'on_end'         => __( 'On the last plan day', 'mixmymeals' ),
+			'after_end'      => __( 'The day after the last plan day', 'mixmymeals' ),
 			'on_confirm'     => __( 'On confirmation (immediately)', 'mixmymeals' ),
 		);
 	}
@@ -182,6 +184,8 @@ class Mixmymeals_Subscriptions {
 			'on-start.html'       => __( 'Your plan starts today: {{ plan }}', 'mixmymeals' ),
 			'before-start.html'   => __( 'Your plan starts tomorrow: {{ plan }}', 'mixmymeals' ),
 			'evening-before.html' => __( 'Tomorrow’s meals: {{ plan }}', 'mixmymeals' ),
+			'on-end.html'         => __( 'Last day of your plan: {{ plan }}', 'mixmymeals' ),
+			'after-end.html'      => __( 'That was {{ plan }}', 'mixmymeals' ),
 			'on-confirm.html'     => __( 'Welcome to {{ plan }}', 'mixmymeals' ),
 			'rate-recipes.html'   => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
 			'upload-photos.html'  => __( 'Show us your meals! {{ plan }}', 'mixmymeals' ),
@@ -1054,6 +1058,28 @@ class Mixmymeals_Subscriptions {
 					list( $h, $m ) = array_map( 'intval', explode( ':', $trigger['time'] ) );
 					$dt            = $plan_start->modify( '-1 day' )->setTime( $h, $m );
 					$sends[]       = $this->make_send( $trigger, $dt->getTimestamp(), (int) $day_range[0] );
+					break;
+
+				case 'on_end':
+					list( $h, $m ) = array_map( 'intval', explode( ':', $trigger['time'] ) );
+					$last          = count( $day_range ) - 1;
+					$dt            = $plan_start->modify( "+{$last} days" )->setTime( $h, $m );
+					$sends[]       = $this->make_send( $trigger, $dt->getTimestamp(), (int) $day_range[ $last ] );
+					break;
+
+				case 'after_end':
+					list( $h, $m ) = array_map( 'intval', explode( ':', $trigger['time'] ) );
+					$after         = count( $day_range );
+
+					/*
+					 * Carries the last plan day, not the day it is sent on:
+					 * the plan is over by then, so there is no "today" to talk
+					 * about. What the placeholders resolve to is the day the
+					 * subscriber last cooked — which is what a mail asking for
+					 * a rating or a photo needs.
+					 */
+					$dt      = $plan_start->modify( "+{$after} days" )->setTime( $h, $m );
+					$sends[] = $this->make_send( $trigger, $dt->getTimestamp(), (int) $day_range[ $after - 1 ] );
 					break;
 
 				case 'evening_before':

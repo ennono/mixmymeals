@@ -373,6 +373,8 @@ class Mixmymeals_Admin_API {
 				'on_start'       => __( 'On the first plan day', 'mixmymeals' ),
 				'before_start'   => __( 'The day before the plan starts', 'mixmymeals' ),
 				'evening_before' => __( 'The day before each plan day', 'mixmymeals' ),
+				'on_end'         => __( 'On the last plan day', 'mixmymeals' ),
+				'after_end'      => __( 'The day after the last plan day', 'mixmymeals' ),
 				'on_confirm'     => __( 'On confirmation (immediately)', 'mixmymeals' ),
 			);
 
