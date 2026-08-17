@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.3.0
+Stable tag: 3.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.4.0 =
+
+Added:
+* {{ plan_rating_links_html }} and {{ plan_upload_links_html }}: rating and
+  photo-upload links for **every** recipe in the plan, not just one day's.
+  after-end.html uses them, which is the point — a mail sent once the plan is
+  over asks about everything that was cooked, and the existing per-day blocks
+  would only have offered the last day's recipes.
+* The per-day blocks {{ rating_links_html }} and {{ upload_links_html }} are
+  unchanged.
 
 = 3.3.0 =
 
@@ -342,6 +353,10 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.4.0 =
+The end-of-plan mail now lets subscribers rate every recipe of the plan, not
+only the last day's. No action needed.
 
 = 3.3.0 =
 Adds two sending rules for the end of a plan. Nothing changes unless you add

@@ -1563,6 +1563,11 @@ class Mixmymeals_Subscriptions {
 	 *  - {{ upload_links_html }}     Per-recipe "upload your photo" links for the day
 	 *                                (empty unless a photo upload page is configured
 	 *                                and a token is available).
+	 *  - {{ plan_rating_links_html }} The same, but for every recipe in the whole
+	 *  - {{ plan_upload_links_html }} plan rather than one day. What a mail sent
+	 *                                after the plan has ended needs: by then the
+	 *                                subscriber has cooked all of them, and the
+	 *                                per-day block would only offer the last day's.
 	 *  - {{ day_summary_html }}      The day's figures as one highlighted line:
 	 *                                the same numbers as day_nutrition_html,
 	 *                                with a label and in the accent colour.
@@ -1621,6 +1626,8 @@ class Mixmymeals_Subscriptions {
 			'meal_images_html'     => $this->render_meal_images( $plan, $day ),
 			'rating_links_html'    => $this->render_rating_links( $plan, $day, $rate_token ),
 			'upload_links_html'    => $this->render_upload_links( $plan, $day, $rate_token ),
+			'plan_rating_links_html' => $this->render_rating_links( $plan, null, $rate_token ),
+			'plan_upload_links_html' => $this->render_upload_links( $plan, null, $rate_token ),
 			'day_summary_html'     => $this->render_day_summary( $nutrition ),
 			'day_kcal'             => $meals['day_kcal'],
 			'day_cost'             => $meals['day_cost'],
@@ -1976,7 +1983,7 @@ class Mixmymeals_Subscriptions {
 	 * @param string               $rate_token Subscription token.
 	 * @return string
 	 */
-	private function render_rating_links( Mixmymeals_Meal_Plan $plan, int $day, string $rate_token ): string {
+	private function render_rating_links( Mixmymeals_Meal_Plan $plan, ?int $day, string $rate_token ): string {
 
 		if ( '' === $rate_token ) {
 			return '';
@@ -1987,7 +1994,9 @@ class Mixmymeals_Subscriptions {
 
 		foreach ( $plan->get_meals() as $meal_post ) {
 			$meal = new Mixmymeals_Meal( $meal_post->ID );
-			if ( (int) $meal->get_day() !== $day ) {
+
+			// null = the whole plan, for a mail sent after it has ended.
+			if ( null !== $day && (int) $meal->get_day() !== $day ) {
 				continue;
 			}
 
@@ -2012,7 +2021,13 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return '<div class="mmm-mail-rating-links">'
-			. '<p style="margin:0 0 8px;font-weight:700;">' . esc_html__( 'Rate the recipes you cooked and share a photo:', 'mixmymeals' ) . '</p>'
+			. '<p style="margin:0 0 8px;font-weight:700;">'
+			. esc_html(
+				null === $day
+					? __( 'Rate the recipes from this plan:', 'mixmymeals' )
+					: __( 'Rate the recipes you cooked and share a photo:', 'mixmymeals' )
+			)
+			. '</p>'
 			. '<ul style="list-style:none;margin:0;padding:0;">' . implode( '', $items ) . '</ul>'
 			. '</div>';
 	}
@@ -2028,7 +2043,7 @@ class Mixmymeals_Subscriptions {
 	 * @param string               $rate_token Subscription token.
 	 * @return string
 	 */
-	private function render_upload_links( Mixmymeals_Meal_Plan $plan, int $day, string $rate_token ): string {
+	private function render_upload_links( Mixmymeals_Meal_Plan $plan, ?int $day, string $rate_token ): string {
 
 		if ( '' === $rate_token ) {
 			return '';
@@ -2039,7 +2054,8 @@ class Mixmymeals_Subscriptions {
 
 		foreach ( $plan->get_meals() as $meal_post ) {
 			$meal = new Mixmymeals_Meal( $meal_post->ID );
-			if ( (int) $meal->get_day() !== $day ) {
+			// null = the whole plan, see render_rating_links().
+			if ( null !== $day && (int) $meal->get_day() !== $day ) {
 				continue;
 			}
 
@@ -2064,7 +2080,13 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return '<div class="mmm-mail-upload-links">'
-			. '<p style="margin:0 0 8px;font-weight:700;">' . esc_html__( 'Upload a photo of the meals you cooked:', 'mixmymeals' ) . '</p>'
+			. '<p style="margin:0 0 8px;font-weight:700;">'
+			. esc_html(
+				null === $day
+					? __( 'Upload a photo of any meal from this plan:', 'mixmymeals' )
+					: __( 'Upload a photo of the meals you cooked:', 'mixmymeals' )
+			)
+			. '</p>'
 			. '<ul style="list-style:none;margin:0;padding:0;">' . implode( '', $items ) . '</ul>'
 			. '</div>';
 	}
