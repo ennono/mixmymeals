@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.4.0
+Stable tag: 3.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.4.1 =
+
+Changed:
+* The mail template rate-recipes.html is now rate-recipe.html. Existing
+  sending rules are redirected automatically when they are read, including
+  ones in a subfolder, so nothing needs changing by hand — and a settings
+  backup restored later is covered too. Without that a rule pointing at the
+  old name would simply have stopped sending, with nothing but a line in the
+  log to show for it.
 
 = 3.4.0 =
 
@@ -353,6 +363,11 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.4.1 =
+Renames one mail template; existing rules are redirected automatically. If
+you keep your own copy of rate-recipes.html in a theme, rename it to
+rate-recipe.html.
 
 = 3.4.0 =
 The end-of-plan mail now lets subscribers rate every recipe of the plan, not

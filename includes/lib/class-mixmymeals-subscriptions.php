@@ -187,7 +187,7 @@ class Mixmymeals_Subscriptions {
 			'on-end.html'         => __( 'Last day of your plan: {{ plan }}', 'mixmymeals' ),
 			'after-end.html'      => __( 'That was {{ plan }}', 'mixmymeals' ),
 			'on-confirm.html'     => __( 'Welcome to {{ plan }}', 'mixmymeals' ),
-			'rate-recipes.html'   => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
+			'rate-recipe.html'    => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
 			'upload-photos.html'  => __( 'Show us your meals! {{ plan }}', 'mixmymeals' ),
 		);
 
@@ -232,6 +232,23 @@ class Mixmymeals_Subscriptions {
 		// A custom file override ("file:NAME.html") keeps its file name.
 		if ( str_starts_with( $template, 'file:' ) ) {
 			$template = substr( $template, 5 );
+		}
+
+		/*
+		 * Templates that have been renamed. A stored rule still pointing at the
+		 * old name would not fall back to anything — send_template() logs "not
+		 * found" and returns false, so the mail simply stops going out, quietly.
+		 * Mapped on read rather than migrated once, so a site restoring an older
+		 * settings backup is covered too.
+		 */
+		$renamed = array(
+			'rate-recipes.html' => 'rate-recipe.html',
+		);
+
+		$base = basename( $template );
+
+		if ( isset( $renamed[ $base ] ) ) {
+			$template = substr( $template, 0, -strlen( $base ) ) . $renamed[ $base ];
 		}
 
 		// Anything that is not a plain .html file name (legacy builtin:* values,
