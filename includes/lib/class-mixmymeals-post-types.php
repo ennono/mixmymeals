@@ -166,6 +166,7 @@ class Mixmymeals_Post_Types {
 			'init',
 			array( $this, 'register_ingredient_amount_post_type' )
 		);
+		add_action( 'init', array( $this, 'register_product_post_type' ) );
 
 		add_filter(
 			'manage_mmm_ingredient_posts_columns',
@@ -566,6 +567,54 @@ class Mixmymeals_Post_Types {
 		);
 
 		register_post_type( 'mmm_ingr_unit', $args );
+	}
+
+	/**
+	 * Registers the hidden post type "Product": a concrete, branded article an
+	 * ingredient can be bought as.
+	 *
+	 * An ingredient is the abstraction — "yoghurt", with values good enough to
+	 * plan with. A product is one specific yoghurt on one specific shelf. Both
+	 * are needed because the difference is sometimes noise (red cabbage: 25
+	 * against 41 kcal, swamped by cooking losses and portion size) and
+	 * sometimes the whole story (yoghurt at 0.1% or 10% fat).
+	 *
+	 * Child of the ingredient via post_parent, like mmm_ingr_unit, and hidden
+	 * for the same reason: it is a detail of its parent, not a page.
+	 *
+	 * @return void
+	 */
+	public function register_product_post_type(): void {
+
+		$labels = array(
+			'name'          => __( 'Products', 'mixmymeals' ),
+			'singular_name' => __( 'Product', 'mixmymeals' ),
+			'add_new_item'  => __( 'Add New Product', 'mixmymeals' ),
+			'edit_item'     => __( 'Edit Product', 'mixmymeals' ),
+			'all_items'     => __( 'Products', 'mixmymeals' ),
+		);
+
+		$args = array(
+			'labels'              => $labels,
+			'public'              => false,
+			'publicly_queryable'  => false,
+			'exclude_from_search' => true,
+			'show_ui'             => false,
+			'show_in_menu'        => false,
+			'show_in_nav_menus'   => false,
+			'show_in_admin_bar'   => false,
+			'show_in_rest'        => true,
+			'capability_type'     => 'post',
+			'map_meta_cap'        => true,
+			'supports'            => array( 'title' ),
+			// Hierarchical so post_parent travels over REST, as for units.
+			'hierarchical'        => true,
+			'has_archive'         => false,
+			'rewrite'             => false,
+			'query_var'           => false,
+		);
+
+		register_post_type( Mixmymeals_Product::POST_TYPE, $args );
 	}
 
 	/**

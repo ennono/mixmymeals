@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.4.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.5.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -95,6 +95,14 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 **Ingredient** — nutrition stored per-key in post meta: `_rmm_calories_100`, `_rmm_fat`, `_rmm_carbs`, `_rmm_protein`, `_rmm_sugar`, `_rmm_fiber`, `_rmm_salt`. Units are child posts (`mmm_ingr_unit`).
 
 **`Mixmymeals_Ingredient::get_nutrition()` is the only place ingredient nutrition may be read.** All nineteen call sites go through it — recipe pages, plan pages, the PDF, subscription mails, the calculator, the shopping list — and `Mixmymeals_Recipe::_calculate_total_nutrition()` does too. The `_rmm_*` keys are touched directly only inside `Mixmymeals_Ingredient` itself and where the REST API registers them. Keep it that way: a caller reading the meta directly would bypass anything the getter later resolves through (a product override, a unit conversion) and put a second, disagreeing figure on one of those channels. The same rule holds for `Mixmymeals_Post_Meta::get_author_data()` and `Mixmymeals_Ingredient_Amount::get_step_divisor()`, and for the same reason: several of this codebase's worst bugs were two channels computing one number separately.
+
+**Product** (`mmm_product`, `Mixmymeals_Product`) — a concrete, branded article an ingredient can be bought as. Child of the ingredient via `post_parent` and hidden like `mmm_ingr_unit`, because it is a detail of its parent rather than a page. Meta: the seven nutrition keys under `_mmm_product_*`, plus `_mmm_product_package_weight` (grams per packet), `_mmm_product_brand` and `_mmm_product_source`.
+
+The two levels answer different questions. An ingredient carries figures good enough to plan with and stays correct when a manufacturer changes a recipe; a product carries what one packet says. Worth maintaining only where products differ a lot — yoghurt at 0.1 % or 10 % fat, minced meat, cheese, bread. For red cabbage the gap between 25 and 41 kcal is smaller than the error from cooking losses and portion size.
+
+**The ingredient resolves through its reference product** (`_mmm_reference_product` on the ingredient, managed by `Mixmymeals_Product::get_reference_id()` / `set_reference_id()`). `Mixmymeals_Ingredient::get_nutrition()` merges the two **key by key**, product first: a packet often states energy and fat and nothing else, and discarding those two because the other five are missing would be the wrong trade. `weight_item` is never overridden — it describes the ingredient (one medium onion), not a packet. Because that getter is the single read path, every channel follows without knowing products exist.
+
+`get_reference_id()` re-validates on every read and returns 0 when the stored product was deleted or now hangs off a different ingredient, and `set_reference_id()` refuses a product belonging elsewhere. `set_nutrition()` deletes a key given as null or '' rather than storing zero: "not stated on the packet" and "contains none" are different claims, and the second is a claim about somebody else's product. `_mmm_product_source` exists for the same reason — these figures go stale when a recipe changes, and without a note saying where a number came from nobody can tell a current one from a four-year-old one.
 
 **Ingredient_Amount** (`mmm_ingr_unit`) — child post of an ingredient. Meta: `_mmm_ingr_unit_weight` (g per unit), `_mmm_is_sale_unit` (**inert** — nothing reads or writes it: no PHP, no REST parameter, no admin field. Only `tools/mcp-server.mjs` sends it, into an endpoint that discards it. Either implement it or drop it; do not rely on it), `_mmm_unit_divisor` (how finely the unit may be split).
 

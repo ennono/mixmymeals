@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.4.1
+Stable tag: 3.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.5.0 =
+
+Added:
+* Products: a concrete, branded article an ingredient can be bought as, with
+  its own nutrition, package weight, brand and a note on where the figures
+  came from. An ingredient can point at one of them as its reference, and its
+  nutrition then resolves through it — key by key, so a packet stating only
+  energy still leaves the rest to the ingredient.
+* This is the data model only. Nothing changes until products are created,
+  and there is no editing screen yet.
 
 = 3.4.1 =
 
@@ -363,6 +374,10 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.5.0 =
+Adds the data model for products behind ingredients. Inert until you create
+any; no action needed.
 
 = 3.4.1 =
 Renames one mail template; existing rules are redirected automatically. If

@@ -222,6 +222,28 @@ class Mixmymeals_Ingredient {
 			$data[ $key ] = is_numeric( $value ) ? (float) $value : null;
 		}
 
+		/*
+		 * A reference product overrides the ingredient's own figures, key by
+		 * key. Per key rather than wholesale because a packet often states
+		 * energy and fat and stops there — dropping two precise numbers
+		 * because the other five are missing would be the wrong trade.
+		 *
+		 * Resolved here on purpose: this method is the single place ingredient
+		 * nutrition is read, so recipe pages, plan pages, the PDF, the mails
+		 * and the calculator all follow without knowing products exist.
+		 * weight_item is deliberately not overridable — it describes the
+		 * ingredient (one medium onion), not a packet.
+		 */
+		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+
+		if ( $reference ) {
+			foreach ( ( new Mixmymeals_Product( $reference ) )->get_nutrition() as $key => $value ) {
+				if ( null !== $value && array_key_exists( $key, $data ) ) {
+					$data[ $key ] = $value;
+				}
+			}
+		}
+
 		return $data;
 	}
 
