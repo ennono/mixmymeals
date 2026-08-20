@@ -769,6 +769,12 @@
     border-top: 0;
 }
 
+/* Alternating background per PRODUCT, not per row — the class is set in PHP
+   because a product spans two rows and :nth-child would have to encode that. */
+.mmm-products--alt > td {
+    background: #f6f7f7;
+}
+
 .mmm-products__detail > td {
     padding-top: 4px;
     padding-bottom: 14px;
@@ -776,6 +782,20 @@
 
 .mmm-products__title {
     width: 28%;
+}
+
+/* In the head row the fields are plain table cells, not the flex row. */
+.mmm-products__head .mmm-products__field {
+    width: 100%;
+}
+
+.mmm-products__head .mmm-products__field > input[type="text"],
+.mmm-products__head .mmm-products__field > input[type="number"] {
+    width: 100%;
+}
+
+.mmm-products__pack {
+    max-width: 110px;
 }
 
 .mmm-products__pack {

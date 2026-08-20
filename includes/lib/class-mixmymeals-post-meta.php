@@ -1952,11 +1952,18 @@ class Mixmymeals_Post_Meta {
 
 		echo '<table class="widefat mmm-products"><tbody>';
 
+		/*
+		 * Alternated here rather than with :nth-child in CSS: a product is two
+		 * rows, so the arithmetic would have to know that, and would go wrong
+		 * the moment the row count per product changes.
+		 */
+		$row = 0;
+
 		foreach ( $products as $product ) {
-			$this->render_product_rows( (string) $product->get_id(), $product, $reference );
+			$this->render_product_rows( (string) $product->get_id(), $product, $reference, $row++ );
 		}
 
-		$this->render_product_rows( 'new', null, $reference );
+		$this->render_product_rows( 'new', null, $reference, $row );
 
 		echo '</tbody></table>';
 
@@ -1974,9 +1981,10 @@ class Mixmymeals_Post_Meta {
 	 * @param int                    $reference Currently referenced product ID.
 	 * @return void
 	 */
-	private function render_product_rows( string $index, ?Mixmymeals_Product $product, int $reference ): void {
+	private function render_product_rows( string $index, ?Mixmymeals_Product $product, int $reference, int $row = 0 ): void {
 
 		$name  = 'mmm_products[' . $index . ']';
+		$zebra = 0 === $row % 2 ? '' : ' mmm-products--alt';
 		$is_new = null === $product;
 		$id     = $is_new ? 0 : $product->get_id();
 
@@ -1994,21 +2002,25 @@ class Mixmymeals_Post_Meta {
 			: $product->get_nutrition();
 
 		// --- Row 1: what it is, and how big the packet is ---
-		echo '<tr class="mmm-products__head">';
+		echo '<tr class="mmm-products__head' . esc_attr( $zebra ) . '">';
 		echo '<td class="mmm-products__title">';
-		echo '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '[title]" value="'
-			. esc_attr( $is_new ? '' : $product->get_title() ) . '" placeholder="'
-			. esc_attr__( 'Product name', 'mixmymeals' ) . '">';
+		echo '<label class="mmm-products__field">'
+			. '<span>' . esc_html__( 'Product name', 'mixmymeals' ) . '</span>'
+			. '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '[title]" value="'
+			. esc_attr( $is_new ? '' : $product->get_title() ) . '"></label>';
 		echo '</td>';
 
-		echo '<td><input type="text" name="' . esc_attr( $name ) . '[brand]" value="'
-			. esc_attr( $is_new ? '' : $product->get_brand() ) . '" placeholder="'
-			. esc_attr__( 'Brand', 'mixmymeals' ) . '"></td>';
+		echo '<td><label class="mmm-products__field">'
+			. '<span>' . esc_html__( 'Brand', 'mixmymeals' ) . '</span>'
+			. '<input type="text" name="' . esc_attr( $name ) . '[brand]" value="'
+			. esc_attr( $is_new ? '' : $product->get_brand() ) . '"></label></td>';
 
-		echo '<td><input type="number" step="0.01" min="0" class="mmm-products__pack" name="'
+		echo '<td><label class="mmm-products__field">'
+			. '<span>' . esc_html__( 'Package (g)', 'mixmymeals' ) . '</span>'
+			. '<input type="number" step="0.01" min="0" class="mmm-products__pack" name="'
 			. esc_attr( $name ) . '[package_weight]" value="'
 			. esc_attr( $is_new || ! $product->get_package_weight() ? '' : (string) $product->get_package_weight() )
-			. '" placeholder="' . esc_attr__( 'Pack (g)', 'mixmymeals' ) . '"></td>';
+			. '"></label></td>';
 
 		echo '<td>';
 		if ( ! $is_new ) {
@@ -2028,7 +2040,7 @@ class Mixmymeals_Post_Meta {
 		echo '</tr>';
 
 		// --- Row 2: the panel off the packet ---
-		echo '<tr class="mmm-products__detail"><td colspan="5">';
+		echo '<tr class="mmm-products__detail' . esc_attr( $zebra ) . '"><td colspan="5">';
 		$field( 'calories_100', __( 'kcal/100 g', 'mixmymeals' ), $nutrition['calories_100'] ?? null );
 		$field( 'fat', __( 'Fat', 'mixmymeals' ), $nutrition['fat'] ?? null );
 		$field( 'carbs', __( 'Carbohydrate', 'mixmymeals' ), $nutrition['carbs'] ?? null );

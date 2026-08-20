@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.7.2
+Stable tag: 3.7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.7.3 =
+
+Changed:
+* The product table alternates white and grey like the units table above it,
+  but per product rather than per row — a product spans two rows, and striping
+  each row separately is what made it unreadable in the first place.
+* Product name, brand and package weight now carry labels instead of relying
+  on placeholder text, which disappears as soon as a field is filled and left
+  the columns unidentifiable on a table with entries in it.
 
 = 3.7.2 =
 
@@ -419,6 +429,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.7.3 =
+Presentation only, on the ingredient's product table.
 
 = 3.7.2 =
 Readability fix for the product table on the ingredient screen.
