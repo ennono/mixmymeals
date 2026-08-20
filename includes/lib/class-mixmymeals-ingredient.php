@@ -184,10 +184,17 @@ class Mixmymeals_Ingredient {
 	/**
 	 * Gets all nutrition data for the ingredient.
 	 *
+	 * @param bool $resolve_product Whether a reference product may override
+	 *                              individual values. False returns the
+	 *                              ingredient's own figures and exists so the
+	 *                              two can be shown side by side — see
+	 *                              Mixmymeals_Recipe::get_nutrition_comparison().
+	 *                              Everything that just wants "the" nutrition
+	 *                              must leave it alone.
 	 * @return array Associative array of nutrition values.
 	 */
 	/** @return array<string, string> */
-	public function get_nutrition(): array {
+	public function get_nutrition( bool $resolve_product = true ): array {
 
 		if ( ! $this->is_valid() ) {
 			return array();
@@ -234,7 +241,7 @@ class Mixmymeals_Ingredient {
 		 * weight_item is deliberately not overridable — it describes the
 		 * ingredient (one medium onion), not a packet.
 		 */
-		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+		$reference = $resolve_product ? Mixmymeals_Product::get_reference_id( $this->post_id ) : 0;
 
 		if ( $reference ) {
 			foreach ( ( new Mixmymeals_Product( $reference ) )->get_nutrition() as $key => $value ) {

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.7.4
+Stable tag: 3.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.8.0 =
+
+Added:
+* `[mmm_nutrition_comparison]` puts a recipe's two nutrition figures side by
+  side: the typical values of its ingredients, and what the products they
+  resolve through actually state. It names the products responsible and lists
+  only the values that differ.
+* It renders nothing unless a recipe has a reference product somewhere and the
+  two figures really diverge, so an ordinary recipe page is unaffected.
+
+Why: a single figure claims a precision it does not have. "480 kcal" reads as
+a measurement when it is a plan built from average ingredients. Showing what
+one specific yoghurt does to that number is more honest than either figure on
+its own.
 
 = 3.7.4 =
 
@@ -440,6 +455,11 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.8.0 =
+Adds a shortcode comparing a recipe's typical nutrition with the products
+chosen for its ingredients. Place it where you want it; it stays silent
+otherwise.
 
 = 3.7.4 =
 Layout fix for the product table on the ingredient screen.

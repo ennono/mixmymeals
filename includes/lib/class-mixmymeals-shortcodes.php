@@ -231,6 +231,8 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_nutrition_table_for_a_single_recipe',
 			[ $this, 'mmm_nutrition_table_for_a_single_recipe_callback' ] );
+		add_shortcode( 'mmm_nutrition_comparison',
+			[ $this, 'mmm_nutrition_comparison_callback' ] );
 
 		add_shortcode( 'mmm_recipe_meta',
 			[ $this, 'mmm_recipe_meta_callback' ] );
@@ -3174,6 +3176,85 @@ class Mixmymeals_Shortcodes {
 	 * @param array|string $atts Shortcode attributes: post_id.
 	 * @return string
 	 */
+	/**
+	 * Shortcode [mmm_nutrition_comparison].
+	 *
+	 * Shows a recipe's nutrition both ways when at least one of its ingredients
+	 * resolves through a product: the ingredients' own averages, and the figure
+	 * with that product's values.
+	 *
+	 * Renders nothing when no ingredient has a reference product or when the
+	 * two agree — which is the normal case. A comparison of a number with
+	 * itself is noise, and this block has to earn its space.
+	 *
+	 * @param array|string $atts post_id.
+	 * @return string
+	 */
+	public function mmm_nutrition_comparison_callback( $atts = [] ): string {
+
+		$atts = shortcode_atts( [ 'post_id' => 0 ], $atts, 'mmm_nutrition_comparison' );
+
+		$post_id = (int) ( $atts['post_id'] ?: get_the_ID() );
+
+		if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
+			return '';
+		}
+
+		$comparison = ( new Mixmymeals_Recipe( $post_id ) )->get_nutrition_comparison();
+
+		if ( empty( $comparison ) ) {
+			return '';
+		}
+
+		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
+		$rows   = '';
+
+		foreach ( $labels as $key => $label ) {
+
+			$source = 'calories' === $key ? 'calories' : $key;
+			$base     = (float) ( $comparison['base'][ $source ] ?? 0 );
+			$resolved = (float) ( $comparison['resolved'][ $source ] ?? 0 );
+
+			// Only the figures that actually moved; the rest would pad the
+			// table with identical pairs.
+			if ( abs( $resolved - $base ) <= 0.05 ) {
+				continue;
+			}
+
+			$rows .= '<tr>'
+				. '<td data-label="' . esc_attr__( 'Nutrition', 'mixmymeals' ) . '">' . esc_html( $label ) . '</td>'
+				. '<td data-label="' . esc_attr__( 'Typical values', 'mixmymeals' ) . '">'
+				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $base ) ) . '</td>'
+				. '<td data-label="' . esc_attr__( 'With the chosen products', 'mixmymeals' ) . '">'
+				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $resolved ) ) . '</td>'
+				. '</tr>';
+		}
+
+		if ( '' === $rows ) {
+			return '';
+		}
+
+		$products = implode( ', ', array_map( 'esc_html', $comparison['ingredients'] ) );
+
+		return '<div class="mmm-nutrition-comparison">'
+			. '<table class="mmm-nutrition-table">'
+			. '<thead><tr>'
+			. '<th>' . esc_html__( 'Nutrition', 'mixmymeals' ) . '</th>'
+			. '<th>' . esc_html__( 'Typical values', 'mixmymeals' ) . '</th>'
+			. '<th>' . esc_html__( 'With the chosen products', 'mixmymeals' ) . '</th>'
+			. '</tr></thead><tbody>' . $rows . '</tbody></table>'
+			. '<p class="mmm-nutrition-comparison__note">'
+			. esc_html(
+				sprintf(
+					/* translators: %s: comma-separated list of product names. */
+					__( 'The left column uses typical values for the ingredients. The right one uses what these products state: %s.', 'mixmymeals' ),
+					$products
+				)
+			)
+			. '</p>'
+			. '</div>';
+	}
+
 	public function mmm_nutrition_table_for_a_single_recipe_callback( $atts = []
 	): string {
 
