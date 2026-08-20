@@ -743,3 +743,83 @@
     color: #b32d2e;
     text-decoration: none;
 }
+
+/* ==========================================================
+   Products on the ingredient screen.
+
+   A product occupies two rows — identity above, the panel off
+   the packet below — which is why this table is NOT .striped:
+   striping alternates per <tr> and cut every product in half,
+   its top row light and its bottom row dark. Products are set
+   apart by a rule on the head row instead.
+   ========================================================== */
+
+.mmm-products td {
+    border-top: 0;
+    vertical-align: top;
+}
+
+/* The rule marks where a product starts; none above the first. */
+.mmm-products__head > td {
+    border-top: 1px solid #dcdcde;
+    padding-top: 14px;
+}
+
+.mmm-products tbody tr:first-child > td {
+    border-top: 0;
+}
+
+.mmm-products__detail > td {
+    padding-top: 4px;
+    padding-bottom: 14px;
+}
+
+.mmm-products__title {
+    width: 28%;
+}
+
+.mmm-products__pack {
+    width: 90px;
+}
+
+/* The seven figures as one wrapping row of equal cells, so the
+   columns line up instead of drifting with the label lengths. */
+.mmm-products__detail > td {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    align-items: flex-end;
+}
+
+.mmm-products__field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mmm-products__field > span {
+    font-size: 11px;
+    line-height: 1.3;
+    color: #646970;
+}
+
+.mmm-products__field > input[type="number"] {
+    width: 84px;
+}
+
+/* The source note is prose, not a figure — it gets the rest of
+   the row and sits apart from the numbers. */
+.mmm-products__field--source {
+    flex: 1 1 220px;
+    margin-left: auto;
+}
+
+.mmm-products__field--source > input {
+    width: 100%;
+}
+
+@media screen and (max-width: 782px) {
+    .mmm-products__field--source {
+        margin-left: 0;
+    }
+}

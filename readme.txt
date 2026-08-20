@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.7.1
+Stable tag: 3.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.7.2 =
+
+Fixed:
+* The product table on the ingredient screen was hard to read. It used
+  WordPress's striped table style, which alternates the background per row —
+  and a product occupies two of them, so every product came out cut in half,
+  its top row light and its bottom row dark, while neighbouring products ran
+  together. Products are now separated by a rule instead, and the seven
+  nutrition fields line up in even columns rather than drifting with the
+  length of their labels.
+* The styling moved from inline attributes into assets/css/admin.css, where
+  it can be overridden.
 
 = 3.7.1 =
 
@@ -406,6 +419,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.7.2 =
+Readability fix for the product table on the ingredient screen.
 
 = 3.7.1 =
 Wording only, on the ingredient's product table. No behaviour changes.
