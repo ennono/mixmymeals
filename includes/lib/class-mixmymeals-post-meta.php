@@ -105,6 +105,11 @@ class Mixmymeals_Post_Meta {
 			array( $this, 'add_ingredient_amounts_meta_box' )
 		);
 		add_action(
+			'add_meta_boxes_mmm_ingredient',
+			array( $this, 'add_ingredient_products_meta_box' )
+		);
+		add_action( 'save_post_mmm_ingredient', array( $this, 'save_ingredient_products' ) );
+		add_action(
 			'wp_ajax_mixmymeals_get_ingredient_units',
 			array( $this, 'ajax_mixmymeals_get_ingredient_units_handler' )
 		);
@@ -1806,6 +1811,240 @@ class Mixmymeals_Post_Meta {
 		} else {
 			update_post_meta( $post_ID, '_mmm_diet_type', $diet_type );
 		}
+	}
+
+	/**
+	 * Meta box listing the concrete products this ingredient can be bought as.
+	 *
+	 * @return void
+	 */
+	/**
+	 * Persists the product table.
+	 *
+	 * Hooked separately from the ingredient's other meta and guarded by its own
+	 * nonce, so a screen that does not render this box cannot wipe the products
+	 * by simply not posting them.
+	 *
+	 * @param int $post_id Ingredient post ID.
+	 * @return void
+	 */
+	public function save_ingredient_products( int $post_id ): void {
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified right here.
+		if ( ! isset( $_POST['mmm_ingredient_products_nonce'] )
+			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mmm_ingredient_products_nonce'] ) ), 'mmm_ingredient_products_meta_box' ) ) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		$rows = isset( $_POST['mmm_products'] ) && is_array( $_POST['mmm_products'] )
+			? wp_unslash( $_POST['mmm_products'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per field below.
+			: array();
+
+		foreach ( $rows as $key => $row ) {
+
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$title = isset( $row['title'] ) ? sanitize_text_field( $row['title'] ) : '';
+
+			if ( 'new' === $key ) {
+
+				// An empty name means the row was left blank, not that someone
+				// wants a nameless product.
+				if ( '' === $title ) {
+					continue;
+				}
+
+				try {
+					$product = Mixmymeals_Product::create( $post_id, $title );
+				} catch ( \Exception $e ) {
+					continue;
+				}
+			} else {
+
+				$product = new Mixmymeals_Product( (int) $key );
+
+				if ( ! $product->is_valid() || $product->get_ingredient_id() !== $post_id ) {
+					continue;
+				}
+
+				if ( ! empty( $row['delete'] ) ) {
+					// Clears the reference too, if it pointed here.
+					$product->delete();
+					continue;
+				}
+
+				if ( '' !== $title ) {
+					$product->set_title( $title );
+				}
+			}
+
+			$product->set_brand( isset( $row['brand'] ) ? (string) $row['brand'] : '' );
+			$product->set_source( isset( $row['source'] ) ? (string) $row['source'] : '' );
+			$product->set_package_weight( isset( $row['package_weight'] ) ? (float) $row['package_weight'] : 0.0 );
+
+			/*
+			 * Every key is passed through, including the empty ones: an emptied
+			 * field has to delete the stored value, or a figure corrected off a
+			 * new packet could never be taken back out.
+			 */
+			$nutrition = array();
+
+			foreach ( array_keys( Mixmymeals_Product::NUTRITION_FIELDS ) as $field ) {
+				$nutrition[ $field ] = isset( $row[ $field ] ) && '' !== trim( (string) $row[ $field ] )
+					? (float) $row[ $field ]
+					: null;
+			}
+
+			$product->set_nutrition( $nutrition );
+		}
+
+		// The reference last: a product created or deleted in this same request
+		// has to be settled before it can be pointed at.
+		Mixmymeals_Product::set_reference_id(
+			$post_id,
+			isset( $_POST['mmm_products_reference'] ) ? (int) $_POST['mmm_products_reference'] : 0
+		);
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	public function add_ingredient_products_meta_box(): void {
+		add_meta_box(
+			'mmm_ingredient_products_meta_box',
+			__( 'Products', 'mixmymeals' ),
+			array( $this, 'render_ingredient_products_meta_box_content' ),
+			'mmm_ingredient',
+			'normal'
+		);
+	}
+
+	/**
+	 * Renders the product table.
+	 *
+	 * Two rows per product: identity and package on the first, the seven
+	 * nutrition values on the second. Seven number fields alongside name,
+	 * brand, source and two checkboxes would run off the screen, and the
+	 * nutrition belongs together anyway — it is read off one panel on one
+	 * packet.
+	 *
+	 * @param WP_Post $post Ingredient post.
+	 * @return void
+	 */
+	public function render_ingredient_products_meta_box_content( WP_Post $post ): void {
+
+		wp_nonce_field( 'mmm_ingredient_products_meta_box', 'mmm_ingredient_products_nonce' );
+
+		$products  = Mixmymeals_Product::for_ingredient( $post->ID );
+		$reference = Mixmymeals_Product::get_reference_id( $post->ID );
+
+		echo '<p class="description">'
+			. esc_html__( 'A product is one specific article this ingredient can be bought as. Marking one as the reference makes the ingredient use its values — value by value, so anything the packet does not state still comes from the ingredient itself.', 'mixmymeals' )
+			. '</p>';
+
+		echo '<table class="widefat striped"><tbody>';
+
+		foreach ( $products as $product ) {
+			$this->render_product_rows( (string) $product->get_id(), $product, $reference );
+		}
+
+		$this->render_product_rows( 'new', null, $reference );
+
+		echo '</tbody></table>';
+
+		echo '<p class="description">'
+			. esc_html__( 'Leave the nutrition fields empty for anything the packet does not state — an empty field is not the same as zero.', 'mixmymeals' )
+			. '</p>';
+	}
+
+	/**
+	 * One product as two table rows, or the empty "add" pair when $product is
+	 * null.
+	 *
+	 * @param string                 $index     Row key: product ID, or 'new'.
+	 * @param Mixmymeals_Product|null $product  Product, or null for the new row.
+	 * @param int                    $reference Currently referenced product ID.
+	 * @return void
+	 */
+	private function render_product_rows( string $index, ?Mixmymeals_Product $product, int $reference ): void {
+
+		$name  = 'mmm_products[' . $index . ']';
+		$is_new = null === $product;
+		$id     = $is_new ? 0 : $product->get_id();
+
+		$field = static function ( string $key, string $label, $value, string $extra = '' ) use ( $name ): void {
+			echo '<label style="display:inline-block;margin:0 12px 4px 0;">'
+				. '<span style="display:block;font-size:11px;color:#646970;">' . esc_html( $label ) . '</span>'
+				. '<input type="number" step="0.01" min="0" style="width:80px;" name="'
+				. esc_attr( $name ) . '[' . esc_attr( $key ) . ']" value="'
+				. esc_attr( null === $value || '' === $value ? '' : (string) $value ) . '" ' . $extra . '>'
+				. '</label>';
+		};
+
+		$nutrition = $is_new
+			? array_fill_keys( array_keys( Mixmymeals_Product::NUTRITION_FIELDS ), null )
+			: $product->get_nutrition();
+
+		// --- Row 1: what it is, and how big the packet is ---
+		echo '<tr>';
+		echo '<td style="width:30%;">';
+		echo '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '[title]" value="'
+			. esc_attr( $is_new ? '' : $product->get_title() ) . '" placeholder="'
+			. esc_attr__( 'Product name', 'mixmymeals' ) . '">';
+		echo '</td>';
+
+		echo '<td><input type="text" name="' . esc_attr( $name ) . '[brand]" value="'
+			. esc_attr( $is_new ? '' : $product->get_brand() ) . '" placeholder="'
+			. esc_attr__( 'Brand', 'mixmymeals' ) . '"></td>';
+
+		echo '<td><input type="number" step="0.01" min="0" style="width:90px;" name="'
+			. esc_attr( $name ) . '[package_weight]" value="'
+			. esc_attr( $is_new || ! $product->get_package_weight() ? '' : (string) $product->get_package_weight() )
+			. '" placeholder="' . esc_attr__( 'Pack (g)', 'mixmymeals' ) . '"></td>';
+
+		echo '<td>';
+		if ( ! $is_new ) {
+			echo '<label><input type="radio" name="mmm_products_reference" value="' . esc_attr( (string) $id ) . '" '
+				. checked( $reference, $id, false ) . '> ' . esc_html__( 'Reference', 'mixmymeals' ) . '</label>';
+		} else {
+			echo '<span class="description">' . esc_html__( 'Save first', 'mixmymeals' ) . '</span>';
+		}
+		echo '</td>';
+
+		echo '<td>';
+		if ( ! $is_new ) {
+			echo '<label><input type="checkbox" name="' . esc_attr( $name ) . '[delete]" value="1"> '
+				. esc_html__( 'Delete', 'mixmymeals' ) . '</label>';
+		}
+		echo '</td>';
+		echo '</tr>';
+
+		// --- Row 2: the panel off the packet ---
+		echo '<tr><td colspan="5" style="padding-top:0;">';
+		$field( 'calories_100', __( 'kcal/100 g', 'mixmymeals' ), $nutrition['calories_100'] ?? null );
+		$field( 'fat', __( 'Fat', 'mixmymeals' ), $nutrition['fat'] ?? null );
+		$field( 'carbs', __( 'Carbohydrate', 'mixmymeals' ), $nutrition['carbs'] ?? null );
+		$field( 'sugar', __( 'of which sugars', 'mixmymeals' ), $nutrition['sugar'] ?? null );
+		$field( 'fiber', __( 'Fibre', 'mixmymeals' ), $nutrition['fiber'] ?? null );
+		$field( 'protein', __( 'Protein', 'mixmymeals' ), $nutrition['protein'] ?? null );
+		$field( 'salt', __( 'Salt', 'mixmymeals' ), $nutrition['salt'] ?? null );
+
+		echo '<label style="display:inline-block;margin:0 0 4px;">'
+			. '<span style="display:block;font-size:11px;color:#646970;">'
+			. esc_html__( 'Source of these figures', 'mixmymeals' ) . '</span>'
+			. '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '[source]" value="'
+			. esc_attr( $is_new ? '' : $product->get_source() ) . '" placeholder="'
+			. esc_attr__( 'e.g. packet, 08/2026', 'mixmymeals' ) . '">'
+			. '</label>';
+		echo '</td></tr>';
 	}
 
 	public function add_ingredient_amounts_meta_box(): void {

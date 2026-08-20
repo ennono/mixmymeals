@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.5.0
+Stable tag: 3.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.6.0 =
+
+Added:
+* Products can now be edited on the ingredient screen, in a table below the
+  units: name, brand, package weight, the seven nutrition values and a note
+  on where those figures came from. One product per ingredient can be marked
+  as the reference, and the ingredient then uses its values — value by value,
+  so anything the packet does not state still comes from the ingredient.
+* Nutrition fields left empty delete the stored value rather than saving a
+  zero. "Not stated on the packet" and "contains none" are different claims,
+  and the second is a claim about somebody else's product.
 
 = 3.5.0 =
 
@@ -374,6 +386,10 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.6.0 =
+Adds a Products table to the ingredient screen. Nothing changes until you
+create products and mark one as a reference.
 
 = 3.5.0 =
 Adds the data model for products behind ingredients. Inert until you create
