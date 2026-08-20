@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.8.1
+Stable tag: 3.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.8.2 =
+
+Removed:
+* `[mmm_nutrition_comparison]`, added in 3.8.0, and with it the parameter that
+  let a caller read an ingredient's own figures past its reference product.
+  Ingredient nutrition again has exactly one read path.
+
+Why: putting two sets of figures next to each other asked the reader to
+adjudicate between them, which is not something a recipe page can help with.
+The nutrition table states one number, which is what the reference product is
+for.
 
 = 3.8.1 =
 
@@ -462,6 +474,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.8.2 =
+The nutrition comparison from 3.8.0 is gone again.
 
 = 3.8.1 =
 Spacing and a heading for the nutrition comparison.

@@ -313,13 +313,13 @@ class Mixmymeals_Recipe {
 	 *
 	 * @return array Nutrition values per serving (keys: calories, fat, carbs, protein, sugar, fiber, salt)
 	 */
-	public function calculate_nutrition_per_serving( bool $resolve_products = true ): array {
+	public function calculate_nutrition_per_serving(): array {
 
 		if ( ! $this->is_valid() ) {
 			return [];
 		}
 
-		[ $totals, $total_weight ] = $this->_calculate_total_nutrition( 1.0, $resolve_products );
+		[ $totals, $total_weight ] = $this->_calculate_total_nutrition( 1.0 );
 
 		$servings = max(1.0, floatval($this->get_servings()));
 
@@ -332,77 +332,7 @@ class Mixmymeals_Recipe {
 		return $totals;
 	}
 
-	/**
-	 * The recipe's nutrition both ways: as its ingredients describe themselves,
-	 * and with the products they resolve through.
-	 *
-	 * The point is to make the abstraction visible rather than hide it. A
-	 * single figure pretends to a precision it does not have — "480 kcal" reads
-	 * as a measurement when it is a plan built from average ingredients.
-	 * Showing what one concrete yoghurt does to it is more honest than either
-	 * number alone.
-	 *
-	 * Returns an empty array when nothing differs, so callers can render
-	 * nothing rather than a comparison of a figure with itself. That is the
-	 * normal case: it takes a reference product to make the two diverge.
-	 *
-	 * @return array{base:array,resolved:array,ingredients:array<int,string>}|array
-	 */
-	public function get_nutrition_comparison(): array {
-
-		if ( ! $this->is_valid() ) {
-			return array();
-		}
-
-		$resolved = $this->calculate_nutrition_per_serving( true );
-		$base     = $this->calculate_nutrition_per_serving( false );
-
-		// Which ingredients actually steer the result — the reader's next
-		// question after "the numbers differ" is "because of what".
-		$sources = array();
-
-		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ing ) {
-
-			$reference = Mixmymeals_Product::get_reference_id( (int) $ing['id'] );
-
-			if ( ! $reference ) {
-				continue;
-			}
-
-			$sources[ (int) $ing['id'] ] = get_the_title( $reference );
-		}
-
-		if ( empty( $sources ) ) {
-			return array();
-		}
-
-		/*
-		 * A product can carry only values the ingredient already had, or differ
-		 * by a rounding artefact. Comparing the seven figures rather than
-		 * trusting the presence of a reference keeps the display silent when
-		 * there is nothing to show.
-		 */
-		$differs = false;
-
-		foreach ( array( 'calories', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt' ) as $key ) {
-			if ( abs( (float) ( $resolved[ $key ] ?? 0 ) - (float) ( $base[ $key ] ?? 0 ) ) > 0.05 ) {
-				$differs = true;
-				break;
-			}
-		}
-
-		if ( ! $differs ) {
-			return array();
-		}
-
-		return array(
-			'base'        => $base,
-			'resolved'    => $resolved,
-			'ingredients' => $sources,
-		);
-	}
-
-	private function _calculate_total_nutrition(float $scale = 1.0, bool $resolve_products = true): array {
+	private function _calculate_total_nutrition(float $scale = 1.0): array {
 
 		$ingredients = $this->get_ingredients_scaled($scale);
 
@@ -418,7 +348,7 @@ class Mixmymeals_Recipe {
 			$ingredient_obj = new Mixmymeals_Ingredient($ing['id']);
 			if (!$ingredient_obj->is_valid()) continue;
 
-			$nutrition = $ingredient_obj->get_nutrition( $resolve_products );
+			$nutrition = $ingredient_obj->get_nutrition();
 			$weight = floatval($ing['weight_g']);
 
 			if ($weight <= 0) continue;

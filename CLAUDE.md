@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.8.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.8.2, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -99,8 +99,6 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 **Product** (`mmm_product`, `Mixmymeals_Product`) — a concrete, branded article an ingredient can be bought as. Child of the ingredient via `post_parent` and hidden like `mmm_ingr_unit`, because it is a detail of its parent rather than a page. Meta: the seven nutrition keys under `_mmm_product_*`, plus `_mmm_product_package_weight` (grams per packet), `_mmm_product_brand` and `_mmm_product_source`. Edited in the Products meta box on the ingredient screen (`render_ingredient_products_meta_box_content()` / `save_ingredient_products()`), which carries its own nonce and its own `save_post_mmm_ingredient` hook so a screen that does not render it cannot wipe the products by not posting them.
 
 Over REST: `POST /products`, `GET|POST|DELETE /products/{id}` and `GET /ingredients/{id}/products`. `nutrition` is an object of the seven keys — only supplied keys are touched and `null` deletes one, so a client can withdraw a figure instead of only overwriting it, and the serialization keeps nulls for the same reason: null and 0 are different claims about somebody else's product. `is_reference` sets or clears the ingredient's pointer. MCP mirrors all five as `mmm_get_ingredient_products`, `mmm_get_product`, `mmm_create_product`, `mmm_update_product` and `mmm_delete_product`.
-
-`[mmm_nutrition_comparison]` shows a recipe both ways — the ingredients' own averages against the figures its reference products state — and renders **nothing** unless at least one ingredient resolves through a product *and* the two actually differ, so it costs no space on the ordinary recipe. It is fed by `Mixmymeals_Recipe::get_nutrition_comparison()`, which is the only caller that passes `false` to `calculate_nutrition_per_serving()` / `Mixmymeals_Ingredient::get_nutrition()`. That parameter exists solely to put the two side by side; anything that just wants *the* nutrition must leave it alone, or the single-read-path guarantee above stops meaning anything.
 
 The two levels answer different questions. An ingredient carries figures good enough to plan with and stays correct when a manufacturer changes a recipe; a product carries what one packet says. Worth maintaining only where products differ a lot — yoghurt at 0.1 % or 10 % fat, minced meat, cheese, bread. For red cabbage the gap between 25 and 41 kcal is smaller than the error from cooking losses and portion size.
 

@@ -532,22 +532,3 @@ body.mmm-cook-mode-open {
     pointer-events: none;
 }
 
-/* Nutrition comparison ([mmm_nutrition_comparison]) — structural only.
-   The table reuses .mmm-nutrition-table so the theme styles both alike.
-
-   The gap is not decoration: this block follows the recipe's own nutrition
-   table, and without separation its header row reads as a second header
-   inside that table instead of the start of a different one. */
-.mmm-nutrition-comparison {
-    margin-top: 2rem;
-}
-
-.mmm-nutrition-comparison__title {
-    margin: 0 0 0.5rem;
-}
-
-.mmm-nutrition-comparison__note {
-    margin: 8px 0 0;
-    font-size: 0.9em;
-    line-height: 1.45;
-}
