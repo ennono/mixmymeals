@@ -652,6 +652,74 @@ const TOOLS = [
     },
   },
 
+  // ── MixMyMeals: Produkte ─────────────────────────────────────────────────
+
+  {
+    name: "mmm_get_ingredient_products",
+    description: "Alle Produkte einer Zutat abrufen. Verwendet /mixmymeals/v1/ingredients/{id}/products.",
+    inputSchema: {
+      type: "object",
+      required: ["ingredient_id"],
+      properties: { ingredient_id: { type: "number", description: "Post-ID des mmm_ingredient" } },
+    },
+  },
+
+  {
+    name: "mmm_get_product",
+    description: "Einzelnes Produkt abrufen. Verwendet /mixmymeals/v1/products/{id}. is_reference sagt, ob die Zutat ihre Nährwerte über dieses Produkt auflöst.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "number" } },
+    },
+  },
+
+  {
+    name: "mmm_create_product",
+    description: "Produkt zu einer Zutat anlegen — ein konkreter Artikel, als den die Zutat gekauft werden kann (z.B. 'Sahnejoghurt 10%'). Die Zutat bleibt die Abstraktion mit Planungswerten; lohnt sich nur, wo Produkte stark abweichen (Joghurt, Hackfleisch, Käse, Brot). Verwendet /mixmymeals/v1/products.",
+    inputSchema: {
+      type: "object",
+      required: ["ingredient_id", "title"],
+      properties: {
+        ingredient_id:  { type: "number", description: "Post-ID des mmm_ingredient" },
+        title:          { type: "string", description: "Produktname" },
+        brand:          { type: "string", description: "Marke oder Hersteller" },
+        package_weight: { type: "number", description: "Gewicht einer Packung in Gramm" },
+        source:         { type: "string", description: "Woher die Angaben stammen, z. B. 'Packung, 08/2026'. Diese Werte veralten — ohne Quelle unterscheidet später niemand eine aktuelle von einer alten Angabe." },
+        nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
+        is_reference:   { type: "boolean", description: "Dieses Produkt zur Referenz der Zutat machen: die Zutat nutzt dann seine Werte, Wert für Wert." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_update_product",
+    description: "Produkt aktualisieren. Verwendet /mixmymeals/v1/products/{id}.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id:             { type: "number" },
+        title:          { type: "string" },
+        brand:          { type: "string" },
+        package_weight: { type: "number" },
+        source:         { type: "string" },
+        nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
+        is_reference:   { type: "boolean", description: "true macht es zur Referenz, false hebt die Referenz der Zutat auf." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_delete_product",
+    description: "Produkt löschen. War es die Referenz der Zutat, fällt diese automatisch weg. Verwendet /mixmymeals/v1/products/{id}.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "number" } },
+    },
+  },
+
   // ── MixMyMeals: Meal Plans ───────────────────────────────────────────────
 
   {
@@ -1202,6 +1270,38 @@ async function handleTool(name, args) {
       return mmm("POST", `/ingredients/${args.id}/price`, { price_per_100g: args.price_per_100g });
 
     // ── MixMyMeals: Einheiten ──────────────────────────────────────────────
+
+    case "mmm_get_ingredient_products":
+      return mmm("GET", `/ingredients/${args.ingredient_id}/products`);
+
+    case "mmm_get_product":
+      return mmm("GET", `/products/${args.id}`);
+
+    case "mmm_create_product": {
+      const { ingredient_id, title, brand, package_weight, source, nutrition, is_reference } = args;
+      const body = { ingredient_id, title };
+      if (brand !== undefined)          body.brand = brand;
+      if (package_weight !== undefined) body.package_weight = package_weight;
+      if (source !== undefined)         body.source = source;
+      if (nutrition !== undefined)      body.nutrition = nutrition;
+      if (is_reference !== undefined)   body.is_reference = is_reference;
+      return mmm("POST", "/products", body);
+    }
+
+    case "mmm_update_product": {
+      const { id, title, brand, package_weight, source, nutrition, is_reference } = args;
+      const body = {};
+      if (title !== undefined)          body.title = title;
+      if (brand !== undefined)          body.brand = brand;
+      if (package_weight !== undefined) body.package_weight = package_weight;
+      if (source !== undefined)         body.source = source;
+      if (nutrition !== undefined)      body.nutrition = nutrition;
+      if (is_reference !== undefined)   body.is_reference = is_reference;
+      return mmm("POST", `/products/${id}`, body);
+    }
+
+    case "mmm_delete_product":
+      return mmm("DELETE", `/products/${args.id}`);
 
     case "mmm_get_ingr_unit":
       return mmm("GET", `/units/${args.id}`);

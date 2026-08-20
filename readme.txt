@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.6.0
+Stable tag: 3.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.7.0 =
+
+Added:
+* Products over REST: `POST /products`, `GET|POST|DELETE /products/{id}` and
+  `GET /ingredients/{id}/products`, all in the mixmymeals/v1 namespace. The
+  nutrition object touches only the keys it carries, and `null` deletes one
+  rather than storing a zero — the response keeps nulls for the same reason.
+* The same five as MCP tools, so an assistant can record what a packet says
+  and mark which product an ingredient resolves through.
 
 = 3.6.0 =
 
@@ -386,6 +396,10 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.7.0 =
+Adds REST endpoints and MCP tools for products. Nothing changes for existing
+installations.
 
 = 3.6.0 =
 Adds a Products table to the ingredient screen. Nothing changes until you

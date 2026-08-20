@@ -203,6 +203,14 @@ class Mixmymeals_Rest_Api {
 		register_post_meta( 'mmm_ingr_unit', '_mmm_ingr_unit_weight', array( 'type' => 'number',  'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_ingr_unit', '_mmm_unit_divisor',     array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'auth_callback' => $can_edit ) );
 
+		// mmm_product
+		foreach ( Mixmymeals_Product::NUTRITION_FIELDS as $field ) {
+			register_post_meta( Mixmymeals_Product::POST_TYPE, $field, array( 'type' => 'number', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
+		}
+		register_post_meta( Mixmymeals_Product::POST_TYPE, Mixmymeals_Product::META_PACKAGE_WEIGHT, array( 'type' => 'number', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
+		register_post_meta( Mixmymeals_Product::POST_TYPE, Mixmymeals_Product::META_BRAND,  array( 'type' => 'string', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'sanitize_text_field', 'auth_callback' => $can_edit ) );
+		register_post_meta( Mixmymeals_Product::POST_TYPE, Mixmymeals_Product::META_SOURCE, array( 'type' => 'string', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'sanitize_text_field', 'auth_callback' => $can_edit ) );
+
 		// mmm_meal_plan
 		register_post_meta( 'mmm_meal_plan', 'start_day', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_meal_plan', 'end_day',   array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
@@ -329,6 +337,54 @@ class Mixmymeals_Rest_Api {
 				'is_indivisible' => array( 'required' => false, 'type' => 'boolean' ),
 				'divisor'        => array( 'required' => false, 'type' => 'integer', 'minimum' => 0 ),
 			),
+		) );
+
+		// ── Products ──────────────────────────────────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/products', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'create_product' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'ingredient_id'  => array( 'required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint' ),
+				'title'          => array( 'required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'brand'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'package_weight' => array( 'required' => false, 'type' => 'number' ),
+				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
+				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
+			),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/products', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'get_ingredient_products' ),
+			'permission_callback' => '__return_true',
+			'args'                => array( 'id' => $id_arg ),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/products/(?P<id>\d+)', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'get_product' ),
+			'permission_callback' => '__return_true',
+			'args'                => array( 'id' => $id_arg ),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/products/(?P<id>\d+)', array(
+			'methods'             => WP_REST_Server::EDITABLE,
+			'callback'            => array( $this, 'update_product' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'id'             => $id_arg,
+				'title'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'brand'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'package_weight' => array( 'required' => false, 'type' => 'number' ),
+				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
+				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
+			),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/products/(?P<id>\d+)', array(
+			'methods'             => WP_REST_Server::DELETABLE,
+			'callback'            => array( $this, 'delete_product' ),
+			'permission_callback' => $auth,
+			'args'                => array( 'id' => $id_arg ),
 		) );
 
 		// ── Meal Plans ────────────────────────────────────────────────────
@@ -462,6 +518,149 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'forbidden', 'You are not allowed to publish content.', array( 'status' => 403 ) );
 		}
 		return null;
+	}
+
+	private function serialize_product( int $id ): array {
+		$product    = new Mixmymeals_Product( $id );
+		$ingredient = $product->get_ingredient_id();
+
+		return array(
+			'id'             => $id,
+			'title'          => $product->get_title(),
+			'parent'         => $ingredient,
+			'brand'          => $product->get_brand(),
+			'package_weight' => $product->get_package_weight(),
+			'source'         => $product->get_source(),
+			/*
+			 * Raw, with nulls kept: null means the packet does not state the
+			 * value, which is a different claim from zero. A client merging
+			 * this into the ingredient has to be able to tell them apart.
+			 */
+			'nutrition'      => $product->get_nutrition(),
+			'is_reference'   => Mixmymeals_Product::get_reference_id( $ingredient ) === $id,
+		);
+	}
+
+	/**
+	 * Applies the writable product fields a request carries.
+	 *
+	 * Shared by create and update so both treat a supplied null the same way:
+	 * as "delete this value", not as "ignore it".
+	 *
+	 * @param Mixmymeals_Product $product Product.
+	 * @param WP_REST_Request    $request Request.
+	 * @return void
+	 */
+	private function apply_product_fields( Mixmymeals_Product $product, WP_REST_Request $request ): void {
+
+		if ( $request->has_param( 'brand' ) )          $product->set_brand( (string) $request->get_param( 'brand' ) );
+		if ( $request->has_param( 'source' ) )         $product->set_source( (string) $request->get_param( 'source' ) );
+		if ( $request->has_param( 'package_weight' ) ) $product->set_package_weight( (float) $request->get_param( 'package_weight' ) );
+
+		if ( $request->has_param( 'nutrition' ) ) {
+			$nutrition = (array) $request->get_param( 'nutrition' );
+			$clean     = array();
+
+			foreach ( array_keys( Mixmymeals_Product::NUTRITION_FIELDS ) as $key ) {
+				if ( array_key_exists( $key, $nutrition ) ) {
+					$clean[ $key ] = $nutrition[ $key ];
+				}
+			}
+
+			$product->set_nutrition( $clean );
+		}
+
+		if ( $request->has_param( 'is_reference' ) ) {
+			Mixmymeals_Product::set_reference_id(
+				$product->get_ingredient_id(),
+				$request->get_param( 'is_reference' ) ? $product->get_id() : 0
+			);
+		}
+	}
+
+	public function create_product( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$ingredient_id = absint( $request->get_param( 'ingredient_id' ) );
+
+		if ( ! ( new Mixmymeals_Ingredient( $ingredient_id ) )->is_valid() ) {
+			return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		}
+
+		$guard = $this->require_can_edit( $ingredient_id );
+		if ( $guard ) return $guard;
+
+		try {
+			$product = Mixmymeals_Product::create( $ingredient_id, $request->get_param( 'title' ) );
+		} catch ( \Exception $e ) {
+			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
+		}
+
+		$this->apply_product_fields( $product, $request );
+
+		return new WP_REST_Response( $this->serialize_product( $product->get_id() ), 201 );
+	}
+
+	public function get_product( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$id      = absint( $request->get_param( 'id' ) );
+		$product = new Mixmymeals_Product( $id );
+
+		if ( ! $product->is_valid() ) {
+			return new WP_Error( 'not_found', 'Product not found.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( $this->serialize_product( $id ), 200 );
+	}
+
+	public function get_ingredient_products( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$ingredient_id = absint( $request->get_param( 'id' ) );
+
+		if ( ! ( new Mixmymeals_Ingredient( $ingredient_id ) )->is_valid() ) {
+			return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		}
+
+		$out = array();
+
+		foreach ( Mixmymeals_Product::for_ingredient( $ingredient_id ) as $product ) {
+			$out[] = $this->serialize_product( $product->get_id() );
+		}
+
+		return new WP_REST_Response( $out, 200 );
+	}
+
+	public function update_product( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$id      = absint( $request->get_param( 'id' ) );
+		$product = new Mixmymeals_Product( $id );
+
+		if ( ! $product->is_valid() ) {
+			return new WP_Error( 'not_found', 'Product not found.', array( 'status' => 404 ) );
+		}
+
+		$guard = $this->require_can_edit( $product->get_ingredient_id() );
+		if ( $guard ) return $guard;
+
+		if ( $request->has_param( 'title' ) ) {
+			$product->set_title( (string) $request->get_param( 'title' ) );
+		}
+
+		$this->apply_product_fields( $product, $request );
+
+		return new WP_REST_Response( $this->serialize_product( $id ), 200 );
+	}
+
+	public function delete_product( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$id      = absint( $request->get_param( 'id' ) );
+		$product = new Mixmymeals_Product( $id );
+
+		if ( ! $product->is_valid() ) {
+			return new WP_Error( 'not_found', 'Product not found.', array( 'status' => 404 ) );
+		}
+
+		$guard = $this->require_can_edit( $product->get_ingredient_id() );
+		if ( $guard ) return $guard;
+
+		// Clears the ingredient's reference too, if it pointed here.
+		$product->delete();
+
+		return new WP_REST_Response( array( 'deleted' => true, 'id' => $id ), 200 );
 	}
 
 	private function serialize_ingr_unit( int $id ): array {
