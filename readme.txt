@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.7.3
+Stable tag: 3.7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.7.4 =
+
+Fixed:
+* The nutrition fields in the product table wrapped onto two lines and the
+  grey stripe stopped a third of the way across, because the flex layout sat
+  on the table cell itself — display:flex takes a <td> out of the table and it
+  collapses to the width of the first column. The layout now sits in a
+  container inside the cell and the row uses its full width.
+* The nutrition block carries a caption, the two action controls share one
+  cell, and two labels that were still English are translated.
 
 = 3.7.3 =
 
@@ -429,6 +440,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.7.4 =
+Layout fix for the product table on the ingredient screen.
 
 = 3.7.3 =
 Presentation only, on the ingredient's product table.

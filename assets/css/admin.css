@@ -748,18 +748,21 @@
    Products on the ingredient screen.
 
    A product occupies two rows — identity above, the panel off
-   the packet below — which is why this table is NOT .striped:
-   striping alternates per <tr> and cut every product in half,
-   its top row light and its bottom row dark. Products are set
-   apart by a rule on the head row instead.
+   the packet below — so this table is NOT .striped: striping
+   alternates per <tr> and cut every product in half. The
+   alternating class is set in PHP, per product.
+
+   Note the flex containers are divs inside the cells, never the
+   cells themselves: display:flex on a <td> drops it out of the
+   table layout and it collapses to the first column's width.
    ========================================================== */
 
 .mmm-products td {
     border-top: 0;
-    vertical-align: top;
+    vertical-align: bottom;
+    padding: 8px 10px;
 }
 
-/* The rule marks where a product starts; none above the first. */
 .mmm-products__head > td {
     border-top: 1px solid #dcdcde;
     padding-top: 14px;
@@ -769,28 +772,35 @@
     border-top: 0;
 }
 
-/* Alternating background per PRODUCT, not per row — the class is set in PHP
-   because a product spans two rows and :nth-child would have to encode that. */
 .mmm-products--alt > td {
     background: #f6f7f7;
 }
 
-.mmm-products__detail > td {
-    padding-top: 4px;
-    padding-bottom: 14px;
+/* --- Labelled field, used in both rows --- */
+
+.mmm-products__field {
+    display: block;
 }
+
+.mmm-products__field > span {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #646970;
+}
+
+.mmm-products__field > input {
+    margin: 0;
+}
+
+/* --- Head row --- */
 
 .mmm-products__title {
-    width: 28%;
+    width: 34%;
 }
 
-/* In the head row the fields are plain table cells, not the flex row. */
-.mmm-products__head .mmm-products__field {
-    width: 100%;
-}
-
-.mmm-products__head .mmm-products__field > input[type="text"],
-.mmm-products__head .mmm-products__field > input[type="number"] {
+.mmm-products__head .mmm-products__field > input {
     width: 100%;
 }
 
@@ -798,48 +808,53 @@
     max-width: 110px;
 }
 
-.mmm-products__pack {
-    width: 90px;
+.mmm-products__actions {
+    white-space: nowrap;
+    text-align: right;
 }
 
-/* The seven figures as one wrapping row of equal cells, so the
-   columns line up instead of drifting with the label lengths. */
+.mmm-products__use {
+    margin-right: 16px;
+}
+
+.mmm-products__use,
+.mmm-products__delete {
+    display: inline-block;
+    padding-bottom: 4px;
+}
+
+/* --- Detail row: the panel off the packet --- */
+
 .mmm-products__detail > td {
+    padding-top: 2px;
+    padding-bottom: 16px;
+}
+
+.mmm-products__panel-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #787c82;
+}
+
+.mmm-products__figures {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 14px;
-    align-items: flex-end;
+    gap: 8px 12px;
 }
 
-.mmm-products__field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+.mmm-products__figures .mmm-products__field > input {
+    width: 92px;
 }
 
-.mmm-products__field > span {
-    font-size: 11px;
-    line-height: 1.3;
-    color: #646970;
-}
-
-.mmm-products__field > input[type="number"] {
-    width: 84px;
-}
-
-/* The source note is prose, not a figure — it gets the rest of
-   the row and sits apart from the numbers. */
 .mmm-products__field--source {
-    flex: 1 1 220px;
-    margin-left: auto;
+    margin-top: 10px;
+    max-width: 420px;
 }
 
 .mmm-products__field--source > input {
     width: 100%;
-}
-
-@media screen and (max-width: 782px) {
-    .mmm-products__field--source {
-        margin-left: 0;
-    }
 }

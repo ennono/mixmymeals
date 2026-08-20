@@ -2022,25 +2022,28 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $is_new || ! $product->get_package_weight() ? '' : (string) $product->get_package_weight() )
 			. '"></label></td>';
 
-		echo '<td>';
+		echo '<td class="mmm-products__actions" colspan="2">';
 		if ( ! $is_new ) {
-			echo '<label><input type="radio" name="mmm_products_reference" value="' . esc_attr( (string) $id ) . '" '
-				. checked( $reference, $id, false ) . '> ' . esc_html__( 'Use this product\'s nutrition', 'mixmymeals' ) . '</label>';
+			echo '<label class="mmm-products__use"><input type="radio" name="mmm_products_reference" value="'
+				. esc_attr( (string) $id ) . '" ' . checked( $reference, $id, false ) . '> '
+				. esc_html__( 'Use this product\'s nutrition', 'mixmymeals' ) . '</label>';
+			echo '<label class="mmm-products__delete"><input type="checkbox" name="' . esc_attr( $name )
+				. '[delete]" value="1"> ' . esc_html__( 'Delete', 'mixmymeals' ) . '</label>';
 		} else {
-			echo '<span class="description">' . esc_html__( 'Save first', 'mixmymeals' ) . '</span>';
-		}
-		echo '</td>';
-
-		echo '<td>';
-		if ( ! $is_new ) {
-			echo '<label><input type="checkbox" name="' . esc_attr( $name ) . '[delete]" value="1"> '
-				. esc_html__( 'Delete', 'mixmymeals' ) . '</label>';
+			echo '<span class="description">' . esc_html__( 'Save to add this product.', 'mixmymeals' ) . '</span>';
 		}
 		echo '</td>';
 		echo '</tr>';
 
 		// --- Row 2: the panel off the packet ---
 		echo '<tr class="mmm-products__detail' . esc_attr( $zebra ) . '"><td colspan="5">';
+		// The flex container is a div, not the cell: display:flex on a <td>
+		// takes it out of the table layout and it collapses to the width of
+		// the first column.
+		echo '<div class="mmm-products__panel">';
+		echo '<span class="mmm-products__panel-label">'
+			. esc_html__( 'Nutrition per 100 g, as stated on the packet', 'mixmymeals' ) . '</span>';
+		echo '<div class="mmm-products__figures">';
 		$field( 'calories_100', __( 'kcal/100 g', 'mixmymeals' ), $nutrition['calories_100'] ?? null );
 		$field( 'fat', __( 'Fat', 'mixmymeals' ), $nutrition['fat'] ?? null );
 		$field( 'carbs', __( 'Carbohydrate', 'mixmymeals' ), $nutrition['carbs'] ?? null );
@@ -2049,6 +2052,8 @@ class Mixmymeals_Post_Meta {
 		$field( 'protein', __( 'Protein', 'mixmymeals' ), $nutrition['protein'] ?? null );
 		$field( 'salt', __( 'Salt', 'mixmymeals' ), $nutrition['salt'] ?? null );
 
+		echo '</div>'; // .mmm-products__figures
+
 		echo '<label class="mmm-products__field mmm-products__field--source">'
 			. '<span>'
 			. esc_html__( 'Source of these figures', 'mixmymeals' ) . '</span>'
@@ -2056,6 +2061,7 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $is_new ? '' : $product->get_source() ) . '" placeholder="'
 			. esc_attr__( 'e.g. packet, 08/2026', 'mixmymeals' ) . '">'
 			. '</label>';
+		echo '</div>'; // .mmm-products__panel
 		echo '</td></tr>';
 	}
 
