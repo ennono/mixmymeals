@@ -1947,7 +1947,7 @@ class Mixmymeals_Post_Meta {
 		$reference = Mixmymeals_Product::get_reference_id( $post->ID );
 
 		echo '<p class="description">'
-			. esc_html__( 'A product is one specific article this ingredient can be bought as. Marking one as the reference makes the ingredient use its values — value by value, so anything the packet does not state still comes from the ingredient itself.', 'mixmymeals' )
+			. esc_html__( 'A product is one specific article of this ingredient. Its nutrition replaces the ingredient\'s — value by value; anything it does not state stays with the ingredient.', 'mixmymeals' )
 			. '</p>';
 
 		echo '<table class="widefat striped"><tbody>';
@@ -2013,7 +2013,7 @@ class Mixmymeals_Post_Meta {
 		echo '<td>';
 		if ( ! $is_new ) {
 			echo '<label><input type="radio" name="mmm_products_reference" value="' . esc_attr( (string) $id ) . '" '
-				. checked( $reference, $id, false ) . '> ' . esc_html__( 'Reference', 'mixmymeals' ) . '</label>';
+				. checked( $reference, $id, false ) . '> ' . esc_html__( 'Use this product\'s nutrition', 'mixmymeals' ) . '</label>';
 		} else {
 			echo '<span class="description">' . esc_html__( 'Save first', 'mixmymeals' ) . '</span>';
 		}

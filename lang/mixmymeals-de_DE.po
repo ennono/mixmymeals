@@ -4048,10 +4048,6 @@ msgstr "Neues Produkt hinzufügen"
 msgid "Edit Product"
 msgstr "Produkt bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1950
-msgid "A product is one specific article this ingredient can be bought as. Marking one as the reference makes the ingredient use its values — value by value, so anything the packet does not state still comes from the ingredient itself."
-msgstr "Ein Produkt ist ein konkreter Artikel, als der diese Zutat gekauft werden kann. Wird eines als Referenz markiert, nutzt die Zutat dessen Werte — Wert für Wert, alles, was die Packung nicht angibt, kommt weiterhin von der Zutat selbst."
-
 #: includes/lib/class-mixmymeals-post-meta.php:1964
 msgid "Leave the nutrition fields empty for anything the packet does not state — an empty field is not the same as zero."
 msgstr "Nährwertfelder leer lassen, wo die Packung nichts angibt — ein leeres Feld ist nicht dasselbe wie null."
@@ -4068,10 +4064,6 @@ msgstr "Marke"
 msgid "Pack (g)"
 msgstr "Packung (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2016
-msgid "Reference"
-msgstr "Referenz"
-
 #: includes/lib/class-mixmymeals-post-meta.php:2018
 msgid "Save first"
 msgstr "Erst speichern"
@@ -4087,3 +4079,11 @@ msgstr "Quelle dieser Angaben"
 #: includes/lib/class-mixmymeals-post-meta.php:2045
 msgid "e.g. packet, 08/2026"
 msgstr "z. B. Packung, 08/2026"
+
+#: includes/lib/class-mixmymeals-post-meta.php:1950
+msgid "A product is one specific article of this ingredient. Its nutrition replaces the ingredient's — value by value; anything it does not state stays with the ingredient."
+msgstr "Ein Produkt ist ein konkreter Artikel dieser Zutat. Seine Nährwerte ersetzen die der Zutat — Wert für Wert; was es nicht angibt, bleibt bei der Zutat."
+
+#: includes/lib/class-mixmymeals-post-meta.php:2016
+msgid "Use this product's nutrition"
+msgstr "Nährwerte von diesem Produkt verwenden"
