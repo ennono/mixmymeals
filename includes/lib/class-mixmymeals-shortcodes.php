@@ -3237,6 +3237,13 @@ class Mixmymeals_Shortcodes {
 		$products = implode( ', ', array_map( 'esc_html', $comparison['ingredients'] ) );
 
 		return '<div class="mmm-nutrition-comparison">'
+			/*
+			 * A heading, because this sits directly under the recipe's own
+			 * nutrition table and without one its header row reads as a
+			 * repetition inside that table rather than the start of a second.
+			 */
+			. '<h3 class="mmm-nutrition-comparison__title">'
+			. esc_html__( 'Where these figures come from', 'mixmymeals' ) . '</h3>'
 			. '<table class="mmm-nutrition-table">'
 			. '<thead><tr>'
 			. '<th>' . esc_html__( 'Nutrition', 'mixmymeals' ) . '</th>'
