@@ -7198,13 +7198,6 @@ class Mixmymeals_Shortcodes {
 
 		$base_values = $nutrition[ $baseline->get_id() ];
 
-		/*
-		 * A lone product is not a comparison basis, it is the only product.
-		 * The chip would name a role nothing else in the table plays. The
-		 * reference chip is a different claim and still shows.
-		 */
-		$baseline_flag = count( $products ) > 1 ? $baseline->get_id() : 0;
-
 		$head = __( 'Nutrition', 'mixmymeals' );
 
 		/*
@@ -7232,7 +7225,7 @@ class Mixmymeals_Shortcodes {
 						<th>
 							<?php
 							// Already escaped piece by piece in the helper.
-							echo $this->render_product_identity( $mmm_product, $reference, $baseline_flag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+							echo $this->render_product_identity( $mmm_product, $reference ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 							?>
 						</th>
 					<?php endforeach; ?>
@@ -7434,32 +7427,24 @@ class Mixmymeals_Shortcodes {
 	 *
 	 * @param Mixmymeals_Product $product   The product.
 	 * @param int                $reference ID of the ingredient's reference product, 0 if none.
-	 * @param int                $baseline  ID of the product the other columns are measured against.
 	 * @return string Escaped markup.
 	 */
-	private function render_product_identity( Mixmymeals_Product $product, int $reference, int $baseline ): string {
+	private function render_product_identity( Mixmymeals_Product $product, int $reference ): string {
 
 		$out = '<div class="mmm-ingredient-products__identity">'
 			. '<div class="mmm-ingredient-products__title">'
 			. esc_html( $product->get_title() ) . '</div>';
 
 		/*
-		 * Two different claims, so two different chips. Being the reference
-		 * says the ingredient's nutrition comes from this packet; being the
-		 * baseline without it says only that the table had to start somewhere.
-		 * A reader who cannot tell those apart will read the second as an
-		 * endorsement of a brand.
+		 * Only the reference gets a chip, and only because it is a claim about
+		 * the ingredient: its nutrition comes from this packet. Which column
+		 * anchors the arithmetic is not a property of the product, and the note
+		 * under the table already names it — as a chip it sat next to a brand
+		 * looking like a distinction the brand had earned.
 		 */
-		$flag = '';
-
 		if ( $reference > 0 && $reference === $product->get_id() ) {
-			$flag = __( 'Used for the nutrition figures', 'mixmymeals' );
-		} elseif ( $baseline === $product->get_id() ) {
-			$flag = __( 'Comparison basis', 'mixmymeals' );
-		}
-
-		if ( '' !== $flag ) {
-			$out .= '<div class="mmm-ingredient-products__flag">' . esc_html( $flag ) . '</div>';
+			$out .= '<div class="mmm-ingredient-products__flag">'
+				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</div>';
 		}
 
 		$meta  = array();

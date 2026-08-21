@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.10.0
+Stable tag: 3.10.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.10.1 =
+
+Removed:
+* The "Comparison basis" chip on the anchor column of the product table. Which
+  column the arithmetic starts from is not a property of the product, and the
+  note under the table already says which one it is. As a chip beside a brand
+  name it looked like a distinction the brand had earned.
 
 = 3.10.0 =
 
@@ -519,6 +527,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.10.1 =
+Drops the "Comparison basis" chip.
 
 = 3.10.0 =
 The product table reads as differences to one column now.
