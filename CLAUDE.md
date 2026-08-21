@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.9.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.10.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -101,6 +101,10 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 Over REST: `POST /products`, `GET|POST|DELETE /products/{id}` and `GET /ingredients/{id}/products`. `nutrition` is an object of the seven keys — only supplied keys are touched and `null` deletes one, so a client can withdraw a figure instead of only overwriting it, and the serialization keeps nulls for the same reason: null and 0 are different claims about somebody else's product. `is_reference` sets or clears the ingredient's pointer. MCP mirrors all five as `mmm_get_ingredient_products`, `mmm_get_product`, `mmm_create_product`, `mmm_update_product` and `mmm_delete_product`.
 
 `[mmm_ingredient_products]` lists them on the ingredient page, one column per product against the seven nutrition rows — the transposed shape, because seven figures as columns push protein and salt off the page, which are the two a reader compares yoghurts by. Deliberately **without** the `mmm-nutri-table` class every other nutrition table carries: the theme collapses that into one card per row below 544px and hides the table head to do it, and here the head carries the brand, the package size and the source. It scrolls sideways in its wrapper instead, with the label column pinned via `position: sticky`.
+
+**The table is relative, not seven columns of absolutes.** One product anchors it and keeps its own figures; every other column states the difference (`+12,0 g`, `−30 kcal`, `±0` when it rounds away). `pick_products_baseline()` picks the reference product, or failing that the lowest-energy one — a stable choice, unlike "the first entered", which would silently re-anchor the whole table the day someone adds a product — and the anchor is sorted to the front. `format_nutrition_delta()` returns a dash unless **both** ends are stated: treating an absent value as zero would not merely invent a number, it would invent the largest difference in the table and attribute it to somebody else's product. Signed with U+2212, not a hyphen, which in a column of figures reads as the dash that means "not stated".
+
+Two chips, never merged: `Used for the nutrition figures` says the ingredient's nutrition comes from that packet, `Comparison basis` says only that the table had to start somewhere — and the second is suppressed when there is a single product, which is not a basis for anything. Differences carry **no colour**: more protein and more salt would take the same green, and a reader would take that for a verdict on a brand.
 
 The heading cells are built from `div`s, not `span`s styled into blocks: a site serving a stale `frontend.css` ran the name, the brand and the source together into one unreadable string, and a stack that basic must not depend on a stylesheet arriving. Sources sit in a footnote list under the table rather than in the heading — a real one reads like a sentence, and in the head it either shrinks past legibility or pushes the figures off the screen.
 

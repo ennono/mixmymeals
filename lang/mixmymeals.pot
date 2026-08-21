@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MixMyMeals 3.9.0\n"
+"Project-Id-Version: MixMyMeals 3.9.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mixmymeals\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-21T16:36:41+00:00\n"
+"POT-Creation-Date: 2026-08-21T16:49:13+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mixmymeals\n"
@@ -1622,7 +1622,7 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php:5647
 #: includes/lib/class-mixmymeals-shortcodes.php:5657
 #: includes/lib/class-mixmymeals-shortcodes.php:7111
-#: includes/lib/class-mixmymeals-shortcodes.php:7175
+#: includes/lib/class-mixmymeals-shortcodes.php:7201
 msgid "Nutrition"
 msgstr ""
 
@@ -1746,8 +1746,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:875
-#: includes/lib/class-mixmymeals-shortcodes.php:7394
-#: includes/lib/class-mixmymeals-shortcodes.php:7670
+#: includes/lib/class-mixmymeals-shortcodes.php:7544
+#: includes/lib/class-mixmymeals-shortcodes.php:7820
 msgid "Other"
 msgstr ""
 
@@ -3426,33 +3426,43 @@ msgstr ""
 msgid "%1$s %2$s / 100 g"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7239
+#: includes/lib/class-mixmymeals-shortcodes.php:7277
 msgid "Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7264
+#. translators: %s: name of the product the other columns are compared against.
+#: includes/lib/class-mixmymeals-shortcodes.php:7282
+#, php-format
+msgid "The other columns state the difference to %s."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php:7311
 msgid "Sources"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7305
+#: includes/lib/class-mixmymeals-shortcodes.php:7449
 msgid "Used for the nutrition figures"
 msgstr ""
 
+#: includes/lib/class-mixmymeals-shortcodes.php:7451
+msgid "Comparison basis"
+msgstr ""
+
 #. translators: %s: a package weight in grams.
-#: includes/lib/class-mixmymeals-shortcodes.php:7321
+#: includes/lib/class-mixmymeals-shortcodes.php:7471
 #, php-format
 msgid "%s g package"
 msgstr ""
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7514
+#: includes/lib/class-mixmymeals-shortcodes.php:7664
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7599
+#: includes/lib/class-mixmymeals-shortcodes.php:7749
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr ""
 

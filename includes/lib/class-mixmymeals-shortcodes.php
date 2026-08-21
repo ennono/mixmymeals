@@ -7172,6 +7172,39 @@ class Mixmymeals_Shortcodes {
 			'salt'     => 'salt',
 		);
 
+		/*
+		 * One column is the anchor and keeps its absolute figures; the rest are
+		 * stated as the difference to it. The reference product is that anchor
+		 * when there is one — it is already the packet the ingredient's own
+		 * nutrition comes from, so the whole page agrees on one starting point.
+		 */
+		$baseline = $this->pick_products_baseline( $products, $reference );
+
+		// The anchor goes first. "Difference to the column three across" is not
+		// something a reader should have to hold in their head.
+		usort(
+			$products,
+			static fn( $a, $b ) => ( $a->get_id() === $baseline->get_id() ? 0 : 1 )
+				<=> ( $b->get_id() === $baseline->get_id() ? 0 : 1 )
+		);
+
+		// Read once per product rather than once per cell: seven rows times
+		// however many products is a lot of meta lookups for one table.
+		$nutrition = array();
+
+		foreach ( $products as $product ) {
+			$nutrition[ $product->get_id() ] = $product->get_nutrition();
+		}
+
+		$base_values = $nutrition[ $baseline->get_id() ];
+
+		/*
+		 * A lone product is not a comparison basis, it is the only product.
+		 * The chip would name a role nothing else in the table plays. The
+		 * reference chip is a different claim and still shows.
+		 */
+		$baseline_flag = count( $products ) > 1 ? $baseline->get_id() : 0;
+
 		$head = __( 'Nutrition', 'mixmymeals' );
 
 		/*
@@ -7199,7 +7232,7 @@ class Mixmymeals_Shortcodes {
 						<th>
 							<?php
 							// Already escaped piece by piece in the helper.
-							echo $this->render_product_identity( $mmm_product, $reference ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+							echo $this->render_product_identity( $mmm_product, $reference, $baseline_flag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 							?>
 						</th>
 					<?php endforeach; ?>
@@ -7210,8 +7243,13 @@ class Mixmymeals_Shortcodes {
 					<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
 						<td data-label="<?php echo esc_attr( $head ); ?>"><?php echo esc_html( $labels[ $mmm_key ] ); ?></td>
 						<?php foreach ( $products as $mmm_product ) : ?>
-							<?php $mmm_value = $mmm_product->get_nutrition()[ $mmm_field ] ?? null; ?>
-							<td data-label="<?php echo esc_attr( $mmm_product->get_title() ); ?>">
+							<?php
+							$mmm_value    = $nutrition[ $mmm_product->get_id() ][ $mmm_field ] ?? null;
+							$mmm_is_base  = $mmm_product->get_id() === $baseline->get_id();
+							$mmm_base_val = $base_values[ $mmm_field ] ?? null;
+							?>
+							<td class="<?php echo esc_attr( $mmm_is_base ? 'mmm-ingredient-products__base' : 'mmm-ingredient-products__delta' ); ?>"
+								data-label="<?php echo esc_attr( $mmm_product->get_title() ); ?>">
 								<?php
 								/*
 								 * A dash, never a zero. The whole product layer
@@ -7219,13 +7257,20 @@ class Mixmymeals_Shortcodes {
 								 * "contains none" being different claims, and
 								 * printing 0,0 g would turn the first into the
 								 * second — in public, about somebody else's
-								 * product.
+								 * product. A difference needs the figure on both
+								 * sides, so one missing end gives a dash too:
+								 * treating an absent value as zero would invent
+								 * the largest difference in the table.
 								 */
-								echo esc_html(
-									null === $mmm_value
-										? '—'
-										: Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) $mmm_value )
-								);
+								if ( $mmm_is_base ) {
+									echo esc_html(
+										null === $mmm_value
+											? '—'
+											: Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) $mmm_value )
+									);
+								} else {
+									echo esc_html( $this->format_nutrition_delta( $mmm_key, $mmm_base_val, $mmm_value ) );
+								}
 								?>
 							</td>
 						<?php endforeach; ?>
@@ -7237,6 +7282,15 @@ class Mixmymeals_Shortcodes {
 
 			<p class="mmm-ingredient-products__note">
 				<?php esc_html_e( 'Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation.', 'mixmymeals' ); ?>
+				<?php if ( count( $products ) > 1 ) : ?>
+					<?php
+					printf(
+						/* translators: %s: name of the product the other columns are compared against. */
+						esc_html__( 'The other columns state the difference to %s.', 'mixmymeals' ),
+						esc_html( $baseline->get_title() )
+					);
+					?>
+				<?php endif; ?>
 			</p>
 
 			<?php
@@ -7282,27 +7336,130 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * The heading cell of a product column: what the article is, and whether the
-	 * ingredient's own figures come from it.
+	 * The column everything else is measured against.
 	 *
-	 * Built from divs rather than spans styled into blocks. The four lines are
+	 * The reference product when the ingredient has one, so the comparison
+	 * starts from the same packet the ingredient's own nutrition does. Failing
+	 * that the lowest-energy product, which is the one people reach for this
+	 * table to move away from — and a stable choice, unlike "the first one
+	 * entered", which would silently re-anchor the whole table the day someone
+	 * adds a product.
+	 *
+	 * Products stating no energy at all cannot win that vote; if none states
+	 * any, the first one anchors it, because a table with no anchor has nothing
+	 * to show.
+	 *
+	 * @param Mixmymeals_Product[] $products  Products of the ingredient, at least one.
+	 * @param int                  $reference Reference product ID, 0 if none.
+	 * @return Mixmymeals_Product
+	 */
+	private function pick_products_baseline( array $products, int $reference ): Mixmymeals_Product {
+
+		if ( $reference > 0 ) {
+			foreach ( $products as $product ) {
+				if ( $reference === $product->get_id() ) {
+					return $product;
+				}
+			}
+		}
+
+		$lowest = null;
+		$fewest = null;
+
+		foreach ( $products as $product ) {
+
+			$calories = $product->get_nutrition()['calories_100'] ?? null;
+
+			if ( null === $calories ) {
+				continue;
+			}
+
+			if ( null === $fewest || $calories < $fewest ) {
+				$lowest = $product;
+				$fewest = $calories;
+			}
+		}
+
+		return $lowest ?? $products[0];
+	}
+
+	/**
+	 * One figure stated as its difference to the baseline.
+	 *
+	 * Returns a dash unless both ends are stated. A missing value is not zero
+	 * here any more than anywhere else, and treating it as one would not just
+	 * invent a number — it would invent the largest difference in the table and
+	 * attribute it to somebody else's product.
+	 *
+	 * Signed with a real minus (U+2212) rather than a hyphen, since these sit
+	 * in a column of figures where a hyphen reads as a dash — which is exactly
+	 * what this method returns to mean "not stated".
+	 *
+	 * @param string     $key   Nutrition key, for units and precision.
+	 * @param float|null $base  The baseline's figure.
+	 * @param float|null $value This product's figure.
+	 * @return string
+	 */
+	private function format_nutrition_delta( string $key, ?float $base, ?float $value ): string {
+
+		if ( null === $base || null === $value ) {
+			return '—';
+		}
+
+		$delta    = (float) $value - (float) $base;
+		$absolute = Mixmymeals_Meal_Plan::format_nutrition_value( $key, abs( $delta ) );
+
+		/*
+		 * Zero after rounding is still zero to the reader: 0.04 g of salt shown
+		 * as "+0,04" would be a difference the column cannot actually display.
+		 * Compared against the rendered string rather than the raw float, so
+		 * what is written always matches what is claimed.
+		 */
+		if ( $absolute === Mixmymeals_Meal_Plan::format_nutrition_value( $key, 0.0 ) ) {
+			return '±' . $absolute;
+		}
+
+		return ( $delta > 0 ? '+' : "\u{2212}" ) . $absolute;
+	}
+
+	/**
+	 * The heading cell of a product column: what the article is, and what role
+	 * it plays in the comparison.
+	 *
+	 * Built from divs rather than spans styled into blocks. The lines are
 	 * separate lines in any browser that way, with no stylesheet involved — a
-	 * site serving a stale frontend.css ran them together into one unreadable
-	 * string, and a layout that basic has no business depending on CSS arriving.
+	 * site serving a stale frontend.css ran the name, the brand and the source
+	 * together into one unreadable string, and a stack that basic has no
+	 * business depending on CSS arriving.
 	 *
 	 * @param Mixmymeals_Product $product   The product.
 	 * @param int                $reference ID of the ingredient's reference product, 0 if none.
+	 * @param int                $baseline  ID of the product the other columns are measured against.
 	 * @return string Escaped markup.
 	 */
-	private function render_product_identity( Mixmymeals_Product $product, int $reference ): string {
+	private function render_product_identity( Mixmymeals_Product $product, int $reference, int $baseline ): string {
 
 		$out = '<div class="mmm-ingredient-products__identity">'
 			. '<div class="mmm-ingredient-products__title">'
 			. esc_html( $product->get_title() ) . '</div>';
 
+		/*
+		 * Two different claims, so two different chips. Being the reference
+		 * says the ingredient's nutrition comes from this packet; being the
+		 * baseline without it says only that the table had to start somewhere.
+		 * A reader who cannot tell those apart will read the second as an
+		 * endorsement of a brand.
+		 */
+		$flag = '';
+
 		if ( $reference > 0 && $reference === $product->get_id() ) {
-			$out .= '<div class="mmm-ingredient-products__flag">'
-				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</div>';
+			$flag = __( 'Used for the nutrition figures', 'mixmymeals' );
+		} elseif ( $baseline === $product->get_id() ) {
+			$flag = __( 'Comparison basis', 'mixmymeals' );
+		}
+
+		if ( '' !== $flag ) {
+			$out .= '<div class="mmm-ingredient-products__flag">' . esc_html( $flag ) . '</div>';
 		}
 
 		$meta  = array();

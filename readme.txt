@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.9.1
+Stable tag: 3.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.10.0 =
+
+Changed:
+* The product table now states figures relative to one column instead of seven
+  sets of absolutes. That column keeps its own numbers; the rest read +12,0 g
+  or −30 kcal. The reference product anchors it, or failing that the
+  lowest-energy product, and the anchor moves to the front.
+* A difference needs a figure at both ends. If either the anchor or the product
+  is silent on a value, the cell stays a dash rather than counting the silence
+  as zero.
+
+Why: seven columns of absolutes make the reader do the subtraction, which is
+the one thing a comparison table exists to spare them. Differences are also
+deliberately uncoloured — more protein and more salt would get the same green,
+and a colour here reads as a verdict on a brand.
 
 = 3.9.1 =
 
@@ -503,6 +519,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.10.0 =
+The product table reads as differences to one column now.
 
 = 3.9.1 =
 Readable headings and footnoted sources in the product table.

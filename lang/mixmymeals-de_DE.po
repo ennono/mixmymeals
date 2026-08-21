@@ -1636,8 +1636,8 @@ msgstr "Portion"
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:875
-#: includes/lib/class-mixmymeals-shortcodes.php:7394
-#: includes/lib/class-mixmymeals-shortcodes.php:7670
+#: includes/lib/class-mixmymeals-shortcodes.php:7544
+#: includes/lib/class-mixmymeals-shortcodes.php:7820
 msgid "Other"
 msgstr "Sonstiges"
 
@@ -2738,7 +2738,7 @@ msgstr "Keine Zutaten für dieses Rezept gefunden."
 #: includes/lib/class-mixmymeals-shortcodes.php:5647
 #: includes/lib/class-mixmymeals-shortcodes.php:5657
 #: includes/lib/class-mixmymeals-shortcodes.php:7111
-#: includes/lib/class-mixmymeals-shortcodes.php:7175
+#: includes/lib/class-mixmymeals-shortcodes.php:7201
 msgid "Nutrition"
 msgstr "Nährwerte"
 
@@ -3166,14 +3166,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7514
+#: includes/lib/class-mixmymeals-shortcodes.php:7664
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7599
+#: includes/lib/class-mixmymeals-shortcodes.php:7749
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4093,20 +4093,30 @@ msgstr "Zum Anlegen speichern."
 msgid "Nutrition per 100 g, as stated on the packet"
 msgstr "Nährwerte je 100 g, wie auf der Packung angegeben"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7239
+#: includes/lib/class-mixmymeals-shortcodes.php:7277
 msgid "Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation."
 msgstr "Angaben je 100 g nach Herstellerangabe. Zur Orientierung, nicht als Empfehlung."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7305
+#: includes/lib/class-mixmymeals-shortcodes.php:7449
 msgid "Used for the nutrition figures"
 msgstr "Für die Nährwerte verwendet"
 
 #. translators: %s: a package weight in grams.
-#: includes/lib/class-mixmymeals-shortcodes.php:7321
+#: includes/lib/class-mixmymeals-shortcodes.php:7471
 #, php-format
 msgid "%s g package"
 msgstr "%s g Packung"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7264
+#: includes/lib/class-mixmymeals-shortcodes.php:7311
 msgid "Sources"
 msgstr "Quellen"
+
+#. translators: %s: name of the product the other columns are compared against.
+#: includes/lib/class-mixmymeals-shortcodes.php:7282
+#, php-format
+msgid "The other columns state the difference to %s."
+msgstr "Die übrigen Spalten zeigen die Abweichung zu %s."
+
+#: includes/lib/class-mixmymeals-shortcodes.php:7451
+msgid "Comparison basis"
+msgstr "Vergleichsbasis"
