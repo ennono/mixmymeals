@@ -7190,6 +7190,7 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 		<div class="mmm-ingredient-products">
+			<div class="mmm-ingredient-products__scroll">
 			<table class="mmm-nutrition-table">
 				<thead>
 				<tr>
@@ -7232,10 +7233,48 @@ class Mixmymeals_Shortcodes {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+			</div>
 
 			<p class="mmm-ingredient-products__note">
 				<?php esc_html_e( 'Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation.', 'mixmymeals' ); ?>
 			</p>
+
+			<?php
+			/*
+			 * Sources as footnotes rather than in the heading cells. A real one
+			 * reads "test report at example.com with nutrition table, retrieved
+			 * 08/2026 (manufacturer figures vary between 197 and 215 kcal)" —
+			 * a sentence, not a caption. In the head it either shrinks to
+			 * unreadable or pushes the figures off the screen, and it is the
+			 * one part of this block a reader consults after the numbers
+			 * rather than before them.
+			 */
+			$mmm_sources = array();
+
+			foreach ( $products as $mmm_product ) {
+				$mmm_source = $mmm_product->get_source();
+				if ( '' !== $mmm_source ) {
+					$mmm_sources[] = array( $mmm_product->get_title(), $mmm_source );
+				}
+			}
+			?>
+
+			<?php if ( $mmm_sources ) : ?>
+				<p class="mmm-ingredient-products__sources-title">
+					<?php esc_html_e( 'Sources', 'mixmymeals' ); ?>
+				</p>
+				<ul class="mmm-ingredient-products__sources">
+					<?php foreach ( $mmm_sources as list( $mmm_name, $mmm_source ) ) : ?>
+						<li>
+							<span class="mmm-ingredient-products__source-product"><?php echo esc_html( $mmm_name ); ?></span>
+							<?php
+							// Already escaped in the helper.
+							echo $this->render_product_source( $mmm_source ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+							?>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
 		</div>
 		<?php
 
@@ -7243,13 +7282,13 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * The first cell of a product row: what the article is, and why its figures
-	 * are here.
+	 * The heading cell of a product column: what the article is, and whether the
+	 * ingredient's own figures come from it.
 	 *
-	 * The source line is not decoration. These are statements about somebody
-	 * else's product and they go stale when a manufacturer changes a recipe;
-	 * without a note saying where a number came from, a reader cannot tell a
-	 * current figure from a four-year-old one.
+	 * Built from divs rather than spans styled into blocks. The four lines are
+	 * separate lines in any browser that way, with no stylesheet involved — a
+	 * site serving a stale frontend.css ran them together into one unreadable
+	 * string, and a layout that basic has no business depending on CSS arriving.
 	 *
 	 * @param Mixmymeals_Product $product   The product.
 	 * @param int                $reference ID of the ingredient's reference product, 0 if none.
@@ -7257,19 +7296,13 @@ class Mixmymeals_Shortcodes {
 	 */
 	private function render_product_identity( Mixmymeals_Product $product, int $reference ): string {
 
-		/*
-		 * One container around the four lines, because the theme collapses
-		 * this table into cards below 544px and makes every cell a flex row.
-		 * Four bare spans would become four columns there; one child stacks
-		 * its own contents as blocks and survives both layouts.
-		 */
 		$out = '<div class="mmm-ingredient-products__identity">'
-			. '<span class="mmm-ingredient-products__title">'
-			. esc_html( $product->get_title() ) . '</span>';
+			. '<div class="mmm-ingredient-products__title">'
+			. esc_html( $product->get_title() ) . '</div>';
 
 		if ( $reference > 0 && $reference === $product->get_id() ) {
-			$out .= '<span class="mmm-ingredient-products__flag">'
-				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</span>';
+			$out .= '<div class="mmm-ingredient-products__flag">'
+				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</div>';
 		}
 
 		$meta  = array();
@@ -7292,38 +7325,33 @@ class Mixmymeals_Shortcodes {
 		}
 
 		if ( $meta ) {
-			$out .= '<span class="mmm-ingredient-products__meta">'
-				. implode( ' &middot; ', $meta ) . '</span>';
-		}
-
-		$source = $product->get_source();
-
-		if ( '' !== $source ) {
-
-			/*
-			 * A URL is shown as its host and linked; anything else stands as
-			 * written ("packet, 2026-08"). A raw URL printed in full would
-			 * blow the column apart, and nofollow because naming a
-			 * manufacturer to say where a figure came from is not an
-			 * endorsement of it.
-			 */
-			$url = filter_var( $source, FILTER_VALIDATE_URL ) ? $source : '';
-
-			$shown = '' !== $url
-				? '<a href="' . esc_url( $url ) . '" rel="nofollow noopener" target="_blank">'
-					. esc_html( (string) wp_parse_url( $url, PHP_URL_HOST ) ) . '</a>'
-				: esc_html( $source );
-
-			$out .= '<span class="mmm-ingredient-products__source">'
-				. sprintf(
-					/* translators: %s: where the figures were taken from. */
-					esc_html__( 'Source: %s', 'mixmymeals' ),
-					$shown
-				)
-				. '</span>';
+			$out .= '<div class="mmm-ingredient-products__meta">'
+				. implode( ' &middot; ', $meta ) . '</div>';
 		}
 
 		return $out . '</div>';
+	}
+
+	/**
+	 * One source note, for the footnote list under the table.
+	 *
+	 * A URL is shown as its host and linked; anything else stands as written
+	 * ("packet, 08/2026"). Linked with nofollow, because naming a manufacturer
+	 * to say where a figure came from is not an endorsement of it.
+	 *
+	 * @param string $source Raw source as stored on the product.
+	 * @return string Escaped markup.
+	 */
+	private function render_product_source( string $source ): string {
+
+		$url = filter_var( $source, FILTER_VALIDATE_URL ) ? $source : '';
+
+		if ( '' === $url ) {
+			return esc_html( $source );
+		}
+
+		return '<a href="' . esc_url( $url ) . '" rel="nofollow noopener" target="_blank">'
+			. esc_html( (string) wp_parse_url( $url, PHP_URL_HOST ) ) . '</a>';
 	}
 
 	/**

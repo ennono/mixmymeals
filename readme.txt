@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.9.0
+Stable tag: 3.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.9.1 =
+
+Fixed:
+* The heading cells of the product table set the brand and the package size in
+  type too small to read, and ran the lines together into one string wherever
+  the plugin stylesheet had not arrived. They are block elements now and need
+  no stylesheet to stack.
+* Sources moved out of the heading cells into a footnote list below the table.
+  A real one is a sentence, not a caption, and in the heading it either shrank
+  to nothing or pushed the figures off the screen.
 
 = 3.9.0 =
 
@@ -492,6 +503,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.9.1 =
+Readable headings and footnoted sources in the product table.
 
 = 3.9.0 =
 Ingredient pages now list the products behind an ingredient.
