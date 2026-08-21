@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.12.1
+Stable tag: 3.12.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,6 +109,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.12.2 =
+
+Fixed:
+* The daily average counted a day by whether it had any energy, not by whether
+  it had meals. Two consequences: filling in one recipe's nutrition could
+  *lower* a plan's reported daily average, because the divisor grew by a whole
+  day while the sum grew by a little; and the product comparison could promise
+  a figure the plan would never reach, because a day at zero kcal that a
+  product lifts above zero joins the divisor and the average stops being
+  linear.
+
+Note: on plans that contain meals whose recipes carry no nutrition figures yet,
+the daily average shown on the plan page, in the subscription mail and in the
+PDF will drop. Those days were being left out of the division; they are days
+somebody eats on, and they now count.
 
 = 3.12.1 =
 
@@ -585,6 +601,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.12.2 =
+Daily averages count days by their meals. Plans with meals lacking nutrition data will show a lower average.
 
 = 3.12.1 =
 Fixes a daily average that disagreed with the plan's own nutrition overview.

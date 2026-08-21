@@ -704,8 +704,17 @@ class Mixmymeals_Meal_Plan {
 	 *
 	 * Averaged over the days that **carry meals**, not over the plan's length:
 	 * a plan with two empty days would otherwise look far lighter than anything
-	 * anyone eats. A day counts as carrying meals when it has any energy at
-	 * all.
+	 * anyone eats.
+	 *
+	 * A day counts by its meals, not by its energy. Counting by energy — which
+	 * this did until 3.12.2 — silently excluded days whose recipes carry no
+	 * nutrition data yet, and that had two bad consequences. Filling in one
+	 * recipe's figures could *lower* the reported daily average, because the
+	 * divisor grew by a whole day while the sum grew by a little. And it made
+	 * the divisor depend on the very number a product choice changes, so
+	 * calc_product_impact() could promise a figure the plan would never reach:
+	 * a day at zero kcal that a product lifts above zero joins the divisor, and
+	 * the average moves non-linearly.
 	 *
 	 * The single implementation of that rule. It was written out four times —
 	 * the plan's nutrition overview, the subscription mail, the PDF, and (with
@@ -726,7 +735,7 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->calc_nutrition_by_day() as $figures ) {
 
-			if ( empty( $figures['per_person']['calories'] ) ) {
+			if ( empty( $figures['meals'] ) ) {
 				continue;
 			}
 
