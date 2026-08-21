@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.10.2, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.11.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -109,6 +109,14 @@ Only the reference carries a chip (`Used for the nutrition figures`), because th
 The heading cells are built from `div`s, not `span`s styled into blocks: a site serving a stale `frontend.css` ran the name, the brand and the source together into one unreadable string, and a stack that basic must not depend on a stylesheet arriving. The source sits in the heading cell with the product it belongs to, as "Quelle: …", capped at `max-width: 22em` — a real one runs to a full sentence, and uncapped it sets the width of its whole column and squeezes the figures in every other one.
 
 A value the product does not state renders as a dash, never `0,0 g` — the same null-is-not-zero rule the storage layer keeps, and the place it matters most, since this is a public claim about somebody else's product. The reference product is marked, in a muted chip rather than the green of `.mmm-badge`: green is the brand's positive tone and a quality mark beside a brand name is what this must not read as.
+
+**`[mmm_meal_plan_product_impact]` puts a price on the choice.** For every ingredient of a plan with more than one product, `Mixmymeals_Meal_Plan::calc_product_impact()` gives the resulting energy per day and person and the difference to what the plan states now; the child theme renders it under the shopping list, where the buying decision is.
+
+It is computed as a **difference**, not by re-running the plan once per product. Nutrition is linear in weight, so `(product kcal − current kcal) × grams eaten ÷ 100 ÷ days` is exact — verified against actually writing each product to `_mmm_reference_product` and recomputing, to the second decimal. The alternative would have been a bypass parameter on `get_nutrition()` (the hole closed in 3.8.2) or writing to the database to ask a hypothetical.
+
+Two supporting pieces carry the guarantee. `Mixmymeals_Ingredient::get_nutrition_with_product()` answers "what would this ingredient read with that packet", sharing one private `apply_product()` merge with `get_nutrition()` — if the two ever merged differently the prediction would stop predicting. Unlike the removed `$resolve_product`, it must name a product, so it cannot be mistaken for the current figure. `Mixmymeals_Meal_Plan::get_ingredient_portion_weights()` aggregates grams the way `calc_nutrition()` does (one portion per meal, `get_ingredients_scaled( 1.0 )` ÷ servings) and explicitly **not** the way `calc_shopping_list()` does (scaled by meal servings, rounded up to whole packs) — mixing them would count rounding-up as something somebody ate.
+
+A product stating no energy gets a dash, not `±0`: it cannot move the plan, but because nobody wrote its figure down, which is a different claim from matching.
 
 The two levels answer different questions. An ingredient carries figures good enough to plan with and stays correct when a manufacturer changes a recipe; a product carries what one packet says. Worth maintaining only where products differ a lot — yoghurt at 0.1 % or 10 % fat, minced meat, cheese, bread. For red cabbage the gap between 25 and 41 kcal is smaller than the error from cooking losses and portion size.
 

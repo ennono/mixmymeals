@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.10.2
+Stable tag: 3.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,6 +41,9 @@ shopping list and nutrition totals, and export everything as a PDF.
   each with the figures its packet states and a note saying where they came
   from. One of them can supply the ingredient's nutrition, and the ingredient
   page lists them all side by side.
+* **Product choice on a plan**: for every ingredient of a plan that comes in
+  more than one product, what picking each of them would do to the daily energy
+  per person — shown right under the shopping list, where the decision is made.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
@@ -105,6 +108,26 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.11.0 =
+
+Added:
+* `[mmm_meal_plan_product_impact]` answers what the choice of product is worth
+  over a week. For each ingredient of the plan that has several products, it
+  gives the resulting energy per day and person and the difference to what the
+  plan currently states. Rendered under the shopping list.
+* Ingredients whose products do not actually pull the figure apart are left
+  out, and a product that states no energy of its own gets a dash rather than a
+  zero difference — it cannot move the plan because nobody wrote its figure
+  down, which is not the same as it matching.
+
+Why: the ingredient page shows what a packet contains per 100 g. What somebody
+standing in a shop can act on is what a week comes to, and that is arithmetic
+nobody should have to do in their head.
+
+Note: the figures are computed as differences, not by re-running the plan once
+per product. Nutrition is linear in weight, so the two agree exactly; this was
+verified against actually setting each product as the reference.
 
 = 3.10.2 =
 
@@ -535,6 +558,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.11.0 =
+Meal plans show what the choice of product is worth over a week.
 
 = 3.10.2 =
 Sources move back into the product column heading.

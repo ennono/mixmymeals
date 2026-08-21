@@ -182,6 +182,22 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * The seven nutrition keys and the meta they live in.
+	 *
+	 * @var array<string,string>
+	 */
+	private const NUTRITION_META = array(
+		'calories_100' => '_rmm_calories_100',
+		'weight_item'  => '_rmm_weight_item',
+		'fat'          => '_rmm_fat',
+		'carbs'        => '_rmm_carbs',
+		'protein'      => '_rmm_protein',
+		'sugar'        => '_rmm_sugar',
+		'fiber'        => '_rmm_fiber',
+		'salt'         => '_rmm_salt',
+	);
+
+	/**
 	 * Gets all nutrition data for the ingredient.
 	 *
 	 * @return array Associative array of nutrition values.
@@ -193,17 +209,48 @@ class Mixmymeals_Ingredient {
 			return array();
 		}
 
-		$fields = array(
-			'calories_100' => '_rmm_calories_100',
-			'weight_item'  => '_rmm_weight_item',
-			'fat'          => '_rmm_fat',
-			'carbs'        => '_rmm_carbs',
-			'protein'      => '_rmm_protein',
-			'sugar'        => '_rmm_sugar',
-			'fiber'        => '_rmm_fiber',
-			'salt'         => '_rmm_salt',
-			// 'unit'       => '_rmm_unit',
+		/*
+		 * Resolved here on purpose: this method is the single place ingredient
+		 * nutrition is read, so recipe pages, plan pages, the PDF, the mails
+		 * and the calculator all follow without knowing products exist.
+		 */
+		return self::apply_product(
+			$this->read_own_nutrition(),
+			Mixmymeals_Product::get_reference_id( $this->post_id )
 		);
+	}
+
+	/**
+	 * What this ingredient's nutrition would read if the given product supplied
+	 * it — the question "what does buying that one instead do".
+	 *
+	 * **This is a hypothetical and must never be printed as the ingredient's
+	 * nutrition.** Everything that states what a recipe, a plan, a mail or a
+	 * PDF contains goes through get_nutrition(), which resolves the reference
+	 * the site has actually chosen. Note the difference to the $resolve_product
+	 * parameter this class carried until 3.8.2: that one let a caller quietly
+	 * read *past* the reference and call the result "the" nutrition. This one
+	 * has to name a product, so it cannot be mistaken for the current figure.
+	 *
+	 * @param int $product_id Product to resolve through. 0 gives the
+	 *                        ingredient's own figures.
+	 * @return array<string,float|null>
+	 */
+	public function get_nutrition_with_product( int $product_id ): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		return self::apply_product( $this->read_own_nutrition(), $product_id );
+	}
+
+	/**
+	 * The ingredient's own stored figures, before any product is considered.
+	 *
+	 * @return array<string,float|null>
+	 */
+	private function read_own_nutrition(): array {
 
 		$data = array();
 
@@ -217,30 +264,40 @@ class Mixmymeals_Ingredient {
 		 * aber Anzeigen mit `?? '-'` erkennen weiterhin „nicht gesetzt" und
 		 * zeigen keinen erfundenen Nullwert.
 		 */
-		foreach ( $fields as $key => $meta_key ) {
+		foreach ( self::NUTRITION_META as $key => $meta_key ) {
 			$value        = $this->get_meta_value( $meta_key );
 			$data[ $key ] = is_numeric( $value ) ? (float) $value : null;
 		}
 
-		/*
-		 * A reference product overrides the ingredient's own figures, key by
-		 * key. Per key rather than wholesale because a packet often states
-		 * energy and fat and stops there — dropping two precise numbers
-		 * because the other five are missing would be the wrong trade.
-		 *
-		 * Resolved here on purpose: this method is the single place ingredient
-		 * nutrition is read, so recipe pages, plan pages, the PDF, the mails
-		 * and the calculator all follow without knowing products exist.
-		 * weight_item is deliberately not overridable — it describes the
-		 * ingredient (one medium onion), not a packet.
-		 */
-		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+		return $data;
+	}
 
-		if ( $reference ) {
-			foreach ( ( new Mixmymeals_Product( $reference ) )->get_nutrition() as $key => $value ) {
-				if ( null !== $value && array_key_exists( $key, $data ) ) {
-					$data[ $key ] = $value;
-				}
+	/**
+	 * Lays a product's figures over an ingredient's, key by key.
+	 *
+	 * Per key rather than wholesale because a packet often states energy and
+	 * fat and stops there — dropping two precise numbers because the other five
+	 * are missing would be the wrong trade. weight_item is never overridden: it
+	 * describes the ingredient (one medium onion), not a packet.
+	 *
+	 * The single implementation of that merge on purpose. get_nutrition() and
+	 * get_nutrition_with_product() differ only in which product they name, and
+	 * if they ever merged differently the hypothetical would stop predicting
+	 * what actually happens when you pick it.
+	 *
+	 * @param array<string,float|null> $data       The ingredient's own figures.
+	 * @param int                      $product_id Product to lay over them, 0 for none.
+	 * @return array<string,float|null>
+	 */
+	private static function apply_product( array $data, int $product_id ): array {
+
+		if ( $product_id <= 0 ) {
+			return $data;
+		}
+
+		foreach ( ( new Mixmymeals_Product( $product_id ) )->get_nutrition() as $key => $value ) {
+			if ( null !== $value && array_key_exists( $key, $data ) ) {
+				$data[ $key ] = $value;
 			}
 		}
 

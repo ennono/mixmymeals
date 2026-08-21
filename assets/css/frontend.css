@@ -555,3 +555,20 @@ body.mmm-cook-mode-open {
     margin: 8px 0 0;
     line-height: 1.45;
 }
+
+/* Product impact on a meal plan ([mmm_meal_plan_product_impact]) — structural
+   only. One table per ingredient, each reusing .mmm-nutrition-table so the
+   theme styles them all alike; the scroller is per table, so a narrow viewport
+   scrolls one of them rather than the whole block. */
+.mmm-product-impact__scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mmm-product-impact__group + .mmm-product-impact__group {
+    margin-top: 1.5rem;
+}
+
+.mmm-product-impact__meals {
+    display: inline-block;
+}

@@ -700,6 +700,168 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * How much of each ingredient one person eats over the whole plan, in grams.
+	 *
+	 * Built the way calc_nutrition() builds its per_person figures — one
+	 * portion per meal, from get_ingredients_scaled( 1.0 ) divided by the
+	 * recipe's servings — and not the way calc_shopping_list() builds its
+	 * totals, which are scaled by the meal's servings and rounded up to whole
+	 * packs. Both are correct for their own question; mixing them would put a
+	 * shopping quantity into a nutrition calculation and count rounding-up as
+	 * something somebody ate.
+	 *
+	 * @return array<int, array{grams_person:float, meals:int}> Keyed by ingredient ID.
+	 */
+	public function get_ingredient_portion_weights(): array {
+
+		$weights = array();
+
+		foreach ( $this->get_meals() as $meal_post ) {
+
+			$meal   = new Mixmymeals_Meal( $meal_post->ID );
+			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$servings = max( 1.0, (float) $recipe->get_servings() );
+
+			foreach ( $recipe->get_ingredients_scaled( 1.0 ) as $ing ) {
+
+				$id     = (int) ( $ing['id'] ?? 0 );
+				$weight = (float) ( $ing['weight_g'] ?? 0 );
+
+				if ( $id <= 0 || $weight <= 0 ) {
+					continue;
+				}
+
+				if ( ! isset( $weights[ $id ] ) ) {
+					$weights[ $id ] = array(
+						'grams_person' => 0.0,
+						'meals'        => 0,
+					);
+				}
+
+				$weights[ $id ]['grams_person'] += $weight / $servings;
+				++$weights[ $id ]['meals'];
+			}
+		}
+
+		return $weights;
+	}
+
+	/**
+	 * What choosing a different product would do to the plan's daily energy.
+	 *
+	 * Only ingredients with more than one product, and only where the products
+	 * actually pull the figure apart — a list of identical rows answers no
+	 * question and costs the page a section.
+	 *
+	 * Computed as a difference rather than by re-running the plan once per
+	 * product: nutrition is linear in weight, so a product that states x kcal
+	 * more per 100 g moves the plan by x times the grams eaten, divided by the
+	 * days. Re-running would mean either a bypass parameter on get_nutrition()
+	 * — the exact hole closed in 3.8.2 — or writing a reference to the database
+	 * to ask a hypothetical question. The arithmetic is exact either way.
+	 *
+	 * @return array<int, array{ingredient_id:int, ingredient:string, meals:int, current:float, products:array}>
+	 */
+	public function calc_product_impact(): array {
+
+		$weights = $this->get_ingredient_portion_weights();
+
+		if ( empty( $weights ) ) {
+			return array();
+		}
+
+		$days    = max( 1, $this->count_days() );
+		$current = (float) ( $this->calc_nutrition()['per_person']['calories'] ?? 0 ) / $days;
+
+		$groups = array();
+
+		foreach ( $weights as $ingredient_id => $info ) {
+
+			$products = Mixmymeals_Product::for_ingredient( $ingredient_id );
+
+			if ( count( $products ) < 2 ) {
+				continue;
+			}
+
+			$ingredient = new Mixmymeals_Ingredient( $ingredient_id );
+
+			if ( ! $ingredient->is_valid() ) {
+				continue;
+			}
+
+			$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
+			$now       = (float) ( $ingredient->get_nutrition()['calories_100'] ?? 0 );
+
+			$rows   = array();
+			$spread = array();
+
+			foreach ( $products as $product ) {
+
+				/*
+				 * A product that states no energy cannot move the figure: the
+				 * merge falls back to the ingredient's own value, and the row
+				 * would read as a flat zero difference. That is true but reads
+				 * as "identical to what you have", when it means "nobody wrote
+				 * it down" — the same distinction between silence and zero the
+				 * rest of this layer keeps.
+				 */
+				$states = null !== ( $product->get_nutrition()['calories_100'] ?? null );
+
+				$with  = $ingredient->get_nutrition_with_product( $product->get_id() );
+				$delta = ( (float) ( $with['calories_100'] ?? 0 ) - $now )
+					* $info['grams_person'] / 100 / $days;
+
+				$rows[] = array(
+					'id'            => $product->get_id(),
+					'title'         => $product->get_title(),
+					'per_day'       => $current + $delta,
+					'delta'         => $delta,
+					'states_energy' => $states,
+					'is_reference'  => $reference > 0 && $reference === $product->get_id(),
+				);
+
+				if ( $states ) {
+					$spread[] = $delta;
+				}
+			}
+
+			// Nothing to weigh up unless at least two stated figures disagree
+			// by a whole kilocalorie a day.
+			if ( count( $spread ) < 2 || round( max( $spread ) - min( $spread ) ) < 1 ) {
+				continue;
+			}
+
+			usort( $rows, static fn( $a, $b ) => $a['per_day'] <=> $b['per_day'] );
+
+			$groups[] = array(
+				'ingredient_id' => $ingredient_id,
+				'ingredient'    => get_the_title( $ingredient_id ),
+				'meals'         => (int) $info['meals'],
+				'current'       => $current,
+				'products'      => $rows,
+			);
+		}
+
+		// The ingredient that changes the most first: it is the one decision
+		// on this page worth making.
+		usort(
+			$groups,
+			static function ( $a, $b ) {
+				$spread = static fn( $g ) => max( array_column( $g['products'], 'delta' ) )
+					- min( array_column( $g['products'], 'delta' ) );
+				return $spread( $b ) <=> $spread( $a );
+			}
+		);
+
+		return $groups;
+	}
+
+	/**
 	 * The localized name of a plan weekday.
 	 *
 	 * @param int  $day    Day number, 1 = Monday … 7 = Sunday.

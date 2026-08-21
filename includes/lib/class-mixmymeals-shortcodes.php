@@ -204,6 +204,8 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_nutrition_overview_for_a_single_meal_plan',
 			[ $this, 'mmm_nutrition_overview_for_a_single_meal_plan_callback' ] );
+		add_shortcode( 'mmm_meal_plan_product_impact',
+			[ $this, 'mmm_meal_plan_product_impact_callback' ] );
 
 		add_shortcode( 'mmm_nutrition_per_day_for_a_single_meal_plan',
 			[ $this, 'mmm_nutrition_per_day_for_a_single_meal_plan_callback' ] );
@@ -7448,6 +7450,145 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return $out . '</div>';
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plan_product_impact].
+	 *
+	 * What the choice of product does to this plan's daily energy per person.
+	 * The ingredient page shows the products; this shows what picking one of
+	 * them is worth over a week, which is the number somebody standing in a
+	 * shop can act on.
+	 *
+	 * Renders nothing unless the plan has an ingredient with several products
+	 * whose stated energies actually differ — the ordinary plan is unaffected.
+	 *
+	 * @param array|string $atts Shortcode attributes: id.
+	 * @return string
+	 */
+	public function mmm_meal_plan_product_impact_callback( $atts = array() ): string {
+
+		$atts    = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_meal_plan_product_impact' );
+		$plan_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+
+		if ( ! $plan_id || 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			return '';
+		}
+
+		$plan = new Mixmymeals_Meal_Plan( $plan_id );
+
+		// Meal_Plan has no is_valid(); an empty meal list is what the other
+		// plan shortcodes check, and it is the same guard this needs.
+		if ( empty( $plan->get_meals() ) ) {
+			return '';
+		}
+
+		$groups = $plan->calc_product_impact();
+
+		if ( empty( $groups ) ) {
+			return '';
+		}
+
+		ob_start();
+		?>
+		<div class="mmm-product-impact">
+
+			<p class="mmm-product-impact__intro">
+				<?php esc_html_e( 'Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily energy per person.', 'mixmymeals' ); ?>
+				<?php
+				/*
+				 * The figure every difference below is measured from, named
+				 * here rather than left to the nutrition table further up the
+				 * page. Where an ingredient has no reference product yet, no
+				 * row is the current one, and without this number the reader
+				 * cannot tell what any of them is an alternative to.
+				 */
+				printf(
+					/* translators: %s: the plan's current energy per day and person, already formatted with its unit. */
+					esc_html__( 'The plan currently comes to %s per day and person.', 'mixmymeals' ),
+					esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', (float) $groups[0]['current'] ) )
+				);
+				?>
+			</p>
+
+			<?php foreach ( $groups as $mmm_group ) : ?>
+				<div class="mmm-product-impact__group">
+
+					<h3 class="mmm-product-impact__ingredient">
+						<?php echo esc_html( $mmm_group['ingredient'] ); ?>
+						<span class="mmm-product-impact__meals">
+							<?php
+							printf(
+								/* translators: %s: number of meals in the plan that use this ingredient. */
+								esc_html( _n( 'in %s meal', 'in %s meals', $mmm_group['meals'], 'mixmymeals' ) ),
+								esc_html( number_format_i18n( $mmm_group['meals'] ) )
+							);
+							?>
+						</span>
+					</h3>
+
+					<div class="mmm-product-impact__scroll">
+						<table class="mmm-nutrition-table">
+							<thead>
+							<tr>
+								<th><?php esc_html_e( 'Product', 'mixmymeals' ); ?></th>
+								<th><?php esc_html_e( 'Energy per day', 'mixmymeals' ); ?></th>
+								<th><?php esc_html_e( 'Difference', 'mixmymeals' ); ?></th>
+							</tr>
+							</thead>
+							<tbody>
+							<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
+								<tr>
+									<td data-label="<?php echo esc_attr__( 'Product', 'mixmymeals' ); ?>">
+										<?php echo esc_html( $mmm_row['title'] ); ?>
+										<?php if ( $mmm_row['is_reference'] ) : ?>
+											<span class="mmm-product-impact__current">
+												<?php esc_html_e( 'currently used', 'mixmymeals' ); ?>
+											</span>
+										<?php endif; ?>
+									</td>
+									<?php
+									/*
+									 * A product that states no energy leaves the
+									 * plan exactly where it is, because the merge
+									 * falls back to the ingredient's own figure.
+									 * Printed as a number that would read
+									 * "identical to what you have" when it means
+									 * "nobody wrote it down", so it gets the dash
+									 * that means the second everywhere else here.
+									 */
+									?>
+									<td data-label="<?php echo esc_attr__( 'Energy per day', 'mixmymeals' ); ?>">
+										<?php
+										echo esc_html(
+											$mmm_row['states_energy']
+												? Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', $mmm_row['per_day'] )
+												: '—'
+										);
+										?>
+									</td>
+									<td data-label="<?php echo esc_attr__( 'Difference', 'mixmymeals' ); ?>">
+										<?php
+										echo esc_html(
+											$mmm_row['states_energy']
+												? $this->format_nutrition_delta( 'calories', 0.0, $mmm_row['delta'] )
+												: '—'
+										);
+										?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
+
+				</div>
+			<?php endforeach; ?>
+
+		</div>
+		<?php
+
+		return ob_get_clean();
 	}
 
 	/**
