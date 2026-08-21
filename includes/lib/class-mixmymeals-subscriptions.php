@@ -1929,31 +1929,15 @@ class Mixmymeals_Subscriptions {
 	 */
 	private function render_week_nutrition( Mixmymeals_Meal_Plan $plan ): string {
 
-		$days_with_meals = 0;
-		$sum             = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0.0 );
+		$per_day = $plan->calc_nutrition_per_day_person();
 
-		foreach ( $plan->calc_nutrition_by_day() as $figures ) {
-
-			if ( empty( $figures['per_person']['calories'] ) ) {
-				continue;
-			}
-
-			++$days_with_meals;
-
-			foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
-				$sum[ $key ] += (float) ( $figures['per_person'][ $key ] ?? 0.0 );
-			}
-		}
-
-		if ( $days_with_meals < 2 ) {
+		// A single day is not a week, and an average over one is just that
+		// day's figures under a heading that promises more.
+		if ( $per_day['days'] < 2 ) {
 			return '';
 		}
 
-		$average = array();
-
-		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
-			$average[ $key ] = $sum[ $key ] / $days_with_meals;
-		}
+		$average = $per_day['average'];
 
 		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $average );
 
@@ -1981,7 +1965,7 @@ class Mixmymeals_Subscriptions {
 				sprintf(
 					/* translators: 1: number of days with meals, 2: the averaged nutrition figures, 3: percentage of the reference intake. */
 					__( 'Across the %1$d days of this plan, on average per day: %2$s (%3$d %% of the reference intake).', 'mixmymeals' ),
-					$days_with_meals,
+					$per_day['days'],
 					implode( ' · ', $parts ),
 					(int) $percentages['calories']
 				)

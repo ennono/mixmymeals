@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.12.0
+Stable tag: 3.12.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,6 +109,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.12.1 =
+
+Fixed:
+* The "as planned" column of the product comparison averaged the plan over its
+  full length, while the nutrition overview two sections above averaged over
+  the days that carry meals. On a seven-day plan with meals on three days the
+  same page stated 51 and 120 kcal for the same thing. The rule now lives in
+  one method, `Mixmymeals_Meal_Plan::calc_nutrition_per_day_person()`, which
+  the overview, the subscription mail, the PDF and the comparison all call.
 
 = 3.12.0 =
 
@@ -575,6 +585,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.12.1 =
+Fixes a daily average that disagreed with the plan's own nutrition overview.
 
 = 3.12.0 =
 The plan's product comparison covers all seven nutrition figures.

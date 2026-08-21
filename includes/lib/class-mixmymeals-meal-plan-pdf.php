@@ -313,8 +313,15 @@ class Mixmymeals_Meal_Plan_PDF {
 		$labels  = Mixmymeals_Meal_Plan::nutrition_labels();
 		$columns = array( 'calories', 'protein', 'carbs', 'fat' );
 
-		$sums            = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0.0 );
-		$days_with_meals = 0;
+		/*
+		 * Totals and the daily average come from the plan, not from a second
+		 * pass written out here: the plan page, the mail and the product
+		 * comparison quote the same figures, and this table used to arrive at
+		 * them separately.
+		 */
+		$per_day         = $meal_plan->calc_nutrition_per_day_person();
+		$sums            = $per_day['sum'];
+		$days_with_meals = $per_day['days'];
 
 		ob_start();
 		?>
@@ -336,16 +343,6 @@ class Mixmymeals_Meal_Plan_PDF {
                 <tr>
                     <td><?php echo esc_html( Mixmymeals_Meal_Plan::weekday_name( (int) $day ) ); ?></td>
 					<?php
-					// Every key is summed, not just the four on show, so the
-					// breakdown below can be averaged from the same pass.
-					if ( ! empty( $nutrition['per_person']['calories'] ) ) {
-						++$days_with_meals;
-
-						foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $sum_key ) {
-							$sums[ $sum_key ] += (float) ( $nutrition['per_person'][ $sum_key ] ?? 0.0 );
-						}
-					}
-
 					foreach ( $columns as $key ) :
 						?>
                         <td class="align-right">
@@ -367,11 +364,7 @@ class Mixmymeals_Meal_Plan_PDF {
 
 		<?php if ( $days_with_meals ) : ?>
 			<?php
-			$average = array();
-
-			foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
-				$average[ $key ] = $sums[ $key ] / $days_with_meals;
-			}
+			$average = $per_day['average'];
 
 			$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $average );
 			?>

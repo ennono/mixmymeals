@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.12.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.12.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -109,6 +109,8 @@ Only the reference carries a chip (`Used for the nutrition figures`), because th
 The heading cells are built from `div`s, not `span`s styled into blocks: a site serving a stale `frontend.css` ran the name, the brand and the source together into one unreadable string, and a stack that basic must not depend on a stylesheet arriving. The source sits in the heading cell with the product it belongs to, as "Quelle: …", capped at `max-width: 22em` — a real one runs to a full sentence, and uncapped it sets the width of its whole column and squeezes the figures in every other one.
 
 A value the product does not state renders as a dash, never `0,0 g` — the same null-is-not-zero rule the storage layer keeps, and the place it matters most, since this is a public claim about somebody else's product. The reference product is marked, in a muted chip rather than the green of `.mmm-badge`: green is the brand's positive tone and a quality mark beside a brand name is what this must not read as.
+
+**One method owns "per day and person".** `Mixmymeals_Meal_Plan::calc_nutrition_per_day_person()` averages over the days that **carry meals**, never over the plan's length — a plan with two empty days would otherwise look far lighter than anything anyone eats. It returns the average, the totals it came from (the PDF prints those as its total row) and the day count (the subscription mail suppresses its weekly block below two days). The plan's nutrition overview, the mail, the PDF and the product comparison all call it. The rule had been written out four times, and the fourth used the wrong divisor: on a seven-day plan with meals on three days, one page stated 51 and 120 kcal for the same figure. Never recompute it locally.
 
 **`[mmm_meal_plan_product_impact]` puts a price on the choice.** For every ingredient of a plan with more than one product, `Mixmymeals_Meal_Plan::calc_product_impact()` gives all seven figures per day and person: one column for the plan as it stands, one per product for the differences. The child theme renders it under the shopping list, where the buying decision is.
 

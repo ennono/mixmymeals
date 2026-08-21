@@ -5589,31 +5589,16 @@ class Mixmymeals_Shortcodes {
 		 */
 		$person_total = $plan->calc_nutrition()['per_person'];
 
-		// Averaged over the days that carry meals, not over the plan's length,
-		// exactly as the mail does it: two empty days would otherwise make the
-		// plan look lighter than anyone eats.
-		$days_with_meals = 0;
-		$day_sum         = array_fill_keys( $keys, 0.0 );
-
-		foreach ( $plan->calc_nutrition_by_day() as $figures ) {
-
-			if ( empty( $figures['per_person']['calories'] ) ) {
-				continue;
-			}
-
-			++$days_with_meals;
-
-			foreach ( $keys as $key ) {
-				$day_sum[ $key ] += (float) ( $figures['per_person'][ $key ] ?? 0.0 );
-			}
-		}
+		// Averaged over the days that carry meals, not over the plan's length:
+		// two empty days would otherwise make the plan look lighter than anyone
+		// eats. Shared with the mail, the PDF and the product comparison, so
+		// the four cannot drift apart.
+		$person_day = $plan->calc_nutrition_per_day_person()['average'];
 
 		$num_meals   = max( 1, count( $meals ) );
-		$person_day  = [];
 		$person_meal = [];
 
 		foreach ( $keys as $key ) {
-			$person_day[ $key ]  = $days_with_meals ? $day_sum[ $key ] / $days_with_meals : 0.0;
 			$person_meal[ $key ] = $person_total[ $key ] / $num_meals;
 		}
 

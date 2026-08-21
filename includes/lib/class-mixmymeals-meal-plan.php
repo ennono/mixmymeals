@@ -700,6 +700,59 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * What one person eats on an average day of this plan.
+	 *
+	 * Averaged over the days that **carry meals**, not over the plan's length:
+	 * a plan with two empty days would otherwise look far lighter than anything
+	 * anyone eats. A day counts as carrying meals when it has any energy at
+	 * all.
+	 *
+	 * The single implementation of that rule. It was written out four times —
+	 * the plan's nutrition overview, the subscription mail, the PDF, and (with
+	 * the wrong divisor) the product comparison — which is how the last of them
+	 * came to print a different daily figure than the table two sections above
+	 * it on the same page.
+	 *
+	 * @return array{average:array<string,float>, sum:array<string,float>, days:int}
+	 *         The average per key, the totals it was divided from, and how many
+	 *         days carried meals. Callers that need a minimum span before the
+	 *         average says anything check `days`; the PDF prints `sum` as its
+	 *         total row, which is why it is returned rather than recomputed.
+	 */
+	public function calc_nutrition_per_day_person(): array {
+
+		$sum  = array_fill_keys( self::NUTRITION_KEYS, 0.0 );
+		$days = 0;
+
+		foreach ( $this->calc_nutrition_by_day() as $figures ) {
+
+			if ( empty( $figures['per_person']['calories'] ) ) {
+				continue;
+			}
+
+			++$days;
+
+			foreach ( self::NUTRITION_KEYS as $key ) {
+				$sum[ $key ] += (float) ( $figures['per_person'][ $key ] ?? 0.0 );
+			}
+		}
+
+		$average = array_fill_keys( self::NUTRITION_KEYS, 0.0 );
+
+		if ( $days > 0 ) {
+			foreach ( self::NUTRITION_KEYS as $key ) {
+				$average[ $key ] = $sum[ $key ] / $days;
+			}
+		}
+
+		return array(
+			'average' => $average,
+			'sum'     => $sum,
+			'days'    => $days,
+		);
+	}
+
+	/**
 	 * How much of each ingredient one person eats over the whole plan, in grams.
 	 *
 	 * Built the way calc_nutrition() builds its per_person figures — one
@@ -780,15 +833,18 @@ class Mixmymeals_Meal_Plan {
 			return array();
 		}
 
-		$days      = max( 1, $this->count_days() );
-		$per_person = $this->calc_nutrition()['per_person'];
-		$intake    = self::reference_intake();
+		$per_day = $this->calc_nutrition_per_day_person();
+		$current = $per_day['average'];
+		$intake  = self::reference_intake();
 
-		$current = array();
-
-		foreach ( self::NUTRITION_KEYS as $key ) {
-			$current[ $key ] = (float) ( $per_person[ $key ] ?? 0 ) / $days;
-		}
+		/*
+		 * The same divisor the average above used, so a difference lands on the
+		 * figure it is a difference to. Days without meals are excluded from
+		 * both — dividing a change by the plan's full length while the figure
+		 * it modifies was divided by the days that carry meals would put two
+		 * disagreeing numbers in one table.
+		 */
+		$days = max( 1, $per_day['days'] );
 
 		$groups = array();
 
