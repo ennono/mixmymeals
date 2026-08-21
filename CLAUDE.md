@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.10.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.10.2, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -106,7 +106,7 @@ Over REST: `POST /products`, `GET|POST|DELETE /products/{id}` and `GET /ingredie
 
 Only the reference carries a chip (`Used for the nutrition figures`), because that is a claim about the *ingredient* — its figures come from that packet. Which column anchors the arithmetic is not a property of the product, and the note under the table names it in a sentence; as a chip beside a brand name it read as a distinction the brand had earned. Differences carry **no colour** for the same reason: more protein and more salt would take the same green, and a reader would take that for a verdict on a brand.
 
-The heading cells are built from `div`s, not `span`s styled into blocks: a site serving a stale `frontend.css` ran the name, the brand and the source together into one unreadable string, and a stack that basic must not depend on a stylesheet arriving. Sources sit in a footnote list under the table rather than in the heading — a real one reads like a sentence, and in the head it either shrinks past legibility or pushes the figures off the screen.
+The heading cells are built from `div`s, not `span`s styled into blocks: a site serving a stale `frontend.css` ran the name, the brand and the source together into one unreadable string, and a stack that basic must not depend on a stylesheet arriving. The source sits in the heading cell with the product it belongs to, as "Quelle: …", capped at `max-width: 22em` — a real one runs to a full sentence, and uncapped it sets the width of its whole column and squeezes the figures in every other one.
 
 A value the product does not state renders as a dash, never `0,0 g` — the same null-is-not-zero rule the storage layer keeps, and the place it matters most, since this is a public claim about somebody else's product. The reference product is marked, in a muted chip rather than the green of `.mmm-badge`: green is the brand's positive tone and a quality mark beside a brand name is what this must not read as.
 

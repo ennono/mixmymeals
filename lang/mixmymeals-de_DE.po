@@ -1636,8 +1636,8 @@ msgstr "Portion"
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:875
-#: includes/lib/class-mixmymeals-shortcodes.php:7536
-#: includes/lib/class-mixmymeals-shortcodes.php:7812
+#: includes/lib/class-mixmymeals-shortcodes.php:7512
+#: includes/lib/class-mixmymeals-shortcodes.php:7788
 msgid "Other"
 msgstr "Sonstiges"
 
@@ -3166,14 +3166,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7656
+#: includes/lib/class-mixmymeals-shortcodes.php:7632
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7741
+#: includes/lib/class-mixmymeals-shortcodes.php:7717
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4097,22 +4097,24 @@ msgstr "Nährwerte je 100 g, wie auf der Packung angegeben"
 msgid "Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation."
 msgstr "Angaben je 100 g nach Herstellerangabe. Zur Orientierung, nicht als Empfehlung."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7447
+#: includes/lib/class-mixmymeals-shortcodes.php:7411
 msgid "Used for the nutrition figures"
 msgstr "Für die Nährwerte verwendet"
 
 #. translators: %s: a package weight in grams.
-#: includes/lib/class-mixmymeals-shortcodes.php:7463
+#: includes/lib/class-mixmymeals-shortcodes.php:7427
 #, php-format
 msgid "%s g package"
 msgstr "%s g Packung"
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7311
-msgid "Sources"
-msgstr "Quellen"
 
 #. translators: %s: name of the product the other columns are compared against.
 #: includes/lib/class-mixmymeals-shortcodes.php:7282
 #, php-format
 msgid "The other columns state the difference to %s."
 msgstr "Die übrigen Spalten zeigen die Abweichung zu %s."
+
+#. translators: %s: where the figures were taken from.
+#: includes/lib/class-mixmymeals-shortcodes.php:7444
+#, php-format
+msgid "Source: %s"
+msgstr "Quelle: %s"

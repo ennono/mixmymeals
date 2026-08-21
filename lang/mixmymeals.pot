@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-21T17:53:48+00:00\n"
+"POT-Creation-Date: 2026-08-21T18:24:02+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mixmymeals\n"
@@ -1746,8 +1746,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:875
-#: includes/lib/class-mixmymeals-shortcodes.php:7536
-#: includes/lib/class-mixmymeals-shortcodes.php:7812
+#: includes/lib/class-mixmymeals-shortcodes.php:7512
+#: includes/lib/class-mixmymeals-shortcodes.php:7788
 msgid "Other"
 msgstr ""
 
@@ -3436,29 +3436,31 @@ msgstr ""
 msgid "The other columns state the difference to %s."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7311
-msgid "Sources"
-msgstr ""
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7447
+#: includes/lib/class-mixmymeals-shortcodes.php:7411
 msgid "Used for the nutrition figures"
 msgstr ""
 
 #. translators: %s: a package weight in grams.
-#: includes/lib/class-mixmymeals-shortcodes.php:7463
+#: includes/lib/class-mixmymeals-shortcodes.php:7427
 #, php-format
 msgid "%s g package"
 msgstr ""
 
+#. translators: %s: where the figures were taken from.
+#: includes/lib/class-mixmymeals-shortcodes.php:7444
+#, php-format
+msgid "Source: %s"
+msgstr ""
+
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7656
+#: includes/lib/class-mixmymeals-shortcodes.php:7632
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7741
+#: includes/lib/class-mixmymeals-shortcodes.php:7717
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr ""
 

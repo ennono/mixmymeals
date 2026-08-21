@@ -546,17 +546,12 @@ body.mmm-cook-mode-open {
    the belt to that pair of braces, for anything that resets display. */
 .mmm-ingredient-products__title,
 .mmm-ingredient-products__flag,
-.mmm-ingredient-products__meta {
+.mmm-ingredient-products__meta,
+.mmm-ingredient-products__source {
     display: block;
 }
 
-.mmm-ingredient-products__note,
-.mmm-ingredient-products__sources-title,
-.mmm-ingredient-products__sources {
+.mmm-ingredient-products__note {
     margin: 8px 0 0;
     line-height: 1.45;
-}
-
-.mmm-ingredient-products__sources {
-    padding-left: 1.2em;
 }

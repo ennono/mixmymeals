@@ -7286,42 +7286,6 @@ class Mixmymeals_Shortcodes {
 				<?php endif; ?>
 			</p>
 
-			<?php
-			/*
-			 * Sources as footnotes rather than in the heading cells. A real one
-			 * reads "test report at example.com with nutrition table, retrieved
-			 * 08/2026 (manufacturer figures vary between 197 and 215 kcal)" —
-			 * a sentence, not a caption. In the head it either shrinks to
-			 * unreadable or pushes the figures off the screen, and it is the
-			 * one part of this block a reader consults after the numbers
-			 * rather than before them.
-			 */
-			$mmm_sources = array();
-
-			foreach ( $products as $mmm_product ) {
-				$mmm_source = $mmm_product->get_source();
-				if ( '' !== $mmm_source ) {
-					$mmm_sources[] = array( $mmm_product->get_title(), $mmm_source );
-				}
-			}
-			?>
-
-			<?php if ( $mmm_sources ) : ?>
-				<p class="mmm-ingredient-products__sources-title">
-					<?php esc_html_e( 'Sources', 'mixmymeals' ); ?>
-				</p>
-				<ul class="mmm-ingredient-products__sources">
-					<?php foreach ( $mmm_sources as list( $mmm_name, $mmm_source ) ) : ?>
-						<li>
-							<span class="mmm-ingredient-products__source-product"><?php echo esc_html( $mmm_name ); ?></span>
-							<?php
-							// Already escaped in the helper.
-							echo $this->render_product_source( $mmm_source ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-							?>
-						</li>
-					<?php endforeach; ?>
-				</ul>
-			<?php endif; ?>
 		</div>
 		<?php
 
@@ -7471,11 +7435,23 @@ class Mixmymeals_Shortcodes {
 				. implode( ' &middot; ', $meta ) . '</div>';
 		}
 
+		$source = $product->get_source();
+
+		if ( '' !== $source ) {
+			$out .= '<div class="mmm-ingredient-products__source">'
+				. sprintf(
+					/* translators: %s: where the figures were taken from. */
+					esc_html__( 'Source: %s', 'mixmymeals' ),
+					$this->render_product_source( $source )
+				)
+				. '</div>';
+		}
+
 		return $out . '</div>';
 	}
 
 	/**
-	 * One source note, for the footnote list under the table.
+	 * One source note, for the heading cell of its product column.
 	 *
 	 * A URL is shown as its host and linked; anything else stands as written
 	 * ("packet, 08/2026"). Linked with nofollow, because naming a manufacturer
