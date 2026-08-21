@@ -572,3 +572,16 @@ body.mmm-cook-mode-open {
 .mmm-product-impact__meals {
     display: inline-block;
 }
+
+/* Same reason as on the ingredient page: the lines of a heading cell are divs
+   and stack on their own. This is only the belt for anything that resets
+   display. */
+.mmm-product-impact__product,
+.mmm-product-impact__current {
+    display: block;
+}
+
+.mmm-product-impact__note {
+    margin: 1rem 0 0;
+    line-height: 1.45;
+}

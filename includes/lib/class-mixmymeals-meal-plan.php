@@ -752,20 +752,25 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * What choosing a different product would do to the plan's daily energy.
+	 * What choosing a different product would do to the plan's daily nutrition.
 	 *
-	 * Only ingredients with more than one product, and only where the products
-	 * actually pull the figure apart — a list of identical rows answers no
-	 * question and costs the page a section.
+	 * All seven figures, not only energy: two hams can carry the same
+	 * kilocalories and twice the salt, and a comparison that only weighed
+	 * energy would drop that ingredient from the list entirely — hiding
+	 * precisely the choice worth making.
 	 *
-	 * Computed as a difference rather than by re-running the plan once per
-	 * product: nutrition is linear in weight, so a product that states x kcal
-	 * more per 100 g moves the plan by x times the grams eaten, divided by the
-	 * days. Re-running would mean either a bypass parameter on get_nutrition()
-	 * — the exact hole closed in 3.8.2 — or writing a reference to the database
-	 * to ask a hypothetical question. The arithmetic is exact either way.
+	 * Only ingredients with more than one product, and only where at least one
+	 * figure actually moves far enough to be printed. A page full of ±0 answers
+	 * no question.
 	 *
-	 * @return array<int, array{ingredient_id:int, ingredient:string, meals:int, current:float, products:array}>
+	 * Computed as differences rather than by re-running the plan once per
+	 * product: nutrition is linear in weight, so a product stating x more per
+	 * 100 g moves the plan by x times the grams eaten, divided by the days.
+	 * Re-running would mean either a bypass parameter on get_nutrition() — the
+	 * hole closed in 3.8.2 — or writing a reference to the database to ask a
+	 * hypothetical question. The arithmetic is exact either way.
+	 *
+	 * @return array<int, array{ingredient_id:int, ingredient:string, meals:int, current:array<string,float>, products:array}>
 	 */
 	public function calc_product_impact(): array {
 
@@ -775,8 +780,15 @@ class Mixmymeals_Meal_Plan {
 			return array();
 		}
 
-		$days    = max( 1, $this->count_days() );
-		$current = (float) ( $this->calc_nutrition()['per_person']['calories'] ?? 0 ) / $days;
+		$days      = max( 1, $this->count_days() );
+		$per_person = $this->calc_nutrition()['per_person'];
+		$intake    = self::reference_intake();
+
+		$current = array();
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+			$current[ $key ] = (float) ( $per_person[ $key ] ?? 0 ) / $days;
+		}
 
 		$groups = array();
 
@@ -795,48 +807,78 @@ class Mixmymeals_Meal_Plan {
 			}
 
 			$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
-			$now       = (float) ( $ingredient->get_nutrition()['calories_100'] ?? 0 );
+			$now       = $ingredient->get_nutrition();
+			$factor    = $info['grams_person'] / 100 / $days;
 
-			$rows   = array();
-			$spread = array();
+			$rows    = array();
+			$spreads = array_fill_keys( self::NUTRITION_KEYS, array() );
+			$visible = false;
 
 			foreach ( $products as $product ) {
 
-				/*
-				 * A product that states no energy cannot move the figure: the
-				 * merge falls back to the ingredient's own value, and the row
-				 * would read as a flat zero difference. That is true but reads
-				 * as "identical to what you have", when it means "nobody wrote
-				 * it down" — the same distinction between silence and zero the
-				 * rest of this layer keeps.
-				 */
-				$states = null !== ( $product->get_nutrition()['calories_100'] ?? null );
+				$with   = $ingredient->get_nutrition_with_product( $product->get_id() );
+				$stated = $product->get_nutrition();
 
-				$with  = $ingredient->get_nutrition_with_product( $product->get_id() );
-				$delta = ( (float) ( $with['calories_100'] ?? 0 ) - $now )
-					* $info['grams_person'] / 100 / $days;
+				$deltas = array();
+				$known  = array();
+
+				foreach ( self::NUTRITION_KEYS as $key ) {
+
+					$field = 'calories' === $key ? 'calories_100' : $key;
+
+					/*
+					 * The difference is real whether or not the product states
+					 * this figure. A product silent on fat still moves the
+					 * plan's fat when the one it replaces stated some: the
+					 * merge falls back to the ingredient's own average, and
+					 * that is a change somebody would actually get. So the
+					 * number is always shown, and $known only records where it
+					 * came from, for the note that says so.
+					 */
+					$deltas[ $key ] = ( (float) ( $with[ $field ] ?? 0 ) - (float) ( $now[ $field ] ?? 0 ) ) * $factor;
+					$known[ $key ]  = null !== ( $stated[ $field ] ?? null );
+
+					$spreads[ $key ][] = $deltas[ $key ];
+
+					if ( self::nutrition_value_is_printable( $key, $deltas[ $key ] ) ) {
+						$visible = true;
+					}
+				}
 
 				$rows[] = array(
-					'id'            => $product->get_id(),
-					'title'         => $product->get_title(),
-					'per_day'       => $current + $delta,
-					'delta'         => $delta,
-					'states_energy' => $states,
-					'is_reference'  => $reference > 0 && $reference === $product->get_id(),
+					'id'           => $product->get_id(),
+					'title'        => $product->get_title(),
+					'deltas'       => $deltas,
+					'stated'       => $known,
+					'is_reference' => $reference > 0 && $reference === $product->get_id(),
 				);
-
-				if ( $states ) {
-					$spread[] = $delta;
-				}
 			}
 
-			// Nothing to weigh up unless at least two stated figures disagree
-			// by a whole kilocalorie a day.
-			if ( count( $spread ) < 2 || round( max( $spread ) - min( $spread ) ) < 1 ) {
+			if ( ! $visible ) {
 				continue;
 			}
 
-			usort( $rows, static fn( $a, $b ) => $a['per_day'] <=> $b['per_day'] );
+			usort( $rows, static fn( $a, $b ) => $a['deltas']['calories'] <=> $b['deltas']['calories'] );
+
+			/*
+			 * Ranked by the biggest spread measured against the reference
+			 * intake, which is the only way to compare 80 kcal with 1,2 g of
+			 * salt without one unit simply having larger numbers than another.
+			 */
+			$weight_of_choice = 0.0;
+
+			foreach ( self::NUTRITION_KEYS as $key ) {
+				$reference_value = (float) ( $intake[ $key ] ?? 0 );
+
+				if ( $reference_value <= 0 ) {
+					continue;
+				}
+
+				$weight_of_choice = max(
+					$weight_of_choice,
+					( max( $spreads[ $key ] ) - min( $spreads[ $key ] ) ) / $reference_value
+				);
+			}
 
 			$groups[] = array(
 				'ingredient_id' => $ingredient_id,
@@ -844,21 +886,33 @@ class Mixmymeals_Meal_Plan {
 				'meals'         => (int) $info['meals'],
 				'current'       => $current,
 				'products'      => $rows,
+				'weight'        => $weight_of_choice,
 			);
 		}
 
-		// The ingredient that changes the most first: it is the one decision
-		// on this page worth making.
-		usort(
-			$groups,
-			static function ( $a, $b ) {
-				$spread = static fn( $g ) => max( array_column( $g['products'], 'delta' ) )
-					- min( array_column( $g['products'], 'delta' ) );
-				return $spread( $b ) <=> $spread( $a );
-			}
-		);
+		// The ingredient whose choice matters most first: it is the one
+		// decision on this page worth thinking about.
+		usort( $groups, static fn( $a, $b ) => $b['weight'] <=> $a['weight'] );
 
 		return $groups;
+	}
+
+	/**
+	 * Whether a figure survives being formatted, i.e. is not rounded away.
+	 *
+	 * Compared as rendered strings rather than against an epsilon, because the
+	 * precision differs per nutrient — salt carries two decimals, energy none —
+	 * and the only difference worth calling a difference is one the reader can
+	 * actually see.
+	 *
+	 * @param string $key   Nutrition key.
+	 * @param float  $value The figure.
+	 * @return bool
+	 */
+	public static function nutrition_value_is_printable( string $key, float $value ): bool {
+
+		return self::format_nutrition_value( $key, abs( $value ) )
+			!== self::format_nutrition_value( $key, 0.0 );
 	}
 
 	/**

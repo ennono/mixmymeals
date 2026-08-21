@@ -7455,13 +7455,13 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * Shortcode [mmm_meal_plan_product_impact].
 	 *
-	 * What the choice of product does to this plan's daily energy per person.
-	 * The ingredient page shows the products; this shows what picking one of
-	 * them is worth over a week, which is the number somebody standing in a
-	 * shop can act on.
+	 * What the choice of product does to this plan's daily nutrition per person.
+	 * The ingredient page shows what a packet holds per 100 g; this shows what
+	 * picking one of them is worth over a week, which is the figure somebody
+	 * standing in a shop can act on.
 	 *
 	 * Renders nothing unless the plan has an ingredient with several products
-	 * whose stated energies actually differ — the ordinary plan is unaffected.
+	 * that actually pull a figure apart — the ordinary plan is unaffected.
 	 *
 	 * @param array|string $atts Shortcode attributes: id.
 	 * @return string
@@ -7489,26 +7489,27 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
+		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
+
+		// Any product silent on a figure anywhere on the page earns the note
+		// that explains the muted cells; without one they look like a defect.
+		$has_unstated = false;
+
+		foreach ( $groups as $mmm_check ) {
+			foreach ( $mmm_check['products'] as $mmm_row ) {
+				if ( in_array( false, $mmm_row['stated'], true ) ) {
+					$has_unstated = true;
+					break 2;
+				}
+			}
+		}
+
 		ob_start();
 		?>
 		<div class="mmm-product-impact">
 
 			<p class="mmm-product-impact__intro">
-				<?php esc_html_e( 'Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily energy per person.', 'mixmymeals' ); ?>
-				<?php
-				/*
-				 * The figure every difference below is measured from, named
-				 * here rather than left to the nutrition table further up the
-				 * page. Where an ingredient has no reference product yet, no
-				 * row is the current one, and without this number the reader
-				 * cannot tell what any of them is an alternative to.
-				 */
-				printf(
-					/* translators: %s: the plan's current energy per day and person, already formatted with its unit. */
-					esc_html__( 'The plan currently comes to %s per day and person.', 'mixmymeals' ),
-					esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', (float) $groups[0]['current'] ) )
-				);
-				?>
+				<?php esc_html_e( 'Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily nutrition per person.', 'mixmymeals' ); ?>
 			</p>
 
 			<?php foreach ( $groups as $mmm_group ) : ?>
@@ -7531,51 +7532,51 @@ class Mixmymeals_Shortcodes {
 						<table class="mmm-nutrition-table">
 							<thead>
 							<tr>
-								<th><?php esc_html_e( 'Product', 'mixmymeals' ); ?></th>
-								<th><?php esc_html_e( 'Energy per day', 'mixmymeals' ); ?></th>
-								<th><?php esc_html_e( 'Difference', 'mixmymeals' ); ?></th>
+								<th><?php esc_html_e( 'Per day and person', 'mixmymeals' ); ?></th>
+								<th><?php esc_html_e( 'As planned', 'mixmymeals' ); ?></th>
+								<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
+									<th>
+										<div class="mmm-product-impact__product">
+											<?php echo esc_html( $mmm_row['title'] ); ?>
+										</div>
+										<?php if ( $mmm_row['is_reference'] ) : ?>
+											<div class="mmm-product-impact__current">
+												<?php esc_html_e( 'currently used', 'mixmymeals' ); ?>
+											</div>
+										<?php endif; ?>
+									</th>
+								<?php endforeach; ?>
 							</tr>
 							</thead>
 							<tbody>
-							<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
-								<tr>
-									<td data-label="<?php echo esc_attr__( 'Product', 'mixmymeals' ); ?>">
-										<?php echo esc_html( $mmm_row['title'] ); ?>
-										<?php if ( $mmm_row['is_reference'] ) : ?>
-											<span class="mmm-product-impact__current">
-												<?php esc_html_e( 'currently used', 'mixmymeals' ); ?>
-											</span>
-										<?php endif; ?>
+							<?php foreach ( $labels as $mmm_key => $mmm_label ) : ?>
+								<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
+									<td data-label="<?php echo esc_attr__( 'Per day and person', 'mixmymeals' ); ?>"><?php echo esc_html( $mmm_label ); ?></td>
+									<td class="mmm-product-impact__base" data-label="<?php echo esc_attr__( 'As planned', 'mixmymeals' ); ?>">
+										<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $mmm_group['current'][ $mmm_key ] ?? 0 ) ) ); ?>
 									</td>
-									<?php
-									/*
-									 * A product that states no energy leaves the
-									 * plan exactly where it is, because the merge
-									 * falls back to the ingredient's own figure.
-									 * Printed as a number that would read
-									 * "identical to what you have" when it means
-									 * "nobody wrote it down", so it gets the dash
-									 * that means the second everywhere else here.
-									 */
-									?>
-									<td data-label="<?php echo esc_attr__( 'Energy per day', 'mixmymeals' ); ?>">
+									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
 										<?php
-										echo esc_html(
-											$mmm_row['states_energy']
-												? Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', $mmm_row['per_day'] )
-												: '—'
-										);
+										/*
+										 * Muted where the product states nothing
+										 * for this figure. The number is still
+										 * true — it is what the plan becomes,
+										 * falling back to the ingredient's own
+										 * average — but it is not a claim the
+										 * packet makes, and the note below says
+										 * so.
+										 */
+										$mmm_classes = 'mmm-product-impact__delta';
+
+										if ( empty( $mmm_row['stated'][ $mmm_key ] ) ) {
+											$mmm_classes .= ' mmm-product-impact__delta--unstated';
+										}
 										?>
-									</td>
-									<td data-label="<?php echo esc_attr__( 'Difference', 'mixmymeals' ); ?>">
-										<?php
-										echo esc_html(
-											$mmm_row['states_energy']
-												? $this->format_nutrition_delta( 'calories', 0.0, $mmm_row['delta'] )
-												: '—'
-										);
-										?>
-									</td>
+										<td class="<?php echo esc_attr( $mmm_classes ); ?>"
+											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
+											<?php echo esc_html( $this->format_nutrition_delta( $mmm_key, 0.0, (float) ( $mmm_row['deltas'][ $mmm_key ] ?? 0 ) ) ); ?>
+										</td>
+									<?php endforeach; ?>
 								</tr>
 							<?php endforeach; ?>
 							</tbody>
@@ -7584,6 +7585,12 @@ class Mixmymeals_Shortcodes {
 
 				</div>
 			<?php endforeach; ?>
+
+			<?php if ( $has_unstated ) : ?>
+				<p class="mmm-product-impact__note">
+					<?php esc_html_e( 'Faded figures are ones the product does not state. Choosing it falls back to the typical values of the ingredient, which is what those numbers show.', 'mixmymeals' ); ?>
+				</p>
+			<?php endif; ?>
 
 		</div>
 		<?php

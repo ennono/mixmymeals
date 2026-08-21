@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.11.0
+Stable tag: 3.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -42,8 +42,9 @@ shopping list and nutrition totals, and export everything as a PDF.
   from. One of them can supply the ingredient's nutrition, and the ingredient
   page lists them all side by side.
 * **Product choice on a plan**: for every ingredient of a plan that comes in
-  more than one product, what picking each of them would do to the daily energy
-  per person — shown right under the shopping list, where the decision is made.
+  more than one product, what picking each of them would do to all seven
+  nutrition figures per day and person — shown right under the shopping list,
+  where the decision is made.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
@@ -108,6 +109,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.12.0 =
+
+Changed:
+* The product comparison on a plan covers all seven nutrition figures, not only
+  energy. One column holds the plan as it stands, one per product holds the
+  differences.
+* An ingredient now qualifies when any figure moves, not only when energy does.
+  Two hams with identical calories and twice the salt used to be dropped from
+  the list entirely — which hid exactly the choice worth making.
+
+Fixed:
+* A product silent on a figure showed no difference at all, even when the
+  product it would replace stated one. Switching to it really does change the
+  plan, because the ingredient's typical value carries over. The figure is now
+  shown, faded, with a note saying where it comes from.
 
 = 3.11.0 =
 
@@ -558,6 +575,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.12.0 =
+The plan's product comparison covers all seven nutrition figures.
 
 = 3.11.0 =
 Meal plans show what the choice of product is worth over a week.

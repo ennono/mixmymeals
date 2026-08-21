@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.11.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.12.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -110,13 +110,15 @@ The heading cells are built from `div`s, not `span`s styled into blocks: a site 
 
 A value the product does not state renders as a dash, never `0,0 g` — the same null-is-not-zero rule the storage layer keeps, and the place it matters most, since this is a public claim about somebody else's product. The reference product is marked, in a muted chip rather than the green of `.mmm-badge`: green is the brand's positive tone and a quality mark beside a brand name is what this must not read as.
 
-**`[mmm_meal_plan_product_impact]` puts a price on the choice.** For every ingredient of a plan with more than one product, `Mixmymeals_Meal_Plan::calc_product_impact()` gives the resulting energy per day and person and the difference to what the plan states now; the child theme renders it under the shopping list, where the buying decision is.
+**`[mmm_meal_plan_product_impact]` puts a price on the choice.** For every ingredient of a plan with more than one product, `Mixmymeals_Meal_Plan::calc_product_impact()` gives all seven figures per day and person: one column for the plan as it stands, one per product for the differences. The child theme renders it under the shopping list, where the buying decision is.
+
+All seven and not only energy, because two hams can carry the same kilocalories and twice the salt — weighing energy alone dropped that ingredient from the list and hid the one choice worth making. For the same reason the ranking is by the largest spread **relative to `reference_intake()`**: it is the only way to compare 80 kcal with 1,2 g of salt without one unit simply having bigger numbers. Whether a figure counts as moved is decided by `nutrition_value_is_printable()`, which compares rendered strings rather than an epsilon, since precision differs per nutrient and the only difference worth the name is one the reader can see.
 
 It is computed as a **difference**, not by re-running the plan once per product. Nutrition is linear in weight, so `(product kcal − current kcal) × grams eaten ÷ 100 ÷ days` is exact — verified against actually writing each product to `_mmm_reference_product` and recomputing, to the second decimal. The alternative would have been a bypass parameter on `get_nutrition()` (the hole closed in 3.8.2) or writing to the database to ask a hypothetical.
 
 Two supporting pieces carry the guarantee. `Mixmymeals_Ingredient::get_nutrition_with_product()` answers "what would this ingredient read with that packet", sharing one private `apply_product()` merge with `get_nutrition()` — if the two ever merged differently the prediction would stop predicting. Unlike the removed `$resolve_product`, it must name a product, so it cannot be mistaken for the current figure. `Mixmymeals_Meal_Plan::get_ingredient_portion_weights()` aggregates grams the way `calc_nutrition()` does (one portion per meal, `get_ingredients_scaled( 1.0 )` ÷ servings) and explicitly **not** the way `calc_shopping_list()` does (scaled by meal servings, rounded up to whole packs) — mixing them would count rounding-up as something somebody ate.
 
-A product stating no energy gets a dash, not `±0`: it cannot move the plan, but because nobody wrote its figure down, which is a different claim from matching.
+**A product silent on a figure still moves it**, whenever the product it replaces stated one: the merge falls back to the ingredient's own average, and that is a change somebody would actually get. Shipping 3.11.0 this was wrong — silence printed a dash and hid it. The difference is now always shown and always true; `stated` only records where the number came from, and the cell is faded with a note. Never reintroduce a dash here: that would be the null-is-not-zero rule applied to the wrong quantity, since the plan's new value is perfectly well known even when the packet says nothing.
 
 The two levels answer different questions. An ingredient carries figures good enough to plan with and stays correct when a manufacturer changes a recipe; a product carries what one packet says. Worth maintaining only where products differ a lot — yoghurt at 0.1 % or 10 % fat, minced meat, cheese, bread. For red cabbage the gap between 25 and 41 kcal is smaller than the error from cooking losses and portion size.
 

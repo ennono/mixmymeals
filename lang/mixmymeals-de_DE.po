@@ -1632,16 +1632,16 @@ msgstr "Schritt %d"
 msgid "Serving"
 msgstr "Portion"
 
-#: includes/lib/class-mixmymeals-meal-plan.php:1034
+#: includes/lib/class-mixmymeals-meal-plan.php:1088
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:877
-#: includes/lib/class-mixmymeals-shortcodes.php:7653
-#: includes/lib/class-mixmymeals-shortcodes.php:7929
+#: includes/lib/class-mixmymeals-shortcodes.php:7660
+#: includes/lib/class-mixmymeals-shortcodes.php:7936
 msgid "Other"
 msgstr "Sonstiges"
 
-#: includes/lib/class-mixmymeals-meal-plan.php:1042
+#: includes/lib/class-mixmymeals-meal-plan.php:1096
 msgid "All Ingredients"
 msgstr "Alle Zutaten"
 
@@ -3166,14 +3166,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7773
+#: includes/lib/class-mixmymeals-shortcodes.php:7780
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7858
+#: includes/lib/class-mixmymeals-shortcodes.php:7865
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4038,8 +4038,6 @@ msgid "Products"
 msgstr "Produkte"
 
 #: includes/lib/class-mixmymeals-post-types.php:591
-#: includes/lib/class-mixmymeals-shortcodes.php:7534
-#: includes/lib/class-mixmymeals-shortcodes.php:7542
 msgid "Product"
 msgstr "Produkt"
 
@@ -4121,34 +4119,32 @@ msgstr "Die übrigen Spalten zeigen die Abweichung zu %s."
 msgid "Source: %s"
 msgstr "Quelle: %s"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7497
-msgid "Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily energy per person."
-msgstr "Einige Zutaten dieses Plans gibt es als mehrere Produkte. Hier steht, worauf die Tagesenergie je Person mit der jeweiligen Wahl käme."
-
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:7523
+#: includes/lib/class-mixmymeals-shortcodes.php:7524
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] "in %s Mahlzeit"
 msgstr[1] "in %s Mahlzeiten"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7535
-#: includes/lib/class-mixmymeals-shortcodes.php:7561
-msgid "Energy per day"
-msgstr "Energie je Tag"
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7536
-#: includes/lib/class-mixmymeals-shortcodes.php:7570
-msgid "Difference"
-msgstr "Abweichung"
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7546
+#: includes/lib/class-mixmymeals-shortcodes.php:7544
 msgid "currently used"
 msgstr "aktuell verwendet"
 
-#. translators: %s: the plan's current energy per day and person, already formatted with its unit.
-#: includes/lib/class-mixmymeals-shortcodes.php:7508
-#, php-format
-msgid "The plan currently comes to %s per day and person."
-msgstr "Aktuell kommt der Plan auf %s je Tag und Person."
+#: includes/lib/class-mixmymeals-shortcodes.php:7512
+msgid "Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily nutrition per person."
+msgstr "Einige Zutaten dieses Plans gibt es als mehrere Produkte. Hier steht, was die jeweilige Wahl an den Nährwerten je Tag und Person ändert."
+
+#: includes/lib/class-mixmymeals-shortcodes.php:7535
+#: includes/lib/class-mixmymeals-shortcodes.php:7554
+msgid "Per day and person"
+msgstr "Je Tag und Person"
+
+#: includes/lib/class-mixmymeals-shortcodes.php:7536
+#: includes/lib/class-mixmymeals-shortcodes.php:7555
+msgid "As planned"
+msgstr "Wie geplant"
+
+#: includes/lib/class-mixmymeals-shortcodes.php:7591
+msgid "Faded figures are ones the product does not state. Choosing it falls back to the typical values of the ingredient, which is what those numbers show."
+msgstr "Blass gesetzte Werte gibt das Produkt nicht an. Bei dieser Wahl gelten dort weiter die üblichen Werte der Zutat — genau das zeigen diese Zahlen."
