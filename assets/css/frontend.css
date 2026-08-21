@@ -580,8 +580,3 @@ body.mmm-cook-mode-open {
 .mmm-product-impact__current {
     display: block;
 }
-
-.mmm-product-impact__note {
-    margin: 1rem 0 0;
-    line-height: 1.45;
-}

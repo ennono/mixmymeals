@@ -7476,19 +7476,6 @@ class Mixmymeals_Shortcodes {
 
 		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
 
-		// Any product silent on a figure anywhere on the page earns the note
-		// that explains the muted cells; without one they look like a defect.
-		$has_unstated = false;
-
-		foreach ( $groups as $mmm_check ) {
-			foreach ( $mmm_check['products'] as $mmm_row ) {
-				if ( in_array( false, $mmm_row['stated'], true ) ) {
-					$has_unstated = true;
-					break 2;
-				}
-			}
-		}
-
 		ob_start();
 		?>
 		<div class="mmm-product-impact">
@@ -7541,25 +7528,26 @@ class Mixmymeals_Shortcodes {
 										<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $mmm_group['current'][ $mmm_key ] ?? 0 ) ) ); ?>
 									</td>
 									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
-										<?php
-										/*
-										 * Muted where the product states nothing
-										 * for this figure. The number is still
-										 * true — it is what the plan becomes,
-										 * falling back to the ingredient's own
-										 * average — but it is not a claim the
-										 * packet makes, and the note below says
-										 * so.
-										 */
-										$mmm_classes = 'mmm-product-impact__delta';
-
-										if ( empty( $mmm_row['stated'][ $mmm_key ] ) ) {
-											$mmm_classes .= ' mmm-product-impact__delta--unstated';
-										}
-										?>
-										<td class="<?php echo esc_attr( $mmm_classes ); ?>"
+										<?php $mmm_delta = $mmm_row['deltas'][ $mmm_key ] ?? null; ?>
+										<td class="mmm-product-impact__delta"
 											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
-											<?php echo esc_html( $this->format_nutrition_delta( $mmm_key, 0.0, (float) ( $mmm_row['deltas'][ $mmm_key ] ?? 0 ) ) ); ?>
+											<?php
+											/*
+											 * A dash where the product states
+											 * nothing. It takes no part in the
+											 * comparison at all — the same rule
+											 * the product table on the
+											 * ingredient page follows, and for
+											 * the same reason: this is a claim
+											 * about somebody else's packet, and
+											 * the packet is silent.
+											 */
+											echo esc_html(
+												null === $mmm_delta
+													? '—'
+													: $this->format_nutrition_delta( $mmm_key, 0.0, (float) $mmm_delta )
+											);
+											?>
 										</td>
 									<?php endforeach; ?>
 								</tr>
@@ -7570,12 +7558,6 @@ class Mixmymeals_Shortcodes {
 
 				</div>
 			<?php endforeach; ?>
-
-			<?php if ( $has_unstated ) : ?>
-				<p class="mmm-product-impact__note">
-					<?php esc_html_e( 'Faded figures are ones the product does not state. Choosing it falls back to the typical values of the ingredient, which is what those numbers show.', 'mixmymeals' ); ?>
-				</p>
-			<?php endif; ?>
 
 		</div>
 		<?php

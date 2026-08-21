@@ -892,16 +892,25 @@ class Mixmymeals_Meal_Plan {
 					$field = 'calories' === $key ? 'calories_100' : $key;
 
 					/*
-					 * The difference is real whether or not the product states
-					 * this figure. A product silent on fat still moves the
-					 * plan's fat when the one it replaces stated some: the
-					 * merge falls back to the ingredient's own average, and
-					 * that is a change somebody would actually get. So the
-					 * number is always shown, and $known only records where it
-					 * came from, for the note that says so.
+					 * A figure the product does not state stays null and takes
+					 * no part in any of this — not in the cell, not in the
+					 * spread that ranks the ingredients, not in the test that
+					 * decides whether the group is worth showing.
+					 *
+					 * Substituting the ingredient's average and printing the
+					 * resulting difference, as this did in 3.12.0, put a number
+					 * against a product that the product never claimed. It is
+					 * true of the plan and false of the packet, and this table
+					 * is about packets.
 					 */
+					$known[ $key ] = null !== ( $stated[ $field ] ?? null );
+
+					if ( ! $known[ $key ] ) {
+						$deltas[ $key ] = null;
+						continue;
+					}
+
 					$deltas[ $key ] = ( (float) ( $with[ $field ] ?? 0 ) - (float) ( $now[ $field ] ?? 0 ) ) * $factor;
-					$known[ $key ]  = null !== ( $stated[ $field ] ?? null );
 
 					$spreads[ $key ][] = $deltas[ $key ];
 
@@ -923,7 +932,20 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			usort( $rows, static fn( $a, $b ) => $a['deltas']['calories'] <=> $b['deltas']['calories'] );
+			/*
+			 * By energy, with products that do not state theirs last: null
+			 * sorts before every number in PHP, which would put the least
+			 * informative columns first.
+			 */
+			usort(
+				$rows,
+				static function ( $a, $b ) {
+					$rank = static fn( $r ) => null === $r['deltas']['calories'] ? 1 : 0;
+
+					return array( $rank( $a ), (float) $a['deltas']['calories'] )
+						<=> array( $rank( $b ), (float) $b['deltas']['calories'] );
+				}
+			);
 
 			/*
 			 * Ranked by the biggest spread measured against the reference
@@ -935,7 +957,9 @@ class Mixmymeals_Meal_Plan {
 			foreach ( self::NUTRITION_KEYS as $key ) {
 				$reference_value = (float) ( $intake[ $key ] ?? 0 );
 
-				if ( $reference_value <= 0 ) {
+				// Fewer than two stated figures is not a spread, it is one
+				// product's number with nothing to compare it against.
+				if ( $reference_value <= 0 || count( $spreads[ $key ] ) < 2 ) {
 					continue;
 				}
 

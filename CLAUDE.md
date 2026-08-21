@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.12.2, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.13.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -120,7 +120,9 @@ It is computed as a **difference**, not by re-running the plan once per product.
 
 Two supporting pieces carry the guarantee. `Mixmymeals_Ingredient::get_nutrition_with_product()` answers "what would this ingredient read with that packet", sharing one private `apply_product()` merge with `get_nutrition()` — if the two ever merged differently the prediction would stop predicting. Unlike the removed `$resolve_product`, it must name a product, so it cannot be mistaken for the current figure. `Mixmymeals_Meal_Plan::get_ingredient_portion_weights()` aggregates grams the way `calc_nutrition()` does (one portion per meal, `get_ingredients_scaled( 1.0 )` ÷ servings) and explicitly **not** the way `calc_shopping_list()` does (scaled by meal servings, rounded up to whole packs) — mixing them would count rounding-up as something somebody ate.
 
-**A product silent on a figure still moves it**, whenever the product it replaces stated one: the merge falls back to the ingredient's own average, and that is a change somebody would actually get. Shipping 3.11.0 this was wrong — silence printed a dash and hid it. The difference is now always shown and always true; `stated` only records where the number came from, and the cell is faded with a note. Never reintroduce a dash here: that would be the null-is-not-zero rule applied to the wrong quantity, since the plan's new value is perfectly well known even when the packet says nothing.
+**A figure the product does not state takes no part in this comparison** — dash in the cell, excluded from the spread that ranks the ingredients and from the test that decides whether a group is shown. No substitute is used anywhere.
+
+The history is worth keeping because both sides of it are arguable. 3.11.0 dashed such figures; 3.12.0 replaced the dash with the *real* difference, on the ground that a product silent on fat still moves the plan's fat when the one it replaces stated some — the merge falls back to the ingredient's average and somebody would actually get that. 3.13.0 went back to the dash on the ground that the number, while true of the plan, is false of the packet, and this table is about packets: a product that says nothing about fat must not have a fat figure attributed to it. That is the settled position. The fallback itself is untouched in `get_nutrition()`, so recipes and plans still resolve a complete set of figures; only this table declines to speak for a silent packet.
 
 The two levels answer different questions. An ingredient carries figures good enough to plan with and stays correct when a manufacturer changes a recipe; a product carries what one packet says. Worth maintaining only where products differ a lot — yoghurt at 0.1 % or 10 % fat, minced meat, cheese, bread. For red cabbage the gap between 25 and 41 kcal is smaller than the error from cooking losses and portion size.
 

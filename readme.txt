@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.12.2
+Stable tag: 3.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,6 +109,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.13.0 =
+
+Changed:
+* A figure a product does not state takes no part in the plan's product
+  comparison at all. It shows a dash, and it is left out of the ranking and of
+  the test that decides whether an ingredient is worth listing — no substitute
+  value is used anywhere.
+
+Why: 3.12.0 filled the gap with the ingredient's typical value and printed the
+resulting difference. That figure is true of the plan and false of the packet,
+and this table is about packets. A product that says nothing about fat should
+not have a fat number attributed to it.
+
+Note: where a product does state a figure, the comparison remains exact — that
+is still verified against actually selecting the product and recomputing.
 
 = 3.12.2 =
 
@@ -601,6 +617,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.13.0 =
+Unstated product figures show a dash instead of a substituted value.
 
 = 3.12.2 =
 Daily averages count days by their meals. Plans with meals lacking nutrition data will show a lower average.
