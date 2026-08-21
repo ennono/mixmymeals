@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.8.2
+Stable tag: 3.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,10 @@ shopping list and nutrition totals, and export everything as a PDF.
   intake for an average adult (2 000 kcal), laid out like the panel on a food
   packet — on recipes, on plans, in the PDF and in the subscription mails,
   all quoting the same numbers. The values are configurable.
+* **Products**: the concrete, branded articles an ingredient can be bought as,
+  each with the figures its packet states and a note saying where they came
+  from. One of them can supply the ingredient's nutrition, and the ingredient
+  page lists them all side by side.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
@@ -101,6 +105,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.9.0 =
+
+Added:
+* `[mmm_ingredient_products]` lists an ingredient's products on its page: one
+  column per product with the figures its packet states, the brand, the package
+  size and the source of the numbers. The product the ingredient's own nutrition
+  comes from is marked.
+* A value the product does not state shows a dash, never a zero.
+
+Why: an ingredient carries figures good enough to plan with, a product carries
+what one packet says. Yoghurt at 0.1 % or 10 % fat is not a rounding difference,
+and a reader deciding which one to buy needs to see the packets, not an average
+of them.
 
 = 3.8.2 =
 
@@ -474,6 +492,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.9.0 =
+Ingredient pages now list the products behind an ingredient.
 
 = 3.8.2 =
 The nutrition comparison from 3.8.0 is gone again.

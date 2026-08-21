@@ -532,3 +532,26 @@ body.mmm-cook-mode-open {
     pointer-events: none;
 }
 
+/* Ingredient products ([mmm_ingredient_products]) — structural only.
+   The table reuses .mmm-nutrition-table / .mmm-nutri-table, so the theme
+   styles it and collapses it into cards on phones like every other one.
+   Eight columns do not fit a narrow viewport in a row, hence the scroller. */
+.mmm-ingredient-products {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* The identity cell stacks: name, flag, brand and package, source. Without
+   this the four run together into a single line. */
+.mmm-ingredient-products__title,
+.mmm-ingredient-products__flag,
+.mmm-ingredient-products__meta,
+.mmm-ingredient-products__source {
+    display: block;
+}
+
+.mmm-ingredient-products__note {
+    margin: 8px 0 0;
+    font-size: 0.9em;
+    line-height: 1.45;
+}

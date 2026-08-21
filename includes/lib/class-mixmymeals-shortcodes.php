@@ -105,6 +105,8 @@ class Mixmymeals_Shortcodes {
 			array( $this, 'mmm_ingredient_hero_callback' ) );
 		add_shortcode( 'mmm_nutrition_table_for_a_single_ingredient',
 			array( $this, 'mmm_nutrition_table_for_a_single_ingredient_callback' ) );
+		add_shortcode( 'mmm_ingredient_products',
+			[ $this, 'mmm_ingredient_products_callback' ] );
 		add_shortcode( 'mmm_recipes_for_a_single_ingredient',
 			array( $this, 'mmm_recipes_for_a_single_ingredient_callback' ) );
 		add_shortcode( 'mmm_ingredients_index',
@@ -7123,6 +7125,205 @@ class Mixmymeals_Shortcodes {
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_ingredient_products].
+	 *
+	 * Lists the concrete, branded articles this ingredient can be bought as,
+	 * each with the figures its packet states.
+	 *
+	 * Renders nothing when there are no products, which is the ordinary case:
+	 * products are worth maintaining only where they differ a lot — yoghurt at
+	 * 0.1 % or 10 % fat, minced meat, cheese — so most ingredients never get
+	 * one and their page must not grow an empty section.
+	 *
+	 * @param array|string $atts Shortcode attributes: id.
+	 * @return string
+	 */
+	public function mmm_ingredient_products_callback( $atts = array() ): string {
+
+		$atts          = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_ingredient_products' );
+		$ingredient_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+
+		if ( ! $ingredient_id || 'mmm_ingredient' !== get_post_type( $ingredient_id ) ) {
+			return '';
+		}
+
+		$products = Mixmymeals_Product::for_ingredient( $ingredient_id );
+
+		if ( empty( $products ) ) {
+			return '';
+		}
+
+		$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
+
+		// Same labels and the same order as every other nutrition table on the
+		// site; only the energy key differs, because a product stores its
+		// calories per 100 g.
+		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
+		$cols   = array(
+			'calories' => 'calories_100',
+			'fat'      => 'fat',
+			'carbs'    => 'carbs',
+			'sugar'    => 'sugar',
+			'fiber'    => 'fiber',
+			'protein'  => 'protein',
+			'salt'     => 'salt',
+		);
+
+		$head = __( 'Nutrition', 'mixmymeals' );
+
+		/*
+		 * Products across, nutrition down — the same shape as every other
+		 * nutrition table on the site, and the only one that fits: seven
+		 * figures as columns push Protein and Salt off the page, which are
+		 * exactly the two a reader compares yoghurts by.
+		 *
+		 * Deliberately without mmm-nutri-table, which the theme collapses into
+		 * one card per row below 544px and hides the table head to do it. Here
+		 * the head carries the brand, the package size and the source, so
+		 * collapsing would drop exactly what tells a reader whose figures these
+		 * are — on phones, where most of them read. It scrolls sideways in its
+		 * wrapper instead, like the ingredient's own nutrition table above it.
+		 */
+		ob_start();
+		?>
+		<div class="mmm-ingredient-products">
+			<table class="mmm-nutrition-table">
+				<thead>
+				<tr>
+					<th><?php echo esc_html( $head ); ?></th>
+					<?php foreach ( $products as $mmm_product ) : ?>
+						<th>
+							<?php
+							// Already escaped piece by piece in the helper.
+							echo $this->render_product_identity( $mmm_product, $reference ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+							?>
+						</th>
+					<?php endforeach; ?>
+				</tr>
+				</thead>
+				<tbody>
+				<?php foreach ( $cols as $mmm_key => $mmm_field ) : ?>
+					<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
+						<td data-label="<?php echo esc_attr( $head ); ?>"><?php echo esc_html( $labels[ $mmm_key ] ); ?></td>
+						<?php foreach ( $products as $mmm_product ) : ?>
+							<?php $mmm_value = $mmm_product->get_nutrition()[ $mmm_field ] ?? null; ?>
+							<td data-label="<?php echo esc_attr( $mmm_product->get_title() ); ?>">
+								<?php
+								/*
+								 * A dash, never a zero. The whole product layer
+								 * rests on "not stated on the packet" and
+								 * "contains none" being different claims, and
+								 * printing 0,0 g would turn the first into the
+								 * second — in public, about somebody else's
+								 * product.
+								 */
+								echo esc_html(
+									null === $mmm_value
+										? '—'
+										: Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) $mmm_value )
+								);
+								?>
+							</td>
+						<?php endforeach; ?>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<p class="mmm-ingredient-products__note">
+				<?php esc_html_e( 'Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation.', 'mixmymeals' ); ?>
+			</p>
+		</div>
+		<?php
+
+		return ob_get_clean();
+	}
+
+	/**
+	 * The first cell of a product row: what the article is, and why its figures
+	 * are here.
+	 *
+	 * The source line is not decoration. These are statements about somebody
+	 * else's product and they go stale when a manufacturer changes a recipe;
+	 * without a note saying where a number came from, a reader cannot tell a
+	 * current figure from a four-year-old one.
+	 *
+	 * @param Mixmymeals_Product $product   The product.
+	 * @param int                $reference ID of the ingredient's reference product, 0 if none.
+	 * @return string Escaped markup.
+	 */
+	private function render_product_identity( Mixmymeals_Product $product, int $reference ): string {
+
+		/*
+		 * One container around the four lines, because the theme collapses
+		 * this table into cards below 544px and makes every cell a flex row.
+		 * Four bare spans would become four columns there; one child stacks
+		 * its own contents as blocks and survives both layouts.
+		 */
+		$out = '<div class="mmm-ingredient-products__identity">'
+			. '<span class="mmm-ingredient-products__title">'
+			. esc_html( $product->get_title() ) . '</span>';
+
+		if ( $reference > 0 && $reference === $product->get_id() ) {
+			$out .= '<span class="mmm-ingredient-products__flag">'
+				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</span>';
+		}
+
+		$meta  = array();
+		$brand = $product->get_brand();
+
+		if ( '' !== $brand ) {
+			$meta[] = esc_html( $brand );
+		}
+
+		$weight = $product->get_package_weight();
+
+		if ( $weight > 0 ) {
+			$meta[] = esc_html(
+				sprintf(
+					/* translators: %s: a package weight in grams. */
+					__( '%s g package', 'mixmymeals' ),
+					number_format_i18n( $weight )
+				)
+			);
+		}
+
+		if ( $meta ) {
+			$out .= '<span class="mmm-ingredient-products__meta">'
+				. implode( ' &middot; ', $meta ) . '</span>';
+		}
+
+		$source = $product->get_source();
+
+		if ( '' !== $source ) {
+
+			/*
+			 * A URL is shown as its host and linked; anything else stands as
+			 * written ("packet, 2026-08"). A raw URL printed in full would
+			 * blow the column apart, and nofollow because naming a
+			 * manufacturer to say where a figure came from is not an
+			 * endorsement of it.
+			 */
+			$url = filter_var( $source, FILTER_VALIDATE_URL ) ? $source : '';
+
+			$shown = '' !== $url
+				? '<a href="' . esc_url( $url ) . '" rel="nofollow noopener" target="_blank">'
+					. esc_html( (string) wp_parse_url( $url, PHP_URL_HOST ) ) . '</a>'
+				: esc_html( $source );
+
+			$out .= '<span class="mmm-ingredient-products__source">'
+				. sprintf(
+					/* translators: %s: where the figures were taken from. */
+					esc_html__( 'Source: %s', 'mixmymeals' ),
+					$shown
+				)
+				. '</span>';
+		}
+
+		return $out . '</div>';
 	}
 
 	/**
