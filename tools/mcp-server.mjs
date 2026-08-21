@@ -628,7 +628,6 @@ const TOOLS = [
         ingredient_id:  { type: "number", description: "Post-ID des mmm_ingredient" },
         title:          { type: "string", description: "Name der Einheit" },
         weight_g:       { type: "number", description: "Gewicht in g" },
-        is_sale_unit:   { type: "boolean", default: false },
         is_indivisible: { type: "boolean", default: false, description: "Veraltet — entspricht divisor 1 (true) bzw. 0 (false). Bevorzugt divisor verwenden; wird divisor mitgesendet, gewinnt divisor." },
         divisor:        { type: "number", default: 0, description: "Teilbarkeit der Einheit: 1 = nur ganze (z.B. ein Ei), 2 = halbierbar (z.B. eine Dose), 4 = Viertel. 0 oder weglassen = beliebige Menge. Dies ist die maßgebliche Angabe." },
       },
@@ -637,7 +636,7 @@ const TOOLS = [
 
   {
     name: "mmm_update_ingr_unit",
-    description: "Einheit einer Zutat aktualisieren (Gewicht, Flags, Teilbarkeit, Titel). Verwendet /mixmymeals/v1/units/{id}.",
+    description: "Einheit einer Zutat aktualisieren (Gewicht, Teilbarkeit, Titel). Verwendet /mixmymeals/v1/units/{id}.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -645,7 +644,6 @@ const TOOLS = [
         id:             { type: "number", description: "Post-ID der mmm_ingr_unit" },
         title:          { type: "string" },
         weight_g:       { type: "number", description: "Gewicht in g" },
-        is_sale_unit:   { type: "boolean" },
         is_indivisible: { type: "boolean", description: "Veraltet — entspricht divisor 1 (true) bzw. 0 (false). Bevorzugt divisor verwenden; wird divisor mitgesendet, gewinnt divisor." },
         divisor:        { type: "number", description: "Teilbarkeit der Einheit: 1 = nur ganze (z.B. ein Ei), 2 = halbierbar (z.B. eine Dose), 4 = Viertel. 0 oder weglassen = beliebige Menge. Dies ist die maßgebliche Angabe." },
       },
@@ -1307,20 +1305,18 @@ async function handleTool(name, args) {
       return mmm("GET", `/units/${args.id}`);
 
     case "mmm_create_ingr_unit": {
-      const { ingredient_id, title, weight_g, is_sale_unit = false, is_indivisible = false, divisor = 0 } = args;
+      const { ingredient_id, title, weight_g, is_indivisible = false, divisor = 0 } = args;
       const body = { ingredient_id, title, weight_g };
-      if (is_sale_unit)   body.is_sale_unit   = true;
       if (is_indivisible) body.is_indivisible = true;
       if (divisor) body.divisor = divisor;
       return mmm("POST", "/units", body);
     }
 
     case "mmm_update_ingr_unit": {
-      const { id, title, weight_g, is_sale_unit, is_indivisible, divisor } = args;
+      const { id, title, weight_g, is_indivisible, divisor } = args;
       const body = {};
       if (title          !== undefined) body.title          = title;
       if (weight_g       !== undefined) body.weight_g       = weight_g;
-      if (is_sale_unit   !== undefined) body.is_sale_unit   = is_sale_unit;
       if (is_indivisible !== undefined) body.is_indivisible = is_indivisible;
       if (divisor !== undefined) body.divisor = divisor;
       return mmm("POST", `/units/${id}`, body);
