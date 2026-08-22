@@ -332,6 +332,64 @@ class Mixmymeals_Recipe {
 		return $totals;
 	}
 
+	/**
+	 * What choosing a different product would do to one serving of this recipe.
+	 *
+	 * The same comparison the plan page shows, in the unit a dish is eaten in.
+	 * Per serving and not per plan day on purpose: a plan spreads one meal
+	 * across its whole length and can dilute a real choice into a couple of
+	 * kilocalories, while here the figure is the portion in front of somebody.
+	 *
+	 * @return array<int, array{ingredient_id:int, ingredient:string, meals:int, current:array<string,float>, products:array}>
+	 */
+	public function calc_product_impact(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		$servings = max( 1.0, (float) $this->get_servings() );
+		$weights  = array();
+
+		/*
+		 * get_ingredients_scaled() returns one row per step, so an ingredient
+		 * used in three steps arrives three times. All of it is in the dish, so
+		 * all of it is added.
+		 */
+		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ing ) {
+
+			$id     = (int) ( $ing['id'] ?? 0 );
+			$weight = (float) ( $ing['weight_g'] ?? 0 );
+
+			if ( $id <= 0 || $weight <= 0 ) {
+				continue;
+			}
+
+			if ( ! isset( $weights[ $id ] ) ) {
+				// meals stays 0: "in 3 meals" belongs to a plan. A recipe is
+				// one dish and saying so would be filler.
+				$weights[ $id ] = array(
+					'grams' => 0.0,
+					'meals' => 0,
+				);
+			}
+
+			$weights[ $id ]['grams'] += $weight / $servings;
+		}
+
+		if ( empty( $weights ) ) {
+			return array();
+		}
+
+		$current = array();
+
+		foreach ( $this->calculate_nutrition_per_serving() as $key => $value ) {
+			$current[ $key ] = (float) $value;
+		}
+
+		return Mixmymeals_Product::impact_groups( $weights, $current, 1.0 );
+	}
+
 	private function _calculate_total_nutrition(float $scale = 1.0): array {
 
 		$ingredients = $this->get_ingredients_scaled($scale);

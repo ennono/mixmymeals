@@ -206,6 +206,8 @@ class Mixmymeals_Shortcodes {
 			[ $this, 'mmm_nutrition_overview_for_a_single_meal_plan_callback' ] );
 		add_shortcode( 'mmm_meal_plan_product_impact',
 			[ $this, 'mmm_meal_plan_product_impact_callback' ] );
+		add_shortcode( 'mmm_meal_product_impact',
+			[ $this, 'mmm_meal_product_impact_callback' ] );
 
 		add_shortcode( 'mmm_nutrition_per_day_for_a_single_meal_plan',
 			[ $this, 'mmm_nutrition_per_day_for_a_single_meal_plan_callback' ] );
@@ -7472,7 +7474,73 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$groups = $plan->calc_product_impact();
+		return $this->render_product_impact(
+			$plan->calc_product_impact(),
+			__( 'Per day and person', 'mixmymeals' ),
+			__( 'As planned', 'mixmymeals' )
+		);
+	}
+
+	/**
+	 * Shortcode [mmm_meal_product_impact].
+	 *
+	 * The same comparison for a single dish, stated per serving. On a meal it
+	 * resolves to the recipe the meal plans; on a recipe it answers for itself.
+	 *
+	 * Per serving rather than per plan day because this page *is* the dish: a
+	 * plan spreads one meal over its whole length and can dilute a real choice
+	 * into a couple of kilocalories, and here there is nothing to spread it
+	 * over.
+	 *
+	 * @param array|string $atts Shortcode attributes: id.
+	 * @return string
+	 */
+	public function mmm_meal_product_impact_callback( $atts = array() ): string {
+
+		$atts    = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_meal_product_impact' );
+		$post_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$type = get_post_type( $post_id );
+
+		if ( 'mmm_meal' === $type ) {
+			$post_id = ( new Mixmymeals_Meal( $post_id ) )->get_recipe_id();
+		} elseif ( 'mmm_recipe' !== $type ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( (int) $post_id );
+
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		return $this->render_product_impact(
+			$recipe->calc_product_impact(),
+			__( 'Per serving', 'mixmymeals' ),
+			__( 'As it stands', 'mixmymeals' )
+		);
+	}
+
+	/**
+	 * Draws the product comparison: one table per ingredient, nutrition down,
+	 * the current figures in the first column and one column of differences per
+	 * product.
+	 *
+	 * Shared by the plan and the dish, which differ only in what their figures
+	 * are per — and therefore in two column headings. Writing the markup twice
+	 * would have meant two tables that drift apart in everything but the
+	 * arithmetic.
+	 *
+	 * @param array  $groups        From Mixmymeals_Product::impact_groups().
+	 * @param string $unit_label    Heading of the nutrition column, e.g. "Per serving".
+	 * @param string $current_label Heading of the column holding today's figures.
+	 * @return string
+	 */
+	private function render_product_impact( array $groups, string $unit_label, string $current_label ): string {
 
 		if ( empty( $groups ) ) {
 			return '';
@@ -7489,23 +7557,25 @@ class Mixmymeals_Shortcodes {
 
 					<h3 class="mmm-product-impact__ingredient">
 						<?php echo esc_html( $mmm_group['ingredient'] ); ?>
-						<span class="mmm-product-impact__meals">
-							<?php
-							printf(
-								/* translators: %s: number of meals in the plan that use this ingredient. */
-								esc_html( _n( 'in %s meal', 'in %s meals', $mmm_group['meals'], 'mixmymeals' ) ),
-								esc_html( number_format_i18n( $mmm_group['meals'] ) )
-							);
-							?>
-						</span>
+						<?php if ( $mmm_group['meals'] > 0 ) : ?>
+							<span class="mmm-product-impact__meals">
+								<?php
+								printf(
+									/* translators: %s: number of meals in the plan that use this ingredient. */
+									esc_html( _n( 'in %s meal', 'in %s meals', $mmm_group['meals'], 'mixmymeals' ) ),
+									esc_html( number_format_i18n( $mmm_group['meals'] ) )
+								);
+								?>
+							</span>
+						<?php endif; ?>
 					</h3>
 
 					<div class="mmm-product-impact__scroll">
 						<table class="mmm-nutrition-table">
 							<thead>
 							<tr>
-								<th><?php esc_html_e( 'Per day and person', 'mixmymeals' ); ?></th>
-								<th><?php esc_html_e( 'As planned', 'mixmymeals' ); ?></th>
+								<th><?php echo esc_html( $unit_label ); ?></th>
+								<th><?php echo esc_html( $current_label ); ?></th>
 								<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
 									<th>
 										<div class="mmm-product-impact__product">
@@ -7523,8 +7593,8 @@ class Mixmymeals_Shortcodes {
 							<tbody>
 							<?php foreach ( $labels as $mmm_key => $mmm_label ) : ?>
 								<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
-									<td data-label="<?php echo esc_attr__( 'Per day and person', 'mixmymeals' ); ?>"><?php echo esc_html( $mmm_label ); ?></td>
-									<td class="mmm-product-impact__base" data-label="<?php echo esc_attr__( 'As planned', 'mixmymeals' ); ?>">
+									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php echo esc_html( $mmm_label ); ?></td>
+									<td class="mmm-product-impact__base" data-label="<?php echo esc_attr( $current_label ); ?>">
 										<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $mmm_group['current'][ $mmm_key ] ?? 0 ) ) ); ?>
 									</td>
 									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>

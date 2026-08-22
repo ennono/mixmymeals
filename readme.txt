@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.14.2
+Stable tag: 3.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,10 +41,11 @@ shopping list and nutrition totals, and export everything as a PDF.
   each with the figures its packet states and a note saying where they came
   from. One of them can supply the ingredient's nutrition, and the ingredient
   page lists them all side by side.
-* **Product choice on a plan**: for every ingredient of a plan that comes in
-  more than one product, what picking each of them would do to all seven
-  nutrition figures per day and person — shown right under the shopping list,
-  where the decision is made.
+* **Product choice**, on a plan and on a dish: for every ingredient that comes
+  in more than one product, what picking each of them would do to all seven
+  nutrition figures. Per day and person on a plan, under the shopping list
+  where the decision is made; per serving on a meal or recipe, where the
+  portion itself is the unit.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
 * **PDF export** of a meal plan: overview, shopping list and all recipes.
@@ -109,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.15.0 =
+
+Added:
+* `[mmm_meal_product_impact]` brings the product comparison to a single meal,
+  stated per serving. Placed under the nutrition table on the meal page. It
+  answers for a recipe too, so a meal resolves to the recipe it plans.
+
+Why per serving: a plan spreads one meal across its whole length, so a real
+choice can arrive as a couple of kilocalories a day. On the dish itself there
+is nothing to spread it over — 150 g of an ingredient and a product 28 kcal
+richer per 100 g is the full 42 kcal, on the plate.
+
+Changed:
+* The comparison itself moved to `Mixmymeals_Product::impact_groups()` and the
+  table markup to one renderer, so the plan view and the dish view differ in
+  their divisor and two column headings and in nothing else.
 
 = 3.14.2 =
 
@@ -648,6 +666,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.15.0 =
+Meals show the product comparison too, per serving.
 
 = 3.14.2 =
 The product comparison's intro sentence moved to the theme.

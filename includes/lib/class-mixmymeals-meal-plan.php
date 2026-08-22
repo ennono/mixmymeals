@@ -856,11 +856,9 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		$per_day = $this->calc_nutrition_per_day_person();
-		$current = $per_day['average'];
-		$intake  = self::reference_intake();
 
 		/*
-		 * The same divisor the average above used, so a difference lands on the
+		 * The same divisor the average used, so a difference lands on the
 		 * figure it is a difference to. Days without meals are excluded from
 		 * both — dividing a change by the plan's full length while the figure
 		 * it modifies was divided by the days that carry meals would put two
@@ -868,135 +866,16 @@ class Mixmymeals_Meal_Plan {
 		 */
 		$days = max( 1, $per_day['days'] );
 
-		$groups = array();
+		$per_ingredient = array();
 
 		foreach ( $weights as $ingredient_id => $info ) {
-
-			$products = Mixmymeals_Product::for_ingredient( $ingredient_id );
-
-			if ( count( $products ) < 2 ) {
-				continue;
-			}
-
-			$ingredient = new Mixmymeals_Ingredient( $ingredient_id );
-
-			if ( ! $ingredient->is_valid() ) {
-				continue;
-			}
-
-			$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
-			$now       = $ingredient->get_nutrition();
-			$factor    = $info['grams_person'] / 100 / $days;
-
-			$rows    = array();
-			$spreads = array_fill_keys( self::NUTRITION_KEYS, array() );
-			$visible = false;
-
-			foreach ( $products as $product ) {
-
-				$with   = $ingredient->get_nutrition_with_product( $product->get_id() );
-				$stated = $product->get_nutrition();
-
-				$deltas = array();
-				$known  = array();
-
-				foreach ( self::NUTRITION_KEYS as $key ) {
-
-					$field = 'calories' === $key ? 'calories_100' : $key;
-
-					/*
-					 * A figure the product does not state stays null and takes
-					 * no part in any of this — not in the cell, not in the
-					 * spread that ranks the ingredients, not in the test that
-					 * decides whether the group is worth showing.
-					 *
-					 * Substituting the ingredient's average and printing the
-					 * resulting difference, as this did in 3.12.0, put a number
-					 * against a product that the product never claimed. It is
-					 * true of the plan and false of the packet, and this table
-					 * is about packets.
-					 */
-					$known[ $key ] = null !== ( $stated[ $field ] ?? null );
-
-					if ( ! $known[ $key ] ) {
-						$deltas[ $key ] = null;
-						continue;
-					}
-
-					$deltas[ $key ] = ( (float) ( $with[ $field ] ?? 0 ) - (float) ( $now[ $field ] ?? 0 ) ) * $factor;
-
-					$spreads[ $key ][] = $deltas[ $key ];
-
-					if ( self::nutrition_value_is_printable( $key, $deltas[ $key ] ) ) {
-						$visible = true;
-					}
-				}
-
-				$rows[] = array(
-					'id'           => $product->get_id(),
-					'title'        => $product->get_title(),
-					'deltas'       => $deltas,
-					'stated'       => $known,
-					'is_reference' => $reference > 0 && $reference === $product->get_id(),
-				);
-			}
-
-			if ( ! $visible ) {
-				continue;
-			}
-
-			/*
-			 * By energy, with products that do not state theirs last: null
-			 * sorts before every number in PHP, which would put the least
-			 * informative columns first.
-			 */
-			usort(
-				$rows,
-				static function ( $a, $b ) {
-					$rank = static fn( $r ) => null === $r['deltas']['calories'] ? 1 : 0;
-
-					return array( $rank( $a ), (float) $a['deltas']['calories'] )
-						<=> array( $rank( $b ), (float) $b['deltas']['calories'] );
-				}
-			);
-
-			/*
-			 * Ranked by the biggest spread measured against the reference
-			 * intake, which is the only way to compare 80 kcal with 1,2 g of
-			 * salt without one unit simply having larger numbers than another.
-			 */
-			$weight_of_choice = 0.0;
-
-			foreach ( self::NUTRITION_KEYS as $key ) {
-				$reference_value = (float) ( $intake[ $key ] ?? 0 );
-
-				// Fewer than two stated figures is not a spread, it is one
-				// product's number with nothing to compare it against.
-				if ( $reference_value <= 0 || count( $spreads[ $key ] ) < 2 ) {
-					continue;
-				}
-
-				$weight_of_choice = max(
-					$weight_of_choice,
-					( max( $spreads[ $key ] ) - min( $spreads[ $key ] ) ) / $reference_value
-				);
-			}
-
-			$groups[] = array(
-				'ingredient_id' => $ingredient_id,
-				'ingredient'    => get_the_title( $ingredient_id ),
-				'meals'         => (int) $info['meals'],
-				'current'       => $current,
-				'products'      => $rows,
-				'weight'        => $weight_of_choice,
+			$per_ingredient[ $ingredient_id ] = array(
+				'grams' => $info['grams_person'],
+				'meals' => $info['meals'],
 			);
 		}
 
-		// The ingredient whose choice matters most first: it is the one
-		// decision on this page worth thinking about.
-		usort( $groups, static fn( $a, $b ) => $b['weight'] <=> $a['weight'] );
-
-		return $groups;
+		return Mixmymeals_Product::impact_groups( $per_ingredient, $per_day['average'], (float) $days );
 	}
 
 	/**

@@ -362,6 +362,170 @@ class Mixmymeals_Product {
 		return array_map( static fn( $id ) => new self( (int) $id ), $ids );
 	}
 
+	/**
+	 * What choosing a different product would do, for every ingredient of a
+	 * dish or a plan that comes in more than one.
+	 *
+	 * The arithmetic is the same wherever it is asked; only the reference frame
+	 * differs. A plan divides by its days and states "per day and person"; a
+	 * recipe divides by nothing and states "per serving". Both pass the grams
+	 * one person eats and the figures those grams already produce, and get the
+	 * same shape back — which is why one renderer can draw either.
+	 *
+	 * Only ingredients with several products, and only where at least one
+	 * figure moves far enough to be printed. A page of ±0 answers no question.
+	 *
+	 * Computed as differences rather than by resolving each product in turn:
+	 * nutrition is linear in weight, so a product stating x more per 100 g
+	 * moves the result by x times the grams, over the divisor. Note that this
+	 * only holds while the divisor is independent of nutrition — see the note
+	 * on Mixmymeals_Meal_Plan::calc_nutrition_per_day_person().
+	 *
+	 * @param array<int, array{grams:float, meals:int}> $weights Grams one person
+	 *        eats per ingredient, and in how many dishes it occurs (0 to omit).
+	 * @param array<string,float>                       $current The figures those
+	 *        grams currently produce, in the caller's own unit.
+	 * @param float                                     $divisor What the caller
+	 *        divides by to reach that unit. 1.0 for a single serving.
+	 * @return array<int, array{ingredient_id:int, ingredient:string, meals:int, current:array<string,float>, products:array}>
+	 */
+	public static function impact_groups( array $weights, array $current, float $divisor = 1.0 ): array {
+
+		$keys    = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
+		$intake  = Mixmymeals_Meal_Plan::reference_intake();
+		$divisor = max( 0.0000001, $divisor );
+
+		$groups = array();
+
+		foreach ( $weights as $ingredient_id => $info ) {
+
+			$products = self::for_ingredient( (int) $ingredient_id );
+
+			if ( count( $products ) < 2 ) {
+				continue;
+			}
+
+			$ingredient = new Mixmymeals_Ingredient( (int) $ingredient_id );
+
+			if ( ! $ingredient->is_valid() ) {
+				continue;
+			}
+
+			$reference = self::get_reference_id( (int) $ingredient_id );
+			$now       = $ingredient->get_nutrition();
+			$factor    = (float) $info['grams'] / 100 / $divisor;
+
+			$rows    = array();
+			$spreads = array_fill_keys( $keys, array() );
+			$visible = false;
+
+			foreach ( $products as $product ) {
+
+				$with   = $ingredient->get_nutrition_with_product( $product->get_id() );
+				$stated = $product->get_nutrition();
+
+				$deltas = array();
+				$known  = array();
+
+				foreach ( $keys as $key ) {
+
+					$field = 'calories' === $key ? 'calories_100' : $key;
+
+					/*
+					 * A figure the product does not state stays null and takes
+					 * no part in any of this — not in the cell, not in the
+					 * spread that ranks the ingredients, not in the test that
+					 * decides whether the group is worth showing.
+					 *
+					 * Substituting the ingredient's average and printing the
+					 * resulting difference, as this did in 3.12.0, put a number
+					 * against a product that the product never claimed. It is
+					 * true of the dish and false of the packet, and this table
+					 * is about packets.
+					 */
+					$known[ $key ] = null !== ( $stated[ $field ] ?? null );
+
+					if ( ! $known[ $key ] ) {
+						$deltas[ $key ] = null;
+						continue;
+					}
+
+					$deltas[ $key ] = ( (float) ( $with[ $field ] ?? 0 ) - (float) ( $now[ $field ] ?? 0 ) ) * $factor;
+
+					$spreads[ $key ][] = $deltas[ $key ];
+
+					if ( Mixmymeals_Meal_Plan::nutrition_value_is_printable( $key, $deltas[ $key ] ) ) {
+						$visible = true;
+					}
+				}
+
+				$rows[] = array(
+					'id'           => $product->get_id(),
+					'title'        => $product->get_title(),
+					'deltas'       => $deltas,
+					'stated'       => $known,
+					'is_reference' => $reference > 0 && $reference === $product->get_id(),
+				);
+			}
+
+			if ( ! $visible ) {
+				continue;
+			}
+
+			/*
+			 * By energy, with products that do not state theirs last: null
+			 * sorts before every number in PHP, which would put the least
+			 * informative columns first.
+			 */
+			usort(
+				$rows,
+				static function ( $a, $b ) {
+					$rank = static fn( $r ) => null === $r['deltas']['calories'] ? 1 : 0;
+
+					return array( $rank( $a ), (float) $a['deltas']['calories'] )
+						<=> array( $rank( $b ), (float) $b['deltas']['calories'] );
+				}
+			);
+
+			/*
+			 * Ranked by the biggest spread measured against the reference
+			 * intake, which is the only way to compare 80 kcal with 1,2 g of
+			 * salt without one unit simply having larger numbers than another.
+			 */
+			$weight_of_choice = 0.0;
+
+			foreach ( $keys as $key ) {
+				$reference_value = (float) ( $intake[ $key ] ?? 0 );
+
+				// Fewer than two stated figures is not a spread, it is one
+				// product's number with nothing to compare it against.
+				if ( $reference_value <= 0 || count( $spreads[ $key ] ) < 2 ) {
+					continue;
+				}
+
+				$weight_of_choice = max(
+					$weight_of_choice,
+					( max( $spreads[ $key ] ) - min( $spreads[ $key ] ) ) / $reference_value
+				);
+			}
+
+			$groups[] = array(
+				'ingredient_id' => (int) $ingredient_id,
+				'ingredient'    => get_the_title( (int) $ingredient_id ),
+				'meals'         => (int) ( $info['meals'] ?? 0 ),
+				'current'       => $current,
+				'products'      => $rows,
+				'weight'        => $weight_of_choice,
+			);
+		}
+
+		// The ingredient whose choice matters most first: it is the one
+		// decision on this page worth thinking about.
+		usort( $groups, static fn( $a, $b ) => $b['weight'] <=> $a['weight'] );
+
+		return $groups;
+	}
+
 	/* ---------------------------------------------------------------------
 	 * The reference product
 	 * ------------------------------------------------------------------ */
