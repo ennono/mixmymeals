@@ -789,6 +789,15 @@ class Mixmymeals_Meal_Plan {
 
 			$servings = max( 1.0, (float) $recipe->get_servings() );
 
+			/*
+			 * get_ingredients_scaled() returns one row per step, so an
+			 * ingredient used in three steps of one recipe arrives three times.
+			 * The grams must all be added — that is how much is in the dish —
+			 * but the meal must be counted once, or a recipe that seasons in
+			 * two places claims to be three meals.
+			 */
+			$counted = array();
+
 			foreach ( $recipe->get_ingredients_scaled( 1.0 ) as $ing ) {
 
 				$id     = (int) ( $ing['id'] ?? 0 );
@@ -806,7 +815,11 @@ class Mixmymeals_Meal_Plan {
 				}
 
 				$weights[ $id ]['grams_person'] += $weight / $servings;
-				++$weights[ $id ]['meals'];
+
+				if ( ! isset( $counted[ $id ] ) ) {
+					++$weights[ $id ]['meals'];
+					$counted[ $id ] = true;
+				}
 			}
 		}
 

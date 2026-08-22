@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.13.0
+Stable tag: 3.13.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,6 +109,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.13.1 =
+
+Fixed:
+* The product comparison counted a recipe that uses an ingredient in several
+  steps as several meals — "in 3 meals" for one dish that seasons in three
+  places. The quantities were always right; only the count beside the
+  ingredient name was wrong.
 
 = 3.13.0 =
 
@@ -617,6 +625,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.13.1 =
+Fixes the meal count beside an ingredient in the product comparison.
 
 = 3.13.0 =
 Unstated product figures show a dash instead of a substituted value.
