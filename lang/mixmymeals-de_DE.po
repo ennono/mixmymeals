@@ -4131,10 +4131,6 @@ msgstr[1] "in %s Mahlzeiten"
 msgid "currently used"
 msgstr "aktuell verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7484
-msgid "Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily nutrition per person."
-msgstr "Einige Zutaten dieses Plans gibt es als mehrere Produkte. Hier steht, was die jeweilige Wahl an den Nährwerten je Tag und Person ändert."
-
 #: includes/lib/class-mixmymeals-shortcodes.php:7507
 #: includes/lib/class-mixmymeals-shortcodes.php:7526
 msgid "Per day and person"

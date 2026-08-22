@@ -7445,6 +7445,10 @@ class Mixmymeals_Shortcodes {
 	 * picking one of them is worth over a week, which is the figure somebody
 	 * standing in a shop can act on.
 	 *
+	 * Tables only. The heading and the sentence that introduces them belong to
+	 * whoever places this on a page — in the child theme both sit in
+	 * single-mmm_meal_plan.php, next to each other and in one text domain.
+	 *
 	 * Renders nothing unless the plan has an ingredient with several products
 	 * that actually pull a figure apart — the ordinary plan is unaffected.
 	 *
@@ -7479,10 +7483,6 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 		<div class="mmm-product-impact">
-
-			<p class="mmm-product-impact__intro">
-				<?php esc_html_e( 'Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily nutrition per person.', 'mixmymeals' ); ?>
-			</p>
 
 			<?php foreach ( $groups as $mmm_group ) : ?>
 				<div class="mmm-product-impact__group">
