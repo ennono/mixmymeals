@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.18.1
+Stable tag: 3.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.19.0 =
+
+Added:
+* The product comparison on plans and dishes carries a "Diet" row above the
+  figures: what each product states, and what is in force in the leading
+  column. It is left out entirely where nobody has classified anything.
+
+Why above the numbers: "can I still call this vegan" is a different kind of
+question from "how much fat", and it is the one people scan for.
+
+Note: a product that states nothing gets a dash here, exactly as it does for
+nutrition. The ingredient's own classification would stand in that case, but
+printing it in the product's column would read as that brand claiming it — and
+this is a label people act on.
 
 = 3.18.1 =
 
@@ -719,6 +734,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.19.0 =
+The product comparison shows vegan/vegetarian per product.
 
 = 3.18.1 =
 Internal cleanup in the products meta box.

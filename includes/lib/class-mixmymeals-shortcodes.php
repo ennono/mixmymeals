@@ -7600,6 +7600,41 @@ class Mixmymeals_Shortcodes {
 							</tr>
 							</thead>
 							<tbody>
+							<?php if ( ! empty( $mmm_group['has_diet'] ) ) : ?>
+								<?php
+								/*
+								 * First, above the figures: "can I still call
+								 * this vegan" is a different kind of question
+								 * from "how much fat", and it is the one
+								 * somebody scans for. Nobody should have to
+								 * read past seven numbers to find it.
+								 */
+								$mmm_diet_labels = array(
+									'vegan'      => __( 'Vegan', 'mixmymeals' ),
+									'vegetarian' => __( 'Vegetarian', 'mixmymeals' ),
+								);
+								?>
+								<tr class="mmm-product-impact__diet-row">
+									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php esc_html_e( 'Diet', 'mixmymeals' ); ?></td>
+									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
+										<td class="<?php echo esc_attr( $mmm_row['is_anchor'] ? 'mmm-product-impact__base' : 'mmm-product-impact__delta' ); ?>"
+											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
+											<?php
+											/*
+											 * A dash where the packet says
+											 * nothing. The ingredient's own
+											 * classification would stand in
+											 * that case, but printing it here
+											 * reads as this product claiming
+											 * it — and "vegan" is a label
+											 * people act on.
+											 */
+											echo esc_html( $mmm_diet_labels[ $mmm_row['diet'] ] ?? '—' );
+											?>
+										</td>
+									<?php endforeach; ?>
+								</tr>
+							<?php endif; ?>
 							<?php foreach ( $labels as $mmm_key => $mmm_label ) : ?>
 								<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
 									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php echo esc_html( $mmm_label ); ?></td>

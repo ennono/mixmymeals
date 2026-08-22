@@ -1637,8 +1637,8 @@ msgstr "Portion"
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:879
-#: includes/lib/class-mixmymeals-shortcodes.php:7710
-#: includes/lib/class-mixmymeals-shortcodes.php:7986
+#: includes/lib/class-mixmymeals-shortcodes.php:7745
+#: includes/lib/class-mixmymeals-shortcodes.php:8021
 msgid "Other"
 msgstr "Sonstiges"
 
@@ -2145,6 +2145,7 @@ msgstr "Nicht angegeben"
 #: includes/lib/class-mixmymeals-shortcodes.php:5444
 #: includes/lib/class-mixmymeals-shortcodes.php:5541
 #: includes/lib/class-mixmymeals-shortcodes.php:6967
+#: includes/lib/class-mixmymeals-shortcodes.php:7614
 msgid "Vegetarian"
 msgstr "Vegetarisch"
 
@@ -2157,6 +2158,7 @@ msgstr "Vegetarisch"
 #: includes/lib/class-mixmymeals-shortcodes.php:5441
 #: includes/lib/class-mixmymeals-shortcodes.php:5538
 #: includes/lib/class-mixmymeals-shortcodes.php:6965
+#: includes/lib/class-mixmymeals-shortcodes.php:7613
 msgid "Vegan"
 msgstr "Vegan"
 
@@ -3169,14 +3171,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7830
+#: includes/lib/class-mixmymeals-shortcodes.php:7865
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7915
+#: includes/lib/class-mixmymeals-shortcodes.php:7950
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4134,11 +4136,12 @@ msgstr[1] "in %s Mahlzeiten"
 msgid "Per day and person"
 msgstr "Je Tag und Person"
 
-#: includes/lib/class-mixmymeals-product.php:532
+#: includes/lib/class-mixmymeals-product.php:545
 msgid "Typical values"
 msgstr "Übliche Werte"
 
 #: includes/lib/class-mixmymeals-post-meta.php:2027
+#: includes/lib/class-mixmymeals-shortcodes.php:7618
 msgid "Diet"
 msgstr "Ernährung"
 

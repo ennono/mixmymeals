@@ -437,6 +437,11 @@ class Mixmymeals_Product {
 
 			$reference = self::get_reference_id( (int) $ingredient_id );
 			$now       = $ingredient->get_nutrition();
+
+			// What is in force right now — already resolved through whatever
+			// product the ingredient points at, which is what the anchor column
+			// states everywhere else in this table.
+			$diet_now = $ingredient->get_diet_type();
 			$factor    = (float) $info['grams'] / 100 / $divisor;
 
 			$rows    = array();
@@ -490,6 +495,14 @@ class Mixmymeals_Product {
 					'title'        => $product->get_title(),
 					'deltas'       => $deltas,
 					'stated'       => $known,
+					/*
+					 * The packet's own classification, not the one that would
+					 * result. Printing "vegan" against a product that never
+					 * claimed it — because the ingredient happens to be — would
+					 * put a label people act on next to a brand that did not
+					 * earn it. Silence gets a dash, as it does for nutrition.
+					 */
+					'diet'         => $product->get_diet_type(),
 					'is_reference' => $is_reference,
 					'is_anchor'    => $is_reference,
 					// Absolute figures for the anchor only. Its deltas are all
@@ -532,6 +545,7 @@ class Mixmymeals_Product {
 						'title'        => __( 'Typical values', 'mixmymeals' ),
 						'deltas'       => array_fill_keys( $keys, 0.0 ),
 						'stated'       => array_fill_keys( $keys, true ),
+						'diet'         => $diet_now,
 						'is_reference' => false,
 						'is_anchor'    => true,
 						'values'       => $current,
@@ -561,6 +575,18 @@ class Mixmymeals_Product {
 				);
 			}
 
+			/*
+			 * The anchor states what is in force, whatever its own packet says:
+			 * a reference product silent on the question still leaves the
+			 * ingredient's classification standing, and that is what the column
+			 * is for.
+			 */
+			foreach ( $rows as $index => $row ) {
+				if ( $row['is_anchor'] ) {
+					$rows[ $index ]['diet'] = $diet_now;
+				}
+			}
+
 			$groups[] = array(
 				'ingredient_id' => (int) $ingredient_id,
 				'ingredient'    => get_the_title( (int) $ingredient_id ),
@@ -568,6 +594,9 @@ class Mixmymeals_Product {
 				'current'       => $current,
 				'products'      => $rows,
 				'weight'        => $weight_of_choice,
+				// A row of dashes answers nothing; skipped unless somebody has
+				// classified something here.
+				'has_diet'      => (bool) array_filter( array_column( $rows, 'diet' ) ),
 			);
 		}
 

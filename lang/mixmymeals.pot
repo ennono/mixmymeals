@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MixMyMeals 3.17.0\n"
+"Project-Id-Version: MixMyMeals 3.18.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mixmymeals\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-22T15:36:13+00:00\n"
+"POT-Creation-Date: 2026-08-22T16:08:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mixmymeals\n"
@@ -1747,8 +1747,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:879
-#: includes/lib/class-mixmymeals-shortcodes.php:7710
-#: includes/lib/class-mixmymeals-shortcodes.php:7986
+#: includes/lib/class-mixmymeals-shortcodes.php:7745
+#: includes/lib/class-mixmymeals-shortcodes.php:8021
 msgid "Other"
 msgstr ""
 
@@ -2136,6 +2136,7 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php:5444
 #: includes/lib/class-mixmymeals-shortcodes.php:5541
 #: includes/lib/class-mixmymeals-shortcodes.php:6967
+#: includes/lib/class-mixmymeals-shortcodes.php:7614
 msgid "Vegetarian"
 msgstr ""
 
@@ -2148,6 +2149,7 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php:5441
 #: includes/lib/class-mixmymeals-shortcodes.php:5538
 #: includes/lib/class-mixmymeals-shortcodes.php:6965
+#: includes/lib/class-mixmymeals-shortcodes.php:7613
 msgid "Vegan"
 msgstr ""
 
@@ -2178,6 +2180,7 @@ msgid "Package (g)"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:2027
+#: includes/lib/class-mixmymeals-shortcodes.php:7618
 msgid "Diet"
 msgstr ""
 
@@ -2854,7 +2857,7 @@ msgstr ""
 msgid "You can request an export or deletion of your data via the WordPress tools under Tools → Export/Erase Personal Data."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-product.php:532
+#: includes/lib/class-mixmymeals-product.php:545
 msgid "Typical values"
 msgstr ""
 
@@ -3480,14 +3483,14 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7830
+#: includes/lib/class-mixmymeals-shortcodes.php:7865
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7915
+#: includes/lib/class-mixmymeals-shortcodes.php:7950
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr ""
 
