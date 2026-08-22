@@ -577,8 +577,6 @@ body.mmm-cook-mode-open {
    and stack on their own. This is only the belt for anything that resets
    display. */
 .mmm-product-impact__product,
-.mmm-product-impact__current,
-.mmm-product-impact__day,
-.mmm-product-impact__per-meal {
+.mmm-product-impact__current {
     display: block;
 }

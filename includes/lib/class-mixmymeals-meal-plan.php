@@ -886,22 +886,7 @@ class Mixmymeals_Meal_Plan {
 
 			$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
 			$now       = $ingredient->get_nutrition();
-
-			/*
-			 * Two divisors for the same difference. Over the plan's days, which
-			 * is what the daily figures above are measured in — and over the
-			 * meals the ingredient actually appears in, which is the portion
-			 * somebody sits in front of.
-			 *
-			 * The second exists because the first dilutes a real choice into
-			 * nothing: fish fingers in one meal of a seven-day plan turn a
-			 * 28 kcal difference per 100 g into six kilocalories a day, and
-			 * nobody decides anything on six kilocalories. Per meal it is the
-			 * full 42.
-			 */
-			$per_gram    = $info['grams_person'] / 100;
-			$factor      = $per_gram / $days;
-			$factor_meal = $per_gram / max( 1, $info['meals'] );
+			$factor    = $info['grams_person'] / 100 / $days;
 
 			$rows    = array();
 			$spreads = array_fill_keys( self::NUTRITION_KEYS, array() );
@@ -912,9 +897,8 @@ class Mixmymeals_Meal_Plan {
 				$with   = $ingredient->get_nutrition_with_product( $product->get_id() );
 				$stated = $product->get_nutrition();
 
-				$deltas      = array();
-				$deltas_meal = array();
-				$known       = array();
+				$deltas = array();
+				$known  = array();
 
 				foreach ( self::NUTRITION_KEYS as $key ) {
 
@@ -935,15 +919,11 @@ class Mixmymeals_Meal_Plan {
 					$known[ $key ] = null !== ( $stated[ $field ] ?? null );
 
 					if ( ! $known[ $key ] ) {
-						$deltas[ $key ]      = null;
-						$deltas_meal[ $key ] = null;
+						$deltas[ $key ] = null;
 						continue;
 					}
 
-					$difference = (float) ( $with[ $field ] ?? 0 ) - (float) ( $now[ $field ] ?? 0 );
-
-					$deltas[ $key ]      = $difference * $factor;
-					$deltas_meal[ $key ] = $difference * $factor_meal;
+					$deltas[ $key ] = ( (float) ( $with[ $field ] ?? 0 ) - (float) ( $now[ $field ] ?? 0 ) ) * $factor;
 
 					$spreads[ $key ][] = $deltas[ $key ];
 
@@ -956,7 +936,6 @@ class Mixmymeals_Meal_Plan {
 					'id'           => $product->get_id(),
 					'title'        => $product->get_title(),
 					'deltas'       => $deltas,
-					'deltas_meal'  => $deltas_meal,
 					'stated'       => $known,
 					'is_reference' => $reference > 0 && $reference === $product->get_id(),
 				);

@@ -7482,7 +7482,6 @@ class Mixmymeals_Shortcodes {
 
 			<p class="mmm-product-impact__intro">
 				<?php esc_html_e( 'Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily nutrition per person.', 'mixmymeals' ); ?>
-				<?php esc_html_e( 'The smaller figure below it is the same difference in the meal the ingredient actually appears in — averaged over those meals where there are several.', 'mixmymeals' ); ?>
 			</p>
 
 			<?php foreach ( $groups as $mmm_group ) : ?>
@@ -7529,45 +7528,26 @@ class Mixmymeals_Shortcodes {
 										<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $mmm_group['current'][ $mmm_key ] ?? 0 ) ) ); ?>
 									</td>
 									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
-										<?php
-										$mmm_delta = $mmm_row['deltas'][ $mmm_key ] ?? null;
-										$mmm_meal  = $mmm_row['deltas_meal'][ $mmm_key ] ?? null;
-
-										/*
-										 * A dash where the product states
-										 * nothing. It takes no part in the
-										 * comparison at all — the same rule
-										 * the product table on the ingredient
-										 * page follows, and for the same
-										 * reason: this is a claim about
-										 * somebody else's packet, and the
-										 * packet is silent.
-										 */
-										$mmm_day_text = null === $mmm_delta
-											? '—'
-											: $this->format_nutrition_delta( $mmm_key, 0.0, (float) $mmm_delta );
-
-										$mmm_meal_text = null === $mmm_meal
-											? ''
-											: $this->format_nutrition_delta( $mmm_key, 0.0, (float) $mmm_meal );
-										?>
+										<?php $mmm_delta = $mmm_row['deltas'][ $mmm_key ] ?? null; ?>
 										<td class="mmm-product-impact__delta"
 											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
-											<span class="mmm-product-impact__day"><?php echo esc_html( $mmm_day_text ); ?></span>
 											<?php
 											/*
-											 * Only when it says something the
-											 * line above did not. On the
-											 * product already in use both are
-											 * ±0, and printing that twice in
-											 * every row of every table is noise
-											 * standing where information should
-											 * be.
+											 * A dash where the product states
+											 * nothing. It takes no part in the
+											 * comparison at all — the same rule
+											 * the product table on the
+											 * ingredient page follows, and for
+											 * the same reason: this is a claim
+											 * about somebody else's packet, and
+											 * the packet is silent.
 											 */
-											if ( '' !== $mmm_meal_text && $mmm_meal_text !== $mmm_day_text ) :
-												?>
-												<span class="mmm-product-impact__per-meal"><?php echo esc_html( $mmm_meal_text ); ?></span>
-											<?php endif; ?>
+											echo esc_html(
+												null === $mmm_delta
+													? '—'
+													: $this->format_nutrition_delta( $mmm_key, 0.0, (float) $mmm_delta )
+											);
+											?>
 										</td>
 									<?php endforeach; ?>
 								</tr>

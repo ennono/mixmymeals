@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.14.0
+Stable tag: 3.14.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,18 +110,18 @@ privacy text under Settings → Privacy after installation.
 
 == Changelog ==
 
+= 3.14.1 =
+
+Removed:
+* The per-meal figure added in 3.14.0. Two numbers stacked in every cell of a
+  seven-row table made it hard to read, and a comparison nobody can scan is
+  worth less than the information the second number added.
+
 = 3.14.0 =
 
 Added:
-* Every difference in the plan's product comparison now carries a second,
-  smaller figure: the same difference in the meal the ingredient appears in,
-  averaged over those meals where there are several. It is suppressed where it
-  would only repeat the line above it.
-
-Why: the daily average dilutes a real choice into nothing. Fish fingers in one
-meal of a seven-day plan turn a 28 kcal difference per 100 g into six
-kilocalories a day, and nobody decides anything on six kilocalories. Per meal
-it is the full 42, which is the portion actually in front of somebody.
+* A second, smaller figure under every difference: the same difference in the
+  meal the ingredient appears in. Removed again in 3.14.1.
 
 = 3.13.1 =
 
@@ -639,8 +639,8 @@ Changed:
 
 == Upgrade Notice ==
 
-= 3.14.0 =
-The product comparison also states each difference per meal.
+= 3.14.1 =
+Reverts the per-meal figure; the comparison reads one number per cell again.
 
 = 3.13.1 =
 Fixes the meal count beside an ingredient in the product comparison.

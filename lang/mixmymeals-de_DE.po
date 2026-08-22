@@ -1632,16 +1632,16 @@ msgstr "Schritt %d"
 msgid "Serving"
 msgstr "Portion"
 
-#: includes/lib/class-mixmymeals-meal-plan.php:1211
+#: includes/lib/class-mixmymeals-meal-plan.php:1190
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:877
-#: includes/lib/class-mixmymeals-shortcodes.php:7647
-#: includes/lib/class-mixmymeals-shortcodes.php:7923
+#: includes/lib/class-mixmymeals-shortcodes.php:7627
+#: includes/lib/class-mixmymeals-shortcodes.php:7903
 msgid "Other"
 msgstr "Sonstiges"
 
-#: includes/lib/class-mixmymeals-meal-plan.php:1219
+#: includes/lib/class-mixmymeals-meal-plan.php:1198
 msgid "All Ingredients"
 msgstr "Alle Zutaten"
 
@@ -3166,14 +3166,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7767
+#: includes/lib/class-mixmymeals-shortcodes.php:7747
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7852
+#: includes/lib/class-mixmymeals-shortcodes.php:7832
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4120,14 +4120,14 @@ msgid "Source: %s"
 msgstr "Quelle: %s"
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:7497
+#: includes/lib/class-mixmymeals-shortcodes.php:7496
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] "in %s Mahlzeit"
 msgstr[1] "in %s Mahlzeiten"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7517
+#: includes/lib/class-mixmymeals-shortcodes.php:7516
 msgid "currently used"
 msgstr "aktuell verwendet"
 
@@ -4135,16 +4135,12 @@ msgstr "aktuell verwendet"
 msgid "Some ingredients of this plan can be bought as more than one product. This is what each choice would do to the daily nutrition per person."
 msgstr "Einige Zutaten dieses Plans gibt es als mehrere Produkte. Hier steht, was die jeweilige Wahl an den Nährwerten je Tag und Person ändert."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7508
-#: includes/lib/class-mixmymeals-shortcodes.php:7527
+#: includes/lib/class-mixmymeals-shortcodes.php:7507
+#: includes/lib/class-mixmymeals-shortcodes.php:7526
 msgid "Per day and person"
 msgstr "Je Tag und Person"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7509
-#: includes/lib/class-mixmymeals-shortcodes.php:7528
+#: includes/lib/class-mixmymeals-shortcodes.php:7508
+#: includes/lib/class-mixmymeals-shortcodes.php:7527
 msgid "As planned"
 msgstr "Wie geplant"
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7485
-msgid "The smaller figure below it is the same difference in the meal the ingredient actually appears in — averaged over those meals where there are several."
-msgstr "Die kleinere Zahl darunter ist dieselbe Abweichung in der Mahlzeit, in der die Zutat vorkommt — bei mehreren gemittelt."
