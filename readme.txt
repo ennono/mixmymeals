@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.17.0
+Stable tag: 3.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,24 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.18.0 =
+
+Added:
+* Products carry their own vegan/vegetarian classification. Where one is set,
+  it overrides the ingredient's — in both directions, since a product can be
+  stricter (pasta with egg) or more precise (a margarine certified vegan where
+  the ingredient was only marked vegetarian). Editable on the ingredient
+  screen, and available over REST and MCP as `diet_type`.
+* Left empty, the packet counts as unchecked and the ingredient's own
+  classification stands.
+
+Why: this varies by brand, not by ingredient. Pasta is vegan until a
+manufacturer puts egg in it, cheese vegetarian until one uses animal rennet.
+
+Note: because it resolves through the reference product, choosing one can
+change what a recipe is labelled — including making it vegan. That label is
+only as good as the product data behind it.
 
 = 3.17.0 =
 
@@ -694,6 +712,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.18.0 =
+Products can carry their own vegan/vegetarian classification.
 
 = 3.17.0 =
 An asterisk replaces the "currently used" label; the theme supplies its legend.

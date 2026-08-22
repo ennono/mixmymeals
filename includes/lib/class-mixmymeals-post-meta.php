@@ -1889,6 +1889,7 @@ class Mixmymeals_Post_Meta {
 			}
 
 			$product->set_brand( isset( $row['brand'] ) ? (string) $row['brand'] : '' );
+			$product->set_diet_type( isset( $row['diet_type'] ) ? (string) $row['diet_type'] : '' );
 			$product->set_source( isset( $row['source'] ) ? (string) $row['source'] : '' );
 			$product->set_package_weight( isset( $row['package_weight'] ) ? (float) $row['package_weight'] : 0.0 );
 
@@ -2022,7 +2023,28 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $is_new || ! $product->get_package_weight() ? '' : (string) $product->get_package_weight() )
 			. '"></label></td>';
 
-		echo '<td class="mmm-products__actions" colspan="2">';
+		echo '<td><label class="mmm-products__field">'
+			. '<span>' . esc_html__( 'Diet', 'mixmymeals' ) . '</span>'
+			. '<select name="' . esc_attr( $name ) . '[diet_type]">';
+		/*
+		 * The empty option says what it does. "—" would read as "no diet
+		 * information anywhere", when it means the ingredient's own
+		 * classification stands.
+		 */
+		foreach (
+			array(
+				''           => __( 'Same as ingredient', 'mixmymeals' ),
+				'vegan'      => __( 'Vegan', 'mixmymeals' ),
+				'vegetarian' => __( 'Vegetarian', 'mixmymeals' ),
+			) as $mmm_value => $mmm_label
+		) {
+			echo '<option value="' . esc_attr( $mmm_value ) . '"'
+				. selected( $is_new ? '' : $product->get_diet_type(), $mmm_value, false ) . '>'
+				. esc_html( $mmm_label ) . '</option>';
+		}
+		echo '</select></label></td>';
+
+		echo '<td class="mmm-products__actions">';
 		if ( ! $is_new ) {
 			echo '<label class="mmm-products__use"><input type="radio" name="mmm_products_reference" value="'
 				. esc_attr( (string) $id ) . '" ' . checked( $reference, $id, false ) . '> '

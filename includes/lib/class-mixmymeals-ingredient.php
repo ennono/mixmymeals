@@ -419,8 +419,39 @@ class Mixmymeals_Ingredient {
 	 * @return string 'vegan', 'vegetarian', or '' if not set.
 	 */
 	public function get_diet_type(): string {
+
 		$value = $this->get_meta_value( '_mmm_diet_type' );
-		return in_array( $value, [ 'vegan', 'vegetarian' ], true ) ? $value : '';
+		$own   = in_array( $value, [ 'vegan', 'vegetarian' ], true ) ? $value : '';
+
+		if ( ! $this->is_valid() ) {
+			return $own;
+		}
+
+		/*
+		 * The reference product overrides, exactly as it does for nutrition and
+		 * for the same reason: it is the concrete article, and the ingredient
+		 * can only carry what is usually true. Pasta is vegan until a
+		 * manufacturer puts egg in it.
+		 *
+		 * Both directions, not only downwards. A product certified vegan where
+		 * the ingredient was cautiously marked vegetarian is the more accurate
+		 * statement, and refusing it would keep a correct label off the page.
+		 *
+		 * Resolved here because this is the single place an ingredient's diet
+		 * type is read — Mixmymeals_Recipe::get_diet_type(), the badges, the
+		 * schema and the filters all follow without knowing products exist.
+		 */
+		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+
+		if ( $reference ) {
+			$product = ( new Mixmymeals_Product( $reference ) )->get_diet_type();
+
+			if ( '' !== $product ) {
+				return $product;
+			}
+		}
+
+		return $own;
 	}
 
 	public function set_diet_type( string $type ): void {

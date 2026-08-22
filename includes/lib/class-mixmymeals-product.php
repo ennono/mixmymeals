@@ -80,6 +80,22 @@ class Mixmymeals_Product {
 	const META_SOURCE = '_mmm_product_source';
 
 	/**
+	 * Whether this particular article is vegan or vegetarian.
+	 *
+	 * Its own field because this is a brand property, not an ingredient one:
+	 * pasta is vegan until a manufacturer puts egg in it, cheese is vegetarian
+	 * until one uses animal rennet, yoghurt until one sets it with gelatine.
+	 * The ingredient can only carry what is usually true.
+	 *
+	 * Empty means the packet was not checked, and the ingredient's own
+	 * classification stands — the same "silence is not a claim" rule the
+	 * nutrition fields keep.
+	 *
+	 * @var string
+	 */
+	const META_DIET_TYPE = '_mmm_product_diet_type';
+
+	/**
 	 * Post ID.
 	 *
 	 * @var int
@@ -560,6 +576,46 @@ class Mixmymeals_Product {
 		usort( $groups, static fn( $a, $b ) => $b['weight'] <=> $a['weight'] );
 
 		return $groups;
+	}
+
+	/**
+	 * This product's diet classification.
+	 *
+	 * @return string 'vegan', 'vegetarian', or '' when the packet was not checked.
+	 */
+	public function get_diet_type(): string {
+
+		if ( ! $this->is_valid() ) {
+			return '';
+		}
+
+		$value = get_post_meta( $this->post_id, self::META_DIET_TYPE, true );
+
+		return in_array( $value, array( 'vegan', 'vegetarian' ), true ) ? $value : '';
+	}
+
+	/**
+	 * Stores the diet classification, or clears it.
+	 *
+	 * Anything that is not one of the two known values clears the field rather
+	 * than being stored: this decides whether a public "vegan" label appears,
+	 * and a value nobody can interpret must not be able to produce one.
+	 *
+	 * @param string $type 'vegan', 'vegetarian', or '' to clear.
+	 * @return void
+	 */
+	public function set_diet_type( string $type ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( ! in_array( $type, array( 'vegan', 'vegetarian' ), true ) ) {
+			delete_post_meta( $this->post_id, self::META_DIET_TYPE );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_DIET_TYPE, $type );
 	}
 
 	/* ---------------------------------------------------------------------

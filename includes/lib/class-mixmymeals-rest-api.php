@@ -350,6 +350,7 @@ class Mixmymeals_Rest_Api {
 				'brand'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
 				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
 				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
 			),
@@ -376,6 +377,7 @@ class Mixmymeals_Rest_Api {
 				'brand'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
 				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
 				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
 			),
@@ -531,6 +533,10 @@ class Mixmymeals_Rest_Api {
 			'brand'          => $product->get_brand(),
 			'package_weight' => $product->get_package_weight(),
 			'source'         => $product->get_source(),
+			// '' means the packet was not checked and the ingredient's own
+			// classification stands, which a client must be able to tell from
+			// a positive "not vegan".
+			'diet_type'      => $product->get_diet_type(),
 			/*
 			 * Raw, with nulls kept: null means the packet does not state the
 			 * value, which is a different claim from zero. A client merging
@@ -556,6 +562,7 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'brand' ) )          $product->set_brand( (string) $request->get_param( 'brand' ) );
 		if ( $request->has_param( 'source' ) )         $product->set_source( (string) $request->get_param( 'source' ) );
 		if ( $request->has_param( 'package_weight' ) ) $product->set_package_weight( (float) $request->get_param( 'package_weight' ) );
+		if ( $request->has_param( 'diet_type' ) )      $product->set_diet_type( (string) $request->get_param( 'diet_type' ) );
 
 		if ( $request->has_param( 'nutrition' ) ) {
 			$nutrition = (array) $request->get_param( 'nutrition' );
