@@ -2437,10 +2437,16 @@ class Mixmymeals_Subscriptions {
 					? ' <span style="color:#6B665B;">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
 					: '';
 
+				// The product the figures assume, where one was chosen.
+				$reference_label = Mixmymeals_Product::reference_label( (int) $ing_id );
+
 				$out .= '<li style="padding:4px 0;border-bottom:1px solid #ECE6D9;">'
 					. '<strong style="font-weight:600;">' . esc_html( $ing_name ) . '</strong>'
 					. ( '' !== $amount ? ' <span style="color:#6B665B;">' . esc_html( $amount ) . '</span>' : '' )
 					. $optional_label
+					. ( '' !== $reference_label
+						? '<br><span style="color:#6B665B;font-size:13px;">' . esc_html( $reference_label ) . '</span>'
+						: '' )
 					. '</li>';
 			}
 

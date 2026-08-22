@@ -2431,6 +2431,20 @@ class Mixmymeals_Shortcodes {
 						             . '<span class="mmm-shopping-item-amount">'
 						             . esc_html( $needed_amount )
 						             . '</span>';
+
+						/*
+						 * The product the plan was costed with, where one was
+						 * chosen. A suggestion, not an instruction — the
+						 * figures on this page assume it, so somebody buying
+						 * something else should at least know which packet the
+						 * numbers came from.
+						 */
+						$reference_label = Mixmymeals_Product::reference_label( (int) $ing_id );
+
+						if ( '' !== $reference_label ) {
+							$item_html .= ' <span class="mmm-shopping-item-product">'
+								. esc_html( $reference_label ) . '</span>';
+						}
 						?>
 
                         <li class="mmm-shopping-item">

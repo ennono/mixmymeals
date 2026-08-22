@@ -655,6 +655,38 @@ class Mixmymeals_Product {
 	 * ------------------------------------------------------------------ */
 
 	/**
+	 * How to name the reference product of an ingredient on a shopping list.
+	 *
+	 * Brand first, because that is what a shelf is organised by: "Barilla Penne
+	 * Rigate" is findable, "Penne Rigate" is a shape. Falls back to the plain
+	 * title for products from before the brand became required.
+	 *
+	 * Empty when the ingredient has no reference — nothing was chosen, so
+	 * nothing should be suggested.
+	 *
+	 * @param int $ingredient_id Ingredient ID.
+	 * @return string Plain text, unescaped.
+	 */
+	public static function reference_label( int $ingredient_id ): string {
+
+		$reference = self::get_reference_id( $ingredient_id );
+
+		if ( ! $reference ) {
+			return '';
+		}
+
+		$product = new self( $reference );
+		$brand   = $product->get_brand();
+		$title   = $product->get_title();
+
+		if ( '' === $title ) {
+			return '';
+		}
+
+		return '' === $brand ? $title : $brand . ' ' . $title;
+	}
+
+	/**
 	 * Meta on the *ingredient* naming the product its figures resolve through.
 	 *
 	 * @var string

@@ -453,10 +453,19 @@ class Mixmymeals_Meal_Plan_PDF {
 					if ( $is_optional ) {
 						$main_line .= ' (' . __( 'optional', 'mixmymeals' ) . ')';
 					}
+
+					// The product the figures assume, where one was chosen.
+					// This is the sheet somebody actually carries round a shop.
+					$reference_label = Mixmymeals_Product::reference_label( (int) $ing_id );
 					?>
                     <tr>
                         <td style="text-align:center;">☐</td>
-                        <td><?php echo esc_html( $main_line ); ?></td>
+                        <td>
+							<?php echo esc_html( $main_line ); ?>
+							<?php if ( '' !== $reference_label ) : ?>
+                                <br><span style="color:#6B665B;font-size:9pt;"><?php echo esc_html( $reference_label ); ?></span>
+							<?php endif; ?>
+                        </td>
                         <td><?php echo esc_html( number_format_i18n( $total_weight,
 								2 ) ); ?> g
                         </td>

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.20.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.21.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -139,6 +139,8 @@ The two levels answer different questions. An ingredient carries figures good en
 Resolved in `Mixmymeals_Ingredient::get_diet_type()` because that is the single place an ingredient's classification is read, so `Mixmymeals_Recipe::get_diet_type()`, the badges, `suitableForDiet` in the schema and the search filters all follow. **Note the consequence**: setting a reference product can change what a recipe is publicly labelled, including making it vegan. Unlike a kilocalorie, that is a claim people act on — the label is only as good as the product row behind it.
 
 **The ingredient resolves through its reference product** (`_mmm_reference_product` on the ingredient, managed by `Mixmymeals_Product::get_reference_id()` / `set_reference_id()`). `Mixmymeals_Ingredient::get_nutrition()` merges the two **key by key**, product first: a packet often states energy and fat and nothing else, and discarding those two because the other five are missing would be the wrong trade. `weight_item` is never overridden — it describes the ingredient (one medium onion), not a packet. Because that getter is the single read path, every channel follows without knowing products exist.
+
+`Mixmymeals_Product::reference_label()` is how a chosen product is named on a shopping list — brand first ("Barilla Penne Rigate"), falling back to the title alone for products from before the brand became required, and empty when nothing was chosen. All three renderings of the list use it: the plan page, the PDF and `Mixmymeals_Subscriptions::render_ingredient_list()` (which also serves the daily list in mails). **Not** the Bring! export: those lines are parsed by Bring! itself and a brand would change what the app splits on.
 
 `get_reference_id()` re-validates on every read and returns 0 when the stored product was deleted or now hangs off a different ingredient, and `set_reference_id()` refuses a product belonging elsewhere. `set_nutrition()` deletes a key given as null or '' rather than storing zero: "not stated on the packet" and "contains none" are different claims, and the second is a claim about somebody else's product. `_mmm_product_source` exists for the same reason — these figures go stale when a recipe changes, and without a note saying where a number came from nobody can tell a current one from a four-year-old one.
 

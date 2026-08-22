@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.20.0
+Stable tag: 3.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.21.0 =
+
+Added:
+* Where an ingredient has a reference product, the shopping list names it under
+  the amount — brand first, since that is what a shelf is organised by. On the
+  plan page, in the PDF and in the subscription mails, which also means it
+  appears in the daily ingredient list.
+
+Why: the figures on the page assume that packet. Somebody buying a different
+one is not doing anything wrong, but they should be able to see which one the
+numbers came from.
+
+The Bring! export is deliberately untouched. Its lines are parsed by Bring!
+itself, and a brand in them would change what the app splits on.
 
 = 3.20.0 =
 
@@ -752,6 +767,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.21.0 =
+Shopping lists name the chosen product.
 
 = 3.20.0 =
 Brands are shown in the comparison and are now required. API clients must send `brand` when creating a product.
