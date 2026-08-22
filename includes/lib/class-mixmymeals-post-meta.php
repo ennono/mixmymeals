@@ -1989,12 +1989,12 @@ class Mixmymeals_Post_Meta {
 		$is_new = null === $product;
 		$id     = $is_new ? 0 : $product->get_id();
 
-		$field = static function ( string $key, string $label, $value, string $extra = '' ) use ( $name ): void {
+		$field = static function ( string $key, string $label, $value ) use ( $name ): void {
 			echo '<label class="mmm-products__field">'
 				. '<span>' . esc_html( $label ) . '</span>'
 				. '<input type="number" step="0.01" min="0" name="'
 				. esc_attr( $name ) . '[' . esc_attr( $key ) . ']" value="'
-				. esc_attr( null === $value || '' === $value ? '' : (string) $value ) . '" ' . $extra . '>'
+				. esc_attr( null === $value || '' === $value ? '' : (string) $value ) . '">'
 				. '</label>';
 		};
 

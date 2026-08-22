@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.18.0
+Stable tag: 3.18.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.18.1 =
+
+Fixed:
+* Removed an unused, unescaped parameter from the products meta box. No caller
+  ever passed it, so nothing could reach the page through it, but it tripped
+  the escaping check and would have been a hole the day somebody used it.
 
 = 3.18.0 =
 
@@ -712,6 +719,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.18.1 =
+Internal cleanup in the products meta box.
 
 = 3.18.0 =
 Products can carry their own vegan/vegetarian classification.
