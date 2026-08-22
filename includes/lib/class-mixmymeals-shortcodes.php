@@ -7476,8 +7476,7 @@ class Mixmymeals_Shortcodes {
 
 		return $this->render_product_impact(
 			$plan->calc_product_impact(),
-			__( 'Per day and person', 'mixmymeals' ),
-			__( 'As planned', 'mixmymeals' )
+			__( 'Per day and person', 'mixmymeals' )
 		);
 	}
 
@@ -7520,8 +7519,7 @@ class Mixmymeals_Shortcodes {
 
 		return $this->render_product_impact(
 			$recipe->calc_product_impact(),
-			__( 'Per serving', 'mixmymeals' ),
-			__( 'As it stands', 'mixmymeals' )
+			__( 'Per serving', 'mixmymeals' )
 		);
 	}
 
@@ -7535,12 +7533,11 @@ class Mixmymeals_Shortcodes {
 	 * would have meant two tables that drift apart in everything but the
 	 * arithmetic.
 	 *
-	 * @param array  $groups        From Mixmymeals_Product::impact_groups().
-	 * @param string $unit_label    Heading of the nutrition column, e.g. "Per serving".
-	 * @param string $current_label Heading of the column holding today's figures.
+	 * @param array  $groups     From Mixmymeals_Product::impact_groups().
+	 * @param string $unit_label Heading of the nutrition column, e.g. "Per serving".
 	 * @return string
 	 */
-	private function render_product_impact( array $groups, string $unit_label, string $current_label ): string {
+	private function render_product_impact( array $groups, string $unit_label ): string {
 
 		if ( empty( $groups ) ) {
 			return '';
@@ -7575,7 +7572,6 @@ class Mixmymeals_Shortcodes {
 							<thead>
 							<tr>
 								<th><?php echo esc_html( $unit_label ); ?></th>
-								<th><?php echo esc_html( $current_label ); ?></th>
 								<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
 									<th>
 										<div class="mmm-product-impact__product">
@@ -7594,30 +7590,34 @@ class Mixmymeals_Shortcodes {
 							<?php foreach ( $labels as $mmm_key => $mmm_label ) : ?>
 								<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
 									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php echo esc_html( $mmm_label ); ?></td>
-									<td class="mmm-product-impact__base" data-label="<?php echo esc_attr( $current_label ); ?>">
-										<?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $mmm_group['current'][ $mmm_key ] ?? 0 ) ) ); ?>
-									</td>
 									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
-										<?php $mmm_delta = $mmm_row['deltas'][ $mmm_key ] ?? null; ?>
-										<td class="mmm-product-impact__delta"
+										<?php
+										/*
+										 * The anchor states what the dish
+										 * holds; every other column states the
+										 * difference to it. A dash where the
+										 * product says nothing at all: it takes
+										 * no part in the comparison, the same
+										 * rule the product table on the
+										 * ingredient page follows, and for the
+										 * same reason — this is a claim about
+										 * somebody else's packet and the packet
+										 * is silent.
+										 */
+										if ( $mmm_row['is_anchor'] ) {
+											$mmm_text  = Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $mmm_row['values'][ $mmm_key ] ?? 0 ) );
+											$mmm_class = 'mmm-product-impact__base';
+										} else {
+											$mmm_delta = $mmm_row['deltas'][ $mmm_key ] ?? null;
+											$mmm_text  = null === $mmm_delta
+												? '—'
+												: $this->format_nutrition_delta( $mmm_key, 0.0, (float) $mmm_delta );
+											$mmm_class = 'mmm-product-impact__delta';
+										}
+										?>
+										<td class="<?php echo esc_attr( $mmm_class ); ?>"
 											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
-											<?php
-											/*
-											 * A dash where the product states
-											 * nothing. It takes no part in the
-											 * comparison at all — the same rule
-											 * the product table on the
-											 * ingredient page follows, and for
-											 * the same reason: this is a claim
-											 * about somebody else's packet, and
-											 * the packet is silent.
-											 */
-											echo esc_html(
-												null === $mmm_delta
-													? '—'
-													: $this->format_nutrition_delta( $mmm_key, 0.0, (float) $mmm_delta )
-											);
-											?>
+											<?php echo esc_html( $mmm_text ); ?>
 										</td>
 									<?php endforeach; ?>
 								</tr>

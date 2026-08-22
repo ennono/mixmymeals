@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.15.0
+Stable tag: 3.16.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.16.0 =
+
+Changed:
+* The product comparison has no separate "as planned" column any more. The
+  reference product leads the table with its own absolute figures instead of a
+  column of ±0, and where no reference is set a "Typical values" column of the
+  ingredient's own figures takes that place. Every other column still states
+  its difference to it.
+
+Why: the extra column repeated what the leading one already said. Whichever
+product is in use is what the dish or plan currently holds, so it can carry
+those numbers itself.
 
 = 3.15.0 =
 
@@ -666,6 +679,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.16.0 =
+The product comparison drops its separate "as planned" column.
 
 = 3.15.0 =
 Meals show the product comparison too, per serving.

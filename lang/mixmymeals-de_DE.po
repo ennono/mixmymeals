@@ -1563,7 +1563,7 @@ msgid "Meal"
 msgstr "Mahlzeit"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:261
-#: includes/lib/class-mixmymeals-shortcodes.php:7523
+#: includes/lib/class-mixmymeals-shortcodes.php:7522
 msgid "Per serving"
 msgstr "Pro Portion"
 
@@ -4121,14 +4121,14 @@ msgid "Source: %s"
 msgstr "Quelle: %s"
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:7565
+#: includes/lib/class-mixmymeals-shortcodes.php:7562
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] "in %s Mahlzeit"
 msgstr[1] "in %s Mahlzeiten"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7586
+#: includes/lib/class-mixmymeals-shortcodes.php:7582
 msgid "currently used"
 msgstr "aktuell verwendet"
 
@@ -4136,10 +4136,6 @@ msgstr "aktuell verwendet"
 msgid "Per day and person"
 msgstr "Je Tag und Person"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7480
-msgid "As planned"
-msgstr "Wie geplant"
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7524
-msgid "As it stands"
-msgstr "Wie angelegt"
+#: includes/lib/class-mixmymeals-product.php:516
+msgid "Typical values"
+msgstr "Übliche Werte"

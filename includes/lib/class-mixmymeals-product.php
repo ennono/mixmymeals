@@ -372,6 +372,14 @@ class Mixmymeals_Product {
 	 * one person eats and the figures those grams already produce, and get the
 	 * same shape back — which is why one renderer can draw either.
 	 *
+	 * One column anchors each table and carries absolute figures; the rest carry
+	 * differences to it. The anchor is the reference product where the
+	 * ingredient has one — the packet actually in use — and otherwise a column
+	 * of the ingredient's own typical values, which is what the dish is
+	 * computed from when no product is chosen. Either way the anchor holds
+	 * exactly $current, so it replaces the separate "as planned" column rather
+	 * than sitting beside it as a row of ±0.
+	 *
 	 * Only ingredients with several products, and only where at least one
 	 * figure moves far enough to be printed. A page of ±0 answers no question.
 	 *
@@ -459,12 +467,19 @@ class Mixmymeals_Product {
 					}
 				}
 
+				$is_reference = $reference > 0 && $reference === $product->get_id();
+
 				$rows[] = array(
 					'id'           => $product->get_id(),
 					'title'        => $product->get_title(),
 					'deltas'       => $deltas,
 					'stated'       => $known,
-					'is_reference' => $reference > 0 && $reference === $product->get_id(),
+					'is_reference' => $is_reference,
+					'is_anchor'    => $is_reference,
+					// Absolute figures for the anchor only. Its deltas are all
+					// zero by construction, and a column of ±0 tells nobody
+					// what they currently have.
+					'values'       => $is_reference ? $current : null,
 				);
 			}
 
@@ -480,12 +495,33 @@ class Mixmymeals_Product {
 			usort(
 				$rows,
 				static function ( $a, $b ) {
-					$rank = static fn( $r ) => null === $r['deltas']['calories'] ? 1 : 0;
+					$rank = static fn( $r ) => $r['is_anchor'] ? -1 : ( null === $r['deltas']['calories'] ? 1 : 0 );
 
 					return array( $rank( $a ), (float) $a['deltas']['calories'] )
 						<=> array( $rank( $b ), (float) $b['deltas']['calories'] );
 				}
 			);
+
+			/*
+			 * With no reference product the differences are measured against
+			 * the ingredient's own figures, and nothing on screen says what
+			 * those are. A column for them, first, so the table still starts
+			 * from something concrete.
+			 */
+			if ( 0 === $reference ) {
+				array_unshift(
+					$rows,
+					array(
+						'id'           => 0,
+						'title'        => __( 'Typical values', 'mixmymeals' ),
+						'deltas'       => array_fill_keys( $keys, 0.0 ),
+						'stated'       => array_fill_keys( $keys, true ),
+						'is_reference' => false,
+						'is_anchor'    => true,
+						'values'       => $current,
+					)
+				);
+			}
 
 			/*
 			 * Ranked by the biggest spread measured against the reference
