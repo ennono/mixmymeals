@@ -7529,9 +7529,14 @@ class Mixmymeals_Shortcodes {
 	 * product.
 	 *
 	 * Shared by the plan and the dish, which differ only in what their figures
-	 * are per — and therefore in two column headings. Writing the markup twice
+	 * are per — and therefore in one column heading. Writing the markup twice
 	 * would have meant two tables that drift apart in everything but the
 	 * arithmetic.
+	 *
+	 * The product currently supplying an ingredient's figures is marked with an
+	 * asterisk carrying the class mmm-product-impact__ref-mark. Explaining it is
+	 * the caller's job: a legend is page copy, and a caller can look for that
+	 * class to find out whether any table here earned one.
 	 *
 	 * @param array  $groups     From Mixmymeals_Product::impact_groups().
 	 * @param string $unit_label Heading of the nutrition column, e.g. "Per serving".
@@ -7576,12 +7581,20 @@ class Mixmymeals_Shortcodes {
 									<th>
 										<div class="mmm-product-impact__product">
 											<?php echo esc_html( $mmm_row['title'] ); ?>
+											<?php if ( $mmm_row['is_reference'] ) : ?>
+												<?php
+												/*
+												 * A marker, not a sentence. What
+												 * it means is a legend under the
+												 * tables, which belongs to
+												 * whoever places this on a page —
+												 * the class is how they can tell
+												 * whether any table earned one.
+												 */
+												?>
+												<span class="mmm-product-impact__ref-mark">*</span>
+											<?php endif; ?>
 										</div>
-										<?php if ( $mmm_row['is_reference'] ) : ?>
-											<div class="mmm-product-impact__current">
-												<?php esc_html_e( 'currently used', 'mixmymeals' ); ?>
-											</div>
-										<?php endif; ?>
 									</th>
 								<?php endforeach; ?>
 							</tr>

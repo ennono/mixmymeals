@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MixMyMeals 3.15.0\n"
+"Project-Id-Version: MixMyMeals 3.16.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mixmymeals\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-22T15:13:15+00:00\n"
+"POT-Creation-Date: 2026-08-22T15:19:12+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mixmymeals\n"
@@ -1747,8 +1747,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:879
-#: includes/lib/class-mixmymeals-shortcodes.php:7697
-#: includes/lib/class-mixmymeals-shortcodes.php:7973
+#: includes/lib/class-mixmymeals-shortcodes.php:7710
+#: includes/lib/class-mixmymeals-shortcodes.php:7986
 msgid "Other"
 msgstr ""
 
@@ -3462,26 +3462,22 @@ msgid "Per day and person"
 msgstr ""
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:7562
+#: includes/lib/class-mixmymeals-shortcodes.php:7567
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7582
-msgid "currently used"
-msgstr ""
-
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7817
+#: includes/lib/class-mixmymeals-shortcodes.php:7830
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7902
+#: includes/lib/class-mixmymeals-shortcodes.php:7915
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr ""
 

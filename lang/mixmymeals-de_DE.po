@@ -1637,8 +1637,8 @@ msgstr "Portion"
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1499
 #: includes/lib/class-mixmymeals-shortcodes.php:879
-#: includes/lib/class-mixmymeals-shortcodes.php:7697
-#: includes/lib/class-mixmymeals-shortcodes.php:7973
+#: includes/lib/class-mixmymeals-shortcodes.php:7710
+#: includes/lib/class-mixmymeals-shortcodes.php:7986
 msgid "Other"
 msgstr "Sonstiges"
 
@@ -3167,14 +3167,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:7817
+#: includes/lib/class-mixmymeals-shortcodes.php:7830
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7902
+#: includes/lib/class-mixmymeals-shortcodes.php:7915
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4121,16 +4121,12 @@ msgid "Source: %s"
 msgstr "Quelle: %s"
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:7562
+#: includes/lib/class-mixmymeals-shortcodes.php:7567
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] "in %s Mahlzeit"
 msgstr[1] "in %s Mahlzeiten"
-
-#: includes/lib/class-mixmymeals-shortcodes.php:7582
-msgid "currently used"
-msgstr "aktuell verwendet"
 
 #: includes/lib/class-mixmymeals-shortcodes.php:7479
 msgid "Per day and person"

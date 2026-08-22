@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.16.0
+Stable tag: 3.17.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.17.0 =
+
+Changed:
+* The product currently supplying an ingredient's figures is marked with an
+  asterisk after its name instead of a "currently used" line under it. The
+  heading row is one line again.
+* Explaining the asterisk is the theme's job. The marker carries the class
+  `mmm-product-impact__ref-mark`, so a caller can look for it and print a
+  legend only when a table actually earned one — the bundled child theme does
+  exactly that under both tables.
+
+Note for anyone calling the shortcodes outside the bundled theme: the words
+"currently used" are no longer in the output. Add a legend, or the asterisk
+stands unexplained.
 
 = 3.16.0 =
 
@@ -679,6 +694,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.17.0 =
+An asterisk replaces the "currently used" label; the theme supplies its legend.
 
 = 3.16.0 =
 The product comparison drops its separate "as planned" column.
