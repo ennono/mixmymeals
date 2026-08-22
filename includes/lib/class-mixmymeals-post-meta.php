@@ -1859,8 +1859,10 @@ class Mixmymeals_Post_Meta {
 			if ( 'new' === $key ) {
 
 				// An empty name means the row was left blank, not that someone
-				// wants a nameless product.
-				if ( '' === $title ) {
+				// wants a nameless product. A brand is required too, and left
+				// out it means the same thing — a half-filled row is not a
+				// product anybody could find in a shop.
+				if ( '' === $title || '' === trim( (string) ( $row['brand'] ?? '' ) ) ) {
 					continue;
 				}
 
@@ -1888,7 +1890,17 @@ class Mixmymeals_Post_Meta {
 				}
 			}
 
-			$product->set_brand( isset( $row['brand'] ) ? (string) $row['brand'] : '' );
+			/*
+			 * An empty brand on an existing product is not stored. The form
+			 * marks the field required, so this only happens when something
+			 * bypassed it — and blanking a brand that is there is a loss, not
+			 * an edit.
+			 */
+			$brand = isset( $row['brand'] ) ? trim( (string) $row['brand'] ) : '';
+
+			if ( '' !== $brand ) {
+				$product->set_brand( $brand );
+			}
 			$product->set_diet_type( isset( $row['diet_type'] ) ? (string) $row['diet_type'] : '' );
 			$product->set_source( isset( $row['source'] ) ? (string) $row['source'] : '' );
 			$product->set_package_weight( isset( $row['package_weight'] ) ? (float) $row['package_weight'] : 0.0 );
@@ -2011,10 +2023,17 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $is_new ? '' : $product->get_title() ) . '"></label>';
 		echo '</td>';
 
+		/*
+		 * Required — but never on the blank row at the bottom, which is always
+		 * rendered and would otherwise make the whole ingredient unsaveable
+		 * until somebody invented a product. That row is enforced on save
+		 * instead: no brand, no product, exactly as with a missing name.
+		 */
 		echo '<td><label class="mmm-products__field">'
-			. '<span>' . esc_html__( 'Brand', 'mixmymeals' ) . '</span>'
+			. '<span>' . esc_html__( 'Brand', 'mixmymeals' ) . ' *</span>'
 			. '<input type="text" name="' . esc_attr( $name ) . '[brand]" value="'
-			. esc_attr( $is_new ? '' : $product->get_brand() ) . '"></label></td>';
+			. esc_attr( $is_new ? '' : $product->get_brand() ) . '"'
+			. ( $is_new ? '' : ' required' ) . '></label></td>';
 
 		echo '<td><label class="mmm-products__field">'
 			. '<span>' . esc_html__( 'Package (g)', 'mixmymeals' ) . '</span>'

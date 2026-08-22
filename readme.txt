@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.19.0
+Stable tag: 3.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,24 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.20.0 =
+
+Added:
+* The product comparison prints the brand under each product name. Two
+  products of one ingredient are often told apart by the brand alone.
+
+Changed:
+* A brand is now required. On the ingredient screen the field is marked and
+  enforced by the browser for existing products; a new row without one is not
+  created, exactly as a row without a name is not.
+* `POST /products` requires `brand`, and `mmm_create_product` with it. An
+  update sending an empty brand no longer clears the stored one — blanking a
+  brand is a loss, not an edit.
+
+Note for API clients: creating a product without `brand` now returns 400. This
+also closes a trap, since automation could otherwise create products the admin
+screen would refuse to save until somebody filled the brand in by hand.
 
 = 3.19.0 =
 
@@ -734,6 +752,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.20.0 =
+Brands are shown in the comparison and are now required. API clients must send `brand` when creating a product.
 
 = 3.19.0 =
 The product comparison shows vegan/vegetarian per product.

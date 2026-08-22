@@ -347,7 +347,10 @@ class Mixmymeals_Rest_Api {
 			'args'                => array(
 				'ingredient_id'  => array( 'required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint' ),
 				'title'          => array( 'required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
-				'brand'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
+				// Required here too, or automation could create products the
+				// admin screen then refuses to save until somebody fills the
+				// brand in by hand.
+				'brand'          => array( 'required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
@@ -559,7 +562,10 @@ class Mixmymeals_Rest_Api {
 	 */
 	private function apply_product_fields( Mixmymeals_Product $product, WP_REST_Request $request ): void {
 
-		if ( $request->has_param( 'brand' ) )          $product->set_brand( (string) $request->get_param( 'brand' ) );
+		// Blanking a brand is a loss, not an edit; the field is required.
+		if ( $request->has_param( 'brand' ) && '' !== trim( (string) $request->get_param( 'brand' ) ) ) {
+			$product->set_brand( trim( (string) $request->get_param( 'brand' ) ) );
+		}
 		if ( $request->has_param( 'source' ) )         $product->set_source( (string) $request->get_param( 'source' ) );
 		if ( $request->has_param( 'package_weight' ) ) $product->set_package_weight( (float) $request->get_param( 'package_weight' ) );
 		if ( $request->has_param( 'diet_type' ) )      $product->set_diet_type( (string) $request->get_param( 'diet_type' ) );

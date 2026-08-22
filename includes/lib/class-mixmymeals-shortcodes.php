@@ -7595,6 +7595,19 @@ class Mixmymeals_Shortcodes {
 												<span class="mmm-product-impact__ref-mark">*</span>
 											<?php endif; ?>
 										</div>
+										<?php if ( '' !== ( $mmm_row['brand'] ?? '' ) ) : ?>
+											<?php
+											/*
+											 * Under the name, because two
+											 * products of one ingredient are
+											 * often told apart by the brand
+											 * alone — "Naturjoghurt 3,8 %" is
+											 * not a name that identifies
+											 * anything on a shelf.
+											 */
+											?>
+											<div class="mmm-product-impact__brand"><?php echo esc_html( $mmm_row['brand'] ); ?></div>
+										<?php endif; ?>
 									</th>
 								<?php endforeach; ?>
 							</tr>

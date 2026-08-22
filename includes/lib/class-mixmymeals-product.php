@@ -493,6 +493,7 @@ class Mixmymeals_Product {
 				$rows[] = array(
 					'id'           => $product->get_id(),
 					'title'        => $product->get_title(),
+					'brand'        => $product->get_brand(),
 					'deltas'       => $deltas,
 					'stated'       => $known,
 					/*
@@ -543,6 +544,8 @@ class Mixmymeals_Product {
 					array(
 						'id'           => 0,
 						'title'        => __( 'Typical values', 'mixmymeals' ),
+						// No brand: this column is the ingredient, not an article.
+						'brand'        => '',
 						'deltas'       => array_fill_keys( $keys, 0.0 ),
 						'stated'       => array_fill_keys( $keys, true ),
 						'diet'         => $diet_now,

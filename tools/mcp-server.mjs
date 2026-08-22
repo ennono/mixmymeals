@@ -677,11 +677,11 @@ const TOOLS = [
     description: "Produkt zu einer Zutat anlegen — ein konkreter Artikel, als den die Zutat gekauft werden kann (z.B. 'Sahnejoghurt 10%'). Die Zutat bleibt die Abstraktion mit Planungswerten; lohnt sich nur, wo Produkte stark abweichen (Joghurt, Hackfleisch, Käse, Brot). Verwendet /mixmymeals/v1/products.",
     inputSchema: {
       type: "object",
-      required: ["ingredient_id", "title"],
+      required: ["ingredient_id", "title", "brand"],
       properties: {
         ingredient_id:  { type: "number", description: "Post-ID des mmm_ingredient" },
         title:          { type: "string", description: "Produktname" },
-        brand:          { type: "string", description: "Marke oder Hersteller" },
+        brand:          { type: "string", description: "Marke oder Hersteller. Pflicht — zwei Produkte einer Zutat unterscheiden sich oft nur darüber, und ohne Marke laesst sich im Laden nichts wiederfinden." },
         package_weight: { type: "number", description: "Gewicht einer Packung in Gramm" },
         source:         { type: "string", description: "Woher die Angaben stammen, z. B. 'Packung, 08/2026'. Diese Werte veralten — ohne Quelle unterscheidet später niemand eine aktuelle von einer alten Angabe." },
         nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
