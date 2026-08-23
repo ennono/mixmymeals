@@ -2728,11 +2728,21 @@ class Mixmymeals_Rest_Api {
 			$total         += count( $items );
 		}
 
+		/*
+		 * The version that answered. A client's tool descriptions live on the
+		 * client and update the moment the file does, while the plugin updates
+		 * only when somebody deploys it — so a group named in a description and
+		 * missing from the response looks like a bug in the endpoint and is
+		 * usually an old install. Reported here so that question answers
+		 * itself: every group this version knows is always present, empty ones
+		 * included, so a missing key means old code and nothing else.
+		 */
 		return new WP_REST_Response( array(
-			'scope'   => $scope,
-			'total'   => $total,
-			'counts'  => $counts,
-			'groups'  => $groups,
+			'scope'          => $scope,
+			'plugin_version' => Mixmymeals::instance()->_version,
+			'total'          => $total,
+			'counts'         => $counts,
+			'groups'         => $groups,
 		), 200 );
 	}
 

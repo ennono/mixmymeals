@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.24.0
+Stable tag: 3.24.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.24.1 =
+
+Added:
+* `/audit` reports `plugin_version`. Every group the running version knows is
+  always in the response, empty ones with a count of zero — so a group missing
+  entirely means the install is older than whatever named it, and that question
+  now answers itself instead of looking like a broken endpoint.
 
 = 3.24.0 =
 
@@ -821,6 +829,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.24.1 =
+The audit says which plugin version answered.
 
 = 3.24.0 =
 The audit lists units no recipe uses.

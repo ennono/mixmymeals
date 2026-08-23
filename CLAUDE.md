@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.24.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.24.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -50,6 +50,8 @@ Two things about this install regularly mislead:
   path.
 - It holds almost no content. Anything to do with plans, nutrition or shopping
   lists needs test data built first — and removed afterwards.
+
+`/audit` returns `plugin_version`, and every group the running version knows is always present — empty ones carry a count of zero. So a group that is missing *entirely* means the deployed plugin is older than whatever named it, never a fault in the endpoint. This exists because MCP tool descriptions live on the client and update with the file, while the plugin updates only on deploy, and the two drifting apart has already been reported as a bug more than once.
 
 The production site is **stopfnicht.de**. Pushing to GitHub does not deploy it;
 the plugin version in the page source (`?ver=`) tells you what is actually
