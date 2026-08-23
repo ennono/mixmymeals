@@ -711,6 +711,31 @@ const TOOLS = [
   },
 
   {
+    name: "mmm_unit_usage",
+    description: "Wo eine Einheit verwendet wird und ob sie gefahrlos geloescht werden kann. Liefert die Rezepte samt Zahl der betroffenen Zeilen, ob sie die Standardeinheit der Zutat ist, und can_delete. Wichtig: Eine benutzte Einheit zu loeschen laesst die Rezeptzeilen mit einer Menge ohne Einheit zurueck — und eine Menge ohne Einheit wird als Gramm gelesen. Aus '1,5 Dosen' werden dann 1,5 g, im Rezept, in jedem Plan und in der Einkaufsliste. Verwendet /mixmymeals/v1/units/{id}/usage.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id: { type: "number", description: "Post-ID der mmm_ingr_unit" },
+      },
+    },
+  },
+
+  {
+    name: "mmm_delete_ingr_unit",
+    description: "Einheit loeschen. Wird sie noch von Rezepten verwendet, lehnt der Endpunkt mit HTTP 409 ab und nennt die betroffenen Rezepte — erst force:true loescht trotzdem. Vorher mmm_unit_usage aufrufen, wenn unklar ist, was daran haengt. Verwendet /mixmymeals/v1/units/{id}.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id:    { type: "number", description: "Post-ID der mmm_ingr_unit" },
+        force: { type: "boolean", default: false, description: "Auch loeschen, wenn Rezepte sie verwenden. Deren Mengen werden danach als Gramm gelesen." },
+      },
+    },
+  },
+
+  {
     name: "mmm_audit",
     description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
@@ -1324,6 +1349,12 @@ async function handleTool(name, args) {
       if (is_reference !== undefined)   body.is_reference = is_reference;
       return mmm("POST", `/products/${id}`, body);
     }
+
+    case "mmm_unit_usage":
+      return mmm("GET", `/units/${args.id}/usage`);
+
+    case "mmm_delete_ingr_unit":
+      return mmm("DELETE", `/units/${args.id}${args.force ? "?force=true" : ""}`);
 
     case "mmm_audit":
       return mmm("GET", `/audit?scope=${encodeURIComponent(args.scope || "all")}`);

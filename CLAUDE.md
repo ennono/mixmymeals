@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.22.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.23.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -155,6 +155,8 @@ Resolved in `Mixmymeals_Ingredient::get_diet_type()` because that is the single 
 `get_divisor()` falls back to the old boolean for units the migration has not reached, so an install part-way through an upgrade never treats its eggs as divisible. `migrate_indivisible()` moves the rows once, gated on `mixmymeals_unit_divisor_version` and attached on `admin_init` from `mixmymeals.php`.
 
 The two call sites round in opposite directions on purpose: `Mixmymeals_Recipe::get_ingredients_scaled()` rounds to nearest, because scaling four servings down to three must not silently add a tin, while `Mixmymeals_Meal_Plan::calc_shopping_list()` rounds **up**, once over the aggregated requirement — at the shop too little is worse than too much, but buying two tins for two half-tin recipes is the error that aggregation exists to prevent. The arithmetic runs on the integer multiple (`round( $amount * $d ) / $d`) so thirds do not drift into 0.33333.
+
+**Deleting a unit that is in use corrupts recipes silently.** A step keeps its amount and loses its unit, and `get_ingredients_scaled()` reads an amount without a unit as grams — "1,5 Dosen" becomes 1,5 g, on the recipe, in every plan using it and in the shopping list. So `GET /units/{id}/usage` reports the recipes, the number of affected lines in each, whether it is the ingredient's default unit, `can_delete`, and the consequence in words; `DELETE /units/{id}` refuses with 409 while it is used and needs `force=true`. Both read `Mixmymeals_Ingredient_Amount::get_usage()`, which `get_amount_usage_count()` (the admin box) now derives from as well — two scans of the same thing would have drifted.
 
 Over REST a unit carries `divisor`, a read-only `step_divisor` and the older `is_indivisible`; MCP exposes `divisor` on `mmm_create_ingr_unit` / `mmm_update_ingr_unit` and keeps `is_indivisible` marked deprecated.
 

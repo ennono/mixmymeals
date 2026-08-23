@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.22.0
+Stable tag: 3.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,27 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.23.0 =
+
+Added:
+* `GET /units/{id}/usage` says where a unit is used — which recipes, how many
+  lines in each, their status — whether it is the ingredient's default unit,
+  and whether it can be deleted. MCP: `mmm_unit_usage`.
+* `DELETE /units/{id}`, which did not exist at all: units could be created and
+  changed over the API but never removed. It refuses with 409 while recipes
+  use the unit and names them; `force=true` deletes anyway. MCP:
+  `mmm_delete_ingr_unit`.
+
+Why the refusal matters: deleting a unit in use leaves those recipe lines with
+an amount and no unit, and an amount without a unit is read as grams. "1.5
+tins" silently becomes 1.5 g — on the recipe, in every plan using it and in the
+shopping list.
+
+Changed:
+* `Mixmymeals_Ingredient_Amount::get_amount_usage_count()` is now derived from
+  a new `get_usage()`, so the admin box and the API answer the same question
+  from one scan instead of two.
 
 = 3.22.0 =
 
@@ -785,6 +806,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.23.0 =
+Units can be checked for use and deleted over the API.
 
 = 3.22.0 =
 Products are fully reachable over REST and MCP, including the comparison and two audit checks.

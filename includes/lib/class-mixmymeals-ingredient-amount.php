@@ -350,35 +350,72 @@ class Mixmymeals_Ingredient_Amount {
 		return $migrated;
 	}
 
-	public function get_amount_usage_count(): int {
+	/**
+	 * Which recipes reference this unit, and how often each does.
+	 *
+	 * A unit is referenced by `amount_id` inside a recipe's steps, so there is
+	 * nothing to query against — every recipe has to be opened. Counted per
+	 * occurrence rather than per recipe: a unit used in three steps of one
+	 * recipe is three lines that would change meaning if it went.
+	 *
+	 * @return array<int, array{recipe_id:int, recipe_title:string, status:string, occurrences:int}>
+	 */
+	public function get_usage(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
 
 		$amount_id = $this->post_id;
+		$found     = array();
 
 		$recipes = get_posts([
 			'post_type'      => 'mmm_recipe',
 			'posts_per_page' => -1,
 			'post_status'    => 'any',
 			'fields'         => 'ids',
+			'no_found_rows'  => true,
 		]);
-
-		$count = 0;
 
 		foreach ( $recipes as $recipe_id ) {
 
-			$recipe = new Mixmymeals_Recipe( $recipe_id );
-			$steps  = $recipe->get_steps();
+			$recipe      = new Mixmymeals_Recipe( (int) $recipe_id );
+			$occurrences = 0;
 
-			foreach ( $steps as $step ) {
+			foreach ( $recipe->get_steps() as $step ) {
 				foreach ( $step['ingredients'] ?? [] as $ing ) {
-
 					if ( intval( $ing['amount_id'] ?? 0 ) === $amount_id ) {
-						$count++;
+						++$occurrences;
 					}
 				}
 			}
+
+			if ( $occurrences > 0 ) {
+				$post    = get_post( (int) $recipe_id );
+				$found[] = array(
+					'recipe_id'    => (int) $recipe_id,
+					'recipe_title' => get_the_title( (int) $recipe_id ),
+					'status'       => $post ? $post->post_status : '',
+					'occurrences'  => $occurrences,
+				);
+			}
 		}
 
-		return $count;
+		return $found;
+	}
+
+	/**
+	 * How many recipe lines use this unit.
+	 *
+	 * Derived from get_usage() rather than counted separately: the admin box
+	 * and the REST endpoints answer the same question, and two scans would
+	 * eventually disagree about it.
+	 *
+	 * @return int
+	 */
+	public function get_amount_usage_count(): int {
+
+		return (int) array_sum( array_column( $this->get_usage(), 'occurrences' ) );
 	}
 
 }

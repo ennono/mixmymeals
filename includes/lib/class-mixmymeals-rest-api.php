@@ -326,6 +326,21 @@ class Mixmymeals_Rest_Api {
 			'permission_callback' => '__return_true',
 			'args'                => array( 'id' => $id_arg ),
 		) );
+		register_rest_route( 'mixmymeals/v1', '/units/(?P<id>\d+)/usage', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'get_ingr_unit_usage' ),
+			'permission_callback' => $auth,
+			'args'                => array( 'id' => $id_arg ),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/units/(?P<id>\d+)', array(
+			'methods'             => WP_REST_Server::DELETABLE,
+			'callback'            => array( $this, 'delete_ingr_unit' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'id'    => $id_arg,
+				'force' => array( 'required' => false, 'type' => 'boolean', 'default' => false ),
+			),
+		) );
 		register_rest_route( 'mixmymeals/v1', '/units/(?P<id>\d+)', array(
 			'methods'             => WP_REST_Server::EDITABLE,
 			'callback'            => array( $this, 'update_ingr_unit' ),
@@ -2141,6 +2156,112 @@ class Mixmymeals_Rest_Api {
 	 *
 	 * @return array<int, int[]>
 	 */
+	/**
+	 * Where a unit is used, and whether it can go.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_ingr_unit_usage( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$id   = (int) $request->get_param( 'id' );
+		$unit = new Mixmymeals_Ingredient_Amount( $id );
+
+		if ( ! $unit->is_valid() ) {
+			return new WP_Error( 'not_found', __( 'Unit not found.', 'mixmymeals' ), array( 'status' => 404 ) );
+		}
+
+		$usage         = $unit->get_usage();
+		$ingredient_id = (int) $unit->get_parent_ingredient_id();
+		$occurrences   = array_sum( array_column( $usage, 'occurrences' ) );
+
+		/*
+		 * The default unit is stored as a title, not an ID, so deleting the
+		 * post does not dangle a pointer — but the ingredient would go on
+		 * naming a unit that no longer exists. Worth reporting, not worth
+		 * blocking.
+		 */
+		$is_default = $ingredient_id > 0
+			&& (string) ( new Mixmymeals_Ingredient( $ingredient_id ) )->get_default_unit() === $unit->get_title();
+
+		return new WP_REST_Response(
+			array(
+				'unit'            => $this->serialize_ingr_unit( $id ),
+				'ingredient_id'   => $ingredient_id,
+				'in_use'          => ! empty( $usage ),
+				'recipe_count'    => count( $usage ),
+				'occurrences'     => $occurrences,
+				'recipes'         => $usage,
+				'is_default_unit' => $is_default,
+				'can_delete'      => empty( $usage ),
+				/*
+				 * Said plainly because the failure is silent: a step keeps its
+				 * amount and loses its unit, and get_ingredients_scaled() then
+				 * reads that amount as grams. "1,5 tins" quietly becomes 1.5 g,
+				 * on the recipe, in every plan using it, and in the shopping
+				 * list.
+				 */
+				'consequence'     => empty( $usage )
+					? ''
+					: __( 'Deleting this unit leaves those recipe lines with an amount and no unit, and an amount without a unit is read as grams. "1.5 tins" would become 1.5 g.', 'mixmymeals' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Deletes a unit, refusing while it is in use unless forced.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function delete_ingr_unit( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$id   = (int) $request->get_param( 'id' );
+		$unit = new Mixmymeals_Ingredient_Amount( $id );
+
+		if ( ! $unit->is_valid() ) {
+			return new WP_Error( 'not_found', __( 'Unit not found.', 'mixmymeals' ), array( 'status' => 404 ) );
+		}
+
+		$usage = $unit->get_usage();
+
+		if ( $usage && ! $request->get_param( 'force' ) ) {
+			return new WP_REST_Response(
+				array(
+					'deleted'      => false,
+					'reason'       => 'in_use',
+					'recipe_count' => count( $usage ),
+					'occurrences'  => array_sum( array_column( $usage, 'occurrences' ) ),
+					'recipes'      => $usage,
+					'message'      => sprintf(
+						/* translators: %d: number of recipes using this unit. */
+						__( 'Unit is still used by %d recipe(s). Those lines would be read as grams afterwards. Pass force=true to delete anyway.', 'mixmymeals' ),
+						count( $usage )
+					),
+				),
+				409
+			);
+		}
+
+		$title = $unit->get_title();
+
+		if ( ! wp_delete_post( $id, true ) ) {
+			return new WP_Error( 'delete_failed', __( 'Could not delete the unit.', 'mixmymeals' ), array( 'status' => 500 ) );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'deleted'      => true,
+				'id'           => $id,
+				'title'        => $title,
+				'recipe_count' => count( $usage ),
+				'forced'       => (bool) $request->get_param( 'force' ) && ! empty( $usage ),
+			),
+			200
+		);
+	}
+
 	private function ingredient_usage_map(): array {
 
 		static $map = null;
