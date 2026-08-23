@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.21.0
+Stable tag: 3.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,24 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.22.0 =
+
+Added:
+* An ingredient now says over REST which product it resolves through:
+  `reference_product`, `reference_product_label`, `product_count`, and
+  `own_nutrition` / `own_diet_type` beside the resolved ones. A client could
+  previously read 131 kcal without being able to tell whether that figure came
+  from the ingredient or from a packet.
+* `GET /product-impact?post_id=` returns the product comparison for a recipe
+  (per serving), a plan (per day and person) or a meal, which resolves to the
+  recipe it plans. MCP: `mmm_product_impact`.
+* Two audit groups for product upkeep:
+  `ingredients_products_without_reference` (products entered but none chosen,
+  so they change nothing) and `products_without_source` (figures with no
+  provenance, which go stale invisibly).
+* `mmm_audit` in the MCP server. `/audit` had existed over REST for a long
+  time but was not reachable from the tool that maintains the data.
 
 = 3.21.0 =
 
@@ -767,6 +785,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.22.0 =
+Products are fully reachable over REST and MCP, including the comparison and two audit checks.
 
 = 3.21.0 =
 Shopping lists name the chosen product.

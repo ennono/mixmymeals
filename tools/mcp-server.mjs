@@ -711,6 +711,29 @@ const TOOLS = [
   },
 
   {
+    name: "mmm_audit",
+    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Verwendet /mixmymeals/v1/audit.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["recipes", "plans", "ingredients", "all"], default: "all", description: "Was geprueft wird. Produktgruppen stecken in 'ingredients'." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_product_impact",
+    description: "Was die Wahl eines anderen Produkts ausmacht — fuer ein Rezept, eine Mahlzeit oder einen ganzen Plan. Liefert je Zutat mit mehreren Produkten eine Ankerspalte mit Absolutwerten und je Produkt die Abweichung, dazu die Einstufung vegan/vegetarisch. Ein Rezept rechnet je Portion, ein Plan je Tag und Person; eine Mahlzeit wird auf ihr Rezept aufgeloest. Werte, die ein Produkt nicht angibt, sind null und nehmen an nichts teil. Verwendet /mixmymeals/v1/product-impact.",
+    inputSchema: {
+      type: "object",
+      required: ["post_id"],
+      properties: {
+        post_id: { type: "number", description: "Post-ID eines mmm_recipe, mmm_meal oder mmm_meal_plan" },
+      },
+    },
+  },
+
+  {
     name: "mmm_delete_product",
     description: "Produkt löschen. War es die Referenz der Zutat, fällt diese automatisch weg. Verwendet /mixmymeals/v1/products/{id}.",
     inputSchema: {
@@ -1301,6 +1324,12 @@ async function handleTool(name, args) {
       if (is_reference !== undefined)   body.is_reference = is_reference;
       return mmm("POST", `/products/${id}`, body);
     }
+
+    case "mmm_audit":
+      return mmm("GET", `/audit?scope=${encodeURIComponent(args.scope || "all")}`);
+
+    case "mmm_product_impact":
+      return mmm("GET", `/product-impact?post_id=${args.post_id}`);
 
     case "mmm_delete_product":
       return mmm("DELETE", `/products/${args.id}`);

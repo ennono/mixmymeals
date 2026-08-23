@@ -385,6 +385,20 @@ class Mixmymeals_Rest_Api {
 				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
 			),
 		) );
+		/*
+		 * One route for both frames. A recipe answers per serving, a plan per
+		 * day and person, and a meal resolves to the recipe it plans — the
+		 * same resolution the shortcode does, so an agent does not have to
+		 * know which kind of post it is holding.
+		 */
+		register_rest_route( 'mixmymeals/v1', '/product-impact', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'get_product_impact' ),
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'post_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
+			),
+		) );
 		register_rest_route( 'mixmymeals/v1', '/products/(?P<id>\d+)', array(
 			'methods'             => WP_REST_Server::DELETABLE,
 			'callback'            => array( $this, 'delete_product' ),
@@ -591,6 +605,60 @@ class Mixmymeals_Rest_Api {
 		}
 	}
 
+	/**
+	 * What choosing a different product would do, for a recipe, a meal or a
+	 * whole plan.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_product_impact( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+
+		$post_id = (int) $request->get_param( 'post_id' );
+		$type    = get_post_type( $post_id );
+
+		if ( 'mmm_meal' === $type ) {
+			$post_id = ( new Mixmymeals_Meal( $post_id ) )->get_recipe_id();
+			$type    = get_post_type( $post_id );
+		}
+
+		if ( 'mmm_recipe' === $type ) {
+			$recipe = new Mixmymeals_Recipe( $post_id );
+
+			if ( ! $recipe->is_valid() ) {
+				return new WP_Error( 'mmm_not_found', __( 'Recipe not found.', 'mixmymeals' ), array( 'status' => 404 ) );
+			}
+
+			return new WP_REST_Response(
+				array(
+					'post_id' => $post_id,
+					'unit'    => 'per_serving',
+					'groups'  => $recipe->calc_product_impact(),
+				),
+				200
+			);
+		}
+
+		if ( 'mmm_meal_plan' === $type ) {
+			$plan = new Mixmymeals_Meal_Plan( $post_id );
+
+			return new WP_REST_Response(
+				array(
+					'post_id' => $post_id,
+					'unit'    => 'per_day_person',
+					'groups'  => $plan->calc_product_impact(),
+				),
+				200
+			);
+		}
+
+		return new WP_Error(
+			'mmm_bad_type',
+			__( 'Expected a recipe, a meal or a meal plan.', 'mixmymeals' ),
+			array( 'status' => 400 )
+		);
+	}
+
 	public function create_product( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$ingredient_id = absint( $request->get_param( 'ingredient_id' ) );
 
@@ -721,12 +789,26 @@ class Mixmymeals_Rest_Api {
 		return array(
 			'id'             => $post_id,
 			'title'          => get_the_title( $post_id ),
+			/*
+			 * Resolved values — already through the reference product where
+			 * there is one. own_* below is what the ingredient itself holds,
+			 * so a client can see which layer a figure came from instead of
+			 * guessing. It is a read-only view of the fallback, never "the"
+			 * nutrition; that is always the resolved one above.
+			 */
 			'diet_type'      => $ing->get_diet_type(),
 			'default_unit'   => $ing->get_default_unit(),
 			'price_per_100g' => $ing->get_price_per_100g(),
 			'nutrition'      => $ing->get_nutrition(),
 			'categories'     => array_map( fn( $t ) => $t->term_id, $ing->get_categories() ),
 			'units'          => array_map( fn( $u ) => $this->serialize_ingr_unit( $u->ID ), $ing->get_units() ),
+			'reference_product'       => Mixmymeals_Product::get_reference_id( $post_id ),
+			'reference_product_label' => Mixmymeals_Product::reference_label( $post_id ),
+			'product_count'           => count( Mixmymeals_Product::for_ingredient( $post_id ) ),
+			'own_nutrition'           => $ing->get_nutrition_with_product( 0 ),
+			'own_diet_type'           => in_array( get_post_meta( $post_id, '_mmm_diet_type', true ), array( 'vegan', 'vegetarian' ), true )
+				? (string) get_post_meta( $post_id, '_mmm_diet_type', true )
+				: '',
 		);
 	}
 
@@ -2614,6 +2696,13 @@ class Mixmymeals_Rest_Api {
 			'ingredients_without_unit'      => array(),
 			'ingredients_without_price'     => array(),
 			'ingredients_unused'            => array(),
+			// Products entered but none chosen: the rows exist and change
+			// nothing, which looks like the data is in use when it is not.
+			'ingredients_products_without_reference' => array(),
+			// Figures with no provenance. They go stale when a manufacturer
+			// changes a recipe, and without a source nobody can tell a current
+			// one from a four-year-old one.
+			'products_without_source'       => array(),
 		);
 
 		$ingredient_ids = get_posts( array(
@@ -2637,6 +2726,18 @@ class Mixmymeals_Rest_Api {
 			$nutrition = $ingredient->get_nutrition();
 			if ( empty( $nutrition['calories_100'] ) ) {
 				$groups['ingredients_without_nutrition'][] = $this->audit_entry( $ingredient_id );
+			}
+
+			$products = Mixmymeals_Product::for_ingredient( $ingredient_id );
+
+			if ( $products && ! Mixmymeals_Product::get_reference_id( $ingredient_id ) ) {
+				$groups['ingredients_products_without_reference'][] = $this->audit_entry( $ingredient_id );
+			}
+
+			foreach ( $products as $product ) {
+				if ( '' === $product->get_source() ) {
+					$groups['products_without_source'][] = $this->audit_entry( $product->get_id() );
+				}
 			}
 
 			if ( ! $ingredient->get_units() ) {
