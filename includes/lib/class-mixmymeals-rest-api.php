@@ -2824,6 +2824,9 @@ class Mixmymeals_Rest_Api {
 			// changes a recipe, and without a source nobody can tell a current
 			// one from a four-year-old one.
 			'products_without_source'       => array(),
+			// Units nothing references. Harmless, but they clutter every
+			// ingredient form and make the real ones harder to pick.
+			'units_unused'                  => array(),
 		);
 
 		$ingredient_ids = get_posts( array(
@@ -2859,6 +2862,29 @@ class Mixmymeals_Rest_Api {
 				if ( '' === $product->get_source() ) {
 					$groups['products_without_source'][] = $this->audit_entry( $product->get_id() );
 				}
+			}
+
+			/*
+			 * One map for the whole run — asking each unit on its own would
+			 * open every recipe once per unit.
+			 *
+			 * The entry names the ingredient too: "Dose" on its own identifies
+			 * nothing, and a list of forty of them would be unusable.
+			 */
+			foreach ( $ingredient->get_units() as $unit_post ) {
+
+				$unit_id = (int) $unit_post->ID;
+
+				if ( isset( Mixmymeals_Ingredient_Amount::usage_map()[ $unit_id ] ) ) {
+					continue;
+				}
+
+				$groups['units_unused'][] = array(
+					'id'                => $unit_id,
+					'title'             => get_the_title( $unit_id ),
+					'ingredient_id'     => $ingredient_id,
+					'ingredient_title'  => get_the_title( $ingredient_id ),
+				);
 			}
 
 			if ( ! $ingredient->get_units() ) {

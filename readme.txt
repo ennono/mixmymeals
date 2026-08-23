@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.23.0
+Stable tag: 3.24.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.24.0 =
+
+Added:
+* `units_unused` in the audit: every unit no recipe references, each entry
+  naming the unit *and* its ingredient, since "Dose" on its own identifies
+  nothing. Reachable over MCP through `mmm_audit`, and the listed units are
+  exactly the ones `mmm_delete_ingr_unit` will remove without a fight.
+
+Changed:
+* Unit usage is now collected in a single pass over the recipes
+  (`Mixmymeals_Ingredient_Amount::usage_map()`), which `get_usage()` and the
+  audit both read. Asking each unit separately opened every recipe once per
+  unit — bearable for the one unit an editor is looking at, a cross product for
+  an audit over all of them.
 
 = 3.23.0 =
 
@@ -806,6 +821,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.24.0 =
+The audit lists units no recipe uses.
 
 = 3.23.0 =
 Units can be checked for use and deleted over the API.

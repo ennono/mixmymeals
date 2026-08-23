@@ -366,8 +366,33 @@ class Mixmymeals_Ingredient_Amount {
 			return array();
 		}
 
-		$amount_id = $this->post_id;
-		$found     = array();
+		return self::usage_map()[ $this->post_id ] ?? array();
+	}
+
+	/**
+	 * Every unit that any recipe references, from a single pass.
+	 *
+	 * Asking each unit separately means opening every recipe once per unit,
+	 * which is a cross product — fine for the one unit an editor is looking at,
+	 * ruinous for the audit, which asks about all of them. So the scan happens
+	 * once and both callers read from the result.
+	 *
+	 * Cached for the request. Anything that deletes or rewrites recipes within
+	 * one request and then asks again would see a stale map; nothing does, and
+	 * the alternative is re-reading every recipe for each question.
+	 *
+	 * @return array<int, array<int, array{recipe_id:int, recipe_title:string, status:string, occurrences:int}>>
+	 *         Keyed by unit ID. Units nobody references are absent, not empty.
+	 */
+	public static function usage_map(): array {
+
+		static $map = null;
+
+		if ( null !== $map ) {
+			return $map;
+		}
+
+		$map = array();
 
 		$recipes = get_posts([
 			'post_type'      => 'mmm_recipe',
@@ -379,20 +404,28 @@ class Mixmymeals_Ingredient_Amount {
 
 		foreach ( $recipes as $recipe_id ) {
 
-			$recipe      = new Mixmymeals_Recipe( (int) $recipe_id );
-			$occurrences = 0;
+			$recipe = new Mixmymeals_Recipe( (int) $recipe_id );
+			$counts = array();
 
 			foreach ( $recipe->get_steps() as $step ) {
 				foreach ( $step['ingredients'] ?? [] as $ing ) {
-					if ( intval( $ing['amount_id'] ?? 0 ) === $amount_id ) {
-						++$occurrences;
+
+					$amount_id = intval( $ing['amount_id'] ?? 0 );
+
+					if ( $amount_id > 0 ) {
+						$counts[ $amount_id ] = ( $counts[ $amount_id ] ?? 0 ) + 1;
 					}
 				}
 			}
 
-			if ( $occurrences > 0 ) {
-				$post    = get_post( (int) $recipe_id );
-				$found[] = array(
+			if ( ! $counts ) {
+				continue;
+			}
+
+			$post = get_post( (int) $recipe_id );
+
+			foreach ( $counts as $amount_id => $occurrences ) {
+				$map[ $amount_id ][] = array(
 					'recipe_id'    => (int) $recipe_id,
 					'recipe_title' => get_the_title( (int) $recipe_id ),
 					'status'       => $post ? $post->post_status : '',
@@ -401,7 +434,7 @@ class Mixmymeals_Ingredient_Amount {
 			}
 		}
 
-		return $found;
+		return $map;
 	}
 
 	/**
