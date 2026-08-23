@@ -326,6 +326,25 @@ class Mixmymeals_Rest_Api {
 			'permission_callback' => '__return_true',
 			'args'                => array( 'id' => $id_arg ),
 		) );
+		/*
+		 * POST rather than DELETE: this carries a list and two switches, and a
+		 * request body on DELETE is poorly supported by enough clients to be
+		 * not worth the purity.
+		 */
+		register_rest_route( 'mixmymeals/v1', '/units/bulk-delete', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'bulk_delete_ingr_units' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'ids'     => array(
+					'required' => true,
+					'type'     => 'array',
+					'items'    => array( 'type' => 'integer' ),
+				),
+				'force'   => array( 'required' => false, 'type' => 'boolean', 'default' => false ),
+				'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => false ),
+			),
+		) );
 		register_rest_route( 'mixmymeals/v1', '/units/(?P<id>\d+)/usage', array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => array( $this, 'get_ingr_unit_usage' ),
@@ -2204,6 +2223,116 @@ class Mixmymeals_Rest_Api {
 				'consequence'     => empty( $usage )
 					? ''
 					: __( 'Deleting this unit leaves those recipe lines with an amount and no unit, and an amount without a unit is read as grams. "1.5 tins" would become 1.5 g.', 'mixmymeals' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Deletes several units at once, each judged on its own.
+	 *
+	 * Partial by design: a batch is normally "clean up what is safe", and
+	 * failing the whole call because one unit turned out to be in use would
+	 * make the caller pick the list apart by hand. Every id gets its own
+	 * verdict and the summary says what happened.
+	 *
+	 * dry_run exists because forcing this is the most destructive thing in the
+	 * API: every deleted unit leaves recipe lines with an amount and no unit,
+	 * and those are then read as grams. Being able to see the list of affected
+	 * recipes before agreeing to that is the difference between a cleanup and
+	 * an accident.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function bulk_delete_ingr_units( WP_REST_Request $request ): WP_REST_Response {
+
+		$ids     = array_values( array_unique( array_map( 'absint', (array) $request->get_param( 'ids' ) ) ) );
+		$force   = (bool) $request->get_param( 'force' );
+		$dry_run = (bool) $request->get_param( 'dry_run' );
+
+		$results          = array();
+		$deleted          = 0;
+		$skipped          = 0;
+		$not_found        = 0;
+		$affected_recipes = array();
+
+		foreach ( $ids as $id ) {
+
+			if ( $id <= 0 ) {
+				continue;
+			}
+
+			$unit = new Mixmymeals_Ingredient_Amount( $id );
+
+			if ( ! $unit->is_valid() ) {
+				++$not_found;
+				$results[] = array(
+					'id'     => $id,
+					'title'  => '',
+					'status' => 'not_found',
+				);
+				continue;
+			}
+
+			/*
+			 * Read before anything is deleted, and safe to keep reading after:
+			 * removing a unit post does not change any recipe, so the cached
+			 * map stays true for the ids still to come.
+			 */
+			$usage = $unit->get_usage();
+			$entry = array(
+				'id'            => $id,
+				'title'         => $unit->get_title(),
+				'ingredient_id' => $unit->get_parent_ingredient_id(),
+				'recipe_count'  => count( $usage ),
+				'occurrences'   => (int) array_sum( array_column( $usage, 'occurrences' ) ),
+				'recipes'       => $usage,
+			);
+
+			if ( $usage && ! $force ) {
+				++$skipped;
+				$entry['status'] = 'skipped_in_use';
+				$results[]       = $entry;
+				continue;
+			}
+
+			foreach ( $usage as $row ) {
+				$affected_recipes[ (int) $row['recipe_id'] ] = true;
+			}
+
+			if ( $dry_run ) {
+				++$deleted;
+				$entry['status'] = 'would_delete';
+				$results[]       = $entry;
+				continue;
+			}
+
+			if ( ! wp_delete_post( $id, true ) ) {
+				++$skipped;
+				$entry['status'] = 'delete_failed';
+				$results[]       = $entry;
+				continue;
+			}
+
+			++$deleted;
+			$entry['status'] = 'deleted';
+			$results[]       = $entry;
+		}
+
+		return new WP_REST_Response(
+			array(
+				'dry_run'          => $dry_run,
+				'forced'           => $force,
+				'plugin_version'   => Mixmymeals::instance()->_version,
+				'requested'        => count( $ids ),
+				'deleted'          => $deleted,
+				'skipped'          => $skipped,
+				'not_found'        => $not_found,
+				// Distinct recipes whose lines lose their unit — the number
+				// that matters when force is on, and zero when it is not.
+				'affected_recipes' => count( $affected_recipes ),
+				'results'          => $results,
 			),
 			200
 		);

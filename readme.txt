@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.24.1
+Stable tag: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.25.0 =
+
+Added:
+* `POST /units/bulk-delete` removes several units in one call, each judged on
+  its own: units in use are skipped and reported with the recipes holding
+  them, the rest go. A batch does not fail as a whole because one unit turned
+  out to be in use. MCP: `mmm_delete_ingr_units_bulk`.
+* `dry_run` reports what would happen and deletes nothing, and the response
+  counts `affected_recipes` — the recipes whose lines would lose their unit.
+  With `force` that is the number to look at before agreeing, since those
+  lines are read as grams afterwards.
+
+The ids from the audit's `units_unused` group can be passed straight in.
 
 = 3.24.1 =
 
@@ -829,6 +843,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.25.0 =
+Units can be deleted in bulk, with a dry run.
 
 = 3.24.1 =
 The audit says which plugin version answered.

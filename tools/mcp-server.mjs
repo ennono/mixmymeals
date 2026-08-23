@@ -736,6 +736,20 @@ const TOOLS = [
   },
 
   {
+    name: "mmm_delete_ingr_units_bulk",
+    description: "Mehrere Einheiten auf einmal loeschen. Jede wird einzeln beurteilt: benutzte werden uebersprungen (status skipped_in_use) und mit den betroffenen Rezepten gemeldet, der Rest wird geloescht — die Liste faellt also nicht als Ganzes durch, nur weil eine Einheit noch haengt. Passt zur Gruppe units_unused aus mmm_audit: deren IDs lassen sich unveraendert uebergeben. WARNUNG zu force: eine benutzte Einheit zu loeschen laesst in den Rezeptzeilen Mengen ohne Einheit zurueck, und die werden als Gramm gelesen — aus 1,5 Dosen werden 1,5 g, im Rezept, in jedem Plan und in der Einkaufsliste. Vor jedem force erst dry_run:true aufrufen und affected_recipes ansehen. Verwendet /mixmymeals/v1/units/bulk-delete.",
+    inputSchema: {
+      type: "object",
+      required: ["ids"],
+      properties: {
+        ids:     { type: "array", items: { type: "number" }, description: "Post-IDs der zu loeschenden mmm_ingr_unit" },
+        force:   { type: "boolean", default: false, description: "Auch benutzte Einheiten loeschen. Zerstoerend — siehe Beschreibung." },
+        dry_run: { type: "boolean", default: false, description: "Nichts loeschen, nur berichten was passieren wuerde. Status heisst dann would_delete." },
+      },
+    },
+  },
+
+  {
     name: "mmm_audit",
     description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
@@ -1355,6 +1369,13 @@ async function handleTool(name, args) {
 
     case "mmm_delete_ingr_unit":
       return mmm("DELETE", `/units/${args.id}${args.force ? "?force=true" : ""}`);
+
+    case "mmm_delete_ingr_units_bulk": {
+      const body = { ids: args.ids };
+      if (args.force !== undefined)   body.force   = args.force;
+      if (args.dry_run !== undefined) body.dry_run = args.dry_run;
+      return mmm("POST", "/units/bulk-delete", body);
+    }
 
     case "mmm_audit":
       return mmm("GET", `/audit?scope=${encodeURIComponent(args.scope || "all")}`);
