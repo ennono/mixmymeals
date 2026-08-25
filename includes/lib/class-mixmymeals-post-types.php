@@ -326,7 +326,14 @@ class Mixmymeals_Post_Types {
 
 		$recipe_args = array(
 			'labels'              => $recipe_labels,
-			'description'         => __( 'Recipe Description', 'mixmymeals' ),
+			/*
+			 * No description on purpose. WordPress hands this to
+			 * get_the_archive_description(), so a placeholder here is printed
+			 * on the public archive — "Recipe Description" was appearing under
+			 * the heading as "Rezeptbeschreibung". The archive text editors
+			 * actually maintain is the all_recipes_description setting.
+			 */
+			'description'         => '',
 			'public'              => true,
 			'publicly_queryable'  => true,
 			'exclude_from_search' => false,
