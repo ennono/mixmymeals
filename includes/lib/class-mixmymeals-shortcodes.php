@@ -1857,7 +1857,7 @@ class Mixmymeals_Shortcodes {
 								?>
                                 <li>
                                 <span class="mmm-ingredient-name">
-									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> (<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)<?php endif; ?>
+									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> <span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
                                 </span>
 									<?php if ( $line ) : ?>
                                         <span class="mmm-ingredient-amount">
@@ -2425,7 +2425,8 @@ class Mixmymeals_Shortcodes {
 						$item_html = '<span class="mmm-shopping-item-name">'
 						             . esc_html( $ingredient_name )
 						             . ( $is_optional
-								? ' (' . esc_html__( 'optional', 'mixmymeals' ) . ')'
+								? ' <span class="mmm-ingredient-optional">('
+									. esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
 								: '' )
 						             . '</span> '
 						             . '<span class="mmm-shopping-item-amount">'
@@ -3166,7 +3167,7 @@ class Mixmymeals_Shortcodes {
 								?>
                                 <li>
                                 <span class="mmm-ingredient-name">
-                                    <?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> (<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)<?php endif; ?>
+                                    <?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> <span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
                                 </span>
 
 									<?php if ( $line ) : ?>
@@ -4292,7 +4293,7 @@ class Mixmymeals_Shortcodes {
 					<?php foreach ( $ingredients as $ingredient ) : ?>
                         <li>
 						<span class="mmm-ingredient-name">
-							<?php echo esc_html( $ingredient['name'] ); ?><?php if ( ! empty( $ingredient['optional'] ) ) : ?> (<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)<?php endif; ?>
+							<?php echo esc_html( $ingredient['name'] ); ?><?php if ( ! empty( $ingredient['optional'] ) ) : ?> <span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
 						</span>
 
 							<?php if ( ! empty( $ingredient['amount'] ) ) :

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.25.3
+Stable tag: 3.26.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.26.0 =
+
+Changed:
+* The "(optional)" note now sits in its own `span.mmm-ingredient-optional`
+  instead of running loose behind the ingredient name — on recipe steps, meal
+  steps, both ingredient lists and the shopping list. Themes can style it; the
+  bundled child theme sets it in italics.
+
+The PDF and the subscription mails are untouched: neither can reach a theme
+stylesheet, so their label stays as it was.
 
 = 3.25.3 =
 
@@ -876,6 +887,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.26.0 =
+The "(optional)" note is now styleable via span.mmm-ingredient-optional.
 
 = 3.25.3 =
 Fixes the optional checkbox not saving, and step images being lost on save.
