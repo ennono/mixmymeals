@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.25.2, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.25.3, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -89,6 +89,8 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 ### Domain model and key meta keys
 
 **Recipe** — steps stored as a serialized array in post meta `_rmm_steps`. Each step has `title`, `description`, `image`, and an `ingredients` array. Each ingredient entry has `id` (ingredient post ID), `amount` (float), `amount_id` (unit post ID) and `optional` (bool — printed as "(optional)" on the recipe, the shopping list, the PDF and the subscription mails; an unchecked box submits nothing and `set_steps()` reads it with `! empty()`, so absence means required).
+
+`save_recipe_steps_meta_box()` **rebuilds the posted array key by key** rather than sanitising it in place, so anything it does not name is silently dropped before `set_steps()` sees it — not unsanitised, gone. It lost `optional` (3.25.3) and, for far longer, `image`: every recipe save cleared its step images with nothing to show for it. When a step or ingredient field is added, that callback is the second place to change, and the test is a round trip through the callback, not through `set_steps()` — which handles both keys perfectly well on its own.
 
 The two ingredient markups in `Mixmymeals_Post_Meta` — the rendered row and the hidden `#mixmymeals-ingredient-template` — must carry the **same classes**. `admin.js` names the fields of a cloned row by selecting `ingredient-amount-input` and `ingredient-optional-input`, and the unit-select AJAX inserts after `input.small-text`. A class missing from the template produces a nameless input, which the browser silently omits from the POST: that is how newly added ingredients lost their amount until 3.25.2.
 

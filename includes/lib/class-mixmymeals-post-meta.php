@@ -693,6 +693,16 @@ class Mixmymeals_Post_Meta {
 																			''
 							)
 						),
+						/*
+						 * The step's image. This array replaces the posted one
+						 * wholesale, so a key that is not rebuilt here is not
+						 * merely unsanitised — it is gone by the time
+						 * set_steps() runs. `image` was missing, which silently
+						 * cleared every step image on save.
+						 */
+						'image'       => isset( $step['image'] )
+							? intval( wp_unslash( $step['image'] ) )
+							: 0,
 						'ingredients' => array_map(
 							function ( $ingredient ) {
 								return array(
@@ -705,6 +715,10 @@ class Mixmymeals_Post_Meta {
 									'amount_id' => isset( $ingredient['amount_id'] )
 										? intval( wp_unslash( $ingredient['amount_id'] ) )
 										: 0,
+									// An unchecked box posts nothing, so absence
+									// is the "required" case and needs no
+									// companion hidden field.
+									'optional'  => ! empty( $ingredient['optional'] ),
 								);
 							},
 							$step['ingredients'] ?? array()

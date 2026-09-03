@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.25.2
+Stable tag: 3.25.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.25.3 =
+
+Fixed:
+* The "optional" checkbox added in 3.25.2 did not save. The step save routine
+  rebuilds the posted array field by field, and it only rebuilt id, amount and
+  amount_id — so the flag was discarded before it reached storage.
+* Step images were being cleared on every save, for the same reason: `image`
+  was never rebuilt either. Anyone who saved a recipe lost its step images
+  without any sign that it had happened.
 
 = 3.25.2 =
 
@@ -866,6 +876,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.25.3 =
+Fixes the optional checkbox not saving, and step images being lost on save.
 
 = 3.25.2 =
 Ingredients can be marked optional again, and newly added ingredients keep their amount.
