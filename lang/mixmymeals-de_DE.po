@@ -153,7 +153,7 @@ msgstr "Erscheint neben dem „Plan erstellen“-Button (Plan-Erstellung durch B
 
 #: includes/class-mixmymeals-settings.php:320
 #: includes/lib/class-mixmymeals-post-types.php:267
-#: includes/lib/class-mixmymeals-post-types.php:743
+#: includes/lib/class-mixmymeals-post-types.php:750
 msgid "Recipes"
 msgstr "Rezepte"
 
@@ -229,7 +229,7 @@ msgid "Shown on the recipe page in place of the steps while “Steps on Recipe P
 msgstr "Wird auf der Rezeptseite anstelle der Schritte angezeigt, solange „Schritte auf Rezeptseiten“ ausgeschaltet ist. Leer lassen, um gar nichts auszugeben."
 
 #: includes/class-mixmymeals-settings.php:415
-#: includes/lib/class-mixmymeals-post-types.php:389
+#: includes/lib/class-mixmymeals-post-types.php:396
 msgid "Ingredients"
 msgstr "Zutaten"
 
@@ -255,9 +255,9 @@ msgid "Ingredient Archive Description"
 msgstr "Archivbeschreibung für Zutaten"
 
 #: includes/class-mixmymeals-settings.php:456
-#: includes/lib/class-mixmymeals-post-types.php:626
-#: includes/lib/class-mixmymeals-post-types.php:627
-#: includes/lib/class-mixmymeals-post-types.php:630
+#: includes/lib/class-mixmymeals-post-types.php:633
+#: includes/lib/class-mixmymeals-post-types.php:634
+#: includes/lib/class-mixmymeals-post-types.php:637
 msgid "Equipment"
 msgstr "Küchengeräte"
 
@@ -278,7 +278,7 @@ msgid "Equipment Archive Description"
 msgstr "Archivbeschreibung für Küchengeräte"
 
 #: includes/class-mixmymeals-settings.php:496
-#: includes/lib/class-mixmymeals-post-meta.php:3611
+#: includes/lib/class-mixmymeals-post-meta.php:3638
 msgid "Affiliate links"
 msgstr "Affiliate-Links"
 
@@ -291,8 +291,8 @@ msgid "Shown below the shop links on equipment pages. Affiliate links must be la
 msgstr "Erscheint unter den Shop-Links auf Geräteseiten. Affiliate-Links müssen als Werbung gekennzeichnet werden; leer lassen nutzt den eingebauten Text."
 
 #: includes/class-mixmymeals-settings.php:510
-#: includes/lib/class-mixmymeals-post-types.php:471
-#: includes/lib/class-mixmymeals-post-types.php:476
+#: includes/lib/class-mixmymeals-post-types.php:478
+#: includes/lib/class-mixmymeals-post-types.php:483
 msgid "Meal Plans"
 msgstr "Essenspläne"
 
@@ -582,17 +582,17 @@ msgstr "Angehängter Textblock"
 msgid "HTML or plain text. Each sending rule whose “Append” box is ticked adds this block to the end of its e-mail."
 msgstr "HTML oder Klartext. Jede Versandregel mit gesetztem „Anhängen“-Kästchen hängt diesen Block ans Ende ihrer E-Mail an."
 
-#: includes/lib/class-mixmymeals-post-meta.php:1190
+#: includes/lib/class-mixmymeals-post-meta.php:1217
 msgid "Calories (kcal)"
 msgstr "Kalorien (kcal)"
 
 #: includes/lib/class-mixmymeals-meal-plan.php:597
-#: includes/lib/class-mixmymeals-post-meta.php:2093
+#: includes/lib/class-mixmymeals-post-meta.php:2120
 msgid "Protein"
 msgstr "Eiweiß"
 
 #: includes/lib/class-mixmymeals-meal-plan.php:593
-#: includes/lib/class-mixmymeals-post-meta.php:2089
+#: includes/lib/class-mixmymeals-post-meta.php:2116
 msgid "Fat"
 msgstr "Fett"
 
@@ -752,9 +752,9 @@ msgstr "Rezept als Mahlzeit einplanen"
 #: includes/lib/class-mixmymeals-meal-plan.php:462
 #: includes/lib/class-mixmymeals-meal-plan.php:470
 #: includes/lib/class-mixmymeals-post-meta.php:234
-#: includes/lib/class-mixmymeals-post-meta.php:761
-#: includes/lib/class-mixmymeals-post-meta.php:1582
-#: includes/lib/class-mixmymeals-post-types.php:788
+#: includes/lib/class-mixmymeals-post-meta.php:788
+#: includes/lib/class-mixmymeals-post-meta.php:1609
+#: includes/lib/class-mixmymeals-post-types.php:795
 #: includes/lib/class-mixmymeals-shortcodes.php:2301
 #: includes/lib/class-mixmymeals-shortcodes.php:3437
 #: includes/lib/class-mixmymeals-shortcodes.php:4691
@@ -787,8 +787,8 @@ msgid "Add to Planner"
 msgstr "Einplanen"
 
 #: includes/class-mixmymeals.php:393
-#: includes/lib/class-mixmymeals-post-meta.php:1264
-#: includes/lib/class-mixmymeals-post-meta.php:1518
+#: includes/lib/class-mixmymeals-post-meta.php:1291
+#: includes/lib/class-mixmymeals-post-meta.php:1545
 #: includes/lib/class-mixmymeals-shortcodes.php:2101
 #: includes/lib/class-mixmymeals-shortcodes.php:3598
 #: includes/lib/class-mixmymeals-shortcodes.php:5185
@@ -796,8 +796,8 @@ msgid "Monday"
 msgstr "Montag"
 
 #: includes/class-mixmymeals.php:394
-#: includes/lib/class-mixmymeals-post-meta.php:1265
-#: includes/lib/class-mixmymeals-post-meta.php:1519
+#: includes/lib/class-mixmymeals-post-meta.php:1292
+#: includes/lib/class-mixmymeals-post-meta.php:1546
 #: includes/lib/class-mixmymeals-shortcodes.php:2102
 #: includes/lib/class-mixmymeals-shortcodes.php:3599
 #: includes/lib/class-mixmymeals-shortcodes.php:5186
@@ -805,8 +805,8 @@ msgid "Tuesday"
 msgstr "Dienstag"
 
 #: includes/class-mixmymeals.php:395
-#: includes/lib/class-mixmymeals-post-meta.php:1266
-#: includes/lib/class-mixmymeals-post-meta.php:1520
+#: includes/lib/class-mixmymeals-post-meta.php:1293
+#: includes/lib/class-mixmymeals-post-meta.php:1547
 #: includes/lib/class-mixmymeals-shortcodes.php:2103
 #: includes/lib/class-mixmymeals-shortcodes.php:3600
 #: includes/lib/class-mixmymeals-shortcodes.php:5187
@@ -814,8 +814,8 @@ msgid "Wednesday"
 msgstr "Mittwoch"
 
 #: includes/class-mixmymeals.php:396
-#: includes/lib/class-mixmymeals-post-meta.php:1267
-#: includes/lib/class-mixmymeals-post-meta.php:1521
+#: includes/lib/class-mixmymeals-post-meta.php:1294
+#: includes/lib/class-mixmymeals-post-meta.php:1548
 #: includes/lib/class-mixmymeals-shortcodes.php:2104
 #: includes/lib/class-mixmymeals-shortcodes.php:3601
 #: includes/lib/class-mixmymeals-shortcodes.php:5188
@@ -823,8 +823,8 @@ msgid "Thursday"
 msgstr "Donnerstag"
 
 #: includes/class-mixmymeals.php:397
-#: includes/lib/class-mixmymeals-post-meta.php:1268
-#: includes/lib/class-mixmymeals-post-meta.php:1522
+#: includes/lib/class-mixmymeals-post-meta.php:1295
+#: includes/lib/class-mixmymeals-post-meta.php:1549
 #: includes/lib/class-mixmymeals-shortcodes.php:2105
 #: includes/lib/class-mixmymeals-shortcodes.php:3602
 #: includes/lib/class-mixmymeals-shortcodes.php:5189
@@ -832,8 +832,8 @@ msgid "Friday"
 msgstr "Freitag"
 
 #: includes/class-mixmymeals.php:398
-#: includes/lib/class-mixmymeals-post-meta.php:1269
-#: includes/lib/class-mixmymeals-post-meta.php:1523
+#: includes/lib/class-mixmymeals-post-meta.php:1296
+#: includes/lib/class-mixmymeals-post-meta.php:1550
 #: includes/lib/class-mixmymeals-shortcodes.php:2106
 #: includes/lib/class-mixmymeals-shortcodes.php:3603
 #: includes/lib/class-mixmymeals-shortcodes.php:5190
@@ -841,8 +841,8 @@ msgid "Saturday"
 msgstr "Samstag"
 
 #: includes/class-mixmymeals.php:399
-#: includes/lib/class-mixmymeals-post-meta.php:1270
-#: includes/lib/class-mixmymeals-post-meta.php:1524
+#: includes/lib/class-mixmymeals-post-meta.php:1297
+#: includes/lib/class-mixmymeals-post-meta.php:1551
 #: includes/lib/class-mixmymeals-shortcodes.php:2107
 #: includes/lib/class-mixmymeals-shortcodes.php:3604
 #: includes/lib/class-mixmymeals-shortcodes.php:5191
@@ -884,13 +884,13 @@ msgid "Unserializing instances of MixMyMeals is forbidden"
 msgstr "Das Deserialisieren von MixMyMeals-Instanzen ist verboten."
 
 #: includes/lib/class-mixmymeals-admin-api.php:119
-#: includes/lib/class-mixmymeals-post-meta.php:429
-#: includes/lib/class-mixmymeals-post-meta.php:2566
+#: includes/lib/class-mixmymeals-post-meta.php:456
+#: includes/lib/class-mixmymeals-post-meta.php:2593
 msgid "Select Image"
 msgstr "Bild wählen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:432
-#: includes/lib/class-mixmymeals-post-meta.php:2569
+#: includes/lib/class-mixmymeals-post-meta.php:459
+#: includes/lib/class-mixmymeals-post-meta.php:2596
 msgid "Remove"
 msgstr "Entfernen"
 
@@ -1445,8 +1445,8 @@ msgstr "Tag %d"
 
 #: includes/lib/class-mixmymeals-photos.php:535
 #: includes/lib/class-mixmymeals-photos.php:596
-#: includes/lib/class-mixmymeals-post-meta.php:760
-#: includes/lib/class-mixmymeals-post-meta.php:1465
+#: includes/lib/class-mixmymeals-post-meta.php:787
+#: includes/lib/class-mixmymeals-post-meta.php:1492
 msgid "Recipe"
 msgstr "Rezept"
 
@@ -1465,7 +1465,7 @@ msgid "per serving"
 msgstr "pro Portion"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:173
-#: includes/lib/class-mixmymeals-post-meta.php:1487
+#: includes/lib/class-mixmymeals-post-meta.php:1514
 msgid "Type"
 msgstr "Typ"
 
@@ -1550,15 +1550,15 @@ msgid "Sunday"
 msgstr "Sonntag"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:150
-#: includes/lib/class-mixmymeals-post-types.php:505
-#: includes/lib/class-mixmymeals-post-types.php:510
-#: includes/lib/class-mixmymeals-post-types.php:906
+#: includes/lib/class-mixmymeals-post-types.php:512
+#: includes/lib/class-mixmymeals-post-types.php:517
+#: includes/lib/class-mixmymeals-post-types.php:913
 msgid "Meals"
 msgstr "Mahlzeiten"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:175
-#: includes/lib/class-mixmymeals-post-meta.php:759
-#: includes/lib/class-mixmymeals-post-types.php:506
+#: includes/lib/class-mixmymeals-post-meta.php:786
+#: includes/lib/class-mixmymeals-post-types.php:513
 msgid "Meal"
 msgstr "Mahlzeit"
 
@@ -1581,14 +1581,14 @@ msgid "Total"
 msgstr "Gesamt"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:422
-#: includes/lib/class-mixmymeals-post-types.php:395
+#: includes/lib/class-mixmymeals-post-types.php:402
 #: includes/lib/class-mixmymeals-shortcodes.php:2386
 msgid "No ingredients found."
 msgstr "Keine Zutaten gefunden."
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:428
-#: includes/lib/class-mixmymeals-post-meta.php:1008
-#: includes/lib/class-mixmymeals-post-meta.php:1107
+#: includes/lib/class-mixmymeals-post-meta.php:1035
+#: includes/lib/class-mixmymeals-post-meta.php:1134
 msgid "Shopping List"
 msgstr "Einkaufsliste"
 
@@ -1603,6 +1603,8 @@ msgstr "Betrag"
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:454
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:568
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:625
+#: includes/lib/class-mixmymeals-post-meta.php:278
+#: includes/lib/class-mixmymeals-post-meta.php:434
 #: includes/lib/class-mixmymeals-shortcodes.php:1860
 #: includes/lib/class-mixmymeals-shortcodes.php:2428
 #: includes/lib/class-mixmymeals-shortcodes.php:3169
@@ -1617,7 +1619,7 @@ msgstr "Zutatenübersicht"
 
 #. translators: %d: position of the step, starting at 1.
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:585
-#: includes/lib/class-mixmymeals-post-meta.php:295
+#: includes/lib/class-mixmymeals-post-meta.php:305
 #: includes/lib/class-mixmymeals-shortcodes.php:1772
 #: includes/lib/class-mixmymeals-shortcodes.php:3056
 #, php-format
@@ -1635,7 +1637,7 @@ msgstr "Portion"
 
 #: includes/lib/class-mixmymeals-meal-plan.php:1069
 #: includes/lib/class-mixmymeals-meal.php:378
-#: includes/lib/class-mixmymeals-post-meta.php:1499
+#: includes/lib/class-mixmymeals-post-meta.php:1526
 #: includes/lib/class-mixmymeals-shortcodes.php:879
 #: includes/lib/class-mixmymeals-shortcodes.php:7772
 #: includes/lib/class-mixmymeals-shortcodes.php:8048
@@ -1647,25 +1649,25 @@ msgid "All Ingredients"
 msgstr "Alle Zutaten"
 
 #: includes/lib/class-mixmymeals-meal.php:374
-#: includes/lib/class-mixmymeals-post-meta.php:1495
+#: includes/lib/class-mixmymeals-post-meta.php:1522
 #: includes/lib/class-mixmymeals-shortcodes.php:3609
 msgid "Breakfast"
 msgstr "Frühstück"
 
 #: includes/lib/class-mixmymeals-meal.php:375
-#: includes/lib/class-mixmymeals-post-meta.php:1496
+#: includes/lib/class-mixmymeals-post-meta.php:1523
 #: includes/lib/class-mixmymeals-shortcodes.php:3610
 msgid "Lunch"
 msgstr "Mittagessen"
 
 #: includes/lib/class-mixmymeals-meal.php:376
-#: includes/lib/class-mixmymeals-post-meta.php:1497
+#: includes/lib/class-mixmymeals-post-meta.php:1524
 #: includes/lib/class-mixmymeals-shortcodes.php:3611
 msgid "Dinner"
 msgstr "Abendessen"
 
 #: includes/lib/class-mixmymeals-meal.php:377
-#: includes/lib/class-mixmymeals-post-meta.php:1498
+#: includes/lib/class-mixmymeals-post-meta.php:1525
 #: includes/lib/class-mixmymeals-shortcodes.php:3612
 msgid "Snack"
 msgstr "Snack"
@@ -1788,9 +1790,9 @@ msgid "Delete this photo permanently?"
 msgstr "Dieses Foto endgültig löschen?"
 
 #: includes/lib/class-mixmymeals-photos.php:637
-#: includes/lib/class-mixmymeals-post-meta.php:2072
-#: includes/lib/class-mixmymeals-post-meta.php:2138
-#: includes/lib/class-mixmymeals-post-meta.php:2193
+#: includes/lib/class-mixmymeals-post-meta.php:2099
+#: includes/lib/class-mixmymeals-post-meta.php:2165
+#: includes/lib/class-mixmymeals-post-meta.php:2220
 msgid "Delete"
 msgstr "Löschen"
 
@@ -1803,341 +1805,341 @@ msgid "Add Step"
 msgstr "Schritt hinzufügen"
 
 #: includes/lib/class-mixmymeals-post-meta.php:259
-#: includes/lib/class-mixmymeals-post-meta.php:332
+#: includes/lib/class-mixmymeals-post-meta.php:342
 msgid "Select Ingredient"
 msgstr "Zutat wählen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:301
-#: includes/lib/class-mixmymeals-post-meta.php:2134
+#: includes/lib/class-mixmymeals-post-meta.php:311
+#: includes/lib/class-mixmymeals-post-meta.php:2161
 msgid "Title"
 msgstr "Titel"
 
-#: includes/lib/class-mixmymeals-post-meta.php:310
+#: includes/lib/class-mixmymeals-post-meta.php:320
 msgid "Description"
 msgstr "Beschreibung"
 
-#: includes/lib/class-mixmymeals-post-meta.php:371
+#: includes/lib/class-mixmymeals-post-meta.php:386
 msgid "Gramm (g)"
 msgstr "Gramm (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:416
+#: includes/lib/class-mixmymeals-post-meta.php:443
 msgid "Add Ingredient"
 msgstr "Zutat hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:421
+#: includes/lib/class-mixmymeals-post-meta.php:448
 msgid "Image"
 msgstr "Bild"
 
-#: includes/lib/class-mixmymeals-post-meta.php:436
+#: includes/lib/class-mixmymeals-post-meta.php:463
 msgid "Delete Step"
 msgstr "Schritt löschen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:443
+#: includes/lib/class-mixmymeals-post-meta.php:470
 msgid "Details"
 msgstr "Details"
 
-#: includes/lib/class-mixmymeals-post-meta.php:460
+#: includes/lib/class-mixmymeals-post-meta.php:487
 msgid "Preparation Time (Minutes)"
 msgstr "Zubereitungszeit (in Minuten)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:483
+#: includes/lib/class-mixmymeals-post-meta.php:510
 msgid "Mark as favorite (featured in the recipe archive)"
 msgstr "Als Favorit markieren (im Rezeptarchiv hervorgehoben)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:488
+#: includes/lib/class-mixmymeals-post-meta.php:515
 msgid "Cook counter (times cooked)"
 msgstr "Kochzähler (wie oft gekocht)"
 
 #. translators: %d: how often the recipe sits on a published meal plan.
-#: includes/lib/class-mixmymeals-post-meta.php:505
+#: includes/lib/class-mixmymeals-post-meta.php:532
 #, php-format
 msgid "Freely editable, zero included. The counter keeps counting on from the value you enter whenever the recipe lands on a published meal plan. Currently planned: %d times."
 msgstr "Frei bearbeitbar, auch auf 0. Der Zähler zählt ab dem eingetragenen Wert weiter, sobald das Rezept auf einem veröffentlichten Wochenplan landet. Aktuell geplant: %d mal."
 
-#: includes/lib/class-mixmymeals-post-meta.php:569
+#: includes/lib/class-mixmymeals-post-meta.php:596
 msgid "Priority"
 msgstr "Priorität"
 
-#: includes/lib/class-mixmymeals-post-meta.php:592
+#: includes/lib/class-mixmymeals-post-meta.php:619
 msgid "Lower value = image shown first per day."
 msgstr "Niedrigerer Wert = Bild erscheint zuerst pro Tag."
 
-#: includes/lib/class-mixmymeals-post-meta.php:730
+#: includes/lib/class-mixmymeals-post-meta.php:757
 msgid "Meal Overview"
 msgstr "Mahlzeitenübersicht"
 
-#: includes/lib/class-mixmymeals-post-meta.php:749
+#: includes/lib/class-mixmymeals-post-meta.php:776
 msgid "No meals linked to this plan yet."
 msgstr "Diesem Plan sind noch keine Mahlzeiten zugeordnet."
 
 #. translators: %d: ID of the meal, used when it has no title yet.
-#: includes/lib/class-mixmymeals-post-meta.php:781
+#: includes/lib/class-mixmymeals-post-meta.php:808
 #, php-format
 msgid "Meal #%d"
 msgstr "Mahlzeit #%d"
 
-#: includes/lib/class-mixmymeals-post-meta.php:845
-#: includes/lib/class-mixmymeals-post-meta.php:1181
+#: includes/lib/class-mixmymeals-post-meta.php:872
+#: includes/lib/class-mixmymeals-post-meta.php:1208
 msgid "Nutrition Facts"
 msgstr "Nährwertangaben"
 
-#: includes/lib/class-mixmymeals-post-meta.php:866
+#: includes/lib/class-mixmymeals-post-meta.php:893
 msgid "Calories (per 100 g)"
 msgstr "Kalorien (pro 100 g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:876
+#: includes/lib/class-mixmymeals-post-meta.php:903
 msgid "Macronutrients (per 100 g)"
 msgstr "Makronährstoffe (pro 100 g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:882
-#: includes/lib/class-mixmymeals-post-meta.php:1193
+#: includes/lib/class-mixmymeals-post-meta.php:909
+#: includes/lib/class-mixmymeals-post-meta.php:1220
 msgid "Fat (g)"
 msgstr "Fett (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:883
-#: includes/lib/class-mixmymeals-post-meta.php:1192
+#: includes/lib/class-mixmymeals-post-meta.php:910
+#: includes/lib/class-mixmymeals-post-meta.php:1219
 msgid "Carbohydrates (g)"
 msgstr "Kohlenhydrate (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:884
-#: includes/lib/class-mixmymeals-post-meta.php:1191
+#: includes/lib/class-mixmymeals-post-meta.php:911
+#: includes/lib/class-mixmymeals-post-meta.php:1218
 msgid "Protein (g)"
 msgstr "Eiweiß (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:885
-#: includes/lib/class-mixmymeals-post-meta.php:1194
+#: includes/lib/class-mixmymeals-post-meta.php:912
+#: includes/lib/class-mixmymeals-post-meta.php:1221
 msgid "Sugar (g)"
 msgstr "Zucker (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:886
-#: includes/lib/class-mixmymeals-post-meta.php:1195
+#: includes/lib/class-mixmymeals-post-meta.php:913
+#: includes/lib/class-mixmymeals-post-meta.php:1222
 msgid "Fiber (g)"
 msgstr "Ballaststoffe (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:887
-#: includes/lib/class-mixmymeals-post-meta.php:1196
+#: includes/lib/class-mixmymeals-post-meta.php:914
+#: includes/lib/class-mixmymeals-post-meta.php:1223
 msgid "Salt (g)"
 msgstr "Salz (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1042
+#: includes/lib/class-mixmymeals-post-meta.php:1069
 msgid "Please save the recipe to update the shopping list."
 msgstr "Bitte speichere das Rezept, um die Einkaufsliste zu aktualisieren."
 
-#: includes/lib/class-mixmymeals-post-meta.php:1184
+#: includes/lib/class-mixmymeals-post-meta.php:1211
 msgid "Nutrient"
 msgstr "Nährstoff"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1185
+#: includes/lib/class-mixmymeals-post-meta.php:1212
 msgid "per Serving"
 msgstr "pro Portion"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1186
+#: includes/lib/class-mixmymeals-post-meta.php:1213
 #: includes/lib/class-mixmymeals-shortcodes.php:1996
 #: includes/lib/class-mixmymeals-shortcodes.php:3251
 #: includes/lib/class-mixmymeals-shortcodes.php:7115
 msgid "per 100 g"
 msgstr "pro 100 g"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1247
+#: includes/lib/class-mixmymeals-post-meta.php:1274
 msgid "Meal Plan Settings"
 msgstr "Essensplan-Einstellungen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1278
+#: includes/lib/class-mixmymeals-post-meta.php:1305
 msgid "Start Weekday"
 msgstr "Start-Wochentag"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1293
+#: includes/lib/class-mixmymeals-post-meta.php:1320
 msgid "End Weekday"
 msgstr "End-Wochentag"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2424
+#: includes/lib/class-mixmymeals-post-meta.php:2451
 msgid "Plan Author"
 msgstr "Plan-Autor"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2438
+#: includes/lib/class-mixmymeals-post-meta.php:2465
 msgid "Recipe Author"
 msgstr "Rezept-Autor"
 
 #. translators: %s: display name of the WordPress user who created the post.
-#: includes/lib/class-mixmymeals-post-meta.php:2465
+#: includes/lib/class-mixmymeals-post-meta.php:2492
 #, php-format
 msgid "Leave the name empty to credit the WordPress author (%s) with their profile picture and bio."
 msgstr "Leer lassen, um den WordPress-Autor (%s) mit Profilbild und Biografie anzuzeigen."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2535
+#: includes/lib/class-mixmymeals-post-meta.php:2562
 msgid "Author Name"
 msgstr "Autorenname"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2549
+#: includes/lib/class-mixmymeals-post-meta.php:2576
 msgid "Author Text"
 msgstr "Autorentext"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2558
+#: includes/lib/class-mixmymeals-post-meta.php:2585
 msgid "Profile Picture"
 msgstr "Profilbild"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2571
+#: includes/lib/class-mixmymeals-post-meta.php:2598
 msgid "Shown like a WordPress author’s profile picture. Only used for an external author; without a name the WordPress author’s own avatar is shown."
 msgstr "Wird wie das Profilbild eines WordPress-Autors dargestellt. Nur für einen externen Autor; ohne Namen wird der Avatar des WordPress-Autors angezeigt."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2575
-#: includes/lib/class-mixmymeals-post-meta.php:3103
+#: includes/lib/class-mixmymeals-post-meta.php:2602
+#: includes/lib/class-mixmymeals-post-meta.php:3130
 msgid "Link URL"
 msgstr "Link-URL"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2580
+#: includes/lib/class-mixmymeals-post-meta.php:2607
 msgid "Link Text"
 msgstr "Link-Text"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2584
+#: includes/lib/class-mixmymeals-post-meta.php:2611
 msgid "Optional. Defaults to the domain of the link."
 msgstr "Optional. Standardmäßig die Domain des Links."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2588
+#: includes/lib/class-mixmymeals-post-meta.php:2615
 msgid "Social Links"
 msgstr "Social-Links"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2592
+#: includes/lib/class-mixmymeals-post-meta.php:2619
 msgid "One URL or e-mail address per line. The icon is derived from the address; unknown sites get a globe icon. Only used for an external author — the WordPress author’s links come from their profile."
 msgstr "Eine URL oder E-Mail-Adresse pro Zeile. Das Icon wird aus der Adresse abgeleitet; unbekannte Seiten bekommen ein Globus-Icon. Gilt nur für externe Autoren — beim WordPress-Autor kommen die Links aus dem Profil."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2595
+#: includes/lib/class-mixmymeals-post-meta.php:2622
 msgid "Link Type"
 msgstr "Linktyp"
 
 #: includes/lib/class-mixmymeals-author.php:529
 #: includes/lib/class-mixmymeals-author.php:585
-#: includes/lib/class-mixmymeals-post-meta.php:2598
+#: includes/lib/class-mixmymeals-post-meta.php:2625
 msgid "Mark link as nofollow"
 msgstr "Link als nofollow kennzeichnen"
 
 #: includes/lib/class-mixmymeals-author.php:530
 #: includes/lib/class-mixmymeals-author.php:586
-#: includes/lib/class-mixmymeals-post-meta.php:2600
+#: includes/lib/class-mixmymeals-post-meta.php:2627
 msgid "Off: the link passes ranking signals (follow). On: rel=\"nofollow\" is added."
 msgstr "Aus: Der Link gibt Ranking-Signale weiter (follow). An: rel=\"nofollow\" wird ergänzt."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3058
+#: includes/lib/class-mixmymeals-post-meta.php:3085
 msgid "Image Source"
 msgstr "Bildquelle"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3080
+#: includes/lib/class-mixmymeals-post-meta.php:3107
 msgid "Credit for the featured image. Every field is optional; the line is only shown when at least one of creator, source or licence is filled in."
 msgstr "Nachweis für das Beitragsbild. Alle Felder sind optional; die Zeile erscheint nur, wenn Urheber, Quelle oder Lizenz ausgefüllt ist."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3086
+#: includes/lib/class-mixmymeals-post-meta.php:3113
 msgid "Creator"
 msgstr "Urheber"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3089
+#: includes/lib/class-mixmymeals-post-meta.php:3116
 msgid "Who took or made the picture."
 msgstr "Wer das Bild aufgenommen oder erstellt hat."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3092
+#: includes/lib/class-mixmymeals-post-meta.php:3119
 msgid "Source"
 msgstr "Quelle"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3095
+#: includes/lib/class-mixmymeals-post-meta.php:3122
 msgid "Where it came from, e.g. the stock library or publication."
 msgstr "Woher es stammt, z. B. Bildagentur oder Publikation."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3098
+#: includes/lib/class-mixmymeals-post-meta.php:3125
 msgid "Licence"
 msgstr "Lizenz"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3106
+#: includes/lib/class-mixmymeals-post-meta.php:3133
 msgid "Optional. Links creator and source; the licence stays unlinked."
 msgstr "Optional. Verlinkt Urheber und Quelle; die Lizenz bleibt unverlinkt."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3111
+#: includes/lib/class-mixmymeals-post-meta.php:3138
 msgid "Preview:"
 msgstr "Vorschau:"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3548
+#: includes/lib/class-mixmymeals-post-meta.php:3575
 msgid "Visibility"
 msgstr "Sichtbarkeit"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3567
+#: includes/lib/class-mixmymeals-post-meta.php:3594
 msgid "Hide from listings"
 msgstr "Nicht in Listen anzeigen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3570
+#: includes/lib/class-mixmymeals-post-meta.php:3597
 msgid "Keeps the page reachable under its own URL but removes it from archives, category pages, the search and the browse rows."
 msgstr "Die Seite bleibt unter ihrer eigenen URL erreichbar, verschwindet aber aus Archiven, Kategorieseiten, der Suche und den Stöber-Reihen."
 
-#: includes/lib/class-mixmymeals-post-meta.php:1408
+#: includes/lib/class-mixmymeals-post-meta.php:1435
 msgid "Meal Details"
 msgstr "Mahlzeitendetails"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1434
+#: includes/lib/class-mixmymeals-post-meta.php:1461
 msgid "Meal Plan (Parent)"
 msgstr "Essensplan (übergeordnet)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1439
+#: includes/lib/class-mixmymeals-post-meta.php:1466
 msgid "— Select Meal Plan —"
 msgstr "— Plan wählen —"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1468
+#: includes/lib/class-mixmymeals-post-meta.php:1495
 msgid "— Select Recipe —"
 msgstr "— Rezept wählen —"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1491
+#: includes/lib/class-mixmymeals-post-meta.php:1518
 msgid "Select Type"
 msgstr "Typen wählen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1544
+#: includes/lib/class-mixmymeals-post-meta.php:1571
 msgid "Day (within Meal Plan)"
 msgstr "Tag (innerhalb des Essensplans)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1550
+#: includes/lib/class-mixmymeals-post-meta.php:1577
 msgid "Select Day"
 msgstr "Tag wählen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3648
+#: includes/lib/class-mixmymeals-post-meta.php:3675
 msgid "Shops where this piece of equipment can be bought. Links open in a new tab and carry rel=\"sponsored nofollow\". Clear the URL to remove a row; save to get fresh empty rows."
 msgstr "Shops, in denen es dieses Gerät gibt. Die Links öffnen in einem neuen Tab und tragen rel=\"sponsored nofollow\". URL leeren entfernt die Zeile; nach dem Speichern erscheinen neue leere Zeilen."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3658
+#: includes/lib/class-mixmymeals-post-meta.php:3685
 msgid "Shop"
 msgstr "Shop"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3659
+#: includes/lib/class-mixmymeals-post-meta.php:3686
 msgid "URL"
 msgstr "URL"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3660
+#: includes/lib/class-mixmymeals-post-meta.php:3687
 msgid "Note"
 msgstr "Notiz"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3671
+#: includes/lib/class-mixmymeals-post-meta.php:3698
 msgid "e.g. Amazon"
 msgstr "z. B. Amazon"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3685
+#: includes/lib/class-mixmymeals-post-meta.php:3712
 msgid "e.g. around 30 €"
 msgstr "z. B. ca. 30 €"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1673
+#: includes/lib/class-mixmymeals-post-meta.php:1700
 msgid "Price"
 msgstr "Preis"
 
 #. translators: %s = currency symbol
-#: includes/lib/class-mixmymeals-post-meta.php:1691
+#: includes/lib/class-mixmymeals-post-meta.php:1718
 #, php-format
 msgid "Price per 100 g (%s)"
 msgstr "Preis je 100 g (%s)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1740
-#: includes/lib/class-mixmymeals-post-meta.php:1765
+#: includes/lib/class-mixmymeals-post-meta.php:1767
+#: includes/lib/class-mixmymeals-post-meta.php:1792
 msgid "Diet Type"
 msgstr "Ernährungsweise"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1759
+#: includes/lib/class-mixmymeals-post-meta.php:1786
 msgid "Not specified"
 msgstr "Nicht angegeben"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1760
-#: includes/lib/class-mixmymeals-post-meta.php:2057
+#: includes/lib/class-mixmymeals-post-meta.php:1787
+#: includes/lib/class-mixmymeals-post-meta.php:2084
 #: includes/lib/class-mixmymeals-shortcodes.php:569
 #: includes/lib/class-mixmymeals-shortcodes.php:792
 #: includes/lib/class-mixmymeals-shortcodes.php:2328
@@ -2149,8 +2151,8 @@ msgstr "Nicht angegeben"
 msgid "Vegetarian"
 msgstr "Vegetarisch"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1761
-#: includes/lib/class-mixmymeals-post-meta.php:2056
+#: includes/lib/class-mixmymeals-post-meta.php:1788
+#: includes/lib/class-mixmymeals-post-meta.php:2083
 #: includes/lib/class-mixmymeals-shortcodes.php:566
 #: includes/lib/class-mixmymeals-shortcodes.php:789
 #: includes/lib/class-mixmymeals-shortcodes.php:2326
@@ -2162,68 +2164,68 @@ msgstr "Vegetarisch"
 msgid "Vegan"
 msgstr "Vegan"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2112
+#: includes/lib/class-mixmymeals-post-meta.php:2139
 msgid "Units"
 msgstr "Einheiten"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2135
+#: includes/lib/class-mixmymeals-post-meta.php:2162
 msgid "Used"
 msgstr "Nutzung"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2136
+#: includes/lib/class-mixmymeals-post-meta.php:2163
 msgid "Weight"
 msgstr "Gewicht"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2205
+#: includes/lib/class-mixmymeals-post-meta.php:2232
 msgid "New Amount"
 msgstr "Neue Menge"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2209
-#: includes/lib/class-mixmymeals-post-meta.php:2218
+#: includes/lib/class-mixmymeals-post-meta.php:2236
+#: includes/lib/class-mixmymeals-post-meta.php:2245
 msgid "–"
 msgstr "–"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2252
+#: includes/lib/class-mixmymeals-post-meta.php:2279
 msgid "Gramm (Standard)"
 msgstr "Gramm (Standard)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2279
+#: includes/lib/class-mixmymeals-post-meta.php:2306
 msgid "Required Equipment"
 msgstr "Benötigtes Equipment"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2330
+#: includes/lib/class-mixmymeals-post-meta.php:2357
 msgid "Select equipment needed for this recipe:"
 msgstr "Wähle Equipment, das für dieses Rezept benötigt wird."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2336
+#: includes/lib/class-mixmymeals-post-meta.php:2363
 msgid "No equipment available yet."
 msgstr "Noch keine Küchengeräte vorhanden."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2338
+#: includes/lib/class-mixmymeals-post-meta.php:2365
 msgid "Create new equipment"
 msgstr "Neues Küchengerät erstellen"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3731
+#: includes/lib/class-mixmymeals-post-meta.php:3758
 msgid "Goes well with"
 msgstr "Dazu passt"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3786
+#: includes/lib/class-mixmymeals-post-meta.php:3813
 msgid "Select recipes that go well with this one:"
 msgstr "Wähle Rezepte, die dazu passen:"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3789
+#: includes/lib/class-mixmymeals-post-meta.php:3816
 msgid "No other recipes available yet."
 msgstr "Es sind noch keine anderen Rezepte vorhanden."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3795
+#: includes/lib/class-mixmymeals-post-meta.php:3822
 msgid "Filter recipes…"
 msgstr "Rezepte filtern …"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3820
+#: includes/lib/class-mixmymeals-post-meta.php:3847
 msgid "Fits with"
 msgstr "Passend zu"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3830
+#: includes/lib/class-mixmymeals-post-meta.php:3857
 msgid "These recipes list this one under “Goes well with”."
 msgstr "Diese Rezepte führen dieses unter „Dazu passt“."
 
@@ -2248,7 +2250,7 @@ msgid "Recipe"
 msgstr "Rezept"
 
 #: includes/lib/class-mixmymeals-post-types.php:262
-#: includes/lib/class-mixmymeals-post-types.php:384
+#: includes/lib/class-mixmymeals-post-types.php:391
 msgid "Add New"
 msgstr "Neu hinzufügen"
 
@@ -2335,188 +2337,184 @@ msgctxt "Screen reader text."
 msgid "Recipes list"
 msgstr "Rezeptliste"
 
-#: includes/lib/class-mixmymeals-post-types.php:329
-msgid "Recipe Description"
-msgstr "Rezeptbeschreibung"
-
-#: includes/lib/class-mixmymeals-post-types.php:364
+#: includes/lib/class-mixmymeals-post-types.php:371
 msgctxt "Post type general name"
 msgid "Ingredients"
 msgstr "Zutaten"
 
-#: includes/lib/class-mixmymeals-post-types.php:369
+#: includes/lib/class-mixmymeals-post-types.php:376
 msgctxt "Post type singular name"
 msgid "Ingredient"
 msgstr "Zutat"
 
-#: includes/lib/class-mixmymeals-post-types.php:374
+#: includes/lib/class-mixmymeals-post-types.php:381
 msgctxt "Admin Menu text"
 msgid "Ingredients"
 msgstr "Zutaten"
 
-#: includes/lib/class-mixmymeals-post-types.php:379
+#: includes/lib/class-mixmymeals-post-types.php:386
 msgctxt "Add New on Toolbar"
 msgid "Ingredient"
 msgstr "Zutat"
 
-#: includes/lib/class-mixmymeals-post-types.php:385
+#: includes/lib/class-mixmymeals-post-types.php:392
 msgid "Add New Ingredient"
 msgstr "Neue Zutat hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:386
+#: includes/lib/class-mixmymeals-post-types.php:393
 msgid "New Ingredient"
 msgstr "Neue Zutat"
 
-#: includes/lib/class-mixmymeals-post-types.php:387
+#: includes/lib/class-mixmymeals-post-types.php:394
 msgid "Edit Ingredient"
 msgstr "Zutat bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-types.php:388
+#: includes/lib/class-mixmymeals-post-types.php:395
 msgid "View Ingredient"
 msgstr "Zutaten anzeigen"
 
-#: includes/lib/class-mixmymeals-post-types.php:390
+#: includes/lib/class-mixmymeals-post-types.php:397
 msgid "Search Ingredients"
 msgstr "Zutaten durchsuchen"
 
-#: includes/lib/class-mixmymeals-post-types.php:391
+#: includes/lib/class-mixmymeals-post-types.php:398
 msgid "Parent Ingredients:"
 msgstr "Übergeordnete Zutaten:"
 
-#: includes/lib/class-mixmymeals-post-types.php:399
+#: includes/lib/class-mixmymeals-post-types.php:406
 msgid "No ingredients found in Trash."
 msgstr "Keine Zutaten im Papierkorb gefunden."
 
-#: includes/lib/class-mixmymeals-post-types.php:403
+#: includes/lib/class-mixmymeals-post-types.php:410
 msgid "Ingredient Image"
 msgstr "Zutatenbild"
 
-#: includes/lib/class-mixmymeals-post-types.php:404
+#: includes/lib/class-mixmymeals-post-types.php:411
 msgid "Set ingredient image"
 msgstr "Zutatenbild festlegen"
 
-#: includes/lib/class-mixmymeals-post-types.php:408
+#: includes/lib/class-mixmymeals-post-types.php:415
 msgid "Remove ingredient image"
 msgstr "Zutatenbild entfernen"
 
-#: includes/lib/class-mixmymeals-post-types.php:412
+#: includes/lib/class-mixmymeals-post-types.php:419
 msgid "Use as ingredient image"
 msgstr "Als Zutatenbild verwenden"
 
-#: includes/lib/class-mixmymeals-post-types.php:416
+#: includes/lib/class-mixmymeals-post-types.php:423
 msgid "Ingredient archives"
 msgstr "Zutatenarchive"
 
-#: includes/lib/class-mixmymeals-post-types.php:420
+#: includes/lib/class-mixmymeals-post-types.php:427
 msgid "Insert into ingredient"
 msgstr "In Zutat einfügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:424
+#: includes/lib/class-mixmymeals-post-types.php:431
 msgid "Uploaded to this ingredient"
 msgstr "Zu dieser Zutat hochgeladen"
 
-#: includes/lib/class-mixmymeals-post-types.php:428
+#: includes/lib/class-mixmymeals-post-types.php:435
 msgid "Filter ingredients list"
 msgstr "Zutatenliste filtern"
 
-#: includes/lib/class-mixmymeals-post-types.php:432
+#: includes/lib/class-mixmymeals-post-types.php:439
 msgid "Ingredients list navigation"
 msgstr "Navigation der Zutatenliste"
 
-#: includes/lib/class-mixmymeals-post-types.php:436
+#: includes/lib/class-mixmymeals-post-types.php:443
 msgid "Ingredients list"
 msgstr "Zutatenliste"
 
-#: includes/lib/class-mixmymeals-post-types.php:472
+#: includes/lib/class-mixmymeals-post-types.php:479
 #: includes/lib/class-mixmymeals-shortcodes.php:4080
 msgid "Meal Plan"
 msgstr "Essensplan"
 
-#: includes/lib/class-mixmymeals-post-types.php:473
+#: includes/lib/class-mixmymeals-post-types.php:480
 msgid "Add New Meal Plan"
 msgstr "Neuen Essensplan hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:474
+#: includes/lib/class-mixmymeals-post-types.php:481
 msgid "Edit Meal Plan"
 msgstr "Essensplan bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-types.php:475
+#: includes/lib/class-mixmymeals-post-types.php:482
 msgid "View Meal Plan"
 msgstr "Essensplan anzeigen"
 
-#: includes/lib/class-mixmymeals-post-types.php:507
+#: includes/lib/class-mixmymeals-post-types.php:514
 msgid "Add New Meal"
 msgstr "Neue Mahlzeit hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:508
+#: includes/lib/class-mixmymeals-post-types.php:515
 msgid "Edit Meal"
 msgstr "Mahlzeit bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-types.php:509
+#: includes/lib/class-mixmymeals-post-types.php:516
 msgid "View Meal"
 msgstr "Mahlzeit anzeigen"
 
-#: includes/lib/class-mixmymeals-post-types.php:540
-#: includes/lib/class-mixmymeals-post-types.php:544
+#: includes/lib/class-mixmymeals-post-types.php:547
+#: includes/lib/class-mixmymeals-post-types.php:551
 msgid "Ingredient Amounts"
 msgstr "Zutatenmengen"
 
-#: includes/lib/class-mixmymeals-post-types.php:541
+#: includes/lib/class-mixmymeals-post-types.php:548
 msgid "Ingredient Amount"
 msgstr "Zutatenmenge"
 
-#: includes/lib/class-mixmymeals-post-types.php:542
+#: includes/lib/class-mixmymeals-post-types.php:549
 msgid "Add New Amount"
 msgstr "Neue Menge hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:543
+#: includes/lib/class-mixmymeals-post-types.php:550
 msgid "Edit Amount"
 msgstr "Menge bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-types.php:628
+#: includes/lib/class-mixmymeals-post-types.php:635
 msgid "Add New Piece Of Equipment"
 msgstr "Neues Küchengerät hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:629
+#: includes/lib/class-mixmymeals-post-types.php:636
 msgid "Edit Piece Of Equipment"
 msgstr "Küchengerät bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-types.php:789
+#: includes/lib/class-mixmymeals-post-types.php:796
 msgid "Cost / Serving"
 msgstr "Kosten / Portion"
 
-#: includes/lib/class-mixmymeals-post-types.php:790
+#: includes/lib/class-mixmymeals-post-types.php:797
 msgid "kcal / Serving"
 msgstr "kcal / Portion"
 
-#: includes/lib/class-mixmymeals-post-types.php:791
+#: includes/lib/class-mixmymeals-post-types.php:798
 msgid "kcal / 100g"
 msgstr "kcal / 100 g"
 
-#: includes/lib/class-mixmymeals-post-types.php:792
+#: includes/lib/class-mixmymeals-post-types.php:799
 msgid "Protein / 100g"
 msgstr "Eiweiß / 100 g"
 
-#: includes/lib/class-mixmymeals-post-types.php:793
+#: includes/lib/class-mixmymeals-post-types.php:800
 msgid "Carbs / 100g"
 msgstr "Kohlenhydrate / 100 g"
 
-#: includes/lib/class-mixmymeals-post-types.php:794
+#: includes/lib/class-mixmymeals-post-types.php:801
 msgid "Fat / 100g"
 msgstr "Fett / 100 g"
 
-#: includes/lib/class-mixmymeals-post-types.php:905
+#: includes/lib/class-mixmymeals-post-types.php:912
 msgid "Days"
 msgstr "Tage"
 
-#: includes/lib/class-mixmymeals-post-types.php:1001
+#: includes/lib/class-mixmymeals-post-types.php:1008
 #: includes/lib/class-mixmymeals-taxonomies.php:220
 #: includes/lib/class-mixmymeals-taxonomies.php:268
 #: includes/lib/class-mixmymeals-taxonomies.php:312
 msgid "All Categories"
 msgstr "Alle Kategorien"
 
-#: includes/lib/class-mixmymeals-post-types.php:1006
+#: includes/lib/class-mixmymeals-post-types.php:1013
 msgid "No Category"
 msgstr "Keine Kategorie"
 
@@ -2852,7 +2850,7 @@ msgid "No steps or ingredients found for this recipe."
 msgstr "Für dieses Rezept wurden keine Schritte oder Zutaten gefunden."
 
 #: includes/lib/class-mixmymeals-meal-plan.php:598
-#: includes/lib/class-mixmymeals-post-meta.php:2094
+#: includes/lib/class-mixmymeals-post-meta.php:2121
 msgid "Salt"
 msgstr "Salz"
 
@@ -3701,39 +3699,39 @@ msgstr "Mahlzeiten-Ersteller"
 msgid "Pending Meal Mixer"
 msgstr "Ausstehender Essensplaner:"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3323
+#: includes/lib/class-mixmymeals-post-meta.php:3350
 msgid "Editorial (own content)"
 msgstr "Redaktionell (eigener Inhalt)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3324
+#: includes/lib/class-mixmymeals-post-meta.php:3351
 msgid "Guest contribution (unpaid)"
 msgstr "Gastbeitrag (unbezahlt)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3325
+#: includes/lib/class-mixmymeals-post-meta.php:3352
 msgid "Cooperation (product provided)"
 msgstr "Kooperation (Produkt gestellt)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3326
+#: includes/lib/class-mixmymeals-post-meta.php:3353
 msgid "Sponsored (paid placement)"
 msgstr "Gesponsert (bezahlte Platzierung)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3339
+#: includes/lib/class-mixmymeals-post-meta.php:3366
 msgid "Disclosure"
 msgstr "Kennzeichnung"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3359
+#: includes/lib/class-mixmymeals-post-meta.php:3386
 msgid "How this content came about"
 msgstr "Wie dieser Inhalt entstanden ist"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3374
+#: includes/lib/class-mixmymeals-post-meta.php:3401
 msgid "Sponsor / partner"
 msgstr "Sponsor / Partner"
 
-#: includes/lib/class-mixmymeals-post-meta.php:3381
+#: includes/lib/class-mixmymeals-post-meta.php:3408
 msgid "Only stored for cooperation and sponsored content — cleared automatically for the other types."
 msgstr "Wird nur bei Kooperation und gesponserten Inhalten gespeichert — bei den anderen Typen automatisch geleert."
 
-#: includes/lib/class-mixmymeals-post-meta.php:3385
+#: includes/lib/class-mixmymeals-post-meta.php:3412
 msgid "Cooperation and sponsored content must carry a visible label on the page. A guest contribution is credited through the author box and is not advertising."
 msgstr "Kooperationen und gesponserte Inhalte müssen auf der Seite sichtbar gekennzeichnet werden. Ein Gastbeitrag wird über die Autorenbox kreditiert und ist keine Werbung."
 
@@ -3811,17 +3809,17 @@ msgid "Energy"
 msgstr "Energie"
 
 #: includes/lib/class-mixmymeals-meal-plan.php:594
-#: includes/lib/class-mixmymeals-post-meta.php:2090
+#: includes/lib/class-mixmymeals-post-meta.php:2117
 msgid "Carbohydrate"
 msgstr "Kohlenhydrate"
 
 #: includes/lib/class-mixmymeals-meal-plan.php:595
-#: includes/lib/class-mixmymeals-post-meta.php:2091
+#: includes/lib/class-mixmymeals-post-meta.php:2118
 msgid "of which sugars"
 msgstr "davon Zucker"
 
 #: includes/lib/class-mixmymeals-meal-plan.php:596
-#: includes/lib/class-mixmymeals-post-meta.php:2092
+#: includes/lib/class-mixmymeals-post-meta.php:2119
 msgid "Fibre"
 msgstr "Ballaststoffe"
 
@@ -3837,27 +3835,27 @@ msgstr "%s kcal"
 msgid "%s g"
 msgstr "%s g"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2511
+#: includes/lib/class-mixmymeals-post-meta.php:2538
 msgid "Author"
 msgstr "Autor"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2515
+#: includes/lib/class-mixmymeals-post-meta.php:2542
 msgid "— WordPress author —"
 msgstr "— WordPress-Autor —"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2523
+#: includes/lib/class-mixmymeals-post-meta.php:2550
 msgid "— New author —"
 msgstr "— Neuer Autor —"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2528
+#: includes/lib/class-mixmymeals-post-meta.php:2555
 msgid "Edit this author"
 msgstr "Diesen Autor bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2531
+#: includes/lib/class-mixmymeals-post-meta.php:2558
 msgid "The fields below belong to the author, not to this post — changing them updates every recipe and plan they are credited on."
 msgstr "Die Felder unten gehören zum Autor, nicht zu diesem Beitrag — eine Änderung wirkt sich auf jedes Rezept und jeden Plan aus, bei dem er genannt ist."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2540
+#: includes/lib/class-mixmymeals-post-meta.php:2567
 msgid "Only editable for a new author. Rename an existing one on their own screen."
 msgstr "Nur für einen neuen Autor änderbar. Einen bestehenden benennst du auf seiner eigenen Seite um."
 
@@ -3991,11 +3989,11 @@ msgstr "Ø Kohlenhydrate / Tag / Person"
 msgid "g"
 msgstr "g"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2137
+#: includes/lib/class-mixmymeals-post-meta.php:2164
 msgid "Divisibility"
 msgstr "Teilbarkeit"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2184
+#: includes/lib/class-mixmymeals-post-meta.php:2211
 msgid "1 = whole ones only, 2 = can be halved, 4 = quarters. Empty means any amount."
 msgstr "1 = nur ganze, 2 = halbierbar, 4 = Viertel. Leer heißt: beliebige Menge."
 
@@ -4036,65 +4034,65 @@ msgstr "Bewerte die Rezepte aus diesem Plan:"
 msgid "Upload a photo of any meal from this plan:"
 msgstr "Lade ein Foto zu einem Gericht aus diesem Plan hoch:"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1936
-#: includes/lib/class-mixmymeals-post-types.php:590
-#: includes/lib/class-mixmymeals-post-types.php:594
+#: includes/lib/class-mixmymeals-post-meta.php:1963
+#: includes/lib/class-mixmymeals-post-types.php:597
+#: includes/lib/class-mixmymeals-post-types.php:601
 msgid "Products"
 msgstr "Produkte"
 
-#: includes/lib/class-mixmymeals-post-types.php:591
+#: includes/lib/class-mixmymeals-post-types.php:598
 msgid "Product"
 msgstr "Produkt"
 
-#: includes/lib/class-mixmymeals-post-types.php:592
+#: includes/lib/class-mixmymeals-post-types.php:599
 msgid "Add New Product"
 msgstr "Neues Produkt hinzufügen"
 
-#: includes/lib/class-mixmymeals-post-types.php:593
+#: includes/lib/class-mixmymeals-post-types.php:600
 msgid "Edit Product"
 msgstr "Produkt bearbeiten"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1984
+#: includes/lib/class-mixmymeals-post-meta.php:2011
 msgid "Leave the nutrition fields empty for anything the packet does not state — an empty field is not the same as zero."
 msgstr "Nährwertfelder leer lassen, wo die Packung nichts angibt — ein leeres Feld ist nicht dasselbe wie null."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2021
+#: includes/lib/class-mixmymeals-post-meta.php:2048
 msgid "Product name"
 msgstr "Produktname"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2033
+#: includes/lib/class-mixmymeals-post-meta.php:2060
 msgid "Brand"
 msgstr "Marke"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2088
+#: includes/lib/class-mixmymeals-post-meta.php:2115
 msgid "kcal/100 g"
 msgstr "kcal/100 g"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2100
+#: includes/lib/class-mixmymeals-post-meta.php:2127
 msgid "Source of these figures"
 msgstr "Quelle dieser Angaben"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2103
+#: includes/lib/class-mixmymeals-post-meta.php:2130
 msgid "e.g. packet, 08/2026"
 msgstr "z. B. Packung, 08/2026"
 
-#: includes/lib/class-mixmymeals-post-meta.php:1963
+#: includes/lib/class-mixmymeals-post-meta.php:1990
 msgid "A product is one specific article of this ingredient. Its nutrition replaces the ingredient's — value by value; anything it does not state stays with the ingredient."
 msgstr "Ein Produkt ist ein konkreter Artikel dieser Zutat. Seine Nährwerte ersetzen die der Zutat — Wert für Wert; was es nicht angibt, bleibt bei der Zutat."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2070
+#: includes/lib/class-mixmymeals-post-meta.php:2097
 msgid "Use this product's nutrition"
 msgstr "Nährwerte von diesem Produkt verwenden"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2039
+#: includes/lib/class-mixmymeals-post-meta.php:2066
 msgid "Package (g)"
 msgstr "Packung (g)"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2074
+#: includes/lib/class-mixmymeals-post-meta.php:2101
 msgid "Save to add this product."
 msgstr "Zum Anlegen speichern."
 
-#: includes/lib/class-mixmymeals-post-meta.php:2086
+#: includes/lib/class-mixmymeals-post-meta.php:2113
 msgid "Nutrition per 100 g, as stated on the packet"
 msgstr "Nährwerte je 100 g, wie auf der Packung angegeben"
 
@@ -4140,38 +4138,38 @@ msgstr "Je Tag und Person"
 msgid "Typical values"
 msgstr "Übliche Werte"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2046
+#: includes/lib/class-mixmymeals-post-meta.php:2073
 #: includes/lib/class-mixmymeals-shortcodes.php:7645
 msgid "Diet"
 msgstr "Ernährung"
 
-#: includes/lib/class-mixmymeals-post-meta.php:2055
+#: includes/lib/class-mixmymeals-post-meta.php:2082
 msgid "Same as ingredient"
 msgstr "Wie die Zutat"
 
-#: includes/lib/class-mixmymeals-rest-api.php:644
+#: includes/lib/class-mixmymeals-rest-api.php:663
 msgid "Recipe not found."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-rest-api.php:672
+#: includes/lib/class-mixmymeals-rest-api.php:691
 msgid "Expected a recipe, a meal or a meal plan."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-rest-api.php:2171
-#: includes/lib/class-mixmymeals-rest-api.php:2224
+#: includes/lib/class-mixmymeals-rest-api.php:2190
+#: includes/lib/class-mixmymeals-rest-api.php:2353
 msgid "Unit not found."
 msgstr "Einheit nicht gefunden."
 
-#: includes/lib/class-mixmymeals-rest-api.php:2206
+#: includes/lib/class-mixmymeals-rest-api.php:2225
 msgid "Deleting this unit leaves those recipe lines with an amount and no unit, and an amount without a unit is read as grams. \"1.5 tins\" would become 1.5 g."
 msgstr "Wird diese Einheit gelöscht, bleiben in diesen Rezeptzeilen Mengen ohne Einheit stehen — und eine Menge ohne Einheit wird als Gramm gelesen. Aus \"1,5 Dosen\" würden 1,5 g."
 
 #. translators: %d: number of recipes using this unit.
-#: includes/lib/class-mixmymeals-rest-api.php:2239
+#: includes/lib/class-mixmymeals-rest-api.php:2368
 #, php-format
 msgid "Unit is still used by %d recipe(s). Those lines would be read as grams afterwards. Pass force=true to delete anyway."
 msgstr "Die Einheit wird noch von %d Rezept(en) verwendet. Deren Mengen würden danach als Gramm gelesen. Mit force=true trotzdem löschen."
 
-#: includes/lib/class-mixmymeals-rest-api.php:2250
+#: includes/lib/class-mixmymeals-rest-api.php:2379
 msgid "Could not delete the unit."
 msgstr "Die Einheit konnte nicht gelöscht werden."

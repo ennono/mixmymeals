@@ -265,7 +265,17 @@ class Mixmymeals_Post_Meta {
 				. esc_html( $ing->post_title ) . '</option>';
 		}
 		echo '</select> ';
-		echo '<input type="number" step="0.1" min="0" class="small-text" placeholder="Amount">';
+		/*
+		 * ingredient-amount-input is not optional here: admin.js gives a cloned
+		 * row its field names by selecting exactly this class, and without it
+		 * the input goes into the form nameless — the browser then omits it and
+		 * a freshly added ingredient loses its amount on save. The class was
+		 * missing until 3.25.2.
+		 */
+		echo '<input type="number" step="0.1" min="0" class="small-text ingredient-amount-input" placeholder="Amount">';
+		echo ' <label class="mixmymeals-ingredient-optional">'
+			. '<input type="checkbox" class="ingredient-optional-input" value="1"> '
+			. esc_html__( 'optional', 'mixmymeals' ) . '</label>';
 		echo ' <button type="button" class="button mixmymeals-remove-ingredient">-</button>';
 		echo '</div></div>';
 
@@ -356,11 +366,16 @@ class Mixmymeals_Post_Meta {
 			}
 			echo '</select> ';
 
-			// Amount input
+			/*
+			 * Amount. Both classes matter and neither is decoration:
+			 * ingredient-amount-input is how admin.js finds the field in a
+			 * cloned row, small-text is the anchor the unit-select AJAX inserts
+			 * after. The template below must carry the same pair.
+			 */
 			echo '<input type="number" step="0.1" min="0" name="mmm_recipe_steps['
 				. absint( $index ) . '][ingredients][' . absint( $i )
 				. '][amount]" value="' . esc_attr( $amount )
-				. '" class="small-text" placeholder="Amount"> ';
+				. '" class="small-text ingredient-amount-input" placeholder="Amount"> ';
 
 			// Amount/Unit select
 			echo '<select name="mmm_recipe_steps[' . absint( $index )
@@ -405,6 +420,18 @@ class Mixmymeals_Post_Meta {
 				}
 			}
 			echo '</select> ';
+
+			/*
+			 * Optional flag. An unchecked box submits nothing, which is exactly
+			 * what set_steps() expects — it reads the key with ! empty(), so
+			 * absence means "required" without a hidden companion field.
+			 */
+			echo '<label class="mixmymeals-ingredient-optional">'
+				. '<input type="checkbox" class="ingredient-optional-input" name="mmm_recipe_steps['
+				. absint( $index ) . '][ingredients][' . absint( $i )
+				. '][optional]" value="1" '
+				. checked( ! empty( $ing['optional'] ), true, false ) . '> '
+				. esc_html__( 'optional', 'mixmymeals' ) . '</label> ';
 
 			// Remove button
 			echo '<button type="button" class="button mixmymeals-remove-ingredient">-</button>';

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.25.1
+Stable tag: 3.25.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.25.2 =
+
+Added:
+* An "optional" checkbox per ingredient in the recipe step editor. The flag
+  itself was already stored and already shown everywhere — on the recipe, in
+  the shopping list, in the PDF and in the subscription mails — but nothing in
+  the admin ever rendered the field, so it could only be set through the JSON
+  importer.
+
+Fixed:
+* An ingredient added with "+ Add Ingredient" lost its amount on save. The
+  template markup was missing the class the admin script uses to give a cloned
+  row its field names, so the amount input went into the form without a name
+  and the browser never submitted it.
 
 = 3.25.1 =
 
@@ -851,6 +866,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.25.2 =
+Ingredients can be marked optional again, and newly added ingredients keep their amount.
 
 = 3.25.1 =
 Removes a placeholder text that showed on the recipe archive.

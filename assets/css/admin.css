@@ -283,6 +283,22 @@
     min-width: 180px;
 }
 
+/* The optional flag. The row is a flex container, so the label needs to hold
+   its checkbox and its word together and refuse to wrap — "optional" broken
+   across two lines in a row of controls reads as a stray word. */
+.mixmymeals-ingredient-optional {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    color: #50575e;
+}
+
+.mixmymeals-ingredient-optional input {
+    margin: 0;
+}
+
 .mixmymeals-step-ingredient input.small-text {
     width: 80px;
     text-align: right;
