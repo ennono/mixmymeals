@@ -1857,13 +1857,14 @@ class Mixmymeals_Shortcodes {
 								?>
                                 <li>
                                 <span class="mmm-ingredient-name">
-									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> <span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
+									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
                                 </span>
 									<?php if ( $line ) : ?>
                                         <span class="mmm-ingredient-amount">
 										<?php echo esc_html( $line ); ?>
                                     </span>
 									<?php endif; ?>
+									<?php if ( $is_optional ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
                                 </li>
 							<?php endforeach; ?>
                         </ul>
@@ -2424,14 +2425,20 @@ class Mixmymeals_Shortcodes {
 						// steht direkt hinter dem Zutatennamen, ohne eigenen Span.
 						$item_html = '<span class="mmm-shopping-item-name">'
 						             . esc_html( $ingredient_name )
-						             . ( $is_optional
-								? ' <span class="mmm-ingredient-optional">('
-									. esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
-								: '' )
 						             . '</span> '
 						             . '<span class="mmm-shopping-item-amount">'
 						             . esc_html( $needed_amount )
-						             . '</span>';
+						             . '</span>'
+						             /*
+						              * Behind the amount, not behind the name:
+						              * the note qualifies the whole line, and
+						              * wedged between name and quantity it
+						              * split the two things a reader scans for.
+						              */
+						             . ( $is_optional
+								? ' <span class="mmm-ingredient-optional">('
+									. esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
+								: '' );
 
 						/*
 						 * The product the plan was costed with, where one was
@@ -3167,7 +3174,7 @@ class Mixmymeals_Shortcodes {
 								?>
                                 <li>
                                 <span class="mmm-ingredient-name">
-                                    <?php echo esc_html( get_the_title( $ing['id'] ) ); ?><?php if ( $is_optional ) : ?> <span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
+                                    <?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
                                 </span>
 
 									<?php if ( $line ) : ?>
@@ -3175,6 +3182,7 @@ class Mixmymeals_Shortcodes {
                                         <?php echo esc_html( $line ); ?>
                                     </span>
 									<?php endif; ?>
+									<?php if ( $is_optional ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
                                 </li>
 							<?php endforeach; ?>
                         </ul>
@@ -4293,7 +4301,7 @@ class Mixmymeals_Shortcodes {
 					<?php foreach ( $ingredients as $ingredient ) : ?>
                         <li>
 						<span class="mmm-ingredient-name">
-							<?php echo esc_html( $ingredient['name'] ); ?><?php if ( ! empty( $ingredient['optional'] ) ) : ?> <span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
+							<?php echo esc_html( $ingredient['name'] ); ?>
 						</span>
 
 							<?php if ( ! empty( $ingredient['amount'] ) ) :
@@ -4316,6 +4324,7 @@ class Mixmymeals_Shortcodes {
 								(<?php echo esc_html( $weight_g ); ?> g)
 							</span>
 							<?php endif; ?>
+							<?php if ( ! empty( $ingredient['optional'] ) ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
                         </li>
 					<?php endforeach; ?>
                 </ul>
