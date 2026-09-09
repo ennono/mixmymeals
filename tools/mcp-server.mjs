@@ -379,6 +379,7 @@ const TOOLS = [
         servings:         { type: "number", default: 1 },
         preparation_time: { type: "number", description: "Minuten" },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit des zubereiteten Gerichts in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit der Zutaten — Kochen verschiebt sie in beide Richtungen. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Zubereitungstag gegessen werden\". 0 und weglassen sind verschiedene Aussagen." },
+        storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung des zubereiteten Gerichts. NICHT dieselbe Angabe wie die Lagerung der Zutaten — Mehl liegt im Schrank, eine Mehlschwitze im Kuehlschrank. Leer = nicht angegeben. Gehoert zu shelf_life_days: eine Haltbarkeit ohne Lagerbedingung ist keine Aussage." },
         priority:         { type: "number", description: "Priorität / Sortierreihenfolge (0 = Standard)" },
         equipment:        { type: "array", items: { type: "number" }, description: "Equipment Post-IDs" },
         related_recipes:  { type: "array", items: { type: "number" }, description: "\"Dazu passt\": Post-IDs verknüpfter Rezepte (gerichtet; die Gegenseite erscheint dort automatisch als \"Passend zu\")" },
@@ -430,6 +431,7 @@ const TOOLS = [
         servings:         { type: "number" },
         preparation_time: { type: "number" },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit des zubereiteten Gerichts in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit der Zutaten — Kochen verschiebt sie in beide Richtungen. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Zubereitungstag gegessen werden\". 0 und weglassen sind verschiedene Aussagen." },
+        storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung des zubereiteten Gerichts. NICHT dieselbe Angabe wie die Lagerung der Zutaten — Mehl liegt im Schrank, eine Mehlschwitze im Kuehlschrank. Leer = nicht angegeben. Gehoert zu shelf_life_days: eine Haltbarkeit ohne Lagerbedingung ist keine Aussage." },
         priority:         { type: "number", description: "Priorität / Sortierreihenfolge" },
         equipment:        { type: "array", items: { type: "number" } },
         related_recipes:  { type: "array", items: { type: "number" }, description: "\"Dazu passt\": Post-IDs verknüpfter Rezepte (ersetzt die bestehende Liste; leeres Array löscht alle Verknüpfungen)" },
@@ -525,6 +527,7 @@ const TOOLS = [
         status:       { type: "string", default: "publish", description: "publish | draft" },
         diet_type:    { type: "string", description: "vegan | vegetarian | (leer)" },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
+        storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" }, description: "mmm_ingredient_category Term-IDs" },
         nutrition: {
@@ -556,6 +559,7 @@ const TOOLS = [
         title:        { type: "string" },
         diet_type:    { type: "string", description: "vegan | vegetarian | (leer)" },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
+        storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" } },
         nutrition: {
@@ -1258,7 +1262,7 @@ async function handleTool(name, args) {
       return mmm("GET", `/recipes/${args.id}`);
 
     case "mmm_create_recipe": {
-      const { title, excerpt, status = "draft", servings, preparation_time, shelf_life_days, priority, equipment, related_recipes, categories, tags, steps, author, featured_image, image_credit } = args;
+      const { title, excerpt, status = "draft", servings, preparation_time, shelf_life_days, storage_type, priority, equipment, related_recipes, categories, tags, steps, author, featured_image, image_credit } = args;
       const body = { title, status };
       if (author           !== undefined) body.author           = author;
       if (featured_image   !== undefined) body.featured_image   = featured_image;
@@ -1267,6 +1271,7 @@ async function handleTool(name, args) {
       if (servings         !== undefined) body.servings         = servings;
       if (preparation_time !== undefined) body.preparation_time = preparation_time;
       if (shelf_life_days !== undefined) body.shelf_life_days = shelf_life_days;
+      if (storage_type !== undefined) body.storage_type = storage_type;
       if (priority         !== undefined) body.priority         = priority;
       if (equipment        !== undefined) body.equipment        = equipment;
       if (related_recipes  !== undefined) body.related_recipes  = related_recipes;
@@ -1279,7 +1284,7 @@ async function handleTool(name, args) {
     case "mmm_update_recipe": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["title", "excerpt", "status", "servings", "preparation_time", "shelf_life_days", "priority", "equipment", "related_recipes", "categories", "tags", "steps", "author", "featured_image", "image_credit"];
+      const allowed = ["title", "excerpt", "status", "servings", "preparation_time", "shelf_life_days", "storage_type", "priority", "equipment", "related_recipes", "categories", "tags", "steps", "author", "featured_image", "image_credit"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }
@@ -1303,10 +1308,11 @@ async function handleTool(name, args) {
       return mmm("GET", `/ingredients/${args.id}`);
 
     case "mmm_create_ingredient": {
-      const { title, status = "publish", diet_type, shelf_life_days, default_unit, categories, nutrition } = args;
+      const { title, status = "publish", diet_type, shelf_life_days, storage_type, default_unit, categories, nutrition } = args;
       const body = { title, status };
       if (diet_type    !== undefined) body.diet_type    = diet_type;
       if (shelf_life_days !== undefined) body.shelf_life_days = shelf_life_days;
+      if (storage_type !== undefined) body.storage_type = storage_type;
       if (default_unit !== undefined) body.default_unit = default_unit;
       if (categories   !== undefined) body.categories   = categories;
       if (nutrition    !== undefined) body.nutrition    = nutrition;
@@ -1314,11 +1320,12 @@ async function handleTool(name, args) {
     }
 
     case "mmm_update_ingredient": {
-      const { id, title, diet_type, shelf_life_days, default_unit, categories, nutrition } = args;
+      const { id, title, diet_type, shelf_life_days, storage_type, default_unit, categories, nutrition } = args;
       const body = {};
       if (title        !== undefined) body.title        = title;
       if (diet_type    !== undefined) body.diet_type    = diet_type;
       if (shelf_life_days !== undefined) body.shelf_life_days = shelf_life_days;
+      if (storage_type !== undefined) body.storage_type = storage_type;
       if (default_unit !== undefined) body.default_unit = default_unit;
       if (categories   !== undefined) body.categories   = categories;
       if (nutrition    !== undefined) body.nutrition    = nutrition;

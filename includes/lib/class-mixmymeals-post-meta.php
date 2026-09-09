@@ -526,6 +526,22 @@ class Mixmymeals_Post_Meta {
 			<?php esc_html_e( 'How long the finished dish keeps — not the same as the shelf life of its ingredients. Leave empty if unknown; 0 means it has to be eaten the day it is made.', 'mixmymeals' ); ?>
 		</p>
 		<p>
+			<label for="mmm_recipe_storage">
+				<?php esc_html_e( 'Storage of the prepared dish', 'mixmymeals' ); ?>
+			</label>
+		</p>
+		<p>
+			<select id="mmm_recipe_storage" name="mmm_recipe_storage" style="width:100%;">
+				<option value=""><?php esc_html_e( '— not specified —', 'mixmymeals' ); ?></option>
+				<?php foreach ( Mixmymeals_Post_Types::storage_types() as $mmm_value => $mmm_label ) : ?>
+					<option value="<?php echo esc_attr( $mmm_value ); ?>"
+						<?php selected( $recipe->get_storage_type(), $mmm_value ); ?>>
+						<?php echo esc_html( $mmm_label ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+		</p>
+		<p>
 			<label for="mmm_is_favorite">
 				<input
 					type="checkbox"
@@ -606,6 +622,12 @@ class Mixmymeals_Post_Meta {
 		if ( isset( $_POST['mmm_recipe_shelf_life'] ) ) {
 			$raw = trim( sanitize_text_field( wp_unslash( $_POST['mmm_recipe_shelf_life'] ) ) );
 			$recipe->set_shelf_life( '' === $raw ? null : absint( $raw ) );
+		}
+
+		// The setter discards anything outside the known list, so an unexpected
+		// value clears the field rather than reaching the page.
+		if ( isset( $_POST['mmm_recipe_storage'] ) ) {
+			$recipe->set_storage_type( sanitize_text_field( wp_unslash( $_POST['mmm_recipe_storage'] ) ) );
 		}
 
 		// Favorite flag (featured in the recipe archive).
@@ -1811,6 +1833,22 @@ class Mixmymeals_Post_Meta {
 		<p class="description">
 			<?php esc_html_e( 'How long the ingredient itself keeps. Leave empty if unknown; 0 means it has to be used the day it is bought.', 'mixmymeals' ); ?>
 		</p>
+		<p>
+			<label for="mmm_ingredient_storage">
+				<?php esc_html_e( 'Storage of the ingredient', 'mixmymeals' ); ?>
+			</label>
+		</p>
+		<p>
+			<select id="mmm_ingredient_storage" name="mmm_ingredient_storage" style="width:100%;">
+				<option value=""><?php esc_html_e( '— not specified —', 'mixmymeals' ); ?></option>
+				<?php foreach ( Mixmymeals_Post_Types::storage_types() as $mmm_value => $mmm_label ) : ?>
+					<option value="<?php echo esc_attr( $mmm_value ); ?>"
+						<?php selected( $ingredient->get_storage_type(), $mmm_value ); ?>>
+						<?php echo esc_html( $mmm_label ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+		</p>
 		<?php
 	}
 
@@ -1844,6 +1882,10 @@ class Mixmymeals_Post_Meta {
 		if ( isset( $_POST['mmm_ingredient_shelf_life'] ) ) {
 			$raw = trim( sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_shelf_life'] ) ) );
 			$ingredient->set_shelf_life( '' === $raw ? null : absint( $raw ) );
+		}
+
+		if ( isset( $_POST['mmm_ingredient_storage'] ) ) {
+			$ingredient->set_storage_type( sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_storage'] ) ) );
 		}
 	}
 

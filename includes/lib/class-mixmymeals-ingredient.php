@@ -371,6 +371,61 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * How the **raw ingredient** is kept is stored.
+	 *
+	 * A separate field from the storage of a dish made from it, exactly like the shelf life beside it,
+	 * and for the same reason: cooking changes what a thing needs. The two are never derived from one
+	 * another.
+	 *
+	 * @var string
+	 */
+	const META_STORAGE = '_mmm_storage_type';
+
+	/**
+	 * The storage condition, or '' when not specified.
+	 *
+	 * Validated on read as well as on write, so a row written by something
+	 * that bypassed the setter cannot put an unknown word on the page.
+	 *
+	 * @return string One of Mixmymeals_Post_Types::storage_types(), or ''.
+	 */
+	public function get_storage_type(): string {
+
+		if ( ! $this->is_valid() ) {
+			return '';
+		}
+
+		$value = (string) get_post_meta( $this->post_id, self::META_STORAGE, true );
+
+		return Mixmymeals_Post_Types::is_storage_type( $value ) ? $value : '';
+	}
+
+	/**
+	 * Stores the storage condition, or clears it.
+	 *
+	 * Anything outside the known list clears the field rather than being
+	 * stored. This is advice about keeping food safe, and a value nobody can
+	 * interpret must not survive long enough to be printed — the same rule
+	 * Mixmymeals_Product::set_diet_type() keeps, for the same kind of claim.
+	 *
+	 * @param string $type One of Mixmymeals_Post_Types::storage_types(), or '' to clear.
+	 * @return void
+	 */
+	public function set_storage_type( string $type ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( ! Mixmymeals_Post_Types::is_storage_type( $type ) ) {
+			delete_post_meta( $this->post_id, self::META_STORAGE );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_STORAGE, $type );
+	}
+
+	/**
 	 * Days the **raw ingredient** keeps.
 	 *
 	 * A separate field from the recipe's, holding a separate quantity: this is

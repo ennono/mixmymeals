@@ -1185,6 +1185,43 @@ class Mixmymeals_Post_Types {
 	 * @param int $post_id Post ID.
 	 * @return string
 	 */
+	/**
+	 * The storage conditions an ingredient or a dish can be kept under.
+	 *
+	 * A closed list on purpose, and deliberately **not** a taxonomy. A
+	 * taxonomy would let editors invent "Kühlschrank", "kühl", "kalt" and
+	 * "Kühlung" side by side, and this is advice about keeping food safe —
+	 * four spellings of one condition is worse than none. There is also
+	 * nothing to browse here: nobody arrives wanting every recipe that is
+	 * stored frozen.
+	 *
+	 * Defined once and shared, because recipes and ingredients answer the same
+	 * question from the same vocabulary even though they store separate
+	 * answers. Two copies would drift the day somebody adds a fifth condition.
+	 *
+	 * @return array<string,string> Value => translated label.
+	 */
+	public static function storage_types(): array {
+
+		return array(
+			'room_temperature' => __( 'Room temperature', 'mixmymeals' ),
+			'cool_dry'         => __( 'Cool and dry', 'mixmymeals' ),
+			'refrigerated'     => __( 'Refrigerated', 'mixmymeals' ),
+			'frozen'           => __( 'Frozen', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * Whether a value is one of the known storage conditions.
+	 *
+	 * @param string $value Candidate.
+	 * @return bool
+	 */
+	public static function is_storage_type( string $value ): bool {
+
+		return array_key_exists( $value, self::storage_types() );
+	}
+
 	public static function meta_description( int $post_id ): string {
 
 		$post = get_post( $post_id );

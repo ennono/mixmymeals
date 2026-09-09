@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.28.0
+Stable tag: 3.29.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.29.0 =
+
+Added:
+* Storage conditions on recipes and ingredients — room temperature, cool and
+  dry, refrigerated, frozen — beside the shelf life each already carries. Two
+  separate fields again: flour lives in a cupboard, a flour-based sauce lives
+  in the fridge.
+* Available over REST and MCP as `storage_type`, with the same closed list.
+  Anything outside it is rejected with 400, and a value written past the API
+  is discarded on read as well.
+
+Stored as post meta with a fixed vocabulary rather than as a taxonomy: this is
+guidance about keeping food safe, and a taxonomy would let four spellings of
+"refrigerated" grow side by side. There is also nothing to browse — nobody
+arrives wanting every recipe that is stored frozen.
 
 = 3.28.0 =
 
@@ -913,6 +929,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.29.0 =
+Recipes and ingredients can each record how they are stored.
 
 = 3.28.0 =
 Shelf life is readable and writable over REST and MCP.

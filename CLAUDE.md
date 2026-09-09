@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.28.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.29.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -103,6 +103,12 @@ The two ingredient markups in `Mixmymeals_Post_Meta` — the rendered row and th
 `get_shelf_life()` returns `?int`: **null when nobody has said, 0 when the answer is zero.** That distinction is the whole point of the field, since "eat it the day it is made" is exactly the case worth recording — and it is why the existing numeric fields were not copied: `set_price_per_100g()` deletes on 0 and `get_preparation_time()` maps both cases to 0. The admin input prints no value for null, so an untouched field cannot save itself as a zero, and the save handler tests the raw string before `absint()`, which cannot tell `""` from `"0"`.
 
 Over REST and MCP it is `shelf_life_days` on recipes and ingredients, typed `array( 'integer', 'null' )` with `minimum => 0`. It is **serialized as `null`, never omitted** — an absent key and a null one look the same to a careless client, and the distinction this field exists for would be lost on the wire. Sending `null` clears the value; `absint()` is applied only after the null check, since it maps null and 0 to the same thing.
+
+**Storage is meta with a closed vocabulary, not a taxonomy.** `Mixmymeals_Post_Types::storage_types()` owns the four conditions (`room_temperature`, `cool_dry`, `refrigerated`, `frozen`) once for both post types; `_mmm_storage_type` holds the choice on each, with `get_storage_type()` / `set_storage_type()` and `is_storage_type()` guarding it. A taxonomy was rejected deliberately: this is advice about keeping food safe, and editors would grow "Kühlschrank", "kühl", "kalt" and "Kühlung" side by side — four spellings of one condition is worse than none. Nothing here is a browsing entry point either.
+
+Validated on **read as well as write**, so a row written past the class cannot put an unknown word on a public page, and an unknown value clears the field rather than being stored — the rule `Mixmymeals_Product::set_diet_type()` keeps, for the same kind of claim. Over REST and MCP it is `storage_type`, enumerated from the same list.
+
+It belongs to the shelf life beside it: "keeps 3 days" is not an answer without the condition it keeps under, which is also why storage is a **single** value — one shelf life cannot describe both a fridge and a freezer.
 
 **Ingredient** — nutrition stored per-key in post meta: `_rmm_calories_100`, `_rmm_fat`, `_rmm_carbs`, `_rmm_protein`, `_rmm_sugar`, `_rmm_fiber`, `_rmm_salt`. Units are child posts (`mmm_ingr_unit`).
 
