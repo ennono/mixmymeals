@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.26.1
+Stable tag: 3.27.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.27.0 =
+
+Added:
+* A shelf life in days on recipes and on ingredients — two separate fields
+  holding two different quantities: how long the finished dish keeps, and how
+  long the raw ingredient keeps. Neither is derived from the other.
+* Both distinguish "not specified" from 0. An empty field stores nothing; a
+  typed 0 stores a zero, because "has to be eaten the day it is made" is an
+  answer and not the absence of one.
 
 = 3.26.1 =
 
@@ -893,6 +903,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.27.0 =
+Recipes and ingredients can each carry a shelf life in days.
 
 = 3.26.1 =
 The "(optional)" note follows the amount instead of the name.

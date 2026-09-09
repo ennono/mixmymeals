@@ -1443,6 +1443,64 @@ class Mixmymeals_Recipe {
 		update_post_meta( $this->post_id, '_mmm_preparation_time', $minutes );
 	}
 
+	/**
+	 * Days the **prepared dish** keeps.
+	 *
+	 * Deliberately not the same quantity as an ingredient's shelf life, and
+	 * stored separately: a stew of week-old vegetables keeps three days once
+	 * cooked, a salad of the same vegetables keeps one. Neither number can be
+	 * derived from the other, so neither may fall back to the other.
+	 *
+	 * @var string
+	 */
+	const META_SHELF_LIFE = '_mmm_shelf_life_days';
+
+	/**
+	 * How many days the prepared dish keeps.
+	 *
+	 * Returns **null** when nobody has said, which is a different claim from 0
+	 * — zero means "eat it the day it is made", and a dish that must be eaten
+	 * at once is exactly the case worth recording. Callers that want a number
+	 * regardless have to decide what silence means themselves; the getter will
+	 * not decide it for them.
+	 *
+	 * @return int|null Days (0 or more), or null when not specified.
+	 */
+	public function get_shelf_life(): ?int {
+
+		if ( ! $this->is_valid() ) {
+			return null;
+		}
+
+		$value = get_post_meta( $this->post_id, self::META_SHELF_LIFE, true );
+
+		return '' === $value || null === $value ? null : max( 0, (int) $value );
+	}
+
+	/**
+	 * Stores the shelf life, or clears it.
+	 *
+	 * null clears the field; 0 is stored, because "keeps zero days" is an
+	 * answer and not the absence of one. The same rule the product nutrition
+	 * fields keep, and for the same reason.
+	 *
+	 * @param int|null $days Days (0 or more), or null to clear.
+	 * @return void
+	 */
+	public function set_shelf_life( ?int $days ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( null === $days ) {
+			delete_post_meta( $this->post_id, self::META_SHELF_LIFE );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_SHELF_LIFE, max( 0, $days ) );
+	}
+
 	public function get_preparation_time(): int {
 
 		if ( ! $this->is_valid() ) {

@@ -370,6 +370,57 @@ class Mixmymeals_Ingredient {
 		return ( $grams / 100.0 ) * $this->get_price_per_100g();
 	}
 
+	/**
+	 * Days the **raw ingredient** keeps.
+	 *
+	 * A separate field from the recipe's, holding a separate quantity: this is
+	 * how long the ingredient itself lasts before it is used. Cooking changes
+	 * that number in both directions, so the two must never be conflated or
+	 * derived from one another.
+	 *
+	 * @var string
+	 */
+	const META_SHELF_LIFE = '_mmm_shelf_life_days';
+
+	/**
+	 * How many days the ingredient keeps.
+	 *
+	 * null when not specified, which is not the same as 0 — fresh fish that
+	 * has to be used the day it is bought is a 0, and that is worth knowing.
+	 *
+	 * @return int|null Days (0 or more), or null when not specified.
+	 */
+	public function get_shelf_life(): ?int {
+
+		if ( ! $this->is_valid() ) {
+			return null;
+		}
+
+		$value = get_post_meta( $this->post_id, self::META_SHELF_LIFE, true );
+
+		return '' === $value || null === $value ? null : max( 0, (int) $value );
+	}
+
+	/**
+	 * Stores the shelf life, or clears it.
+	 *
+	 * @param int|null $days Days (0 or more), or null to clear.
+	 * @return void
+	 */
+	public function set_shelf_life( ?int $days ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( null === $days ) {
+			delete_post_meta( $this->post_id, self::META_SHELF_LIFE );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_SHELF_LIFE, max( 0, $days ) );
+	}
+
 	public function get_price_per_100g(): float {
 		if ( ! $this->is_valid() ) {
 			return 0.0;

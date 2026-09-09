@@ -499,6 +499,33 @@ class Mixmymeals_Post_Meta {
 			/>
 		</p>
 		<p>
+			<label for="mmm_recipe_shelf_life">
+				<?php esc_html_e( 'Shelf life of the prepared dish (days)', 'mixmymeals' ); ?>
+			</label>
+		</p>
+		<p>
+			<?php
+			/*
+			 * Empty means nobody has said; a typed 0 means "eat it the day it
+			 * is made". Only a real number is printed back, or every untouched
+			 * field would save itself as a zero.
+			 */
+			$mmm_shelf_life = $recipe->get_shelf_life();
+			?>
+			<input
+				type="number"
+				id="mmm_recipe_shelf_life"
+				name="mmm_recipe_shelf_life"
+				value="<?php echo null === $mmm_shelf_life ? '' : esc_attr( (string) $mmm_shelf_life ); ?>"
+				min="0"
+				step="1"
+				style="width:100%;"
+			/>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'How long the finished dish keeps — not the same as the shelf life of its ingredients. Leave empty if unknown; 0 means it has to be eaten the day it is made.', 'mixmymeals' ); ?>
+		</p>
+		<p>
 			<label for="mmm_is_favorite">
 				<input
 					type="checkbox"
@@ -564,10 +591,21 @@ class Mixmymeals_Post_Meta {
 			return;
 		}
 
-		// Wert speichern
+		// Hoisted: every field below needs it, and tying its existence to the
+		// presence of one particular input makes the next field a fatal error.
+		$recipe = new Mixmymeals_Recipe( $post_ID );
+
 		if ( isset( $_POST['mmm_preparation_time'] ) ) {
-			$recipe = new Mixmymeals_Recipe( $post_ID );
 			$recipe->set_preparation_time( absint( wp_unslash( $_POST['mmm_preparation_time'] ) ) );
+		}
+
+		/*
+		 * Empty clears, "0" stores zero. absint() on its own maps both to 0,
+		 * which would silently claim every unanswered recipe keeps no days.
+		 */
+		if ( isset( $_POST['mmm_recipe_shelf_life'] ) ) {
+			$raw = trim( sanitize_text_field( wp_unslash( $_POST['mmm_recipe_shelf_life'] ) ) );
+			$recipe->set_shelf_life( '' === $raw ? null : absint( $raw ) );
 		}
 
 		// Favorite flag (featured in the recipe archive).
@@ -1745,6 +1783,34 @@ class Mixmymeals_Post_Meta {
 				style="width:100%;"
 			/>
 		</p>
+		<p>
+			<label for="mmm_ingredient_shelf_life">
+				<?php esc_html_e( 'Shelf life of the ingredient (days)', 'mixmymeals' ); ?>
+			</label>
+		</p>
+		<p>
+			<?php
+			/*
+			 * An empty field is "nobody has said", a typed 0 is "the day it is
+			 * bought". The two must stay apart, so the value is only printed
+			 * when the getter actually returned a number — printing 0 for null
+			 * would turn every unanswered field into a claim on first save.
+			 */
+			$mmm_shelf_life = $ingredient->get_shelf_life();
+			?>
+			<input
+				type="number"
+				id="mmm_ingredient_shelf_life"
+				name="mmm_ingredient_shelf_life"
+				value="<?php echo null === $mmm_shelf_life ? '' : esc_attr( (string) $mmm_shelf_life ); ?>"
+				min="0"
+				step="1"
+				style="width:100%;"
+			/>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'How long the ingredient itself keeps. Leave empty if unknown; 0 means it has to be used the day it is bought.', 'mixmymeals' ); ?>
+		</p>
 		<?php
 	}
 
@@ -1770,6 +1836,15 @@ class Mixmymeals_Post_Meta {
 			? floatval( wp_unslash( $_POST['mmm_price_per_100g'] ) )
 			: 0.0;
 		$ingredient->set_price_per_100g( $price );
+
+		/*
+		 * An empty field clears the value; "0" stores a zero. absint() alone
+		 * cannot tell those apart, so the raw string is tested first.
+		 */
+		if ( isset( $_POST['mmm_ingredient_shelf_life'] ) ) {
+			$raw = trim( sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_shelf_life'] ) ) );
+			$ingredient->set_shelf_life( '' === $raw ? null : absint( $raw ) );
+		}
 	}
 
 	/**
