@@ -279,9 +279,9 @@ class Mixmymeals_Rest_Api {
 
 		// ── Recipes ───────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipes' ), 'permission_callback' => '__return_true', 'args' => array( 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'any' ), 'default' => 'publish' ) ) ) );
-		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_recipe' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
+		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_recipe' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_recipe' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
+		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_recipe' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)/nutrition',   array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe_nutrition' ),   'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)/ingredients', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg, 'scale' => array( 'required' => false, 'type' => 'number', 'default' => 1.0 ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes/(?P<id>\d+)/equipment',   array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipe_equipment' ),   'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
@@ -289,9 +289,9 @@ class Mixmymeals_Rest_Api {
 
 		// ── Ingredients ───────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_ingredients' ),    'permission_callback' => '__return_true' ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian', '' ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian', '' ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian', '' ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian', '' ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => array( 'required' => false, 'type' => 'number' ), 'fat' => array( 'required' => false, 'type' => 'number' ), 'carbs' => array( 'required' => false, 'type' => 'number' ), 'protein' => array( 'required' => false, 'type' => 'number' ), 'sugar' => array( 'required' => false, 'type' => 'number' ), 'fiber' => array( 'required' => false, 'type' => 'number' ), 'salt' => array( 'required' => false, 'type' => 'number' ), 'weight_item' => array( 'required' => false, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/price', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_price' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'price_per_100g' => array( 'required' => true, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/units', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient_units' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
@@ -802,6 +802,12 @@ class Mixmymeals_Rest_Api {
 			'excerpt'          => $post->post_excerpt,
 			'servings'         => $recipe->get_servings(),
 			'preparation_time' => $recipe->get_preparation_time(),
+			/*
+			 * null means nobody has said, 0 means zero days. Kept apart here
+			 * too — a client that receives 0 for both cannot tell a dish that
+			 * must be eaten at once from one nobody has assessed.
+			 */
+			'shelf_life_days'  => $recipe->get_shelf_life(),
 			'priority'         => $recipe->get_priority(),
 			'steps'            => $recipe->get_steps(),
 			'equipment'        => $recipe->get_equipment(),
@@ -831,6 +837,9 @@ class Mixmymeals_Rest_Api {
 			 * nutrition; that is always the resolved one above.
 			 */
 			'diet_type'      => $ing->get_diet_type(),
+			// null = not specified, 0 = keeps zero days. Not the same as the
+			// recipe's shelf life, which is a different quantity entirely.
+			'shelf_life_days' => $ing->get_shelf_life(),
 			'default_unit'   => $ing->get_default_unit(),
 			'price_per_100g' => $ing->get_price_per_100g(),
 			'nutrition'      => $ing->get_nutrition(),
@@ -1338,6 +1347,11 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'servings' ) )         $recipe->set_servings( floatval( $request->get_param( 'servings' ) ) );
 		if ( $request->has_param( 'preparation_time' ) ) $recipe->set_preparation_time( absint( $request->get_param( 'preparation_time' ) ) );
+		// null clears the field; 0 is a value. absint() would collapse both.
+		if ( $request->has_param( 'shelf_life_days' ) ) {
+			$mmm_shelf = $request->get_param( 'shelf_life_days' );
+			$recipe->set_shelf_life( null === $mmm_shelf ? null : absint( $mmm_shelf ) );
+		}
 		if ( $request->has_param( 'priority' ) )         $recipe->set_priority( absint( $request->get_param( 'priority' ) ) );
 		if ( $request->has_param( 'steps' ) )            $recipe->set_steps( $request->get_param( 'steps' ) );
 		if ( $request->has_param( 'equipment' ) )        $recipe->set_equipment( $request->get_param( 'equipment' ) );
@@ -1371,6 +1385,11 @@ class Mixmymeals_Rest_Api {
 		$recipe = new Mixmymeals_Recipe( $id );
 		if ( $request->has_param( 'servings' ) )         $recipe->set_servings( floatval( $request->get_param( 'servings' ) ) );
 		if ( $request->has_param( 'preparation_time' ) ) $recipe->set_preparation_time( absint( $request->get_param( 'preparation_time' ) ) );
+		// null clears the field; 0 is a value. absint() would collapse both.
+		if ( $request->has_param( 'shelf_life_days' ) ) {
+			$mmm_shelf = $request->get_param( 'shelf_life_days' );
+			$recipe->set_shelf_life( null === $mmm_shelf ? null : absint( $mmm_shelf ) );
+		}
 		if ( $request->has_param( 'priority' ) )         $recipe->set_priority( absint( $request->get_param( 'priority' ) ) );
 		if ( $request->has_param( 'steps' ) )            $recipe->set_steps( $request->get_param( 'steps' ) );
 		if ( $request->has_param( 'equipment' ) )        $recipe->set_equipment( $request->get_param( 'equipment' ) );
@@ -1454,6 +1473,11 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
 		}
 		if ( $request->has_param( 'diet_type' ) )    $ing->set_diet_type( $request->get_param( 'diet_type' ) );
+		// null clears the field; 0 is a value.
+		if ( $request->has_param( 'shelf_life_days' ) ) {
+			$mmm_shelf = $request->get_param( 'shelf_life_days' );
+			$ing->set_shelf_life( null === $mmm_shelf ? null : absint( $mmm_shelf ) );
+		}
 		if ( $request->has_param( 'default_unit' ) ) $ing->set_default_unit( $request->get_param( 'default_unit' ) );
 		if ( $request->has_param( 'nutrition' ) )    $ing->set_nutrition( (array) $request->get_param( 'nutrition' ) );
 		if ( $request->has_param( 'categories' ) )   wp_set_post_terms( $ing->get_id(), $request->get_param( 'categories' ), 'mmm_ingredient_category' );
@@ -1468,6 +1492,11 @@ class Mixmymeals_Rest_Api {
 		if ( $guard ) return $guard;
 		if ( $request->has_param( 'title' ) )        wp_update_post( array( 'ID' => $id, 'post_title' => $request->get_param( 'title' ) ) );
 		if ( $request->has_param( 'diet_type' ) )    $ing->set_diet_type( $request->get_param( 'diet_type' ) );
+		// null clears the field; 0 is a value.
+		if ( $request->has_param( 'shelf_life_days' ) ) {
+			$mmm_shelf = $request->get_param( 'shelf_life_days' );
+			$ing->set_shelf_life( null === $mmm_shelf ? null : absint( $mmm_shelf ) );
+		}
 		if ( $request->has_param( 'default_unit' ) ) $ing->set_default_unit( $request->get_param( 'default_unit' ) );
 		if ( $request->has_param( 'nutrition' ) )    $ing->set_nutrition( (array) $request->get_param( 'nutrition' ) );
 		if ( $request->has_param( 'categories' ) )   wp_set_post_terms( $id, $request->get_param( 'categories' ), 'mmm_ingredient_category' );
