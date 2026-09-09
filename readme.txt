@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.29.0
+Stable tag: 3.30.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.30.0 =
+
+Added:
+* `POST /keeping/bulk` writes shelf life and storage for many recipes and
+  ingredients in one call — mixed types, up to 500 entries, each judged on its
+  own so one bad id does not lose the batch. MCP: `mmm_set_keeping`.
+* The answer is deliberately thin: id, type and ok, with failures listed
+  separately. Setting these fields one at a time returned each item's whole
+  serialization — nutrition, every unit, every product — which is hundreds of
+  times more data than the two fields being written.
+* `dry_run` reports what would happen and writes nothing.
+
+Omitting a key and sending null are different instructions: an absent key
+leaves the stored value alone, `shelf_life_days: null` and `storage_type: ""`
+clear it. Without that, filling in shelf lives would wipe every storage type
+not mentioned in the same request.
 
 = 3.29.0 =
 
@@ -929,6 +946,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.30.0 =
+Shelf life and storage can be set in bulk.
 
 = 3.29.0 =
 Recipes and ingredients can each record how they are stored.

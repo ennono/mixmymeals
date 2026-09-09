@@ -331,6 +331,33 @@ class Mixmymeals_Rest_Api {
 		 * request body on DELETE is poorly supported by enough clients to be
 		 * not worth the purity.
 		 */
+		/*
+		 * Bulk keeping data. Setting this one item at a time meant 516 calls
+		 * for one pass over the library, each answering with the item's whole
+		 * serialization — nutrition, every unit, every product — which is
+		 * hundreds of times more data than the two fields being written.
+		 */
+		register_rest_route( 'mixmymeals/v1', '/keeping/bulk', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'bulk_set_keeping' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'items'   => array(
+					'required' => true,
+					'type'     => 'array',
+					'maxItems' => 500,
+					'items'    => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'              => array( 'type' => 'integer' ),
+							'shelf_life_days' => array( 'type' => array( 'integer', 'null' ), 'minimum' => 0 ),
+							'storage_type'    => array( 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ),
+						),
+					),
+				),
+				'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => false ),
+			),
+		) );
 		register_rest_route( 'mixmymeals/v1', '/units/bulk-delete', array(
 			'methods'             => WP_REST_Server::CREATABLE,
 			'callback'            => array( $this, 'bulk_delete_ingr_units' ),
@@ -2260,6 +2287,110 @@ class Mixmymeals_Rest_Api {
 				'consequence'     => empty( $usage )
 					? ''
 					: __( 'Deleting this unit leaves those recipe lines with an amount and no unit, and an amount without a unit is read as grams. "1.5 tins" would become 1.5 g.', 'mixmymeals' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Writes shelf life and storage for many recipes and ingredients at once.
+	 *
+	 * Mixed types on purpose: the caller works through a library, not through
+	 * one post type, and splitting the batch by type would only move the
+	 * bookkeeping to them. Each item is resolved by its own post type and
+	 * judged on its own — one bad id does not lose the batch.
+	 *
+	 * **Omitting a key and sending null are different instructions.** A key
+	 * that is absent leaves the stored value alone; `shelf_life_days: null`
+	 * and `storage_type: ""` clear it. Without that distinction a caller
+	 * filling in shelf lives would silently wipe every storage type it did not
+	 * mention.
+	 *
+	 * The answer is deliberately thin — id, type and ok, with failures listed
+	 * separately. Returning each item's serialization is what made the
+	 * single-item route unusable in bulk.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function bulk_set_keeping( WP_REST_Request $request ): WP_REST_Response {
+
+		$items   = (array) $request->get_param( 'items' );
+		$dry_run = (bool) $request->get_param( 'dry_run' );
+
+		$results = array();
+		$errors  = array();
+		$updated = 0;
+
+		foreach ( $items as $item ) {
+
+			$item = (array) $item;
+			$id   = isset( $item['id'] ) ? absint( $item['id'] ) : 0;
+
+			if ( $id <= 0 ) {
+				$errors[] = array( 'id' => $id, 'error' => 'missing_id' );
+				continue;
+			}
+
+			$type = get_post_type( $id );
+
+			if ( 'mmm_recipe' === $type ) {
+				$target = new Mixmymeals_Recipe( $id );
+			} elseif ( 'mmm_ingredient' === $type ) {
+				$target = new Mixmymeals_Ingredient( $id );
+			} else {
+				$errors[] = array(
+					'id'    => $id,
+					'error' => $type ? 'wrong_type' : 'not_found',
+					'type'  => $type ?: null,
+				);
+				continue;
+			}
+
+			if ( ! $target->is_valid() ) {
+				$errors[] = array( 'id' => $id, 'error' => 'not_found' );
+				continue;
+			}
+
+			// Nothing to do is not an error, but it is worth saying: a caller
+			// that mistypes both key names would otherwise read 500 successes.
+			$touches = array_intersect( array( 'shelf_life_days', 'storage_type' ), array_keys( $item ) );
+
+			if ( ! $touches ) {
+				$errors[] = array( 'id' => $id, 'error' => 'no_fields' );
+				continue;
+			}
+
+			if ( ! $dry_run ) {
+
+				if ( array_key_exists( 'shelf_life_days', $item ) ) {
+					$days = $item['shelf_life_days'];
+					$target->set_shelf_life( null === $days ? null : absint( $days ) );
+				}
+
+				if ( array_key_exists( 'storage_type', $item ) ) {
+					$target->set_storage_type( (string) $item['storage_type'] );
+				}
+			}
+
+			++$updated;
+
+			$results[] = array(
+				'id'   => $id,
+				'type' => $type,
+				'ok'   => true,
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'plugin_version' => Mixmymeals::instance()->_version,
+				'dry_run'        => $dry_run,
+				'requested'      => count( $items ),
+				'updated'        => $updated,
+				'failed'         => count( $errors ),
+				'results'        => $results,
+				'errors'         => $errors,
 			),
 			200
 		);

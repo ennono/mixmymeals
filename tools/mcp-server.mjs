@@ -758,6 +758,32 @@ const TOOLS = [
   },
 
   {
+    name: "mmm_set_keeping",
+    description: "Haltbarkeit und Lagerung fuer viele Rezepte UND Zutaten in einem Aufruf setzen. Gemischte Liste, der Typ wird je ID selbst ermittelt. Antwort ist bewusst schlank: id, type, ok — plus eine getrennte Fehlerliste. Bis 500 Eintraege pro Aufruf. WICHTIG: Ein weggelassener Schluessel laesst den gespeicherten Wert unveraendert; shelf_life_days:null bzw. storage_type:\"\" loeschen ihn. Wer nur Haltbarkeiten nachtraegt, laesst storage_type also weg, statt ihn leer mitzusenden. Erst mit dry_run:true pruefen, wenn die Liste aus einer Ableitung stammt. Verwendet /mixmymeals/v1/keeping/bulk.",
+    inputSchema: {
+      type: "object",
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          maxItems: 500,
+          description: "Eintraege. id ist Pflicht, die beiden Felder sind einzeln optional.",
+          items: {
+            type: "object",
+            required: ["id"],
+            properties: {
+              id: { type: "number", description: "Post-ID eines mmm_recipe oder mmm_ingredient" },
+              shelf_life_days: { type: ["number", "null"], description: "Tage. 0 heisst \"am selben Tag verbrauchen\", null loescht, Weglassen laesst unveraendert." },
+              storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Leerer String loescht, Weglassen laesst unveraendert." },
+            },
+          },
+        },
+        dry_run: { type: "boolean", default: false, description: "Nichts schreiben, nur berichten was ginge." },
+      },
+    },
+  },
+
+  {
     name: "mmm_audit",
     description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
@@ -1389,6 +1415,12 @@ async function handleTool(name, args) {
       if (args.force !== undefined)   body.force   = args.force;
       if (args.dry_run !== undefined) body.dry_run = args.dry_run;
       return mmm("POST", "/units/bulk-delete", body);
+    }
+
+    case "mmm_set_keeping": {
+      const body = { items: args.items };
+      if (args.dry_run !== undefined) body.dry_run = args.dry_run;
+      return mmm("POST", "/keeping/bulk", body);
     }
 
     case "mmm_audit":

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.29.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.30.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -107,6 +107,12 @@ Over REST and MCP it is `shelf_life_days` on recipes and ingredients, typed `arr
 **Storage is meta with a closed vocabulary, not a taxonomy.** `Mixmymeals_Post_Types::storage_types()` owns the four conditions (`room_temperature`, `cool_dry`, `refrigerated`, `frozen`) once for both post types; `_mmm_storage_type` holds the choice on each, with `get_storage_type()` / `set_storage_type()` and `is_storage_type()` guarding it. A taxonomy was rejected deliberately: this is advice about keeping food safe, and editors would grow "Kühlschrank", "kühl", "kalt" and "Kühlung" side by side — four spellings of one condition is worse than none. Nothing here is a browsing entry point either.
 
 Validated on **read as well as write**, so a row written past the class cannot put an unknown word on a public page, and an unknown value clears the field rather than being stored — the rule `Mixmymeals_Product::set_diet_type()` keeps, for the same kind of claim. Over REST and MCP it is `storage_type`, enumerated from the same list.
+
+**`POST /keeping/bulk` (MCP `mmm_set_keeping`) writes both fields for many posts at once**, recipes and ingredients mixed, resolved per id. It exists because the single-item routes answer with the item's whole serialization: one pass over a library of 372 ingredients and 144 recipes cost 516 calls at roughly 500 tokens each. The bulk answer is `id`, `type`, `ok` plus a separate error list — about 12 tokens per item, and 100 items write in under 20 ms.
+
+**Omitting a key and sending null are different instructions**, and this is the trap the endpoint exists to avoid: an absent key leaves the stored value alone, `shelf_life_days: null` and `storage_type: ""` clear it. A caller filling in shelf lives would otherwise wipe every storage type it did not mention. An item naming neither field comes back as `no_fields` rather than a silent success, so a caller who mistypes both keys does not read 500 confirmations of nothing.
+
+Failures are per item (`not_found`, `wrong_type`, `missing_id`, `no_fields`) and the batch continues — but an invalid `storage_type` **rejects the whole request** at schema level, before anything is written. That asymmetry is deliberate: a missing post is a data condition, an unknown enum value is a caller bug, and half-applying a batch built on a wrong mapping is worse than applying none of it.
 
 It belongs to the shelf life beside it: "keeps 3 days" is not an answer without the condition it keeps under, which is also why storage is a **single** value — one shelf life cannot describe both a fridge and a freezer.
 
