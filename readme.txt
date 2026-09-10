@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.31.0
+Stable tag: 3.32.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.32.0 =
+
+Changed:
+* `[mmm_recipe_keeping]` now renders one plain sentence — "Hält sich im
+  Kühlschrank 4 Tage." — instead of a labelled block. Two facts on two labelled
+  lines announced a section; there is only ever one line of information here,
+  and it belongs under the steps as a closing remark, not as a data table of
+  size two.
+* The sentences are translated whole, not assembled from a verb and a
+  preposition at runtime. Word order and plural rules differ per language, and
+  a translator handed the parts separately cannot fix a sentence that is put
+  together after they are done.
+* The child theme drops the heading above it for the same reason: a heading
+  over a single sentence promises more than follows.
 
 = 3.31.0 =
 
@@ -960,6 +975,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.32.0 =
+How a dish keeps now reads as one sentence.
 
 = 3.31.0 =
 Recipe and meal pages can show how the dish keeps.

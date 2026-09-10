@@ -1563,7 +1563,7 @@ msgid "Meal"
 msgstr "Mahlzeit"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:261
-#: includes/lib/class-mixmymeals-shortcodes.php:7646
+#: includes/lib/class-mixmymeals-shortcodes.php:7650
 msgid "Per serving"
 msgstr "Pro Portion"
 
@@ -1639,8 +1639,8 @@ msgstr "Portion"
 #: includes/lib/class-mixmymeals-meal.php:378
 #: includes/lib/class-mixmymeals-post-meta.php:1600
 #: includes/lib/class-mixmymeals-shortcodes.php:881
-#: includes/lib/class-mixmymeals-shortcodes.php:7882
-#: includes/lib/class-mixmymeals-shortcodes.php:8158
+#: includes/lib/class-mixmymeals-shortcodes.php:7886
+#: includes/lib/class-mixmymeals-shortcodes.php:8162
 msgid "Other"
 msgstr "Sonstiges"
 
@@ -2147,7 +2147,7 @@ msgstr "Nicht angegeben"
 #: includes/lib/class-mixmymeals-shortcodes.php:5470
 #: includes/lib/class-mixmymeals-shortcodes.php:5567
 #: includes/lib/class-mixmymeals-shortcodes.php:6993
-#: includes/lib/class-mixmymeals-shortcodes.php:7751
+#: includes/lib/class-mixmymeals-shortcodes.php:7755
 msgid "Vegetarian"
 msgstr "Vegetarisch"
 
@@ -2160,7 +2160,7 @@ msgstr "Vegetarisch"
 #: includes/lib/class-mixmymeals-shortcodes.php:5467
 #: includes/lib/class-mixmymeals-shortcodes.php:5564
 #: includes/lib/class-mixmymeals-shortcodes.php:6991
-#: includes/lib/class-mixmymeals-shortcodes.php:7750
+#: includes/lib/class-mixmymeals-shortcodes.php:7754
 msgid "Vegan"
 msgstr "Vegan"
 
@@ -3169,14 +3169,14 @@ msgid "%1$s %2$s / 100 g"
 msgstr "%1$s %2$s / 100 g"
 
 #. translators: %s: number of recipes using this equipment
-#: includes/lib/class-mixmymeals-shortcodes.php:8002
+#: includes/lib/class-mixmymeals-shortcodes.php:8006
 #, php-format
 msgid "Used in %s recipe"
 msgid_plural "Used in %s recipes"
 msgstr[0] "In %s Rezept verwendet"
 msgstr[1] "In %s Rezepten verwendet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8087
+#: includes/lib/class-mixmymeals-shortcodes.php:8091
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr "Mit * markierte Links sind Affiliate-Links. Wenn du darüber kaufst, erhalten wir unter Umständen eine Provision — für dich bleibt der Preis gleich."
 
@@ -4123,7 +4123,7 @@ msgid "Source: %s"
 msgstr "Quelle: %s"
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:7691
+#: includes/lib/class-mixmymeals-shortcodes.php:7695
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
@@ -4139,7 +4139,7 @@ msgid "Typical values"
 msgstr "Übliche Werte"
 
 #: includes/lib/class-mixmymeals-post-meta.php:2204
-#: includes/lib/class-mixmymeals-shortcodes.php:7755
+#: includes/lib/class-mixmymeals-shortcodes.php:7759
 msgid "Diet"
 msgstr "Ernährung"
 
@@ -4219,22 +4219,50 @@ msgstr "Kühlschrank"
 msgid "Frozen"
 msgstr "Tiefkühler"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7582
-msgid "Eat on the same day"
-msgstr "Am selben Tag essen"
+#: includes/lib/class-mixmymeals-post-types.php:1234
+msgid "at room temperature"
+msgstr "bei Zimmertemperatur"
 
-#. translators: %s: number of days.
+#: includes/lib/class-mixmymeals-post-types.php:1235
+msgid "in a cool, dry place"
+msgstr "kühl und trocken"
+
+#: includes/lib/class-mixmymeals-post-types.php:1236
+msgid "in the fridge"
+msgstr "im Kühlschrank"
+
+#: includes/lib/class-mixmymeals-post-types.php:1237
+msgid "in the freezer"
+msgstr "im Tiefkühler"
+
+#. translators: %s: storage phrase, e.g. "in the fridge".
+#: includes/lib/class-mixmymeals-shortcodes.php:7576
+#, php-format
+msgid "Best kept %s."
+msgstr "Am besten %s aufbewahren."
+
+#: includes/lib/class-mixmymeals-shortcodes.php:7583
+msgid "Eat on the same day."
+msgstr "Am selben Tag essen."
+
+#. translators: %s: storage phrase, e.g. "in the fridge".
 #: includes/lib/class-mixmymeals-shortcodes.php:7586
 #, php-format
-msgid "%s day"
-msgid_plural "%s days"
-msgstr[0] "%s Tag"
-msgstr[1] "%s Tage"
+msgid "Eat on the same day and keep it %s until then."
+msgstr "Am selben Tag essen und bis dahin %s aufbewahren."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7597
-msgid "Storage"
-msgstr "Lagerung"
+#. translators: %s: number of days.
+#: includes/lib/class-mixmymeals-shortcodes.php:7594
+#, php-format
+msgid "Keeps for %s day."
+msgid_plural "Keeps for %s days."
+msgstr[0] "Hält sich %s Tag."
+msgstr[1] "Hält sich %s Tage."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7572
-msgid "Shelf life"
-msgstr "Haltbarkeit"
+#. translators: 1: storage phrase, e.g. "in the fridge". 2: number of days.
+#: includes/lib/class-mixmymeals-shortcodes.php:7602
+#, php-format
+msgid "Keeps %1$s for %2$s day."
+msgid_plural "Keeps %1$s for %2$s days."
+msgstr[0] "Hält sich %1$s %2$s Tag."
+msgstr[1] "Hält sich %1$s %2$s Tage."

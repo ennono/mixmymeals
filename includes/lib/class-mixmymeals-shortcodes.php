@@ -7555,53 +7555,57 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$labels = Mixmymeals_Post_Types::storage_types();
+		$phrase = '' === $storage
+			? ''
+			: ( Mixmymeals_Post_Types::storage_phrases()[ $storage ] ?? '' );
 
-		ob_start();
-		?>
-		<div class="mmm-keeping">
-			<?php if ( null !== $days ) : ?>
-				<p class="mmm-keeping__line mmm-keeping__line--days">
-					<?php
-					/*
-					 * "Shelf life", not "Keeps": the label has to fit both
-					 * values, and "Keeps — eat on the same day" does not
-					 * read as a sentence in either language.
-					 */
-					?>
-					<span class="mmm-keeping__label"><?php esc_html_e( 'Shelf life', 'mixmymeals' ); ?></span>
-					<span class="mmm-keeping__value">
-						<?php
-						/*
-						 * Zero is its own sentence, not "0 Tage". Somebody
-						 * scanning for a number would read a 0 as a missing
-						 * value; the one case where the dish must not be kept
-						 * at all is the one that has to be unmistakable.
-						 */
-						if ( 0 === $days ) {
-							esc_html_e( 'Eat on the same day', 'mixmymeals' );
-						} else {
-							printf(
-								/* translators: %s: number of days. */
-								esc_html( _n( '%s day', '%s days', $days, 'mixmymeals' ) ),
-								esc_html( number_format_i18n( $days ) )
-							);
-						}
-						?>
-					</span>
-				</p>
-			<?php endif; ?>
+		/*
+		 * Whole sentences, not fragments joined at runtime. Word order,
+		 * prepositions and plural rules differ per language, and a translator
+		 * handed "keeps" and "in the fridge" separately cannot fix a sentence
+		 * that was assembled after they were done.
+		 *
+		 * Zero days is its own wording rather than "0 days": a zero in a
+		 * sentence about keeping food reads as a missing value, and this is
+		 * the one case that must not be misread.
+		 */
+		if ( null === $days ) {
 
-			<?php if ( '' !== $storage ) : ?>
-				<p class="mmm-keeping__line mmm-keeping__line--storage">
-					<span class="mmm-keeping__label"><?php esc_html_e( 'Storage', 'mixmymeals' ); ?></span>
-					<span class="mmm-keeping__value"><?php echo esc_html( $labels[ $storage ] ); ?></span>
-				</p>
-			<?php endif; ?>
-		</div>
-		<?php
+			$text = sprintf(
+				/* translators: %s: storage phrase, e.g. "in the fridge". */
+				__( 'Best kept %s.', 'mixmymeals' ),
+				$phrase
+			);
 
-		return ob_get_clean();
+		} elseif ( 0 === $days ) {
+
+			$text = '' === $phrase
+				? __( 'Eat on the same day.', 'mixmymeals' )
+				: sprintf(
+					/* translators: %s: storage phrase, e.g. "in the fridge". */
+					__( 'Eat on the same day and keep it %s until then.', 'mixmymeals' ),
+					$phrase
+				);
+
+		} elseif ( '' === $phrase ) {
+
+			$text = sprintf(
+				/* translators: %s: number of days. */
+				_n( 'Keeps for %s day.', 'Keeps for %s days.', $days, 'mixmymeals' ),
+				number_format_i18n( $days )
+			);
+
+		} else {
+
+			$text = sprintf(
+				/* translators: 1: storage phrase, e.g. "in the fridge". 2: number of days. */
+				_n( 'Keeps %1$s for %2$s day.', 'Keeps %1$s for %2$s days.', $days, 'mixmymeals' ),
+				$phrase,
+				number_format_i18n( $days )
+			);
+		}
+
+		return '<p class="mmm-keeping">' . esc_html( $text ) . '</p>';
 	}
 
 	/**

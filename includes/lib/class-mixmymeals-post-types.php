@@ -1212,6 +1212,33 @@ class Mixmymeals_Post_Types {
 	}
 
 	/**
+	 * The same conditions as a phrase that can stand inside a sentence.
+	 *
+	 * A second list rather than a clever transformation of the first, because
+	 * the two are grammatically different words: a select needs the noun
+	 * ("Kühlschrank"), a sentence needs the prepositional phrase ("im
+	 * Kühlschrank"), and no rule turns one into the other across languages —
+	 * "cool and dry" takes no preposition at all, "room temperature" takes a
+	 * different one from "fridge".
+	 *
+	 * Every phrase is written to sit **mid-sentence**, never at the start.
+	 * German capitalises the first word of a sentence, so a template that
+	 * opened with the phrase would print "im Kühlschrank aufbewahren." with a
+	 * small i, and no amount of CSS fixes a wrong letter.
+	 *
+	 * @return array<string,string> Value => translated phrase.
+	 */
+	public static function storage_phrases(): array {
+
+		return array(
+			'room_temperature' => __( 'at room temperature', 'mixmymeals' ),
+			'cool_dry'         => __( 'in a cool, dry place', 'mixmymeals' ),
+			'refrigerated'     => __( 'in the fridge', 'mixmymeals' ),
+			'frozen'           => __( 'in the freezer', 'mixmymeals' ),
+		);
+	}
+
+	/**
 	 * Whether a value is one of the known storage conditions.
 	 *
 	 * @param string $value Candidate.
