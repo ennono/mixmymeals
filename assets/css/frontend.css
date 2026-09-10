@@ -580,3 +580,14 @@ body.mmm-cook-mode-open {
 .mmm-product-impact__brand {
     display: block;
 }
+
+/* Keeping ([mmm_recipe_keeping]) — structural only. Label and value are their
+   own elements so a theme can put them side by side or stack them; nothing
+   here decides which. */
+.mmm-keeping__line {
+    margin: 0 0 0.25em;
+}
+
+.mmm-keeping__line:last-child {
+    margin-bottom: 0;
+}

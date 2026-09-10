@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.30.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.31.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -113,6 +113,8 @@ Validated on **read as well as write**, so a row written past the class cannot p
 **Omitting a key and sending null are different instructions**, and this is the trap the endpoint exists to avoid: an absent key leaves the stored value alone, `shelf_life_days: null` and `storage_type: ""` clear it. A caller filling in shelf lives would otherwise wipe every storage type it did not mention. An item naming neither field comes back as `no_fields` rather than a silent success, so a caller who mistypes both keys does not read 500 confirmations of nothing.
 
 Failures are per item (`not_found`, `wrong_type`, `missing_id`, `no_fields`) and the batch continues — but an invalid `storage_type` **rejects the whole request** at schema level, before anything is written. That asymmetry is deliberate: a missing post is a data condition, an unknown enum value is a caller bug, and half-applying a batch built on a wrong mapping is worse than applying none of it.
+
+`[mmm_recipe_keeping]` prints both fields together under the cooking instructions, on recipes and on meals — the meal resolves to its recipe, like every other feature that describes a dish. Both are rendered as one block because neither is an answer alone, and it prints nothing at all when neither is set. **A shelf life of 0 reads "Am selben Tag essen", never "0 Tage"**: a zero among numbers looks like a missing value, and that is the one case a reader must not misread. The child theme owns the heading and the card.
 
 It belongs to the shelf life beside it: "keeps 3 days" is not an answer without the condition it keeps under, which is also why storage is a **single** value — one shelf life cannot describe both a fridge and a freezer.
 

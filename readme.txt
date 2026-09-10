@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.30.0
+Stable tag: 3.31.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.31.0 =
+
+Added:
+* `[mmm_recipe_keeping]` shows how the finished dish keeps — the shelf life and
+  the storage condition together, since neither is an answer without the other.
+  On a meal it resolves to the recipe it plans. Renders nothing until somebody
+  has filled the fields in.
+* A shelf life of 0 reads "Eat on the same day" rather than "0 days": a zero in
+  a column of numbers looks like a missing value, and that is the one case that
+  has to be unmistakable.
+
+The bundled child theme places it under the cooking instructions on recipe and
+meal pages, where the reader has just acquired the question.
 
 = 3.30.0 =
 
@@ -946,6 +960,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.31.0 =
+Recipe and meal pages can show how the dish keeps.
 
 = 3.30.0 =
 Shelf life and storage can be set in bulk.

@@ -234,6 +234,8 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_recipe_steps_for_a_single_recipe',
 			[ $this, 'mmm_recipe_steps_for_a_single_recipe_callback' ] );
+		add_shortcode( 'mmm_recipe_keeping',
+			[ $this, 'mmm_recipe_keeping_callback' ] );
 
 		add_shortcode( 'mmm_nutrition_table_for_a_single_recipe',
 			[ $this, 'mmm_nutrition_table_for_a_single_recipe_callback' ] );
@@ -7502,6 +7504,104 @@ class Mixmymeals_Shortcodes {
 			$plan->calc_product_impact(),
 			__( 'Per day and person', 'mixmymeals' )
 		);
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_keeping].
+	 *
+	 * How to keep the finished dish: how long it lasts and under what
+	 * condition. The two are one statement — "three days" says nothing without
+	 * "in the fridge", and a condition without a duration is half an answer —
+	 * so they are rendered together and the block appears as soon as either is
+	 * set.
+	 *
+	 * Resolves a meal to the recipe it plans, like every other feature that
+	 * credits or describes a dish. The values belong to the recipe; a meal is
+	 * a planning of it and carries none of its own.
+	 *
+	 * Renders nothing when neither field is filled in, which is the ordinary
+	 * case for a library that has not been gone through yet.
+	 *
+	 * @param array|string $atts Shortcode attributes: id.
+	 * @return string
+	 */
+	public function mmm_recipe_keeping_callback( $atts = array() ): string {
+
+		$atts    = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_recipe_keeping' );
+		$post_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
+
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$type = get_post_type( $post_id );
+
+		if ( 'mmm_meal' === $type ) {
+			$post_id = ( new Mixmymeals_Meal( $post_id ) )->get_recipe_id();
+		} elseif ( 'mmm_recipe' !== $type ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( (int) $post_id );
+
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		$days    = $recipe->get_shelf_life();
+		$storage = $recipe->get_storage_type();
+
+		if ( null === $days && '' === $storage ) {
+			return '';
+		}
+
+		$labels = Mixmymeals_Post_Types::storage_types();
+
+		ob_start();
+		?>
+		<div class="mmm-keeping">
+			<?php if ( null !== $days ) : ?>
+				<p class="mmm-keeping__line mmm-keeping__line--days">
+					<?php
+					/*
+					 * "Shelf life", not "Keeps": the label has to fit both
+					 * values, and "Keeps — eat on the same day" does not
+					 * read as a sentence in either language.
+					 */
+					?>
+					<span class="mmm-keeping__label"><?php esc_html_e( 'Shelf life', 'mixmymeals' ); ?></span>
+					<span class="mmm-keeping__value">
+						<?php
+						/*
+						 * Zero is its own sentence, not "0 Tage". Somebody
+						 * scanning for a number would read a 0 as a missing
+						 * value; the one case where the dish must not be kept
+						 * at all is the one that has to be unmistakable.
+						 */
+						if ( 0 === $days ) {
+							esc_html_e( 'Eat on the same day', 'mixmymeals' );
+						} else {
+							printf(
+								/* translators: %s: number of days. */
+								esc_html( _n( '%s day', '%s days', $days, 'mixmymeals' ) ),
+								esc_html( number_format_i18n( $days ) )
+							);
+						}
+						?>
+					</span>
+				</p>
+			<?php endif; ?>
+
+			<?php if ( '' !== $storage ) : ?>
+				<p class="mmm-keeping__line mmm-keeping__line--storage">
+					<span class="mmm-keeping__label"><?php esc_html_e( 'Storage', 'mixmymeals' ); ?></span>
+					<span class="mmm-keeping__value"><?php echo esc_html( $labels[ $storage ] ); ?></span>
+				</p>
+			<?php endif; ?>
+		</div>
+		<?php
+
+		return ob_get_clean();
 	}
 
 	/**
