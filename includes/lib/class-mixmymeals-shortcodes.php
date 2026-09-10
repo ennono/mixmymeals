@@ -234,8 +234,6 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_recipe_steps_for_a_single_recipe',
 			[ $this, 'mmm_recipe_steps_for_a_single_recipe_callback' ] );
-		add_shortcode( 'mmm_recipe_keeping',
-			[ $this, 'mmm_recipe_keeping_callback' ] );
 
 		add_shortcode( 'mmm_nutrition_table_for_a_single_recipe',
 			[ $this, 'mmm_nutrition_table_for_a_single_recipe_callback' ] );
@@ -4719,6 +4717,11 @@ class Mixmymeals_Shortcodes {
 						);
 						?></span>
 				<?php endif; ?>
+				<?php
+				// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
+				// Gericht ist, und gehoert damit hinter die Kennzahlen des Essens.
+				echo self::keeping_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				?>
             </div>
 
 			<?php if ( has_excerpt( $recipe_id ) ) : ?>
@@ -5042,6 +5045,131 @@ class Mixmymeals_Shortcodes {
 	 * @param string $base    Base class of the surrounding row.
 	 * @return string
 	 */
+	/**
+	 * One chip stating how the finished dish keeps.
+	 *
+	 * Shelf life and storage go into a single chip, never two: "4 Tage" beside
+	 * a row of stats is a duration with no subject — a plan chip reads "7 Tage"
+	 * and means something else entirely — and a condition without a duration is
+	 * half an answer. Together they are one fact, and the chip row is a row of
+	 * facts.
+	 *
+	 * Resolves a meal to the recipe it plans, like every other feature that
+	 * describes a dish. Returns '' when neither field is set, which is the
+	 * ordinary case for a library nobody has been through yet.
+	 *
+	 * @param int    $post_id Recipe or meal id.
+	 * @param string $base    Base class of the surrounding chip row.
+	 * @return string
+	 */
+	public static function keeping_chip( int $post_id, string $base = 'mmm-chip' ): string {
+
+		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+		if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
+			return '';
+		}
+
+		$recipe = new Mixmymeals_Recipe( $post_id );
+
+		if ( ! $recipe->is_valid() ) {
+			return '';
+		}
+
+		$days    = $recipe->get_shelf_life();
+		$storage = $recipe->get_storage_type();
+
+		if ( null === $days && '' === $storage ) {
+			return '';
+		}
+
+		$phrase = '' === $storage
+			? ''
+			: ( Mixmymeals_Post_Types::storage_phrases()[ $storage ] ?? '' );
+
+		/*
+		 * Whole phrases, not a number and a preposition joined at runtime. Word
+		 * order and plural rules differ per language, and the storage phrase is
+		 * only ever interpolated mid-string: German capitalises the first word,
+		 * so none of these templates may open with it.
+		 *
+		 * Zero days keeps its own wording. A "0" among chips that read "4
+		 * Portionen" and "520 kcal" looks like a missing value, and this is the
+		 * one case a reader must not misread.
+		 */
+		if ( null === $days ) {
+
+			// Storage alone takes the noun the select boxes use, since there is
+			// no sentence around it to carry the preposition.
+			$text = Mixmymeals_Post_Types::storage_types()[ $storage ] ?? '';
+
+		} elseif ( 0 === $days ) {
+
+			$text = '' === $phrase
+				? __( 'Same day', 'mixmymeals' )
+				: sprintf(
+					/* translators: %s: storage phrase, e.g. "in the fridge". */
+					__( 'Same day, %s', 'mixmymeals' ),
+					$phrase
+				);
+
+		} elseif ( '' === $phrase ) {
+
+			$text = sprintf(
+				/* translators: %s: number of days. */
+				_n( 'Keeps %s day', 'Keeps %s days', $days, 'mixmymeals' ),
+				number_format_i18n( $days )
+			);
+
+		} else {
+
+			$text = sprintf(
+				/* translators: 1: number of days. 2: storage phrase, e.g. "in the fridge". */
+				_n( '%1$s day %2$s', '%1$s days %2$s', $days, 'mixmymeals' ),
+				number_format_i18n( $days ),
+				$phrase
+			);
+		}
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		return sprintf(
+			'<span class="%1$s %1$s--stat %1$s--keeping"><i class="mmm-icon fa-solid %2$s" aria-hidden="true"></i>%3$s</span>',
+			esc_attr( $base ),
+			esc_attr( self::keeping_icon( $storage ) ),
+			esc_html( $text )
+		);
+	}
+
+	/**
+	 * Font Awesome class for a storage condition.
+	 *
+	 * A duration with no condition gets the hourglass, because that is all it
+	 * is. The rest are the picture of the place, which is what makes the chip
+	 * readable at a glance — the text alone would do, but this row is scanned,
+	 * not read.
+	 *
+	 * @param string $storage Storage type key, '' when none is set.
+	 * @return string
+	 */
+	private static function keeping_icon( string $storage ): string {
+
+		switch ( $storage ) {
+			case 'frozen':
+				return 'fa-snowflake';
+			case 'refrigerated':
+				return 'fa-temperature-low';
+			case 'cool_dry':
+				return 'fa-jar';
+			case 'room_temperature':
+				return 'fa-box-archive';
+			default:
+				return 'fa-hourglass-half';
+		}
+	}
+
 	public static function disclosure_chip( int $post_id, string $base = 'mmm-chip' ): string {
 
 		$label = self::disclosure_label_for( $post_id );
@@ -5259,6 +5387,11 @@ class Mixmymeals_Shortcodes {
 				<?php if ( $kcal > 0 ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' ) ); ?></span>
 				<?php endif; ?>
+				<?php
+				// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
+				// Gericht ist, und gehoert damit hinter die Kennzahlen des Essens.
+				echo self::keeping_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				?>
             </div>
 
             <div class="mmm-plan-hero__actions">
@@ -7504,108 +7637,6 @@ class Mixmymeals_Shortcodes {
 			$plan->calc_product_impact(),
 			__( 'Per day and person', 'mixmymeals' )
 		);
-	}
-
-	/**
-	 * Shortcode [mmm_recipe_keeping].
-	 *
-	 * How to keep the finished dish: how long it lasts and under what
-	 * condition. The two are one statement — "three days" says nothing without
-	 * "in the fridge", and a condition without a duration is half an answer —
-	 * so they are rendered together and the block appears as soon as either is
-	 * set.
-	 *
-	 * Resolves a meal to the recipe it plans, like every other feature that
-	 * credits or describes a dish. The values belong to the recipe; a meal is
-	 * a planning of it and carries none of its own.
-	 *
-	 * Renders nothing when neither field is filled in, which is the ordinary
-	 * case for a library that has not been gone through yet.
-	 *
-	 * @param array|string $atts Shortcode attributes: id.
-	 * @return string
-	 */
-	public function mmm_recipe_keeping_callback( $atts = array() ): string {
-
-		$atts    = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_recipe_keeping' );
-		$post_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
-
-		if ( ! $post_id ) {
-			return '';
-		}
-
-		$type = get_post_type( $post_id );
-
-		if ( 'mmm_meal' === $type ) {
-			$post_id = ( new Mixmymeals_Meal( $post_id ) )->get_recipe_id();
-		} elseif ( 'mmm_recipe' !== $type ) {
-			return '';
-		}
-
-		$recipe = new Mixmymeals_Recipe( (int) $post_id );
-
-		if ( ! $recipe->is_valid() ) {
-			return '';
-		}
-
-		$days    = $recipe->get_shelf_life();
-		$storage = $recipe->get_storage_type();
-
-		if ( null === $days && '' === $storage ) {
-			return '';
-		}
-
-		$phrase = '' === $storage
-			? ''
-			: ( Mixmymeals_Post_Types::storage_phrases()[ $storage ] ?? '' );
-
-		/*
-		 * Whole sentences, not fragments joined at runtime. Word order,
-		 * prepositions and plural rules differ per language, and a translator
-		 * handed "keeps" and "in the fridge" separately cannot fix a sentence
-		 * that was assembled after they were done.
-		 *
-		 * Zero days is its own wording rather than "0 days": a zero in a
-		 * sentence about keeping food reads as a missing value, and this is
-		 * the one case that must not be misread.
-		 */
-		if ( null === $days ) {
-
-			$text = sprintf(
-				/* translators: %s: storage phrase, e.g. "in the fridge". */
-				__( 'Best kept %s.', 'mixmymeals' ),
-				$phrase
-			);
-
-		} elseif ( 0 === $days ) {
-
-			$text = '' === $phrase
-				? __( 'Eat on the same day.', 'mixmymeals' )
-				: sprintf(
-					/* translators: %s: storage phrase, e.g. "in the fridge". */
-					__( 'Eat on the same day and keep it %s until then.', 'mixmymeals' ),
-					$phrase
-				);
-
-		} elseif ( '' === $phrase ) {
-
-			$text = sprintf(
-				/* translators: %s: number of days. */
-				_n( 'Keeps for %s day.', 'Keeps for %s days.', $days, 'mixmymeals' ),
-				number_format_i18n( $days )
-			);
-
-		} else {
-
-			$text = sprintf(
-				/* translators: 1: storage phrase, e.g. "in the fridge". 2: number of days. */
-				_n( 'Keeps %1$s for %2$s day.', 'Keeps %1$s for %2$s days.', $days, 'mixmymeals' ),
-				$phrase,
-				number_format_i18n( $days )
-			);
-		}
-
-		return '<p class="mmm-keeping">' . esc_html( $text ) . '</p>';
 	}
 
 	/**

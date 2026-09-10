@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.32.0
+Stable tag: 3.33.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.33.0 =
+
+Changed:
+* Shelf life and storage now sit as a chip in the recipe and meal header,
+  beside servings, time and energy, instead of as a sentence under the cooking
+  instructions. A sentence alone after the last step read as the opening of a
+  section that never came; the header already carries the facts about a dish
+  and this is one of them.
+* Both facts share one chip. "4 Tage" among stats is a duration with no
+  subject — on a plan the same chip means the plan's length — so it reads
+  "4 Tage im Kühlschrank", or "4 Tage haltbar" when no storage is recorded.
+
+Removed:
+* `[mmm_recipe_keeping]`. It existed only to print that sentence.
 
 = 3.32.0 =
 
@@ -975,6 +990,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.33.0 =
+How a dish keeps moved into the header as a chip.
 
 = 3.32.0 =
 How a dish keeps now reads as one sentence.
