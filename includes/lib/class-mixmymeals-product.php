@@ -291,6 +291,70 @@ class Mixmymeals_Product {
 	}
 
 	/**
+	 * Price of one package, in the site currency.
+	 *
+	 * Per package rather than per 100 g because that is the number on the shelf
+	 * label and the one somebody copies off a receipt; the price per 100 g is
+	 * derived from it and the package weight, so the two cannot disagree.
+	 *
+	 * @var string
+	 */
+	const META_PRICE = '_mmm_product_price';
+
+	/**
+	 * Price of one package, or null when not recorded.
+	 *
+	 * @return float|null
+	 */
+	public function get_price(): ?float {
+
+		if ( ! $this->is_valid() ) {
+			return null;
+		}
+
+		$value = get_post_meta( $this->post_id, self::META_PRICE, true );
+
+		return is_numeric( $value ) && (float) $value > 0 ? (float) $value : null;
+	}
+
+	/**
+	 * Sets the package price. null, 0 or less removes it — nothing on a shelf
+	 * costs nothing, so a zero can only be a field left blank.
+	 *
+	 * @param float|null $price Price of one package.
+	 * @return void
+	 */
+	public function set_price( ?float $price ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		if ( null !== $price && $price > 0 ) {
+			update_post_meta( $this->post_id, self::META_PRICE, $price );
+		} else {
+			delete_post_meta( $this->post_id, self::META_PRICE );
+		}
+	}
+
+	/**
+	 * Price per 100 g, derived from the package price and weight.
+	 *
+	 * Null unless **both** are recorded: a price without a weight says nothing
+	 * about what a recipe's 150 g cost, and guessing would put an invented
+	 * figure on every recipe using the ingredient.
+	 *
+	 * @return float|null
+	 */
+	public function get_price_per_100g(): ?float {
+
+		$price  = $this->get_price();
+		$weight = $this->get_package_weight();
+
+		return null !== $price && $weight > 0 ? $price / $weight * 100.0 : null;
+	}
+
+	/**
 	 * Brand, or '' when none is recorded.
 	 *
 	 * @return string

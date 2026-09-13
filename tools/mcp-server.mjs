@@ -601,7 +601,7 @@ const TOOLS = [
 
   {
     name: "mmm_update_ingredient_price",
-    description: "Preis pro 100g einer Zutat setzen. Verwendet /mixmymeals/v1/ingredients/{id}/price.",
+    description: "Eigenen Preis pro 100g einer Zutat setzen. Hat die Zutat ein Referenzprodukt mit Packungspreis und -gewicht, gilt dessen Preis und dieser nur als Rückfall — die Antwort nennt dann den aufgelösten Wert. Verwendet /mixmymeals/v1/ingredients/{id}/price.",
     inputSchema: {
       type: "object",
       required: ["id", "price_per_100g"],
@@ -691,6 +691,7 @@ const TOOLS = [
         title:          { type: "string", description: "Produktname" },
         brand:          { type: "string", description: "Marke oder Hersteller. Pflicht — zwei Produkte einer Zutat unterscheiden sich oft nur darüber, und ohne Marke laesst sich im Laden nichts wiederfinden." },
         package_weight: { type: "number", description: "Gewicht einer Packung in Gramm" },
+        price:          { type: ["number", "null"], description: "Preis einer Packung in der Shop-Währung. Der Preis je 100 g ergibt sich daraus und aus package_weight — ohne Packungsgewicht wirkt der Preis nicht. Ist das Produkt die Referenz, ersetzt er den Preis der Zutat in allen Kostenrechnungen. null löscht ihn." },
         source:         { type: "string", description: "Woher die Angaben stammen, z. B. 'Packung, 08/2026'. Diese Werte veralten — ohne Quelle unterscheidet später niemand eine aktuelle von einer alten Angabe." },
         nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
         diet_type:      { type: "string", enum: ["vegan", "vegetarian", ""], description: "Einstufung dieses Artikels. Leer = nicht geprüft, dann gilt die Einstufung der Zutat. Sobald gesetzt, überschreibt sie diese — Nudeln mit Ei sind nicht vegan, auch wenn die Zutat es ist. Wirkt nur über die Referenz." },
@@ -710,6 +711,7 @@ const TOOLS = [
         title:          { type: "string" },
         brand:          { type: "string" },
         package_weight: { type: "number" },
+        price:          { type: ["number", "null"], description: "Preis einer Packung. Wirkt nur zusammen mit package_weight und nur, wenn das Produkt die Referenz ist. null löscht ihn." },
         source:         { type: "string" },
         nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
         diet_type:      { type: "string", enum: ["vegan", "vegetarian", ""], description: "Einstufung dieses Artikels. Leer setzt sie zurück, dann gilt die der Zutat." },
@@ -1380,10 +1382,11 @@ async function handleTool(name, args) {
       return mmm("GET", `/products/${args.id}`);
 
     case "mmm_create_product": {
-      const { ingredient_id, title, brand, package_weight, source, diet_type, nutrition, is_reference } = args;
+      const { ingredient_id, title, brand, package_weight, price, source, diet_type, nutrition, is_reference } = args;
       const body = { ingredient_id, title };
       if (brand !== undefined)          body.brand = brand;
       if (package_weight !== undefined) body.package_weight = package_weight;
+      if (price !== undefined)          body.price = price;
       if (source !== undefined)         body.source = source;
       if (diet_type !== undefined)      body.diet_type = diet_type;
       if (nutrition !== undefined)      body.nutrition = nutrition;
@@ -1392,11 +1395,12 @@ async function handleTool(name, args) {
     }
 
     case "mmm_update_product": {
-      const { id, title, brand, package_weight, source, diet_type, nutrition, is_reference } = args;
+      const { id, title, brand, package_weight, price, source, diet_type, nutrition, is_reference } = args;
       const body = {};
       if (title !== undefined)          body.title = title;
       if (brand !== undefined)          body.brand = brand;
       if (package_weight !== undefined) body.package_weight = package_weight;
+      if (price !== undefined)          body.price = price;
       if (source !== undefined)         body.source = source;
       if (diet_type !== undefined)      body.diet_type = diet_type;
       if (nutrition !== undefined)      body.nutrition = nutrition;

@@ -1782,8 +1782,12 @@ class Mixmymeals_Post_Meta {
 		wp_nonce_field( 'mmm_ingredient_price_meta_box', 'mmm_ingredient_price_meta_nonce' );
 
 		$ingredient = new Mixmymeals_Ingredient( $post->ID );
-		$price      = $ingredient->get_price_per_100g();
+		// The own figure, never the resolved one: saving this form writes the
+		// field back, and a product's price must not end up in the ingredient.
+		$price      = $ingredient->get_own_price_per_100g();
 		$currency   = get_option( 'mixmymeals_currency', '€' );
+		$reference  = Mixmymeals_Product::get_reference_id( $post->ID );
+		$ref_price  = $reference ? ( new Mixmymeals_Product( $reference ) )->get_price_per_100g() : null;
 		?>
 		<p>
 			<label for="mmm_price_per_100g">
@@ -1805,6 +1809,19 @@ class Mixmymeals_Post_Meta {
 				style="width:100%;"
 			/>
 		</p>
+		<?php if ( null !== $ref_price ) : ?>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: product name, 2: price per 100 g, 3: currency symbol */
+					esc_html__( 'Currently priced by the product %1$s: %2$s %3$s / 100 g. This field applies only without it.', 'mixmymeals' ),
+					esc_html( Mixmymeals_Product::reference_label( $post->ID ) ),
+					esc_html( number_format_i18n( $ref_price, 2 ) ),
+					esc_html( $currency )
+				);
+				?>
+			</p>
+		<?php endif; ?>
 		<p>
 			<label for="mmm_ingredient_shelf_life">
 				<?php esc_html_e( 'Shelf life of the ingredient (days)', 'mixmymeals' ); ?>
@@ -2062,6 +2079,9 @@ class Mixmymeals_Post_Meta {
 			$product->set_diet_type( isset( $row['diet_type'] ) ? (string) $row['diet_type'] : '' );
 			$product->set_source( isset( $row['source'] ) ? (string) $row['source'] : '' );
 			$product->set_package_weight( isset( $row['package_weight'] ) ? (float) $row['package_weight'] : 0.0 );
+			$product->set_price(
+				isset( $row['price'] ) && '' !== trim( (string) $row['price'] ) ? (float) $row['price'] : null
+			);
 
 			/*
 			 * Every key is passed through, including the empty ones: an emptied
@@ -2118,7 +2138,7 @@ class Mixmymeals_Post_Meta {
 		$reference = Mixmymeals_Product::get_reference_id( $post->ID );
 
 		echo '<p class="description">'
-			. esc_html__( 'A product is one specific article of this ingredient. Its nutrition replaces the ingredient\'s — value by value; anything it does not state stays with the ingredient.', 'mixmymeals' )
+			. esc_html__( 'A product is one specific article of this ingredient. Its nutrition replaces the ingredient\'s — value by value; anything it does not state stays with the ingredient. Its price replaces the ingredient\'s once both price and package weight are filled in.', 'mixmymeals' )
 			. '</p>';
 
 		echo '<table class="widefat mmm-products"><tbody>';
@@ -2200,6 +2220,20 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $is_new || ! $product->get_package_weight() ? '' : (string) $product->get_package_weight() )
 			. '"></label></td>';
 
+		$price = $is_new ? null : $product->get_price();
+		echo '<td><label class="mmm-products__field">'
+			. '<span>' . esc_html(
+				sprintf(
+					/* translators: %s: currency symbol */
+					__( 'Price per package (%s)', 'mixmymeals' ),
+					get_option( 'mixmymeals_currency', '€' )
+				)
+			) . '</span>'
+			. '<input type="number" step="0.01" min="0" class="mmm-products__pack" name="'
+			. esc_attr( $name ) . '[price]" value="'
+			. esc_attr( null === $price ? '' : (string) $price )
+			. '"></label></td>';
+
 		echo '<td><label class="mmm-products__field">'
 			. '<span>' . esc_html__( 'Diet', 'mixmymeals' ) . '</span>'
 			. '<select name="' . esc_attr( $name ) . '[diet_type]">';
@@ -2225,7 +2259,7 @@ class Mixmymeals_Post_Meta {
 		if ( ! $is_new ) {
 			echo '<label class="mmm-products__use"><input type="radio" name="mmm_products_reference" value="'
 				. esc_attr( (string) $id ) . '" ' . checked( $reference, $id, false ) . '> '
-				. esc_html__( 'Use this product\'s nutrition', 'mixmymeals' ) . '</label>';
+				. esc_html__( 'Use this product\'s nutrition and price', 'mixmymeals' ) . '</label>';
 			echo '<label class="mmm-products__delete"><input type="checkbox" name="' . esc_attr( $name )
 				. '[delete]" value="1"> ' . esc_html__( 'Delete', 'mixmymeals' ) . '</label>';
 		} else {
@@ -2235,7 +2269,7 @@ class Mixmymeals_Post_Meta {
 		echo '</tr>';
 
 		// --- Row 2: the panel off the packet ---
-		echo '<tr class="mmm-products__detail' . esc_attr( $zebra ) . '"><td colspan="5">';
+		echo '<tr class="mmm-products__detail' . esc_attr( $zebra ) . '"><td colspan="6">';
 		// The flex container is a div, not the cell: display:flex on a <td>
 		// takes it out of the table layout and it collapses to the width of
 		// the first column.

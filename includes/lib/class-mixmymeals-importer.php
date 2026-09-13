@@ -276,7 +276,9 @@ class Mixmymeals_Ingredient_Importer {
 		foreach ( $posts as $post ) {
 			$ingredient = new Mixmymeals_Ingredient( $post->ID );
 			$nutrition  = $ingredient->get_nutrition();
-			$price      = $ingredient->get_price_per_100g();
+			// Own, not resolved: re-importing this file writes the field back,
+			// and a product's price must not turn into the ingredient's.
+			$price      = $ingredient->get_own_price_per_100g();
 
 			$unit_list = array();
 			foreach ( $ingredient->get_units() as $unit_post ) {

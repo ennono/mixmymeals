@@ -476,7 +476,43 @@ class Mixmymeals_Ingredient {
 		update_post_meta( $this->post_id, self::META_SHELF_LIFE, max( 0, $days ) );
 	}
 
+	/**
+	 * Price per 100 g, resolved through the reference product.
+	 *
+	 * The single read path for what an ingredient costs, exactly as
+	 * get_nutrition() is for what it contains: recipe costs go through
+	 * calculate_cost_for_weight(), which reads this. A reference product with a
+	 * price and a package weight wins; otherwise the ingredient's own figure.
+	 *
+	 * @return float 0 when neither states a price.
+	 */
 	public function get_price_per_100g(): float {
+		if ( ! $this->is_valid() ) {
+			return 0.0;
+		}
+
+		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+
+		if ( $reference ) {
+			$product_price = ( new Mixmymeals_Product( $reference ) )->get_price_per_100g();
+
+			if ( null !== $product_price ) {
+				return $product_price;
+			}
+		}
+
+		return $this->get_own_price_per_100g();
+	}
+
+	/**
+	 * The price the ingredient itself holds, before any product is considered.
+	 *
+	 * For editing and exporting only. A form that showed the resolved price
+	 * would write the product's figure into the ingredient on the next save.
+	 *
+	 * @return float 0 when unset.
+	 */
+	public function get_own_price_per_100g(): float {
 		if ( ! $this->is_valid() ) {
 			return 0.0;
 		}

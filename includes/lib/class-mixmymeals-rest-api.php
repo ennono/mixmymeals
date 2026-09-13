@@ -413,6 +413,7 @@ class Mixmymeals_Rest_Api {
 				// brand in by hand.
 				'brand'          => array( 'required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
+				'price'          => array( 'required' => false, 'type' => array( 'number', 'null' ), 'minimum' => 0 ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
 				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
@@ -440,6 +441,7 @@ class Mixmymeals_Rest_Api {
 				'title'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'brand'          => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
+				'price'          => array( 'required' => false, 'type' => array( 'number', 'null' ), 'minimum' => 0 ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
 				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
 				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
@@ -610,6 +612,10 @@ class Mixmymeals_Rest_Api {
 			'parent'         => $ingredient,
 			'brand'          => $product->get_brand(),
 			'package_weight' => $product->get_package_weight(),
+			// Per package, null when unrecorded. price_per_100g is derived and
+			// stays null until a package weight is stated as well.
+			'price'          => $product->get_price(),
+			'price_per_100g' => $product->get_price_per_100g(),
 			'source'         => $product->get_source(),
 			// '' means the packet was not checked and the ingredient's own
 			// classification stands, which a client must be able to tell from
@@ -643,6 +649,11 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'source' ) )         $product->set_source( (string) $request->get_param( 'source' ) );
 		if ( $request->has_param( 'package_weight' ) ) $product->set_package_weight( (float) $request->get_param( 'package_weight' ) );
+		// null clears; the cast only after the null check, or it would read 0.
+		if ( $request->has_param( 'price' ) ) {
+			$price = $request->get_param( 'price' );
+			$product->set_price( null === $price ? null : (float) $price );
+		}
 		if ( $request->has_param( 'diet_type' ) )      $product->set_diet_type( (string) $request->get_param( 'diet_type' ) );
 
 		if ( $request->has_param( 'nutrition' ) ) {
@@ -880,6 +891,7 @@ class Mixmymeals_Rest_Api {
 			'reference_product_label' => Mixmymeals_Product::reference_label( $post_id ),
 			'product_count'           => count( Mixmymeals_Product::for_ingredient( $post_id ) ),
 			'own_nutrition'           => $ing->get_nutrition_with_product( 0 ),
+			'own_price_per_100g'      => $ing->get_own_price_per_100g(),
 			'own_diet_type'           => in_array( get_post_meta( $post_id, '_mmm_diet_type', true ), array( 'vegan', 'vegetarian' ), true )
 				? (string) get_post_meta( $post_id, '_mmm_diet_type', true )
 				: '',
@@ -1559,7 +1571,7 @@ class Mixmymeals_Rest_Api {
 		$guard = $this->require_can_edit( $id );
 		if ( $guard ) return $guard;
 		$ing->set_price_per_100g( floatval( $request->get_param( 'price_per_100g' ) ) );
-		return new WP_REST_Response( array( 'id' => $id, 'price_per_100g' => $ing->get_price_per_100g() ), 200 );
+		return new WP_REST_Response( array( 'id' => $id, 'price_per_100g' => $ing->get_price_per_100g(), 'own_price_per_100g' => $ing->get_own_price_per_100g() ), 200 );
 	}
 
 	public function get_ingredient_units( WP_REST_Request $request ): WP_REST_Response|WP_Error {
