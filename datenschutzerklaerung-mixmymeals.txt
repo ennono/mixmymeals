@@ -1,0 +1,175 @@
+================================================================================
+Datenschutzerklärung — Abschnitt "MixMyMeals"
+Vorlage für https://www.stopfnicht.de/datenschutz/
+================================================================================
+
+Diese Datei ist der gepflegte Stand des Abschnitts. Sie wird nicht ausgeliefert
+(.distignore: /datenschutzerklaerung*) und ist keine Rechtsberatung, sondern
+eine Bestandsaufnahme dessen, was der Code tut.
+
+Sie gehört aktualisiert, sobald sich am Umgang mit personenbezogenen Daten
+etwas ändert — neue Speicherung, neue Empfänger, geänderte Fristen, ein neues
+Cookie, ein neuer externer Aufruf. Wer das ändert, ändert auch diese Datei.
+
+Stand: 2026-09-22 (Gravatar-Rückfall entfernt; offene Punkte geklärt;
+       Hosting-Formulierung korrigiert; Negativ-Aussagen gestrichen)
+Geprüft gegen: mixmymeals 3.31.0, mixmymeals-social (Pin-Generator)
+
+--------------------------------------------------------------------------------
+GEKLÄRT AM 2026-09-22 (Angaben von Timo)
+--------------------------------------------------------------------------------
+
+- Gravatar ist auf der gesamten Website aus. Zusammen mit dem Ausbau des
+  Rückfalls in der Autorenbox heißt das: kein Avatardienst, nirgends. Die
+  Aussage in der Einleitung gilt deshalb ohne Einschränkung.
+
+- "IP-Adresse bei Einwilligung speichern" ist AUS
+  (mixmymeals_subscription_log_ip). Es wird also keine Einwilligungs-IP
+  gespeichert; im Text steht dazu nichts. Wird die Option eingeschaltet, muss
+  ein Satz ergänzt werden: die IP wird dann VOLLSTÄNDIG und dauerhaft am
+  Abo-Datensatz gespeichert, nicht gehasht und nicht kurzlebig wie die Zähler
+  daneben.
+
+- Fristen: Bestätigung 48 Stunden, Aufbewahrung 7 Tage. Beide Zahlen stehen so
+  im Text. Sie stammen aus den Einstellungen, nicht aus dem Code — dessen
+  Standard wäre 365 Tage. Wer die Einstellung ändert, ändert den Text mit.
+
+================================================================================
+TEXT
+================================================================================
+
+Rezepte, Mahlzeitenplaner und E-Mail-Benachrichtigungen (MixMyMeals)
+
+Diese Website nutzt die selbst betriebene Software „MixMyMeals" für Rezept- und
+Planungsfunktionen. Besucher können Essenspläne zusammenstellen, Rezepte
+bewerten, Fotos nachgekochter Gerichte hochladen und Essenspläne per E-Mail
+abonnieren. Sämtliche nachfolgend beschriebenen Verarbeitungen finden innerhalb
+dieser Website statt, also auf der Infrastruktur des im Abschnitt
+„Bereitstellung des Onlineangebots und Webhosting" genannten Hosting-Anbieters.
+
+Verarbeitete Datenarten: Bestandsdaten (z. B. Namen); Kontaktdaten
+(E-Mail-Adressen); Inhaltsdaten (Rezeptauswahl, Bewertungen, Rezensionen,
+hochgeladene Fotos). Nutzungs- und Metadaten (Zeitstempel, Versandmetadaten,
+IP-Adressen in gehashter Form).
+
+Betroffene Personen: Nutzer der Website. E-Mail-Abonnenten.
+
+Zwecke der Verarbeitung: Bereitstellung der Planungsfunktionen; Versand
+abonnierter Essenspläne; Community-Funktionen (Bewertungen, Fotos); Schutz vor
+Missbrauch und Überlastung. Nachvollziehbarkeit des E-Mail-Versands.
+
+Rechtsgrundlagen: Einwilligung (Art. 6 Abs. 1 S. 1 lit. a) DSGVO) für
+E-Mail-Abonnements, Bewertungen und Foto-Uploads; berechtigte Interessen
+(Art. 6 Abs. 1 S. 1 lit. f) DSGVO) für die Warenkorb-Funktion, den
+Missbrauchsschutz, das Versandprotokoll und die Nachweisführung. Das
+Warenkorb-Cookie ist für die vom Nutzer angeforderte Funktion technisch
+erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).
+
+Weitere Hinweise zu Verarbeitungsprozessen, Verfahren und Diensten:
+
+- Warenkorb/Mahlzeitenplaner: Für nicht angemeldete Besucher speichert ein
+  Cookie namens „mixmymeals_cart_uuid" eine zufällige Kennung ohne
+  Personenbezug; die Rezeptauswahl selbst wird serverseitig gespeichert und nach
+  einer Woche automatisch gelöscht.
+
+- PDF-Export: Zur Begrenzung von Missbrauch wird die IP-Adresse beim Abruf eines
+  Plan-PDFs in gehashter (pseudonymisierter) Form als kurzlebiger Zähler
+  gespeichert und nach etwa einer Minute automatisch gelöscht.
+
+- Rezeptbewertungen: Angemeldete Nutzer sowie E-Mail-Abonnenten (über einen
+  personalisierten Bestätigungslink) können Sternebewertungen und Rezensionen
+  hinterlassen. Diese werden als Kommentar zusammen mit dem angegebenen Namen
+  und der E-Mail-Adresse gespeichert. Die Speicherung erfolgt dauerhaft, bis der
+  Verfasser der Speicherung widerspricht bzw. die Löschung verlangt.
+
+- Essensfotos: Abonnenten können über einen personalisierten Link Fotos ihrer
+  nachgekochten Gerichte hochladen. Gespeichert werden das Foto und der
+  angegebene Anzeigename. Eingebettete Metadaten der Bilddatei (EXIF,
+  einschließlich GPS-Standortdaten) werden beim Upload automatisch entfernt.
+  Fotos werden vor der Veröffentlichung redaktionell geprüft und bis zum
+  Widerruf bzw. Löschverlangen gespeichert.
+
+- E-Mail-Abonnements: Anmeldungen erfolgen im Double-Opt-in-Verfahren.
+  Gespeichert werden E-Mail-Adresse, optional ein Name, der abonnierte
+  Essensplan, Zeitstempel der Anmeldung und Bestätigung sowie ein Zugriffstoken,
+  über den die Links in den E-Mails funktionieren. Zur Begrenzung von Missbrauch
+  wird bei der Anmeldung zusätzlich die IP-Adresse in gehashter Form für
+  maximal eine Stunde gespeichert. Eine IP-Adresse als Nachweis der
+  Einwilligung speichern wir nicht.
+  Löschung von Daten: Nicht bestätigte Anmeldungen werden nach 48 Stunden
+  automatisch gelöscht; bestätigte, beendete oder abgemeldete Datensätze nach
+  7 Tagen.
+
+- Sperrliste: Abgemeldete E-Mail-Adressen werden in einer internen Sperrliste
+  gespeichert, um den Widerspruch dauerhaft zu beachten (Art. 6 Abs. 1 S. 1
+  lit. f) DSGVO in Verbindung mit Art. 21 Abs. 3 DSGVO).
+
+- Versandprotokoll: Zur Fehlersuche und zum Nachweis des Versands führen wir ein
+  begrenztes Protokoll versendeter E-Mails. Erfasst werden ausschließlich
+  Metadaten: Empfängeradresse, Betreff, Versandstatus und Zeitpunkt. Inhalte der
+  Nachrichten werden nicht gespeichert. Das Protokoll ist auf die 200 jüngsten
+  Einträge begrenzt – ältere Einträge werden automatisch verdrängt und damit
+  gelöscht.
+
+- Pinnwand-Bilder: Für unsere Pinterest-Pinnwände erzeugen wir Bilder aus
+  eigenen Inhalten (Rezepttitel, Essenspläne, eigene Rezeptfotos). Sie liegen
+  als Dateien im Uploads-Verzeichnis dieser Website, sind über ihre Adresse
+  öffentlich abrufbar und werden nach einer eingestellten Frist automatisch
+  gelöscht. Besucherdaten und von Besuchern hochgeladene Fotos werden dabei
+  nicht verwendet.
+
+Auskunft, Export und Löschung der gespeicherten Daten sind jederzeit über die im
+Abschnitt „Rechte der betroffenen Personen" genannten Wege möglich.
+
+================================================================================
+WAS SICH GEGENÜBER DER BISHERIGEN FASSUNG ÄNDERT
+================================================================================
+
+1. Einleitung: Der Satz über das Veröffentlichen auf Instagram und Pinterest
+   ist ersatzlos gestrichen. Er beschrieb eine Übertragung durch die Software,
+   die es nicht mehr gibt — das Add-on wurde auf einen reinen Bildgenerator
+   reduziert, Instagram ist ganz entfallen, und beide Plugins machen keinen
+   einzigen ausgehenden Aufruf (geprüft: keine Treffer für wp_remote_*,
+   curl_exec). Die Präsenzen selbst stehen im Abschnitt "Präsenzen in sozialen
+   Netzwerken", wo sie hingehören.
+
+   Allgemeiner: die Einleitung nennt nur noch, wo verarbeitet wird. Sätze
+   darüber, was NICHT geschieht — keine externen Dienste, kein Avatardienst,
+   keine Besucherdaten an Dritte — sind entfallen. Eine Datenschutzerklärung
+   beschreibt Verarbeitungen; Empfänger sind zu nennen, wo es welche gibt, und
+   ihre Abwesenheit braucht keinen Satz. Steht dort nichts, gibt es nichts.
+
+2. Neu und ausdrücklich: es wird keine Einwilligungs-IP gespeichert. Die
+   entsprechende Option ist aus. Das ist erwähnenswert, weil der Code sie
+   vollständig und dauerhaft speichern würde, wenn sie an wäre — anders als
+   die gehashten Zähler daneben.
+
+3. Fristen unverändert: 48 Stunden und 7 Tage stimmen mit den Einstellungen
+   überein. (Der Code-Standard für die Aufbewahrung wäre 365 Tage; hier zählt
+   die Einstellung.)
+
+4. Gravatar: kommt nicht vor und wird deshalb auch nicht erwähnt. Die
+   Autorenbox fiel für Beiträge ohne externen Autor auf get_avatar() zurück,
+   was auf jeder Rezeptseite eine Anfrage an Automattic in den USA ausgelöst
+   hätte (IP der Besucher plus Hash der Autoren-E-Mail). Der Rückfall ist am
+   2026-09-22 aus dem Plugin entfernt worden, und Avatare sind auf der Website
+   ohnehin abgeschaltet. Sollte eines von beidem zurückkommen, gehört ein
+   Punkt mit Anbieter, Rechtsgrundlage und Drittlandtransfer hinein.
+
+5. Neu: Zugriffstoken bei Abos. Wurde gespeichert, aber nicht genannt.
+
+6. Neu: Pinnwand-Bilder. Erklärt die öffentlich abrufbaren Dateien unter
+   /uploads/mixmymeals-pinterest/.
+
+7. Korrigiert: "auf unserem eigenen Server" ist raus. Die Website läuft bei
+   IONOS, der Hoster ist damit Auftragsverarbeiter und im eigenen Abschnitt
+   genannt — ein Satz, der ihn wegdefiniert, wäre falsch. Der Text sagt jetzt
+   "innerhalb dieser Website" und verweist auf den Hosting-Abschnitt. Die
+   Aussage, auf die es ankommt, bleibt: darüber hinaus wird nichts eingebunden
+   und nichts an Dritte übermittelt.
+
+Unverändert übernommen, weil am Code geprüft und zutreffend: Warenkorb-Cookie
+und eine Woche Serverspeicherung, PDF-Zähler (gehasht, 60 Sekunden),
+Anmelde-Ratenbegrenzung (gehasht, eine Stunde), EXIF-/GPS-Entfernung,
+Bewertungen auch durch Abonnenten, Versandprotokoll mit 200 Einträgen,
+Sperrliste, 48 Stunden für unbestätigte Anmeldungen.

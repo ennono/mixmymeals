@@ -42,6 +42,26 @@ class Mixmymeals_Post_Types {
 	const OG_POST_TYPES = array( 'mmm_recipe', 'mmm_meal_plan', 'mmm_ingredient', 'mmm_equipment' );
 
 	/**
+	 * Post types whose singles are reachable but must not be search entry
+	 * points.
+	 *
+	 * A meal is a planning of a recipe: it shows that recipe's title, picture,
+	 * ingredients and steps, scaled to the servings the plan asks for. The page
+	 * has to exist, because every meal card on a plan links to it — but it is
+	 * the same dish the recipe already answers for, once per planning, and a
+	 * visitor arriving from a search result would land on an arbitrary serving
+	 * size instead of on the recipe.
+	 *
+	 * Hence noindex, and deliberately *not* a canonical to the recipe: the two
+	 * pages are near-identical rather than identical, and a canonical across
+	 * that gap is a hint a search engine may discard. Paired with follow, so a
+	 * crawler that reaches a meal walks on to the recipe it plans.
+	 *
+	 * @var string[]
+	 */
+	const NOINDEX_POST_TYPES = array( 'mmm_meal' );
+
+	/**
 	 * Whether the post is hidden from listings.
 	 *
 	 * @param int $post_id Post ID.
@@ -227,8 +247,31 @@ class Mixmymeals_Post_Types {
 			array( $this, 'add_mealplan_column_ordering' )
 		);
 
+		// Never hooked up until now: the method and its documented behaviour
+		// existed, nothing called it, and the "unlisted" checkbox therefore
+		// kept recipes out of the browse rows (which filter themselves) while
+		// listing them on the archives it names.
+		add_action(
+			'pre_get_posts',
+			array( $this, 'filter_unlisted_from_main_query' )
+		);
+
 		add_action( 'wp_head', array( $this, 'output_og_tags' ), 6 );
 		add_action( 'wp_head', array( $this, 'output_schema' ), 8 );
+
+		/*
+		 * Priority 20: core registers wp_robots at 10 and Yoast feeds its own
+		 * directives into the same filter, so this has to run after both to
+		 * have the last word. Yoast is the one that matters in practice — the
+		 * production site runs it — and it is also why this goes through
+		 * wp_robots rather than printing a tag of its own: two meta robots
+		 * tags on one page is worse than none.
+		 */
+		add_filter( 'wp_robots', array( $this, 'filter_robots' ), 20 );
+
+		// Yoast's own filter, for the case where it prints robots outside the
+		// core pipeline. Same decision, so the two cannot disagree.
+		add_filter( 'wpseo_robots_array', array( $this, 'filter_yoast_robots' ), 20 );
 	}
 
 	/**
@@ -518,17 +561,33 @@ class Mixmymeals_Post_Types {
 		);
 
 		$args = array(
-			'labels'          => $labels,
-			'public'          => true,
-			'show_ui'         => true,
-			'show_in_menu'    => 'edit.php?post_type=mmm_meal_plan',
-			'show_in_rest'    => true,
-			'supports'        => array( 'title' ),
-			'has_archive'     => false,
-			'hierarchical'    => false,
-			'capability_type' => 'post',
-			'map_meta_cap'    => true,
-			'rewrite'         => array(
+			'labels'              => $labels,
+			'public'              => true,
+			'show_ui'             => true,
+			'show_in_menu'        => 'edit.php?post_type=mmm_meal_plan',
+			'show_in_rest'        => true,
+			'supports'            => array( 'title' ),
+			'has_archive'         => false,
+
+			/*
+			 * Public, but no search result of its own: a meal is a planning of
+			 * a recipe and shows that recipe's dish, once per planning. The
+			 * permalink has to work, because every meal card on a plan links
+			 * to it — being findable on its own is a different question, and
+			 * the answer is the same one NOINDEX_POST_TYPES gives external
+			 * crawlers.
+			 *
+			 * Reaches only the site's own search (and WP_Query's post_type
+			 * 'any', which nothing here uses); the core sitemap selects on
+			 * 'public' and is unaffected, which is why the robots filters
+			 * exist beside this.
+			 */
+			'exclude_from_search' => true,
+
+			'hierarchical'        => false,
+			'capability_type'     => 'post',
+			'map_meta_cap'        => true,
+			'rewrite'             => array(
 				'slug' => get_option( 'mixmymeals_meal_slug' ),
 				'with_front' => false,
 				'feeds'      => false,
@@ -1081,6 +1140,74 @@ class Mixmymeals_Post_Types {
 	 * (Mixmymeals_Recipe::get_schema(), Mixmymeals_Meal_Plan::get_schema());
 	 * printing them is a per-post-type frontend concern and lives here.
 	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Whether the current view must be kept out of the search index.
+	 *
+	 * The single place that decides it, asked by both robots filters — two
+	 * channels answering one question separately is how they come to disagree.
+	 *
+	 * @return bool
+	 */
+	public static function is_noindex_view(): bool {
+
+		$noindex = is_singular( self::NOINDEX_POST_TYPES );
+
+		/**
+		 * Allows forcing the noindex on or off for the current view.
+		 *
+		 * @param bool $noindex Default: true on the singles of
+		 *                      NOINDEX_POST_TYPES.
+		 */
+		return (bool) apply_filters( 'mixmymeals_seo_noindex', $noindex );
+	}
+
+	/**
+	 * Adds noindex, follow on the singles that are reachable but are not
+	 * search entry points. See NOINDEX_POST_TYPES for why.
+	 *
+	 * Only ever tightens: it never turns somebody else's noindex into an
+	 * index, so an SEO plugin's own setting for another post type stands.
+	 *
+	 * @param array<string,mixed> $robots Directives assembled so far.
+	 * @return array<string,mixed>
+	 */
+	public function filter_robots( array $robots ): array {
+
+		if ( ! self::is_noindex_view() ) {
+			return $robots;
+		}
+
+		// wp_robots() prints a key whose value is true and drops a false one,
+		// so an 'index' left in place would print beside the noindex.
+		unset( $robots['index'] );
+
+		$robots['noindex'] = true;
+		$robots['follow']  = true;
+
+		return $robots;
+	}
+
+	/**
+	 * The same for Yoast, which states the pair as values rather than as the
+	 * presence of a key.
+	 *
+	 * @param array<string,string> $robots Yoast's directives.
+	 * @return array<string,string>
+	 */
+	public function filter_yoast_robots( $robots ): array {
+
+		$robots = is_array( $robots ) ? $robots : array();
+
+		if ( ! self::is_noindex_view() ) {
+			return $robots;
+		}
+
+		$robots['index']  = 'noindex';
+		$robots['follow'] = 'follow';
+
+		return $robots;
+	}
 
 	/**
 	 * Prints the JSON-LD block for the current single view: a full

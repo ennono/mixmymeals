@@ -548,7 +548,7 @@ class Mixmymeals_Post_Meta {
 					id="mmm_is_favorite"
 					name="mmm_is_favorite"
 					value="1"
-					<?php checked( '1', (string) get_post_meta( $post->ID, '_mmm_is_favorite', true ) ); ?>
+					<?php checked( '1', (string) get_post_meta( $post->ID, Mixmymeals_Recipe::META_IS_FAVORITE, true ) ); ?>
 				/>
 				<?php esc_html_e( 'Mark as favorite (featured in the recipe archive)', 'mixmymeals' ); ?>
 			</label>
@@ -632,9 +632,9 @@ class Mixmymeals_Post_Meta {
 
 		// Favorite flag (featured in the recipe archive).
 		if ( ! empty( $_POST['mmm_is_favorite'] ) ) {
-			update_post_meta( $post_ID, '_mmm_is_favorite', '1' );
+			update_post_meta( $post_ID, Mixmymeals_Recipe::META_IS_FAVORITE, '1' );
 		} else {
-			delete_post_meta( $post_ID, '_mmm_is_favorite' );
+			delete_post_meta( $post_ID, Mixmymeals_Recipe::META_IS_FAVORITE );
 		}
 
 		// Cook counter. Only written when the submitted total actually differs
@@ -2579,9 +2579,10 @@ class Mixmymeals_Post_Meta {
 	const AUTHOR_IMAGE     = '_mmm_author_image';
 
 	/**
-	 * Rendered size of the author's profile picture in pixels. Matches the size
-	 * the box asks get_avatar() for, so both sources hand the theme an image of
-	 * the same dimensions.
+	 * Rendered size of the author's profile picture in pixels. The value is the
+	 * one WordPress avatars use, so the theme's existing avatar rules fit the
+	 * box without a second set of sizes — the box itself no longer asks
+	 * get_avatar() for anything.
 	 *
 	 * @var int
 	 */

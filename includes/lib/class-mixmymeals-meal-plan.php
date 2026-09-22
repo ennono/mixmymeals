@@ -491,6 +491,229 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * How the plan's thumbnail strip is filled. Read through thumbs_mode(),
+	 * which validates against this list rather than trusting the stored value
+	 * — an unknown mode would otherwise decide what a public page shows.
+	 *
+	 * @var string
+	 */
+	const THUMBS_MODE_OPTION = 'mixmymeals_plan_thumbs_mode';
+
+	/**
+	 * How many thumbnails at most; 0 means every one the mode produces.
+	 *
+	 * @var string
+	 */
+	const THUMBS_MAX_OPTION = 'mixmymeals_plan_thumbs_max';
+
+	const THUMBS_MODE_DEFAULT = 'one_per_day';
+	const THUMBS_MAX_DEFAULT  = 7;
+
+	/**
+	 * The modes and their labels, in the order the setting offers them.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function thumbs_modes(): array {
+
+		return array(
+			'one_per_day' => __( 'One picture per plan day', 'mixmymeals' ),
+			'all'         => __( 'Every recipe of the plan', 'mixmymeals' ),
+			'off'         => __( 'No thumbnails', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The configured mode, or the default when nothing valid is stored.
+	 *
+	 * @return string
+	 */
+	public static function thumbs_mode(): string {
+
+		$mode = (string) get_option( self::THUMBS_MODE_OPTION, self::THUMBS_MODE_DEFAULT );
+
+		return isset( self::thumbs_modes()[ $mode ] ) ? $mode : self::THUMBS_MODE_DEFAULT;
+	}
+
+	/**
+	 * The configured maximum. Zero is a real answer here — "show them all" —
+	 * and not the absence of one, which is why it is not mapped to a default.
+	 *
+	 * @return int
+	 */
+	public static function thumbs_max(): int {
+		return absint( get_option( self::THUMBS_MAX_OPTION, self::THUMBS_MAX_DEFAULT ) );
+	}
+
+	/**
+	 * Whether meals with no weekday get a group of their own in the plan rail.
+	 *
+	 * @var string
+	 */
+	const UNDATED_SHOW_OPTION = 'mixmymeals_plan_undated_meals';
+
+	/**
+	 * What that group is called.
+	 *
+	 * @var string
+	 */
+	const UNDATED_LABEL_OPTION = 'mixmymeals_plan_undated_meals_label';
+
+	/**
+	 * Whether the rail shows meals that carry no weekday.
+	 *
+	 * On by default. A meal without a day is a meal somebody planned, and the
+	 * rail used to drop it on the floor: it appeared in no day, in no total on
+	 * the page, and nowhere else either — while still counting in the shopping
+	 * list and the nutrition figures, which is the combination that makes a
+	 * plan look wrong without saying why.
+	 *
+	 * @return bool
+	 */
+	public static function undated_meals_shown(): bool {
+		return 'on' === (string) get_option( self::UNDATED_SHOW_OPTION, 'on' );
+	}
+
+	/**
+	 * The heading of that group. Free text, because what it means depends on
+	 * the plan: a standing breakfast, something cooked ahead, a spare meal.
+	 *
+	 * @return string
+	 */
+	public static function undated_meals_label(): string {
+
+		$label = trim( (string) get_option( self::UNDATED_LABEL_OPTION, '' ) );
+
+		return '' !== $label ? $label : __( 'No fixed day', 'mixmymeals' );
+	}
+
+	/**
+	 * The recipes whose featured images make up this plan's thumbnail strip,
+	 * in the order they are to be shown.
+	 *
+	 * Only recipes that actually carry a featured image take part. A strip is
+	 * pictures, and a recipe without one has nothing to put in it — which is
+	 * why there is no fallback to "the best recipe of that day regardless of
+	 * image": the one that used to stand here could never reach the page, as
+	 * the renderer dropped imageless recipes again a few lines further down.
+	 *
+	 * Days are walked in the plan's own order rather than by weekday number:
+	 * a plan running Fri–Tue starts on Friday, where sorting the day keys put
+	 * Monday first.
+	 *
+	 * A recipe appears at most once. In one_per_day mode a day whose best
+	 * recipe is already on the strip moves on to its next one, so a dish
+	 * cooked twice does not cost that second day its picture.
+	 *
+	 * @param string|null $mode 'one_per_day', 'all' or 'off'; the setting when null.
+	 * @param int|null    $max  Maximum number of pictures, 0 for all; the setting when null.
+	 * @return int[] Recipe post IDs.
+	 */
+	public function get_thumbnail_recipe_ids( ?string $mode = null, ?int $max = null ): array {
+
+		$mode = null === $mode ? self::thumbs_mode() : $mode;
+		$max  = null === $max ? self::thumbs_max() : max( 0, $max );
+
+		if ( 'off' === $mode ) {
+			return array();
+		}
+
+		$candidates = array();
+		$order      = 0;
+
+		foreach ( $this->get_meals() as $meal_post ) {
+
+			$meal      = new Mixmymeals_Meal( $meal_post->ID );
+			$recipe_id = (int) $meal->get_recipe_id();
+
+			if ( $recipe_id <= 0 || ! Mixmymeals_Recipe::exists_by_id( $recipe_id ) ) {
+				continue;
+			}
+
+			if ( ! get_post_thumbnail_id( $recipe_id ) ) {
+				continue;
+			}
+
+			$recipe = new Mixmymeals_Recipe( $recipe_id );
+
+			$candidates[ (int) $meal->get_day() ][] = array(
+				'recipe_id' => $recipe_id,
+				'priority'  => $recipe->get_priority(),
+				'order'     => $order++,
+			);
+		}
+
+		if ( ! $candidates ) {
+			return array();
+		}
+
+		$days = self::order_days( array_keys( $candidates ), $this->get_day_range() );
+
+		foreach ( $days as $day ) {
+			// Lowest priority wins, ties go to the meal that comes first in
+			// the plan, so the strip does not reshuffle between page loads.
+			usort(
+				$candidates[ $day ],
+				static function ( array $a, array $b ): int {
+					return array( $a['priority'], $a['order'] ) <=> array( $b['priority'], $b['order'] );
+				}
+			);
+		}
+
+		$picked = array();
+
+		foreach ( $days as $day ) {
+			foreach ( $candidates[ $day ] as $entry ) {
+
+				if ( isset( $picked[ $entry['recipe_id'] ] ) ) {
+					continue;
+				}
+
+				$picked[ $entry['recipe_id'] ] = true;
+
+				if ( 'all' !== $mode ) {
+					break;
+				}
+			}
+		}
+
+		$ids = array_keys( $picked );
+
+		return $max > 0 ? array_slice( $ids, 0, $max ) : $ids;
+	}
+
+	/**
+	 * Sorts the days meals were found on into the plan's own day sequence.
+	 *
+	 * A day outside the plan's range — a meal left behind after the range was
+	 * narrowed, or one never assigned a day — keeps its place at the end
+	 * instead of disappearing.
+	 *
+	 * @param int[] $present Days that carry meals.
+	 * @param int[] $range   The plan's day range, in plan order.
+	 * @return int[]
+	 */
+	private static function order_days( array $present, array $range ): array {
+
+		$present = array_map( 'intval', $present );
+		$ordered = array();
+
+		foreach ( $range as $day ) {
+			if ( in_array( (int) $day, $present, true ) ) {
+				$ordered[] = (int) $day;
+			}
+		}
+
+		foreach ( $present as $day ) {
+			if ( ! in_array( $day, $ordered, true ) ) {
+				$ordered[] = $day;
+			}
+		}
+
+		return $ordered;
+	}
+
+	/**
 	 * The nutrition keys every calculation in this plugin works with.
 	 *
 	 * @var string[]

@@ -599,6 +599,64 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'    => 'mealplans_group_plan_page',
+					'type'  => 'heading',
+					'label' => __( 'Plan Page', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'plan_undated_meals',
+					'label'       => __( 'Meals Without a Day', 'mixmymeals' ),
+					'description' => __( 'Show meals that have no weekday assigned in a group of their own, below the days. Without this they appear nowhere on the plan page, although they still count towards the shopping list and the nutrition figures.',
+						'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'plan_undated_meals_callback'
+					),
+				),
+				array(
+					'id'          => 'plan_undated_meals_label',
+					'label'       => __( 'Heading for Those Meals', 'mixmymeals' ),
+					'description' => __( 'What that group is called. Leave empty for the default.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => __( 'No fixed day', 'mixmymeals' ),
+					'callback'    => array(
+						$this,
+						'text_callback'
+					),
+				),
+				array(
+					'id'    => 'mealplans_group_thumbs',
+					'type'  => 'heading',
+					'label' => __( 'Recipe Thumbnails', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'plan_thumbs_mode',
+					'label'       => __( 'Thumbnail Selection', 'mixmymeals' ),
+					'description' => __( 'Which recipe pictures the thumbnail strip of a meal plan shows. Only recipes with a featured image are used, and no recipe appears twice.',
+						'mixmymeals' ),
+					'default'     => Mixmymeals_Meal_Plan::THUMBS_MODE_DEFAULT,
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'plan_thumbs_mode_callback'
+					),
+				),
+				array(
+					'id'          => 'plan_thumbs_max',
+					'label'       => __( 'Max. Thumbnails', 'mixmymeals' ),
+					'description' => __( 'How many pictures the strip shows at most. 0 shows all of them.',
+						'mixmymeals' ),
+					'default'     => Mixmymeals_Meal_Plan::THUMBS_MAX_DEFAULT,
+					'placeholder' => (string) Mixmymeals_Meal_Plan::THUMBS_MAX_DEFAULT,
+					'callback'    => array(
+						$this,
+						'plan_thumbs_max_callback'
+					),
+				),
+				array(
 					'id'    => 'mealplans_group_cleanup',
 					'type'  => 'heading',
 					'label' => __( 'Cleanup', 'mixmymeals' ),
@@ -1576,6 +1634,44 @@ class Mixmymeals_Settings {
 	 */
 	public function max_items_in_cart_callback( mixed $input ): int {
 		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the thumbnail selection mode.
+	 *
+	 * Anything the class does not know falls back to the default rather than
+	 * being stored: the mode decides what a public archive card shows.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string
+	 */
+	/**
+	 * Sanitizes the "show meals without a day" checkbox.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function plan_undated_meals_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	public function plan_thumbs_mode_callback( mixed $input ): string {
+
+		$mode = sanitize_key( (string) $input );
+
+		return isset( Mixmymeals_Meal_Plan::thumbs_modes()[ $mode ] )
+			? $mode
+			: Mixmymeals_Meal_Plan::THUMBS_MODE_DEFAULT;
+	}
+
+	/**
+	 * Sanitizes the maximum number of thumbnails. 0 is kept — it means "all".
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function plan_thumbs_max_callback( mixed $input ): int {
+		return min( 50, absint( $input ) );
 	}
 
 	/**

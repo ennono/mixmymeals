@@ -208,6 +208,11 @@ class Mixmymeals_Shortcodes {
 			[ $this, 'mmm_meal_plan_product_impact_callback' ] );
 		add_shortcode( 'mmm_meal_product_impact',
 			[ $this, 'mmm_meal_product_impact_callback' ] );
+		// Same callback, honest name: the comparison answers for a recipe
+		// directly, and a recipe template calling a shortcode named after
+		// meals is the kind of thing that reads like a mistake later.
+		add_shortcode( 'mmm_recipe_product_impact',
+			[ $this, 'mmm_meal_product_impact_callback' ] );
 
 		add_shortcode( 'mmm_nutrition_per_day_for_a_single_meal_plan',
 			[ $this, 'mmm_nutrition_per_day_for_a_single_meal_plan_callback' ] );
@@ -343,6 +348,9 @@ class Mixmymeals_Shortcodes {
 		add_action( 'pre_get_posts',
 			array( $this, 'apply_archive_search' ) );
 
+		add_action( 'pre_get_posts',
+			array( $this, 'filter_recipe_archive_by_view' ) );
+
 		add_filter( 'posts_where',
 			array( $this, 'archive_search_title_where' ), 10, 2 );
 
@@ -406,7 +414,13 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_thumbnails_of_meals_in_a_single_meal_plan].
-	 * Returns a row of unique recipe thumbnails for the current meal plan.
+	 * Renders the current meal plan's recipe pictures as a strip.
+	 *
+	 * What goes into it is the plan's decision, not this method's: which
+	 * recipes and in what order comes from
+	 * Mixmymeals_Meal_Plan::get_thumbnail_recipe_ids(), which honours the
+	 * "Recipe Thumbnails" settings. Every id it returns has a featured image,
+	 * so there is nothing left to filter out here.
 	 *
 	 * @return string
 	 */
@@ -418,73 +432,17 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$plan = new Mixmymeals_Meal_Plan( $post_id );
+		$plan       = new Mixmymeals_Meal_Plan( $post_id );
+		$recipe_ids = $plan->get_thumbnail_recipe_ids();
 
-		$meals = $plan->get_meals();
-
-		if ( empty( $meals ) ) {
+		if ( empty( $recipe_ids ) ) {
 			return '';
 		}
 
-		// Group meals by day, keep only the recipe with the lowest priority per day.
-		// Prefer recipes with a real featured image; fall back to any recipe if none has one.
-		$best_recipe_per_day  = [];
-		$fallback_per_day     = [];
+		$permalink = get_permalink( $post_id );
+		$output    = '<div class="mmm-mealplan-thumbs">';
 
-		foreach ( $meals as $meal_post ) {
-			$meal      = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe_id = (int) $meal->get_recipe_id();
-			$day       = (int) $meal->get_day();
-
-			if ( $recipe_id <= 0 || ! Mixmymeals_Recipe::exists_by_id( $recipe_id ) ) {
-				continue;
-			}
-
-			$recipe   = new Mixmymeals_Recipe( $recipe_id );
-			$priority = $recipe->get_priority();
-			$has_real_image = (bool) get_post_thumbnail_id( $recipe_id );
-
-			if ( $has_real_image ) {
-				if (
-					! isset( $best_recipe_per_day[ $day ] ) ||
-					$priority < $best_recipe_per_day[ $day ]['priority']
-				) {
-					$best_recipe_per_day[ $day ] = [
-						'recipe_id' => $recipe_id,
-						'priority'  => $priority,
-					];
-				}
-			}
-
-			// Fallback: lowest priority regardless of image
-			if (
-				! isset( $fallback_per_day[ $day ] ) ||
-				$priority < $fallback_per_day[ $day ]['priority']
-			) {
-				$fallback_per_day[ $day ] = [
-					'recipe_id' => $recipe_id,
-					'priority'  => $priority,
-				];
-			}
-		}
-
-		// Merge: use real-image winner per day, fall back if none found
-		foreach ( $fallback_per_day as $day => $entry ) {
-			if ( ! isset( $best_recipe_per_day[ $day ] ) ) {
-				$best_recipe_per_day[ $day ] = $entry;
-			}
-		}
-
-		$output = '<div class="mmm-mealplan-thumbs">';
-
-		ksort( $best_recipe_per_day );
-
-		foreach ( $best_recipe_per_day as $entry ) {
-			$recipe_id = $entry['recipe_id'];
-
-			if ( ! has_post_thumbnail( $recipe_id ) ) {
-				continue;
-			}
+		foreach ( $recipe_ids as $recipe_id ) {
 
 			$thumb = get_the_post_thumbnail(
 				$recipe_id,
@@ -495,7 +453,7 @@ class Mixmymeals_Shortcodes {
 				]
 			);
 
-			$output .= '<a href="' . esc_url( get_permalink( $post_id ) ) . '">' . $thumb . '</a>';
+			$output .= '<a href="' . esc_url( $permalink ) . '">' . $thumb . '</a>';
 		}
 
 		$output .= '</div>';
@@ -939,199 +897,111 @@ class Mixmymeals_Shortcodes {
 	 * Shortcode [mmm_new_recipes]: a compact, horizontally scrollable row of the
 	 * most recently published recipes. For browsing the recipe archive.
 	 *
-	 * @param array|string $atts count, title.
+	 * @param array|string $atts count, title, note, boxed, link.
 	 * @return string
 	 */
 	public function mmm_new_recipes_callback( $atts = array() ): string {
-
-		$atts = shortcode_atts(
-			array(
-				'count' => 8,
-				'title' => '',
-				'boxed' => '1',
-			),
-			$atts,
-			'mmm_new_recipes'
-		);
-
-		$count = min( 24, max( 1, (int) $atts['count'] ) );
-
-		$ids = get_posts(
-			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'posts_per_page' => $count,
-					'orderby'        => 'date',
-					'order'          => 'DESC',
-					'fields'         => 'ids',
-					'no_found_rows'  => true,
-				)
-			)
-		);
-
-		return $this->render_recipe_browse_section(
-			$ids,
-			(string) $atts['title'],
-			'new',
-			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
-		);
+		return $this->render_recipe_view_row( 'new', $atts, 'mmm_new_recipes' );
 	}
 
 	/**
-	 * Shortcode [mmm_favorite_recipes]: a compact, horizontally scrollable row of
-	 * the recipes flagged as favorite (Details meta box → "Mark as favorite").
-	 * Returns '' when nothing is flagged, so the section disappears cleanly.
+	 * Shortcode [mmm_favorite_recipes]: the recipes flagged as favorite (Details
+	 * meta box → "Mark as favorite"). Returns '' when nothing is flagged, so the
+	 * section disappears cleanly.
 	 *
-	 * @param array|string $atts count, title.
+	 * @param array|string $atts count, title, note, boxed, link.
 	 * @return string
 	 */
 	public function mmm_favorite_recipes_callback( $atts = array() ): string {
-
-		$atts = shortcode_atts(
-			array(
-				'count' => 8,
-				'title' => '',
-				'boxed' => '1',
-			),
-			$atts,
-			'mmm_favorite_recipes'
-		);
-
-		$count = min( 24, max( 1, (int) $atts['count'] ) );
-
-		$ids = get_posts(
-			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'posts_per_page' => $count,
-					'orderby'        => 'date',
-					'order'          => 'DESC',
-					'fields'         => 'ids',
-					'no_found_rows'  => true,
-					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-					'meta_query'     => array(
-						array(
-							'key'   => '_mmm_is_favorite',
-							'value' => '1',
-						),
-					),
-				)
-			)
-		);
-
-		return $this->render_recipe_browse_section(
-			$ids,
-			(string) $atts['title'],
-			'fav',
-			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
-		);
+		return $this->render_recipe_view_row( 'fav', $atts, 'mmm_favorite_recipes' );
 	}
 
 	/**
-	 * Shortcode [mmm_popular_recipes]: a compact, horizontally scrollable row of
-	 * the recipes that have been cooked most often, ranked by the cook counter
-	 * maintained in Mixmymeals_Recipe. Returns '' when nothing has been
-	 * cooked yet, so the section disappears cleanly.
+	 * Shortcode [mmm_popular_recipes]: the recipes that have been cooked most
+	 * often, ranked by the cook counter maintained in Mixmymeals_Recipe. Returns
+	 * '' when nothing has been cooked yet.
 	 *
-	 * @param array|string $atts count.
+	 * @param array|string $atts count, title, note, boxed, link.
 	 * @return string
 	 */
 	public function mmm_popular_recipes_callback( $atts = array() ): string {
-
-		$atts = shortcode_atts(
-			array(
-				'count' => 8,
-				'title' => '',
-				'boxed' => '1',
-			),
-			$atts,
-			'mmm_popular_recipes'
-		);
-
-		$count = min( 24, max( 1, (int) $atts['count'] ) );
-
-		// Recipes only carry the counter once they have been cooked, so joining
-		// on the meta key already restricts this to a count of one or more.
-		$ids = get_posts(
-			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'posts_per_page' => $count,
-					'fields'         => 'ids',
-					'no_found_rows'  => true,
-					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-					'meta_key'       => Mixmymeals_Recipe::META_COOK_COUNT,
-					'orderby'        => array(
-						'meta_value_num' => 'DESC',
-						'date'           => 'DESC',
-					),
-				)
-			)
-		);
-
-		return $this->render_recipe_browse_section(
-			array_map( 'intval', (array) $ids ),
-			(string) $atts['title'],
-			'popular',
-			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
-		);
+		return $this->render_recipe_view_row( 'popular', $atts, 'mmm_popular_recipes' );
 	}
 
 	/**
-	 * Shortcode [mmm_uncooked_recipes]: a compact, horizontally scrollable row of
-	 * the recipes that have never been cooked — no meal in a published plan
-	 * references them. The counterpart to [mmm_popular_recipes], useful for
-	 * spotting recipes still waiting for their first plan. Returns '' when every
-	 * recipe has been cooked, so the section disappears cleanly.
+	 * Shortcode [mmm_uncooked_recipes]: the recipes no meal in a published plan
+	 * references. The counterpart to [mmm_popular_recipes], useful for spotting
+	 * recipes still waiting for their first plan. Returns '' when every recipe
+	 * has been cooked.
 	 *
-	 * @param array|string $atts count, title, boxed.
+	 * @param array|string $atts count, title, note, boxed, link.
 	 * @return string
 	 */
 	public function mmm_uncooked_recipes_callback( $atts = array() ): string {
+		return $this->render_recipe_view_row( 'uncooked', $atts, 'mmm_uncooked_recipes' );
+	}
+
+	/**
+	 * One browse row for a recipe view: the view's own recipes, rendered as the
+	 * shared boxed section and linked to the archive showing the same view.
+	 *
+	 * What each view selects comes from Mixmymeals_Recipe::browse_view_args(),
+	 * which the archive filter reads too — so a row and its "show all" page can
+	 * never disagree about what "never cooked" means.
+	 *
+	 * The link is dropped when the row already shows everything there is: a
+	 * page repeating the eight cards above it is not worth the click.
+	 *
+	 * @param string       $view View slug (new|fav|popular|uncooked).
+	 * @param array|string $atts Shortcode attributes.
+	 * @param string       $tag  Shortcode tag, for shortcode_atts filtering.
+	 * @return string
+	 */
+	private function render_recipe_view_row( string $view, $atts, string $tag ): string {
 
 		$atts = shortcode_atts(
 			array(
 				'count' => 8,
 				'title' => '',
+				'note'  => '',
 				'boxed' => '1',
+				'link'  => '1',
 			),
 			$atts,
-			'mmm_uncooked_recipes'
+			$tag
 		);
 
 		$count = min( 24, max( 1, (int) $atts['count'] ) );
+		$link  = filter_var( $atts['link'], FILTER_VALIDATE_BOOLEAN );
 
-		// A recipe carries no cook counter until it lands on a published plan,
-		// so "never cooked" is simply the absence of the meta.
-		$ids = get_posts(
+		$query = new WP_Query(
 			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'posts_per_page' => $count,
-					'orderby'        => 'date',
-					'order'          => 'DESC',
-					'fields'         => 'ids',
-					'no_found_rows'  => true,
-					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-					'meta_query'     => array(
-						array(
-							'key'     => Mixmymeals_Recipe::META_COOK_COUNT,
-							'compare' => 'NOT EXISTS',
-						),
-					),
+				array_merge(
+					Mixmymeals_Recipe::browse_view_args( $view ),
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => $count,
+						'fields'         => 'ids',
+						// The total is only counted when a link needs it:
+						// without one this stays the cheap query it was.
+						'no_found_rows'  => ! $link,
+					)
 				)
 			)
 		);
 
-		return $this->render_recipe_browse_section(
-			array_map( 'intval', (array) $ids ),
+		$ids   = array_map( 'intval', (array) $query->posts );
+		$total = $link ? (int) $query->found_posts : 0;
+
+		return $this->render_browse_section(
+			$this->render_recipe_browse_cards( $ids ),
 			(string) $atts['title'],
-			'uncooked',
-			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN )
+			$view,
+			filter_var( $atts['boxed'], FILTER_VALIDATE_BOOLEAN ),
+			(string) $atts['note'],
+			$total > count( $ids ) ? Mixmymeals_Recipe::browse_view_url( $view ) : '',
+			$total
 		);
 	}
 
@@ -1172,13 +1042,32 @@ class Mixmymeals_Shortcodes {
 	 * editor-supplied heading block above it (as on the front page) still looks
 	 * the same.
 	 *
-	 * @param string $cards   Pre-rendered, already-escaped card markup ('' = none).
-	 * @param string $title   Heading text; '' renders no heading.
-	 * @param string $variant Modifier key (new|fav|popular|uncooked|latest) for CSS hooks.
-	 * @param bool   $boxed   Whether to wrap the row in the boxed section.
+	 * The heading and the "show all" link point at the same place and are one
+	 * decision, not two: a heading that is a link but looks like text is found
+	 * by nobody, and a link with no heading beside it has nothing to name. The
+	 * note sits below both, which is why it is a parameter here rather than
+	 * being spliced into the finished markup by the caller — the row's header
+	 * is a layout of its own now, and a string search for </h2> would drop the
+	 * note into the middle of it.
+	 *
+	 * @param string $cards    Pre-rendered, already-escaped card markup ('' = none).
+	 * @param string $title    Heading text; '' renders no heading.
+	 * @param string $variant  Modifier key (new|fav|popular|uncooked|latest) for CSS hooks.
+	 * @param bool   $boxed    Whether to wrap the row in the boxed section.
+	 * @param string $note     One-line explanation below the heading; '' renders none.
+	 * @param string $link_url Target of the heading and the "show all" link; '' renders neither.
+	 * @param int    $total    How many items the link leads to.
 	 * @return string
 	 */
-	private function render_browse_section( string $cards, string $title, string $variant, bool $boxed ): string {
+	private function render_browse_section(
+		string $cards,
+		string $title,
+		string $variant,
+		bool $boxed,
+		string $note = '',
+		string $link_url = '',
+		int $total = 0
+	): string {
 
 		if ( '' === $cards ) {
 			return '';
@@ -1187,8 +1076,33 @@ class Mixmymeals_Shortcodes {
 		$variant     = sanitize_html_class( $variant );
 		$row_classes = 'mmm-recipe-row' . ( '' !== $variant ? ' mmm-recipe-row--' . $variant : '' );
 
-		$heading = '' !== $title
-			? '<h2 class="mmm-recipe-row__title">' . esc_html( $title ) . '</h2>'
+		$heading = '';
+		if ( '' !== $title ) {
+			$label   = '' !== $link_url
+				? '<a href="' . esc_url( $link_url ) . '">' . esc_html( $title ) . '</a>'
+				: esc_html( $title );
+			$heading = '<h2 class="mmm-recipe-row__title">' . $label . '</h2>';
+		}
+
+		$more = '';
+		if ( '' !== $link_url ) {
+			$more = '<a class="mmm-recipe-row__more" href="' . esc_url( $link_url ) . '">'
+				. esc_html(
+					sprintf(
+						/* translators: %s: number of recipes, already formatted. */
+						_n( 'Show all %s', 'Show all %s', $total, 'mixmymeals' ),
+						number_format_i18n( $total )
+					)
+				)
+				. '</a>';
+		}
+
+		$header = ( '' !== $heading || '' !== $more )
+			? '<div class="mmm-recipe-row__header">' . $heading . $more . '</div>'
+			: '';
+
+		$note_html = '' !== trim( $note )
+			? '<p class="mmm-browse-note">' . esc_html( $note ) . '</p>'
 			: '';
 
 		// $cards is markup already escaped by the card renderer.
@@ -1196,13 +1110,13 @@ class Mixmymeals_Shortcodes {
 			. '<div class="mmm-recipe-row__track">' . $cards . '</div></div>';
 
 		if ( ! $boxed ) {
-			return $heading . $row;
+			return $header . $note_html . $row;
 		}
 
 		$section_classes = 'mmm-recipe-browse' . ( '' !== $variant ? ' mmm-recipe-browse--' . $variant : '' );
 
 		return '<section class="' . esc_attr( $section_classes ) . '">'
-			. $heading . $row . '</section>';
+			. $header . $note_html . $row . '</section>';
 	}
 
 	/**
@@ -2055,6 +1969,11 @@ class Mixmymeals_Shortcodes {
 				// Text für einen Plan ohne Mahlzeiten. Leerer Wert = gar nichts
 				// ausgeben, damit der Abschnitt bei Bedarf ganz verschwinden kann.
 				'empty_text'   => __( 'This meal plan does not contain any meals yet.', 'mixmymeals' ),
+				// Mahlzeiten ohne Wochentag: Gruppe zeigen und wie benennen.
+				// Leer = die Einstellung entscheidet, damit derselbe Shortcode
+				// auf einer Seite auch anders gesetzt werden kann.
+				'show_undated'   => '',
+				'undated_label'  => '',
 			],
 			$atts,
 			'mmm_meals_in_a_single_meal_plan'
@@ -2117,8 +2036,14 @@ class Mixmymeals_Shortcodes {
 			$weekday = (int) $meal->get_day();
 			$type    = $meal->get_type() ?: 'other';
 
+			/*
+			 * Alles außerhalb von 1–7 landet unter 0: eine Mahlzeit ohne
+			 * Wochentag ist geplant worden und zählt in Einkaufsliste und
+			 * Nährwerten mit. Sie hier zu überspringen hieß, sie auf der
+			 * einen Seite zu verschweigen, auf der sie stehen müsste.
+			 */
 			if ( $weekday < 1 || $weekday > 7 ) {
-				continue;
+				$weekday = 0;
 			}
 
 			$grouped_meals[ $weekday ][ $type ][] = $meal;
@@ -2128,17 +2053,58 @@ class Mixmymeals_Shortcodes {
 
 		$currency = get_option( 'mixmymeals_currency', '€' );
 
+		/*
+		 * Der Rail läuft über Abschnitte, nicht über Wochentage: ein Tag ist
+		 * einer davon, die Gruppe ohne Tag ist einer mehr. So bleibt die
+		 * Kartendarstellung darunter ein einziges Stück Markup — zwei Kopien
+		 * hätten sich über kurz oder lang unterschiedlich entwickelt.
+		 */
+		$sections = array();
+
+		foreach ( $days as $day_number ) {
+			$sections[] = array(
+				'key'      => $day_number,
+				'label'    => $weekday_labels[ $day_number ] ?? '',
+				'is_today' => $day_number === $today,
+			);
+		}
+
+		$show_undated = '' === (string) $atts['show_undated']
+			? Mixmymeals_Meal_Plan::undated_meals_shown()
+			: filter_var( $atts['show_undated'], FILTER_VALIDATE_BOOLEAN );
+
+		$undated_label = trim( (string) $atts['undated_label'] );
+
+		/*
+		 * Ans Ende, wie überall sonst, wo ein Tag außerhalb der Planwoche
+		 * auftaucht (vgl. Mixmymeals_Meal_Plan::order_days()): die Woche liest
+		 * sich von ihrem ersten Tag an, und eine Gruppe ohne Tag davor würde
+		 * genau das verstellen.
+		 */
+		if ( $show_undated && ! empty( $grouped_meals[0] ) ) {
+			$sections[] = array(
+				'key'      => 0,
+				'label'    => '' !== $undated_label ? $undated_label : Mixmymeals_Meal_Plan::undated_meals_label(),
+				'is_today' => false,
+			);
+		}
+
 		ob_start();
 		?>
 
         <div class="mmm-plan-rail"
              data-meal-plan-id="<?php echo esc_attr( $meal_plan_id ); ?>">
 
-			<?php foreach ( $days as $day_number ) : ?>
+			<?php foreach ( $sections as $mmm_section ) : ?>
 
-				<?php if ( empty( $grouped_meals[ $day_number ] ) ) {
+				<?php
+				$day_number = (int) $mmm_section['key'];
+				$is_today   = ! empty( $mmm_section['is_today'] );
+
+				if ( empty( $grouped_meals[ $day_number ] ) ) {
 					continue;
-				} ?>
+				}
+				?>
 
 				<?php
 				/*
@@ -2174,12 +2140,12 @@ class Mixmymeals_Shortcodes {
 				$day_head_info = $this->get_meals_head_info( $day_meals );
 				?>
 
-                <div class="mmm-rail-day<?php echo $day_number === $today ? ' mmm-rail-day--today' : ''; ?>">
+                <div class="mmm-rail-day<?php echo $is_today ? ' mmm-rail-day--today' : ''; ?><?php echo 0 === $day_number ? ' mmm-rail-day--undated' : ''; ?>">
                     <span class="mmm-rail-day__dot"></span>
 
                     <div class="mmm-rail-day__head">
-                        <span class="mmm-rail-day__name"><?php echo esc_html( $weekday_labels[ $day_number ] ); ?></span>
-						<?php if ( $day_number === $today ) : ?>
+                        <span class="mmm-rail-day__name"><?php echo esc_html( $mmm_section['label'] ); ?></span>
+						<?php if ( $is_today ) : ?>
                             <span class="mmm-badge"><?php esc_html_e( 'Today', 'mixmymeals' ); ?></span>
 						<?php endif; ?>
 						<?php if ( $day_head_info ) : ?>
@@ -4587,7 +4553,7 @@ class Mixmymeals_Shortcodes {
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php echo esc_html( $serving_range_string ); ?></span>
 				<?php endif; ?>
 				<?php if ( $avg_cost > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-tag" aria-hidden="true"></i><?php
+                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php
 						printf(
 							/* translators: %s: formatted average cost incl. currency */
 							esc_html__( '%s / serving', 'mixmymeals' ),
@@ -4709,7 +4675,7 @@ class Mixmymeals_Shortcodes {
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $cost > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-tag" aria-hidden="true"></i><?php
+                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php
 						printf(
 							/* translators: %s: formatted average cost incl. currency */
 							esc_html__( '%s / serving', 'mixmymeals' ),
@@ -4814,10 +4780,11 @@ class Mixmymeals_Shortcodes {
 		if ( '' !== $name ) {
 			$bio = Mixmymeals_Post_Meta::get_author_text( $post_id );
 
-			// Same markup contract as get_avatar() below — square source, the
-			// avatar/photo classes some themes and microformat parsers key on,
-			// plus the box's own class the theme sizes and rounds. Without a
-			// picture the media block is simply omitted.
+			// Square source, the avatar/photo classes some themes and
+			// microformat parsers key on, plus the box's own class the theme
+			// sizes and rounds. Without a picture the media block is simply
+			// omitted — which is now the only thing that happens, since the
+			// box no longer falls back to a remote avatar service.
 			$image_id = Mixmymeals_Post_Meta::get_author_image_id( $post_id );
 
 			if ( $image_id ) {
@@ -4844,14 +4811,19 @@ class Mixmymeals_Shortcodes {
 				return '';
 			}
 
-			$bio    = wpautop( esc_html( trim( (string) get_the_author_meta( 'description', $author_id ) ) ) );
-			$avatar = get_avatar(
-				$author_id,
-				$size,
-				'',
-				$name,
-				array( 'class' => 'mmm-author-box__avatar' )
-			);
+			$bio = wpautop( esc_html( trim( (string) get_the_author_meta( 'description', $author_id ) ) ) );
+
+			/*
+			 * No picture for a WordPress author, and deliberately no
+			 * get_avatar() either. That call is served by Gravatar unless a
+			 * plugin intercepts it, which means every visitor's browser
+			 * requests an image from Automattic in the US and hands over its
+			 * IP address plus a hash of the author's e-mail — a third-party
+			 * transfer on every recipe page, to show a picture nobody on this
+			 * site chose. An author who wants one uses the author box's own
+			 * picture field, which is served from this site.
+			 */
+			$avatar = '';
 		}
 
 		$url       = Mixmymeals_Post_Meta::get_author_url( $post_id );
@@ -4874,7 +4846,7 @@ class Mixmymeals_Shortcodes {
 			<div class="mmm-author-box__blob" aria-hidden="true"></div>
 			<?php if ( $avatar ) : ?>
 				<div class="mmm-author-box__media">
-					<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar()/wp_get_attachment_image() return escaped markup. ?>
+					<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() returns escaped markup. ?>
 				</div>
 			<?php endif; ?>
 			<div class="mmm-author-box__body">
@@ -7031,6 +7003,53 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Narrows the recipe archive to one browse view when ?mmm_view= asks for it.
+	 *
+	 * The view's conditions come from Mixmymeals_Recipe::browse_view_args() —
+	 * the same method the browse rows query with, so "Frequently cooked" means
+	 * one thing on the site rather than two.
+	 *
+	 * meta_query is merged, never replaced: the unlisted clause is added to the
+	 * main query by a filter of its own, and whichever of the two runs second
+	 * would otherwise throw the first one's conditions away. An unlisted recipe
+	 * reappearing in a listing is exactly the kind of quiet failure this order
+	 * dependency produces.
+	 *
+	 * @param WP_Query $query Query about to run.
+	 * @return void
+	 */
+	public function filter_recipe_archive_by_view( $query ): void {
+
+		if ( is_admin() || ! $query instanceof WP_Query || ! $query->is_main_query() ) {
+			return;
+		}
+
+		if ( ! $query->is_post_type_archive( 'mmm_recipe' ) ) {
+			return;
+		}
+
+		$view = Mixmymeals_Recipe::current_browse_view();
+
+		if ( '' === $view ) {
+			return;
+		}
+
+		foreach ( Mixmymeals_Recipe::browse_view_args( $view ) as $key => $value ) {
+
+			if ( 'meta_query' === $key ) {
+
+				$existing = $query->get( 'meta_query' );
+				$existing = is_array( $existing ) ? $existing : array();
+
+				$query->set( 'meta_query', array_merge( $existing, (array) $value ) );
+				continue;
+			}
+
+			$query->set( $key, $value );
+		}
+	}
+
+	/**
 	 * Stashes the archive title search term for archive_search_title_where(),
 	 * but only on the recipe / meal plan archives (and their taxonomy archives).
 	 *
@@ -7146,7 +7165,7 @@ class Mixmymeals_Shortcodes {
 					?></span>
 				<?php endif; ?>
 				<?php if ( $price > 0 ) : ?>
-					<span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-tag" aria-hidden="true"></i><?php
+					<span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign/" aria-hidden="true"></i><?php
 						/* translators: 1: price, 2: currency symbol */
 						printf( esc_html__( '%1$s %2$s / 100 g', 'mixmymeals' ), esc_html( number_format_i18n( $price, 2 ) ), esc_html( $currency ) );
 					?></span>
@@ -7635,15 +7654,19 @@ class Mixmymeals_Shortcodes {
 
 		return $this->render_product_impact(
 			$plan->calc_product_impact(),
-			__( 'Per day and person', 'mixmymeals' )
+			__( 'Per day and person', 'mixmymeals' ),
+			__( 'Nutrition per day and person over the whole plan, depending on which product is used for this ingredient.', 'mixmymeals' )
 		);
 	}
 
 	/**
-	 * Shortcode [mmm_meal_product_impact].
+	 * Shortcode [mmm_meal_product_impact], also registered as
+	 * [mmm_recipe_product_impact].
 	 *
 	 * The same comparison for a single dish, stated per serving. On a meal it
 	 * resolves to the recipe the meal plans; on a recipe it answers for itself.
+	 * One callback for both names, because a meal and the recipe it plans are
+	 * the same dish and must not be able to state different figures for it.
 	 *
 	 * Per serving rather than per plan day because this page *is* the dish: a
 	 * plan spreads one meal over its whole length and can dilute a real choice
@@ -7678,7 +7701,8 @@ class Mixmymeals_Shortcodes {
 
 		return $this->render_product_impact(
 			$recipe->calc_product_impact(),
-			__( 'Per serving', 'mixmymeals' )
+			__( 'Per serving', 'mixmymeals' ),
+			__( 'Nutrition of one serving of this dish, depending on which product is used for this ingredient.', 'mixmymeals' )
 		);
 	}
 
@@ -7697,11 +7721,23 @@ class Mixmymeals_Shortcodes {
 	 * the caller's job: a legend is page copy, and a caller can look for that
 	 * class to find out whether any table here earned one.
 	 *
+	 * Three things the table has to say about itself, because the numbers in
+	 * it belong to none of the words around them: the figures are the *dish's*
+	 * (or the plan's), the heading above them names the *ingredient* whose
+	 * product is in question, and the columns are headed by *products*. A
+	 * reader who takes "108 kcal" under "Vollmilchjoghurt" for the yoghurt's
+	 * energy has read exactly what the table showed them.
+	 *
+	 * So: a caption states what the figures are of, the anchor column says it
+	 * holds the current calculation, and every other column says it holds a
+	 * difference.
+	 *
 	 * @param array  $groups     From Mixmymeals_Product::impact_groups().
 	 * @param string $unit_label Heading of the nutrition column, e.g. "Per serving".
+	 * @param string $caption    One sentence saying what the figures are of.
 	 * @return string
 	 */
-	private function render_product_impact( array $groups, string $unit_label ): string {
+	private function render_product_impact( array $groups, string $unit_label, string $caption = '' ): string {
 
 		if ( empty( $groups ) ) {
 			return '';
@@ -7731,8 +7767,24 @@ class Mixmymeals_Shortcodes {
 						<?php endif; ?>
 					</h3>
 
+					<?php
+					/*
+					 * Outside the scroll wrapper, not a <caption>: a caption
+					 * belongs to the table and scrolls sideways with it, so on
+					 * a phone the one sentence explaining the figures is the
+					 * first thing to leave the screen. aria-describedby keeps
+					 * the association a caption would have given.
+					 */
+					$mmm_caption_id = 'mmm-impact-caption-' . (int) $mmm_group['ingredient_id'];
+					?>
+					<?php if ( '' !== $caption ) : ?>
+						<p class="mmm-product-impact__caption" id="<?php echo esc_attr( $mmm_caption_id ); ?>">
+							<?php echo esc_html( $caption ); ?>
+						</p>
+					<?php endif; ?>
+
 					<div class="mmm-product-impact__scroll">
-						<table class="mmm-nutrition-table">
+						<table class="mmm-nutrition-table"<?php echo '' !== $caption ? ' aria-describedby="' . esc_attr( $mmm_caption_id ) . '"' : ''; ?>>
 							<thead>
 							<tr>
 								<th><?php echo esc_html( $unit_label ); ?></th>
@@ -7767,6 +7819,24 @@ class Mixmymeals_Shortcodes {
 											?>
 											<div class="mmm-product-impact__brand"><?php echo esc_html( $mmm_row['brand'] ); ?></div>
 										<?php endif; ?>
+										<?php
+										/*
+										 * What kind of number stands below.
+										 * Without it the anchor's absolutes
+										 * read as a property of that packet,
+										 * and the signed figures beside them
+										 * as a second, smaller packet.
+										 */
+										?>
+										<div class="mmm-product-impact__kind">
+											<?php
+											echo esc_html(
+												$mmm_row['is_anchor']
+													? __( 'as calculated now', 'mixmymeals' )
+													: __( 'difference', 'mixmymeals' )
+											);
+											?>
+										</div>
 									</th>
 								<?php endforeach; ?>
 							</tr>

@@ -320,6 +320,21 @@ class Mixmymeals_Privacy {
 	 * Adds a suggested privacy-policy section for the admin to review under
 	 * Settings → Privacy.
 	 *
+	 * This text is copied into real privacy policies, so it has to describe
+	 * what the plugin does today rather than what it once did. It used to
+	 * announce that images and links are "transmitted to Meta/Pinterest" —
+	 * publishing moved out to the companion add-on and was then dropped there
+	 * too, and neither plugin has made an outbound request since. A site owner
+	 * who pasted that in was declaring a transfer that never happened.
+	 *
+	 * Anything that depends on a setting is stated from the setting, not
+	 * assumed: the consent IP is only described where it is actually stored.
+	 *
+	 * And it says "within this website", never "on our own server": almost
+	 * every site running this plugin is on rented hosting, where the host is a
+	 * processor that the policy has to name in its own right. A plugin cannot
+	 * know that arrangement and must not describe it away in one line.
+	 *
 	 * @return void
 	 */
 	public function add_privacy_policy_content(): void {
@@ -329,15 +344,28 @@ class Mixmymeals_Privacy {
 		}
 
 		$content =
-			'<p>' . esc_html__( 'This site uses the MixMyMeals plugin, which processes the following personal data:', 'mixmymeals' ) . '</p>'
+			'<p>' . esc_html__( 'This site uses the MixMyMeals plugin. Everything below is processed within this website itself — that is, on the hosting described elsewhere in this policy. The plugin calls no service of its own and passes no visitor data to anyone else.', 'mixmymeals' ) . '</p>'
 			. '<ul>'
-			. '<li>' . esc_html__( 'Newsletter subscriptions: when you subscribe to a meal plan, we store your e-mail address, an optional name, the time of your consent and — if enabled — the IP address as proof of consent (double opt-in). You can unsubscribe at any time via the link in every e-mail.', 'mixmymeals' ) . '</li>'
-			. '<li>' . esc_html__( 'Ratings and reviews are stored as comments together with the name and e-mail address you provide.', 'mixmymeals' ) . '</li>'
-			. '<li>' . esc_html__( 'Meal photos: photos you upload are stored together with the name shown next to them. Photos are reviewed before they appear publicly.', 'mixmymeals' ) . '</li>'
-			. '<li>' . esc_html__( 'A functional cookie stores a random identifier so your meal-plan cart works across page loads. It contains no personal data.', 'mixmymeals' ) . '</li>'
-			. '<li>' . esc_html__( 'To prevent abuse, a shortened (hashed) form of your IP address is stored temporarily when subscribing, creating a plan or generating a PDF.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Meal plan subscriptions: we store your e-mail address, an optional name, the plan you subscribed to, the times of your consent and confirmation, and an access token that the links in the e-mails use (double opt-in). You can unsubscribe at any time via the link in every e-mail.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Ratings and reviews: logged-in users and subscribers following a personalised link can leave a star rating and a review. These are stored as a comment together with the name and e-mail address given.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Meal photos: subscribers can upload photos of dishes they cooked, via a personalised link. The photo and the display name given are stored; embedded metadata (EXIF, including GPS coordinates) is removed on upload. Photos are reviewed before they appear publicly.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Meal planner: for visitors who are not logged in, a cookie stores a random identifier with no personal reference. The selection of recipes itself is stored on the server and deleted automatically after one week.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Abuse protection: when subscribing, creating a meal plan or downloading a plan as a PDF, a hashed (pseudonymised) form of your IP address is stored as a short-lived counter — about a minute for PDFs, an hour for the others — and then deleted automatically.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Send log: to trace delivery problems we keep a limited log of e-mails sent. It records metadata only — recipient address, subject, delivery status and time — never the message content, and older entries are dropped once the log is full.', 'mixmymeals' ) . '</li>'
+			. '<li>' . esc_html__( 'Suppression list: addresses that have unsubscribed are kept in an internal list so the objection is honoured permanently.', 'mixmymeals' ) . '</li>'
 			. '</ul>'
-			. '<p>' . esc_html__( 'When the site owner publishes a meal plan or recipe to Instagram or Pinterest, the generated image and the page link are transmitted to Meta/Pinterest. This only concerns the site’s own content, not visitor data.', 'mixmymeals' ) . '</p>'
+
+			/*
+			 * Conditional, and named separately from the hashed counters
+			 * above, because it is a different thing: the consent IP is stored
+			 * in full and stays with the subscription record. Describing it as
+			 * "hashed and short-lived" — as this text once did — would have
+			 * been a statement about the data that is not true of it.
+			 */
+			. ( 'on' === get_option( 'mixmymeals_subscription_log_ip', '' )
+				? '<p>' . esc_html__( 'This site also stores the IP address you subscribed from, in full, as proof of consent. It is kept with the subscription record and deleted with it.', 'mixmymeals' ) . '</p>'
+				: '' )
+			. '<p>' . esc_html__( 'How long subscription data is kept is configured on this site: unconfirmed sign-ups are deleted automatically after the confirmation window, confirmed and ended records after the configured retention period.', 'mixmymeals' ) . '</p>'
 			. '<p>' . esc_html__( 'You can request an export or deletion of your data via the WordPress tools under Tools → Export/Erase Personal Data.', 'mixmymeals' ) . '</p>';
 
 		wp_add_privacy_policy_content( 'MixMyMeals', wp_kses_post( $content ) );

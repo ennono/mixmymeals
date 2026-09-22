@@ -20,6 +20,442 @@ class Mixmymeals_Recipe {
 	/** Post meta holding the cook count (absent when zero). */
 	const META_COOK_COUNT = '_mmm_cook_count';
 
+	/** Post meta flagging a recipe as a favorite (absent unless flagged). */
+	const META_IS_FAVORITE = '_mmm_is_favorite';
+
+	/** The URL parameter that narrows the recipe archive to one browse view. */
+	const BROWSE_VIEW_VAR = 'mmm_view';
+
+	/**
+	 * Remembers which browse-view rewrite rules were last written. A changed
+	 * archive slug or a changed translation has to reach the rewrite table, and
+	 * nobody re-saves the permalink settings after a deploy.
+	 */
+	const BROWSE_RULES_OPTION = 'mixmymeals_browse_view_rules';
+
+	/**
+	 * The browse views: the four rows on the recipe archive, each of which is
+	 * also a view of the archive itself.
+	 *
+	 * Slugs only, no labels. The wording belongs to whoever renders the row —
+	 * the child theme passes it into the shortcode as `title` today — and a
+	 * second set of strings here would be a second thing to translate and a
+	 * second thing to disagree with the first.
+	 *
+	 * These are the internal keys, which double as the CSS modifier the rows
+	 * already carried, so there is one vocabulary rather than two. What appears
+	 * in the URL is browse_view_slug(), which may be translated; the keys here
+	 * never change and stay valid in a URL forever.
+	 *
+	 * @return string[]
+	 */
+	public static function browse_views(): array {
+		return array( 'new', 'fav', 'popular', 'uncooked' );
+	}
+
+	/**
+	 * Whether a string names a browse view.
+	 *
+	 * @param string $view View slug.
+	 * @return bool
+	 */
+	public static function is_browse_view( string $view ): bool {
+		return in_array( $view, self::browse_views(), true );
+	}
+
+	/**
+	 * The query arguments that select one view.
+	 *
+	 * This is the single place that decides what "our favorites" or "never
+	 * cooked" means. The browse row on the archive and the archive itself both
+	 * build on it, so a row can never list recipes its own "show all" page
+	 * leaves out — which is exactly what two separately written queries would
+	 * eventually do.
+	 *
+	 * Note what is NOT here: posts_per_page, post_status, the unlisted clause.
+	 * Those belong to the caller, because a row of eight and a paginated
+	 * archive want different answers.
+	 *
+	 * @param string $view View slug; an unknown one is treated as 'new'.
+	 * @return array<string,mixed>
+	 */
+	public static function browse_view_args( string $view ): array {
+
+		switch ( $view ) {
+
+			case 'fav':
+				return array(
+					'orderby'    => 'date',
+					'order'      => 'DESC',
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query' => array(
+						array(
+							'key'   => self::META_IS_FAVORITE,
+							'value' => '1',
+						),
+					),
+				);
+
+			case 'popular':
+				// A recipe carries the counter only once it has been cooked,
+				// so joining on the key already restricts this to one or more.
+				return array(
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+					'meta_key' => self::META_COOK_COUNT,
+					'orderby'  => array(
+						'meta_value_num' => 'DESC',
+						'date'           => 'DESC',
+					),
+				);
+
+			case 'uncooked':
+				// Never cooked is simply the absence of that meta.
+				return array(
+					'orderby'    => 'date',
+					'order'      => 'DESC',
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query' => array(
+						array(
+							'key'     => self::META_COOK_COUNT,
+							'compare' => 'NOT EXISTS',
+						),
+					),
+				);
+
+			case 'new':
+			default:
+				return array(
+					'orderby' => 'date',
+					'order'   => 'DESC',
+				);
+		}
+	}
+
+	/**
+	 * The archive URL showing one view, or '' when there is no such view or no
+	 * recipe archive.
+	 *
+	 * A query parameter on the existing archive rather than a URL of its own:
+	 * the page stays a post type archive, so the template, the loop, the
+	 * pagination and the search box keep working untouched — the same trick
+	 * the archive search plays with mmm_s. paginate_links() carries query
+	 * parameters into the page links by itself, so page two keeps the view.
+	 *
+	 * @param string $view View slug.
+	 * @return string
+	 */
+	public static function browse_view_url( string $view ): string {
+
+		if ( ! self::is_browse_view( $view ) ) {
+			return '';
+		}
+
+		$base = get_post_type_archive_link( 'mmm_recipe' );
+
+		if ( ! $base ) {
+			return '';
+		}
+
+		$slug = self::browse_view_slug( $view );
+
+		// With pretty permalinks the rewrite rule below answers this path;
+		// without them there is no rule to answer it and the parameter is all
+		// there is. Both arrive at the same query.
+		if ( '' !== $slug && get_option( 'permalink_structure' ) ) {
+			return user_trailingslashit( trailingslashit( $base ) . $slug );
+		}
+
+		return add_query_arg( self::BROWSE_VIEW_VAR, $slug, $base );
+	}
+
+	/**
+	 * Attaches the browse-view URLs. Called once per request from
+	 * mixmymeals.php, the same way the cook counter is wired up.
+	 *
+	 * @return void
+	 */
+	public static function register_browse_views(): void {
+
+		static $done = false;
+
+		if ( $done ) {
+			return;
+		}
+
+		$done = true;
+
+		// After the post type is registered (init 10), before the plugin's own
+		// flush runs (init 99).
+		add_action( 'init', array( __CLASS__, 'add_browse_view_rules' ), 20 );
+		add_filter( 'query_vars', array( __CLASS__, 'add_browse_view_query_var' ) );
+		add_filter( 'wp_unique_post_slug', array( __CLASS__, 'reserve_browse_view_slugs' ), 10, 4 );
+	}
+
+	/**
+	 * The rewrite rules that give every view a path of its own:
+	 * /recipes/frequently-cooked/ and its page/2/.
+	 *
+	 * Registered at the top, so a view wins over the post type's own
+	 * /recipes/{name}/ rule. That is a reservation, not a coincidence — the
+	 * four slugs cannot also be recipe slugs, which is what
+	 * reserve_browse_view_slugs() makes sure of on the way in.
+	 *
+	 * The rules are flushed whenever the archive slug or a translated view
+	 * slug changes, because neither is something anyone re-saves permalinks
+	 * for afterwards.
+	 *
+	 * @return void
+	 */
+	public static function add_browse_view_rules(): void {
+
+		$base = self::archive_rewrite_base();
+
+		if ( '' === $base ) {
+			return;
+		}
+
+		$slugs = self::browse_view_slugs();
+
+		foreach ( $slugs as $view => $slug ) {
+
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$target = 'index.php?post_type=mmm_recipe&' . self::BROWSE_VIEW_VAR . '=' . rawurlencode( $view );
+
+			add_rewrite_rule( '^' . $base . '/' . $slug . '/?$', $target, 'top' );
+			add_rewrite_rule(
+				'^' . $base . '/' . $slug . '/page/([0-9]{1,})/?$',
+				$target . '&paged=$matches[1]',
+				'top'
+			);
+		}
+
+		$fingerprint = md5( $base . '|' . (string) wp_json_encode( $slugs ) );
+
+		if ( (string) get_option( self::BROWSE_RULES_OPTION ) !== $fingerprint ) {
+			update_option( self::BROWSE_RULES_OPTION, $fingerprint );
+			update_option( 'mixmymeals_flush_needed', 1 );
+		}
+	}
+
+	/**
+	 * The path the recipe archive lives under, without slashes.
+	 *
+	 * @return string
+	 */
+	private static function archive_rewrite_base(): string {
+
+		$object = get_post_type_object( 'mmm_recipe' );
+
+		if ( ! $object instanceof WP_Post_Type ) {
+			return '';
+		}
+
+		$base = 'mmm_recipe';
+
+		if ( is_array( $object->rewrite ) && ! empty( $object->rewrite['slug'] ) ) {
+			$base = (string) $object->rewrite['slug'];
+		}
+
+		// has_archive may name a path of its own instead of reusing the slug.
+		if ( is_string( $object->has_archive ) && '' !== $object->has_archive ) {
+			$base = $object->has_archive;
+		}
+
+		return trim( $base, '/' );
+	}
+
+	/**
+	 * Makes mmm_view a query variable, so the rewrite rule can hand the view
+	 * to WP_Query instead of it being dropped as unknown.
+	 *
+	 * @param string[] $vars Registered query variables.
+	 * @return string[]
+	 */
+	public static function add_browse_view_query_var( $vars ) {
+
+		$vars[] = self::BROWSE_VIEW_VAR;
+
+		return $vars;
+	}
+
+	/**
+	 * Keeps recipes out of the four paths the views occupy.
+	 *
+	 * Without this a recipe called "Frequently cooked" would take the slug
+	 * haeufig-gekocht, and its page would be unreachable ever after — the view
+	 * rule sits above the post type's own and answers first. Renaming the
+	 * recipe on the way in is the lesser surprise: it happens while somebody is
+	 * looking at the editor, rather than silently months later.
+	 *
+	 * Both vocabularies are reserved, the internal keys as well as the
+	 * translated slugs, because both resolve to a view.
+	 *
+	 * @param string $slug      The unique slug WordPress settled on.
+	 * @param int    $post_id   Post ID.
+	 * @param string $post_status Post status.
+	 * @param string $post_type Post type.
+	 * @return string
+	 */
+	public static function reserve_browse_view_slugs( $slug, $post_id, $post_status, $post_type ) {
+
+		if ( 'mmm_recipe' !== $post_type ) {
+			return $slug;
+		}
+
+		$taken = array_merge( self::browse_views(), array_values( self::browse_view_slugs() ) );
+
+		if ( ! in_array( (string) $slug, $taken, true ) ) {
+			return $slug;
+		}
+
+		$suffix = 2;
+
+		while ( in_array( $slug . '-' . $suffix, $taken, true ) ) {
+			++$suffix;
+		}
+
+		return $slug . '-' . $suffix;
+	}
+
+	/**
+	 * The word one view wears in the URL.
+	 *
+	 * Translatable, so a German site can link to ?mmm_view=favoriten instead of
+	 * the internal key — and with a filter beside it, so a site can pin its own
+	 * wording without owning a translation file.
+	 *
+	 * Normalised through sanitize_title() on both sides, the same function that
+	 * normalises the incoming parameter, so an accent or a capital letter in a
+	 * translation cannot make a slug that never matches itself. A translation
+	 * that ends up empty falls back to the key.
+	 *
+	 * @param string $view Internal view key.
+	 * @return string
+	 */
+	public static function browse_view_slug( string $view ): string {
+
+		$slugs = self::browse_view_slugs();
+
+		return $slugs[ $view ] ?? '';
+	}
+
+	/**
+	 * All views as key => URL slug.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function browse_view_slugs(): array {
+
+		$slugs = array();
+
+		foreach ( self::browse_views() as $view ) {
+
+			$slug = sanitize_title( self::translated_view_slug( $view ) );
+
+			$slugs[ $view ] = '' !== $slug ? $slug : $view;
+		}
+
+		/**
+		 * Filters the URL slugs of the recipe browse views.
+		 *
+		 * @param array<string,string> $slugs View key => slug.
+		 */
+		$slugs = (array) apply_filters( 'mixmymeals_browse_view_slugs', $slugs );
+
+		return $slugs;
+	}
+
+	/**
+	 * The translatable slug of one view.
+	 *
+	 * A switch of literal _x() calls rather than a loop over a built string:
+	 * the string extractor reads the source, and a slug assembled at runtime
+	 * would never reach the .pot file.
+	 *
+	 * @param string $view Internal view key.
+	 * @return string
+	 */
+	private static function translated_view_slug( string $view ): string {
+
+		switch ( $view ) {
+
+			case 'fav':
+				return _x( 'fav', 'browse view URL slug', 'mixmymeals' );
+
+			case 'popular':
+				return _x( 'popular', 'browse view URL slug', 'mixmymeals' );
+
+			case 'uncooked':
+				return _x( 'uncooked', 'browse view URL slug', 'mixmymeals' );
+
+			case 'new':
+				return _x( 'new', 'browse view URL slug', 'mixmymeals' );
+
+			default:
+				return '';
+		}
+	}
+
+	/**
+	 * The view a URL slug names, or '' when it names none.
+	 *
+	 * Both vocabularies are accepted, and the internal keys win: a link shared
+	 * before a slug was translated — or before the site changed language — has
+	 * to keep working, and that guarantee is worth more than the freedom to
+	 * translate a slug into another view's key. Which is also the one way a
+	 * translation can go wrong here, and it fails towards the older meaning.
+	 *
+	 * @param string $slug Raw slug from the URL.
+	 * @return string
+	 */
+	public static function resolve_browse_view( string $slug ): string {
+
+		$slug = sanitize_title( $slug );
+
+		if ( '' === $slug ) {
+			return '';
+		}
+
+		if ( self::is_browse_view( $slug ) ) {
+			return $slug;
+		}
+
+		$view = array_search( $slug, self::browse_view_slugs(), true );
+
+		return is_string( $view ) ? $view : '';
+	}
+
+	/**
+	 * The view the current request asks for, or '' for the plain archive.
+	 *
+	 * Validated against the known list rather than passed through: the value
+	 * picks a database query and names a heading on a public page.
+	 *
+	 * @return string
+	 */
+	public static function current_browse_view(): string {
+
+		// The rewrite rule fills the query variable; the parameter is what is
+		// left on an install without pretty permalinks, and what older links
+		// carry. sanitize_title() runs here as well as in resolve_browse_view()
+		// — it is idempotent, and neither a reader nor the sniff should have to
+		// follow a call to see that the input is sanitised.
+		$raw = (string) get_query_var( self::BROWSE_VIEW_VAR, '' );
+
+		if ( '' === $raw ) {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only public GET filter, like mmm_s.
+			$raw = isset( $_GET[ self::BROWSE_VIEW_VAR ] )
+				? sanitize_title( wp_unslash( $_GET[ self::BROWSE_VIEW_VAR ] ) )
+				: '';
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		}
+
+		return self::resolve_browse_view( $raw );
+	}
+
 	/**
 	 * Post meta holding the hand-set correction to the measured cook count
 	 * (absent when zero, and deliberately signed). The counter is always this
@@ -1578,6 +2014,34 @@ class Mixmymeals_Recipe {
 			return;
 		}
 		update_post_meta( $this->post_id, '_mmm_priority', max( 0, $priority ) );
+	}
+
+	/**
+	 * The two diet classifications with their labels.
+	 *
+	 * Note there are older inline copies of this map in
+	 * Mixmymeals_Post_Meta (the ingredient and product meta boxes) and in
+	 * Mixmymeals_Shortcodes. They are not wrong, only duplicated; new readers
+	 * should come here.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function diet_labels(): array {
+
+		return array(
+			'vegan'      => __( 'Vegan', 'mixmymeals' ),
+			'vegetarian' => __( 'Vegetarian', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The label of a diet key, or '' when nothing is classified.
+	 *
+	 * @param string $diet Diet key.
+	 * @return string
+	 */
+	public static function diet_label( string $diet ): string {
+		return self::diet_labels()[ $diet ] ?? '';
 	}
 
 	/**

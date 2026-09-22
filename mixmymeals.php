@@ -53,6 +53,7 @@ require_once 'includes/lib/class-mixmymeals-subscriptions.php';
 require_once 'includes/lib/class-mixmymeals-importer.php';
 require_once 'includes/lib/class-mixmymeals-ratings.php';
 require_once 'includes/lib/class-mixmymeals-photos.php';
+require_once 'includes/lib/class-mixmymeals-yoast.php';
 require_once 'includes/lib/class-mixmymeals-privacy.php';
 
 
@@ -105,6 +106,12 @@ Mixmymeals_Meal_Plan_PDF::register_ajax();
 // werden, der Hook aber einmal pro Request hängen muss.
 Mixmymeals_Recipe::register_edit_count();
 Mixmymeals_Recipe::register_cook_count();
+// Eigene Pfade für die Browse-Ansichten des Rezeptarchivs (/rezepte/favoriten/):
+// Rewrite-Regeln, Query-Var und die Reservierung dieser Slugs gegen Rezepte.
+Mixmymeals_Recipe::register_browse_views();
+// Yoast-Platzhalter (%%mmm_servings%% und Verwandte). Hängt nur an Yoasts
+// eigener Action, ist ohne Yoast also ein No-op.
+Mixmymeals_Yoast::register();
 // Bring!-Importansicht: ebenso statisch, Pläne werden pro Post instanziiert,
 // Query-Var und template_redirect brauchen aber einen Hook pro Request.
 Mixmymeals_Meal_Plan::register_bring();

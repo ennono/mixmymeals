@@ -163,6 +163,7 @@ class Mixmymeals_Admin_API {
 			case 'ingredient_slug':
 			case 'equipment_slug':
 			case 'currency':
+			case 'plan_undated_meals_label':
 			case 'individual_tab_label':
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
@@ -257,6 +258,7 @@ class Mixmymeals_Admin_API {
 				         . '</p>';
 				break;
 
+			case 'plan_undated_meals':
 			case 'save_meal_plans_published_by_visitors_as_draft':
 				$checked = '';
 				if ( $data && 'on' === $data ) {
@@ -333,6 +335,36 @@ class Mixmymeals_Admin_API {
 				         . '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
 				         . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data )
 				         . '" /><p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'plan_thumbs_mode':
+				$current = '' !== (string) $data ? (string) $data : Mixmymeals_Meal_Plan::THUMBS_MODE_DEFAULT;
+
+				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
+
+				foreach ( Mixmymeals_Meal_Plan::thumbs_modes() as $mode => $label ) {
+					$html .= sprintf(
+						'<option value="%s"%s>%s</option>',
+						esc_attr( $mode ),
+						selected( $current, $mode, false ),
+						esc_html( $label )
+					);
+				}
+
+				$html .= '</select>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'plan_thumbs_max':
+				$html .= '<input min="0" max="50" type="number" name="'
+				         . esc_attr( $option_name ) . '" '
+				         . 'id="' . esc_attr( $field['id'] )
+				         . '" placeholder="'
+				         . esc_attr( $field['placeholder'] ) . '" value="'
+				         . esc_attr( $data ) . '" />'
+				         . '<p class="description">'
+				         . esc_html( $field['description'] )
+				         . '</p>';
 				break;
 
 			case 'subscription_schedule':
