@@ -490,6 +490,15 @@ class Mixmymeals {
 			)
 		);
 
+		/*
+		 * Ingredient ID => its products, for the product select in a recipe
+		 * step. Localised rather than fetched: only ingredients that actually
+		 * have products appear, which is a short list, and the row a user just
+		 * added needs its options immediately — an AJAX round trip per change
+		 * of ingredient buys nothing here.
+		 */
+		wp_localize_script( 'mixmymeals-admin', 'MixMyMealsProducts', self::admin_product_map() );
+
 		wp_localize_script(
 			'mixmymeals-admin',
 			'MixMyMealsAmounts',
@@ -501,6 +510,46 @@ class Mixmymeals {
 			)
 		);
 
+	}
+
+	/**
+	 * Ingredient ID => [ { id, label } ] for every ingredient that has
+	 * products at all.
+	 *
+	 * @return array<int, array<int, array{id:int,label:string}>>
+	 */
+	private static function admin_product_map(): array {
+
+		$map = array();
+
+		$products = get_posts(
+			array(
+				'post_type'      => 'mmm_product',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'no_found_rows'  => true,
+			)
+		);
+
+		foreach ( $products as $product_post ) {
+
+			$parent = (int) $product_post->post_parent;
+
+			if ( $parent <= 0 ) {
+				continue;
+			}
+
+			$product = new Mixmymeals_Product( (int) $product_post->ID );
+
+			$map[ $parent ][] = array(
+				'id'    => (int) $product_post->ID,
+				'label' => $product->label(),
+			);
+		}
+
+		return $map;
 	}
 
 	/**

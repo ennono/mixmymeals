@@ -407,6 +407,7 @@ const TOOLS = [
                     id:        { type: "number", description: "Post-ID des mmm_ingredient" },
                     amount:    { type: "number" },
                     amount_id: { type: "number", default: 0, description: "Post-ID der mmm_ingr_unit (0 = Gramm direkt)" },
+                    product_id: { type: "number", default: 0, description: "Post-ID eines mmm_product dieser Zutat. Legt fest, mit welchem konkreten Artikel gekocht wird — entscheidet damit die Ernaehrungsform des Rezepts: sind alle Zutaten geklaert, heisst die Pille \"Vegan\" statt \"Vegan tauglich\". 0 = offen, dann entscheidet die Zutat. Ein Produkt, das nicht zu dieser Zutat gehoert, wird beim Speichern verworfen." },
                   },
                 },
               },
@@ -458,6 +459,7 @@ const TOOLS = [
                     id:        { type: "number" },
                     amount:    { type: "number" },
                     amount_id: { type: "number", default: 0 },
+                    product_id: { type: "number", default: 0 },
                   },
                 },
               },
@@ -787,11 +789,47 @@ const TOOLS = [
 
   {
     name: "mmm_audit",
-    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
+    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu ingredients_without_diet: Zutaten, zu denen weder sie selbst noch eines ihrer Produkte eine Ernaehrungsform nennt. Eine einzige davon nimmt jedem Rezept, das sie verwendet, die Pille \"Geeignet fuer …\" — diese Gruppe entscheidet also, wie viele Rezepte ueberhaupt eine tragen koennen. Jeder Eintrag nennt Kategorie und die Zahl der Rezepte, die die Zutat verwenden: danach sortiert lohnt sich die Pflege zuerst. Zum Nachtragen mmm_set_diets, das viele auf einmal schreibt. Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
       type: "object",
       properties: {
         scope: { type: "string", enum: ["recipes", "plans", "ingredients", "all"], default: "all", description: "Was geprueft wird. Produktgruppen stecken in 'ingredients'." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_set_diets",
+    description: "Ernaehrungsformen fuer viele Zutaten und Produkte in einem Aufruf setzen. Gegenstueck zur Audit-Gruppe ingredients_without_diet und aus demselben Grund gebaut wie mmm_set_keeping: die Einzelrouten antworten mit der kompletten Serialisierung, eine Bibliothek von 372 Zutaten kostet so 372 Aufrufe zu je rund 500 Token. Hier sind es id und ok je Eintrag plus eine getrennte Fehlerliste. diets ERSETZT immer alles, was an dem Post steht; ein leeres Array loescht. Bekannte Werte: vegan, vegetarian, gluten_free, lactose_free — vegan impliziert vegetarian, das muss man nicht zusaetzlich setzen. Unbekannte Werte weist der ganze Aufruf zurueck, bevor irgendetwas geschrieben wird; fehlende oder falsche IDs dagegen landen einzeln in errors (not_found, wrong_type, missing_id) und der Rest laeuft durch. WICHTIG fuer die Pillen: eine Zutat, zu der weder sie selbst noch eines ihrer Produkte etwas sagt, nimmt dem ganzen Rezept die Aussage — genau diese Zutaten listet das Audit. Verwendet /mixmymeals/v1/diets/bulk.",
+    inputSchema: {
+      type: "object",
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          maxItems: 500,
+          description: "Je Eintrag { id, diets }. diets ersetzt den Bestand.",
+          items: {
+            type: "object",
+            required: ["id", "diets"],
+            properties: {
+              id: { type: "number", description: "Post-ID einer mmm_ingredient oder eines mmm_product" },
+              diets: { type: "array", items: { type: "string", enum: ["vegan", "vegetarian", "gluten_free", "lactose_free"] }, description: "Leeres Array loescht alle Angaben." },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  {
+    name: "mmm_migrate_diets",
+    description: "Einmalige Umstellung der Ernaehrungsform von Meta auf die Taxonomie mmm_diet. Frueher hielt jede Zutat und jedes Produkt genau einen Wert in _mmm_diet_type bzw. _mmm_product_diet_type; jetzt sind es Terme, damit eine Zutat zugleich vegan und glutenfrei sein kann. Dieser Aufruf verschiebt die alten Werte. Bewusst kein Automatismus beim Update: die Einstufung entscheidet, ob oeffentlich \"vegan\" steht, und das soll jemand mitbekommen. Laeuft standardmaessig als Probelauf (dry_run:true) und aendert dann nichts — erst dry_run:false schreibt. Mehrfach aufrufbar: wer schon Terme hat, wird uebersprungen (skipped_has_terms), die alten Meta-Zeilen bleiben als Rueckweg liegen. Die Antwort nennt unknown_values fuer Werte, die keine bekannte Ernaehrungsform sind — die bleiben liegen und gehoeren angesehen. Verwendet /mixmymeals/v1/diets/migrate.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dry_run: { type: "boolean", default: true, description: "true zeigt nur, was passieren wuerde. Erst false schreibt." },
+        limit: { type: "number", default: 200, minimum: 1, maximum: 1000, description: "Hoechstzahl je Aufruf. remaining in der Antwort sagt, ob noch etwas offen ist." },
       },
     },
   },
@@ -1429,6 +1467,15 @@ async function handleTool(name, args) {
 
     case "mmm_audit":
       return mmm("GET", `/audit?scope=${encodeURIComponent(args.scope || "all")}`);
+
+    case "mmm_set_diets":
+      return mmm("POST", "/diets/bulk", { items: args.items });
+
+    case "mmm_migrate_diets":
+      return mmm("POST", "/diets/migrate", {
+        dry_run: args.dry_run !== false,
+        limit: args.limit ?? 200,
+      });
 
     case "mmm_product_impact":
       return mmm("GET", `/product-impact?post_id=${args.post_id}`);

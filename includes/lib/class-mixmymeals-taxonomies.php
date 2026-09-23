@@ -32,6 +32,11 @@ class Mixmymeals_Taxonomies {
 		add_action( 'init', array( $this, 'register_meal_plan_category_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_meal_plan_tag_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_author_taxonomy' ) );
+
+		// Diäten leben in ihrer eigenen Klasse, weil dort auch die Regeln
+		// stehen, nach denen sie sich zu Rezepten verdichten.
+		add_action( 'init', array( 'Mixmymeals_Diet', 'register_taxonomy' ) );
+		add_action( 'admin_init', array( 'Mixmymeals_Diet', 'ensure_terms' ) );
 	}
 
 	/**

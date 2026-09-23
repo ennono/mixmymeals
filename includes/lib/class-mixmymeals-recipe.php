@@ -710,6 +710,18 @@ class Mixmymeals_Recipe {
 					$ing_id    = intval( $ing['id'] ?? 0 );
 					$amount    = floatval( $ing['amount'] ?? 0 );
 					$amount_id = intval( $ing['amount_id'] ?? 0 );
+					$product   = intval( $ing['product_id'] ?? 0 );
+
+					/*
+					 * A pin only counts where the product belongs to the
+					 * ingredient it was pinned under. Ingredients get swapped
+					 * in a step long after a product was chosen, and a pin
+					 * left pointing at somebody else's article would quietly
+					 * decide this recipe's diet.
+					 */
+					if ( $product > 0 && (int) wp_get_post_parent_id( $product ) !== $ing_id ) {
+						$product = 0;
+					}
 
 					// Nur Zutaten mit gültiger ID übernehmen
 					if ( $ing_id <= 0 ) {
@@ -717,10 +729,11 @@ class Mixmymeals_Recipe {
 					}
 
 					$new_step['ingredients'][] = array(
-						'id'        => $ing_id,
-						'amount'    => $amount,
-						'amount_id' => $amount_id,
-						'optional'  => ! empty( $ing['optional'] ),
+						'id'         => $ing_id,
+						'amount'     => $amount,
+						'amount_id'  => $amount_id,
+						'optional'   => ! empty( $ing['optional'] ),
+						'product_id' => $product,
 					);
 				}
 			}
@@ -988,9 +1001,10 @@ class Mixmymeals_Recipe {
 		foreach ( $steps as $step ) {
 			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
 
-				$id        = intval( $ing['id'] ?? 0 );
-				$amount    = floatval( $ing['amount'] ?? 0 );
-				$amount_id = intval( $ing['amount_id'] ?? 0 );
+				$id         = intval( $ing['id'] ?? 0 );
+				$amount     = floatval( $ing['amount'] ?? 0 );
+				$amount_id  = intval( $ing['amount_id'] ?? 0 );
+				$product_id = intval( $ing['product_id'] ?? 0 );
 
 				if ( $id <= 0 || $amount <= 0 ) {
 					continue;
@@ -1027,7 +1041,8 @@ class Mixmymeals_Recipe {
 					'amount'   => round( $amount, 1 ),
 					'unit'     => $unit_title,
 					'weight_g' => round( $total_weight ),
-					'optional' => ! empty( $ing['optional'] ),
+					'optional'   => ! empty( $ing['optional'] ),
+					'product_id' => $product_id,
 				);
 			}
 		}
@@ -1050,9 +1065,10 @@ class Mixmymeals_Recipe {
 		foreach ( $steps as $step_index => $step) {
 			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
 
-				$id        = intval( $ing['id'] ?? 0 );
-				$amount    = floatval( $ing['amount'] ?? 0 );
-				$amount_id = intval( $ing['amount_id'] ?? 0 );
+				$id         = intval( $ing['id'] ?? 0 );
+				$amount     = floatval( $ing['amount'] ?? 0 );
+				$amount_id  = intval( $ing['amount_id'] ?? 0 );
+				$product_id = intval( $ing['product_id'] ?? 0 );
 
 				if ( $id <= 0 || $amount <= 0 ) {
 					continue;
@@ -1118,6 +1134,7 @@ class Mixmymeals_Recipe {
 					'step_divisor'    => $step_divisor,
 					'amount_id'       => $amount_id,
 					'optional'        => ! empty( $ing['optional'] ),
+					'product_id'      => $product_id,
 					'step'            => $step_index,
 				);
 			}
@@ -2028,10 +2045,13 @@ class Mixmymeals_Recipe {
 	 */
 	public static function diet_labels(): array {
 
-		return array(
-			'vegan'      => __( 'Vegan', 'mixmymeals' ),
-			'vegetarian' => __( 'Vegetarian', 'mixmymeals' ),
-		);
+		$labels = array();
+
+		foreach ( array_keys( Mixmymeals_Diet::types() ) as $slug ) {
+			$labels[ $slug ] = Mixmymeals_Diet::label( $slug );
+		}
+
+		return $labels;
 	}
 
 	/**
@@ -2045,6 +2065,61 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
+	 * The same two classifications, worded as what a dish is *suitable* for.
+	 *
+	 * Kept apart from diet_labels() on purpose. That pair states a fact about
+	 * a thing — an ingredient is vegan, a product is vegan — and is what the
+	 * schema, the product comparison and the admin fields need. A recipe or a
+	 * plan cannot make that claim: whether the finished dish is vegan is
+	 * decided at the shop, by which product lands in the basket. It can only
+	 * be suitable to be cooked that way.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function diet_suitability_labels(): array {
+
+		$labels = array();
+
+		foreach ( array_keys( Mixmymeals_Diet::types() ) as $slug ) {
+			$labels[ $slug ] = Mixmymeals_Diet::suitability_label( $slug );
+		}
+
+		return $labels;
+	}
+
+	/**
+	 * The suitability label of a diet key, or '' when nothing is classified.
+	 *
+	 * @param string $diet Diet key.
+	 * @return string
+	 */
+	public static function diet_suitability_label( string $diet ): string {
+		return self::diet_suitability_labels()[ $diet ] ?? '';
+	}
+
+	/**
+	 * Reduces the diets of the parts to the diet of the whole.
+	 *
+	 * All vegan makes it vegan, all vegan or vegetarian makes it vegetarian,
+	 * and one part with nothing stated leaves the question open for everything
+	 * built from it. The rule a recipe applies to its ingredients and a plan to
+	 * its dishes is the same rule, so it is written once.
+	 *
+	 * @param string[] $diets Diet of each part.
+	 * @return string 'vegan', 'vegetarian', or ''.
+	 */
+	public static function combine_diets( array $diets ): string {
+
+		$sets = array();
+
+		foreach ( $diets as $diet ) {
+			$sets[] = is_array( $diet ) ? $diet : array( (string) $diet );
+		}
+
+		return Mixmymeals_Diet::strongest( Mixmymeals_Diet::combine( $sets ), 'diet' );
+	}
+
+	/**
 	 * Derives the diet type of the recipe from its ingredients.
 	 *
 	 * Returns 'vegan' if all ingredients are vegan, 'vegetarian' if all are
@@ -2054,40 +2129,87 @@ class Mixmymeals_Recipe {
 	 * @return string 'vegan', 'vegetarian', or ''.
 	 */
 	public function get_diet_type(): string {
+		return Mixmymeals_Diet::strongest( $this->get_diets(), 'diet' );
+	}
+
+	/**
+	 * Every diet this recipe is in force as, given the products currently
+	 * chosen for its ingredients.
+	 *
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diets(): array {
 
 		if ( ! $this->is_valid() ) {
-			return '';
+			return array();
 		}
 
-		$ingredients = $this->get_ingredients_normalized();
+		$sets = array();
 
-		if ( empty( $ingredients ) ) {
-			return '';
-		}
+		foreach ( $this->get_ingredients_normalized() as $ing ) {
 
-		$all_vegan      = true;
-		$all_vegetarian = true;
+			$product_id = (int) ( $ing['product_id'] ?? 0 );
 
-		foreach ( $ingredients as $ing ) {
-			$ingredient = new Mixmymeals_Ingredient( intval( $ing['id'] ) );
-			$diet       = $ingredient->get_diet_type();
-
-			if ( $diet !== 'vegan' ) {
-				$all_vegan = false;
+			/*
+			 * A product pinned in the step decides for this recipe, over
+			 * whatever the ingredient resolves to on its own. That is the
+			 * point of pinning one: "this dish is made with Alpro", not "with
+			 * some soy yoghurt". Where nothing is pinned the ingredient
+			 * answers as before, through its reference product.
+			 *
+			 * A pinned product silent on a question falls back to the
+			 * ingredient for that axis — apply_product() merges per axis, so
+			 * choosing a packet that says "vegan" does not erase what the
+			 * ingredient said about gluten.
+			 */
+			if ( $product_id > 0 ) {
+				$sets[] = Mixmymeals_Diet::apply_product(
+					( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diets(),
+					( new Mixmymeals_Product( $product_id ) )->get_diets()
+				);
+				continue;
 			}
-			if ( $diet !== 'vegan' && $diet !== 'vegetarian' ) {
-				$all_vegetarian = false;
-				break;
-			}
+
+			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diets();
 		}
 
-		if ( $all_vegan ) {
-			return 'vegan';
+		return Mixmymeals_Diet::combine( $sets );
+	}
+
+	/**
+	 * What diet this recipe can be cooked for, if every ingredient is bought
+	 * accordingly.
+	 *
+	 * The counterpart to get_diet_type(), which reports what the chosen
+	 * reference products actually produce. This is what the chips on recipes,
+	 * meals and plans show — see
+	 * Mixmymeals_Ingredient::get_diet_suitability() for why.
+	 *
+	 * @return string 'vegan', 'vegetarian', or ''.
+	 */
+	public function get_diet_suitability(): string {
+		return Mixmymeals_Diet::strongest( $this->get_diet_suitabilities(), 'diet' );
+	}
+
+	/**
+	 * Every diet this recipe can be cooked for, if each ingredient is bought
+	 * accordingly. What the chips show.
+	 *
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diet_suitabilities(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
 		}
-		if ( $all_vegetarian ) {
-			return 'vegetarian';
+
+		$sets = array();
+
+		foreach ( $this->get_ingredients_normalized() as $ing ) {
+			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diet_suitabilities();
 		}
-		return '';
+
+		return Mixmymeals_Diet::combine( $sets );
 	}
 
 
@@ -2249,14 +2371,23 @@ class Mixmymeals_Recipe {
 			$schema['keywords'] = implode( ', ', $tags );
 		}
 
-		// Diet type → schema.org RestrictedDiet.
-		$diet_map = array(
-			'vegan'      => 'https://schema.org/VeganDiet',
-			'vegetarian' => 'https://schema.org/VegetarianDiet',
-		);
-		$diet     = $this->get_diet_type();
-		if ( isset( $diet_map[ $diet ] ) ) {
-			$schema['suitableForDiet'] = $diet_map[ $diet ];
+		/*
+		 * Diets → schema.org RestrictedDiet. Every axis, not just the strongest
+		 * one: suitableForDiet takes a list, and a dish that is vegan and
+		 * gluten-free is both. What is in force here, not what is reachable —
+		 * structured data describes the dish as the recipe computes it.
+		 */
+		$diet_urls = array();
+
+		foreach ( Mixmymeals_Diet::headline( $this->get_diets() ) as $diet ) {
+			$url = Mixmymeals_Diet::schema_url( $diet );
+			if ( '' !== $url ) {
+				$diet_urls[] = $url;
+			}
+		}
+
+		if ( $diet_urls ) {
+			$schema['suitableForDiet'] = 1 === count( $diet_urls ) ? $diet_urls[0] : $diet_urls;
 		}
 
 		// Ingredients, aggregated across steps at the recipe's own servings.

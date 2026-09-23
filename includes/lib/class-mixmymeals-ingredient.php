@@ -556,55 +556,121 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
-	 * Returns the diet type of the ingredient.
+	 * The diet the ingredient is in force as, on the vegan/vegetarian axis.
+	 *
+	 * Kept as a single string because that is what the schema, the search
+	 * filters and the whole REST surface ask for. get_diets() is the full
+	 * answer, which since diets became terms can hold more than one claim.
 	 *
 	 * @return string 'vegan', 'vegetarian', or '' if not set.
 	 */
 	public function get_diet_type(): string {
+		return Mixmymeals_Diet::strongest( $this->get_diets(), 'diet' );
+	}
 
-		$value = $this->get_meta_value( '_mmm_diet_type' );
-		$own   = in_array( $value, [ 'vegan', 'vegetarian' ], true ) ? $value : '';
+	/**
+	 * Everything that is in force for this ingredient — its own statements
+	 * with the reference product's applied over them.
+	 *
+	 * The product overrides one axis at a time. It is the concrete article and
+	 * the ingredient only what is usually true, so where a packet speaks it
+	 * decides — but a packet certified vegan says nothing about gluten, and
+	 * reading its silence as a denial would strip a correct claim.
+	 *
+	 * This is the single place an ingredient's diets are read, which is why
+	 * Mixmymeals_Recipe, the badges, the schema and the filters all follow
+	 * without knowing products exist.
+	 *
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diets(): array {
 
 		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		$own       = Mixmymeals_Diet::for_post( $this->post_id );
+		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+
+		if ( ! $reference ) {
 			return $own;
 		}
 
-		/*
-		 * The reference product overrides, exactly as it does for nutrition and
-		 * for the same reason: it is the concrete article, and the ingredient
-		 * can only carry what is usually true. Pasta is vegan until a
-		 * manufacturer puts egg in it.
-		 *
-		 * Both directions, not only downwards. A product certified vegan where
-		 * the ingredient was cautiously marked vegetarian is the more accurate
-		 * statement, and refusing it would keep a correct label off the page.
-		 *
-		 * Resolved here because this is the single place an ingredient's diet
-		 * type is read — Mixmymeals_Recipe::get_diet_type(), the badges, the
-		 * schema and the filters all follow without knowing products exist.
-		 */
-		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
-
-		if ( $reference ) {
-			$product = ( new Mixmymeals_Product( $reference ) )->get_diet_type();
-
-			if ( '' !== $product ) {
-				return $product;
-			}
-		}
-
-		return $own;
+		return Mixmymeals_Diet::apply_product(
+			$own,
+			( new Mixmymeals_Product( $reference ) )->get_diets()
+		);
 	}
 
-	public function set_diet_type( string $type ): void {
+	/**
+	 * Replaces the ingredient's own statements about diets.
+	 *
+	 * @param string[] $slugs Diet slugs; unknown ones are dropped.
+	 * @return void
+	 */
+	public function set_diets( array $slugs ): void {
+
 		if ( ! $this->is_valid() ) {
 			return;
 		}
-		if ( '' === $type ) {
-			delete_post_meta( $this->post_id, '_mmm_diet_type' );
-		} else {
-			update_post_meta( $this->post_id, '_mmm_diet_type', $type );
+
+		Mixmymeals_Diet::set_for_post( $this->post_id, $slugs );
+	}
+
+	public function get_diet_suitability(): string {
+		return Mixmymeals_Diet::strongest( $this->get_diet_suitabilities(), 'diet' );
+	}
+
+	/**
+	 * Everything this ingredient can be bought as, if you pick the right
+	 * product — not what the chosen one happens to say.
+	 *
+	 * Best wins, across the ingredient's own statements and every product it
+	 * has: a product silent on a question contributes nothing rather than
+	 * pulling the answer down, and the ingredient's own classification is the
+	 * floor, not a fallback used only where there are no products. It states
+	 * what is normally true, and a silent packet does not contradict it.
+	 *
+	 * Only an ingredient with nothing stated anywhere leaves the question
+	 * open — and one of those is enough to take the claim off a whole dish.
+	 *
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diet_suitabilities(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
 		}
+
+		$sets = array( Mixmymeals_Diet::for_post( $this->post_id ) );
+
+		foreach ( Mixmymeals_Product::for_ingredient( $this->post_id ) as $product ) {
+			$sets[] = $product->get_diets();
+		}
+
+		return Mixmymeals_Diet::merge( $sets );
+	}
+
+	public function set_diet_type( string $type ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		// One axis only — see Mixmymeals_Product::set_diet_type().
+		$keep = array();
+
+		foreach ( Mixmymeals_Diet::for_post( $this->post_id ) as $slug ) {
+			if ( 'diet' !== ( Mixmymeals_Diet::types()[ $slug ]['axis'] ?? '' ) ) {
+				$keep[] = $slug;
+			}
+		}
+
+		if ( Mixmymeals_Diet::is_known( $type ) ) {
+			$keep[] = $type;
+		}
+
+		$this->set_diets( $keep );
 	}
 
 	public function set_default_unit( string $unit ): void {

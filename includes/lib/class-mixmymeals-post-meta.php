@@ -64,10 +64,14 @@ class Mixmymeals_Post_Meta {
 			'add_meta_boxes_mmm_ingredient',
 			array( $this, 'add_ingredient_price_meta_box' )
 		);
-		add_action(
-			'add_meta_boxes_mmm_ingredient',
-			array( $this, 'add_ingredient_diet_meta_box' )
-		);
+		/*
+		 * No diet meta box any more: diets became terms of mmm_diet, and that
+		 * taxonomy brings its own box with room for more than one answer. A
+		 * second control writing the same thing would be a race, and the
+		 * single-value select could not express "vegan and gluten-free"
+		 * anyway. The save handler is gone with it; the old rows stay where
+		 * they are until the migration moves them.
+		 */
 		add_action(
 			'save_post_mmm_ingredient',
 			array(
@@ -78,10 +82,6 @@ class Mixmymeals_Post_Meta {
 		add_action(
 			'save_post_mmm_ingredient',
 			array( $this, 'save_ingredient_price_meta' )
-		);
-		add_action(
-			'save_post_mmm_ingredient',
-			array( $this, 'save_ingredient_diet_meta' )
 		);
 		add_action(
 			'save_post_mmm_recipe',
@@ -255,7 +255,12 @@ class Mixmymeals_Post_Meta {
 		// --- Template für neue Zutaten (JS) ---
 		echo '<div id="mixmymeals-ingredient-template" style="display:none;">';
 		echo '<div class="mixmymeals-step-ingredient">';
-		echo '<select class="widefat">';
+		/*
+		 * The class is on the template, not added by admin.js afterwards: the
+		 * row now holds two selects, and "the select" is no longer a way to
+		 * point at this one.
+		 */
+		echo '<select class="widefat ingredient-select">';
 		echo '<option value="">-- ' . esc_html__(
 			'Select Ingredient',
 			'mixmymeals'
@@ -273,6 +278,16 @@ class Mixmymeals_Post_Meta {
 		 * missing until 3.25.2.
 		 */
 		echo '<input type="number" step="0.1" min="0" class="small-text ingredient-amount-input" placeholder="Amount">';
+		/*
+		 * Same class as the rendered row, and for the same reason the amount
+		 * input carries one: admin.js names a cloned field by selecting it,
+		 * and a select without the class goes into the form nameless — the
+		 * browser then omits it and the pin is lost on save. Its options are
+		 * filled from MixMyMealsProducts once an ingredient is chosen.
+		 */
+		echo '<select class="ingredient-product-select">'
+			. '<option value="0">' . esc_html__( '— any product —', 'mixmymeals' )
+			. '</option></select> ';
 		echo ' <label class="mixmymeals-ingredient-optional">'
 			. '<input type="checkbox" class="ingredient-optional-input" value="1"> '
 			. esc_html__( 'optional', 'mixmymeals' ) . '</label>';
@@ -332,6 +347,7 @@ class Mixmymeals_Post_Meta {
 			$ing_id             = $ing['id'] ?? '';
 			$amount             = $ing['amount'] ?? '';
 			$selected_amount_id = $ing['amount_id'] ?? '';
+			$selected_product   = (int) ( $ing['product_id'] ?? 0 );
 
 			echo '<div class="mixmymeals-step-ingredient">';
 
@@ -419,6 +435,33 @@ class Mixmymeals_Post_Meta {
 						'</option>';
 				}
 			}
+			echo '</select> ';
+
+			/*
+			 * Which concrete article this dish is made with. Empty means the
+			 * ingredient decides as it always did — through its reference
+			 * product, or through nothing at all.
+			 *
+			 * It changes what the recipe may claim: with every ingredient's
+			 * question settled the chip reads "Vegan" instead of
+			 * "Vegan-capable". The options are filled client-side from
+			 * MixMyMealsProducts when the ingredient changes, so a row picked
+			 * just now offers the right articles without a save.
+			 */
+			echo '<select name="mmm_recipe_steps[' . absint( $index )
+				. '][ingredients][' . absint( $i )
+				. '][product_id]" class="ingredient-product-select">';
+			echo '<option value="0">'
+				. esc_html__( '— any product —', 'mixmymeals' ) . '</option>';
+
+			if ( $ing_id && Mixmymeals_Ingredient::exists_by_id( $ing_id ) ) {
+				foreach ( Mixmymeals_Product::for_ingredient( (int) $ing_id ) as $mmm_product ) {
+					echo '<option value="' . absint( $mmm_product->get_id() ) . '" '
+						. selected( $selected_product, $mmm_product->get_id(), false ) . '>'
+						. esc_html( $mmm_product->label() ) . '</option>';
+				}
+			}
+
 			echo '</select> ';
 
 			/*
@@ -779,6 +822,13 @@ class Mixmymeals_Post_Meta {
 									// is the "required" case and needs no
 									// companion hidden field.
 									'optional'  => ! empty( $ingredient['optional'] ),
+									// This callback rebuilds the array key by
+									// key, so one it does not name is gone
+									// before set_steps() sees it — the way step
+									// images and 'optional' were lost before.
+									'product_id' => isset( $ingredient['product_id'] )
+										? intval( wp_unslash( $ingredient['product_id'] ) )
+										: 0,
 								);
 							},
 							$step['ingredients'] ?? array()
@@ -1906,87 +1956,6 @@ class Mixmymeals_Post_Meta {
 		}
 	}
 
-	/**
-	 * Registers the "Diet Type" meta box for ingredients.
-	 */
-	public function add_ingredient_diet_meta_box(): void {
-		add_meta_box(
-			'mmm_ingredient_diet_meta_box',
-			__( 'Diet Type', 'mixmymeals' ),
-			array( $this, 'render_ingredient_diet_meta_box_content' ),
-			'mmm_ingredient',
-			'side'
-		);
-	}
-
-	/**
-	 * Renders the "Diet Type" meta box for ingredients.
-	 *
-	 * @param WP_Post $post The current post object.
-	 */
-	public function render_ingredient_diet_meta_box_content( WP_Post $post ): void {
-		wp_nonce_field( 'mmm_ingredient_diet_meta_box', 'mmm_ingredient_diet_meta_nonce' );
-
-		$ingredient = new Mixmymeals_Ingredient( $post->ID );
-		$diet_type  = $ingredient->get_diet_type();
-
-		$options = [
-			''             => __( 'Not specified', 'mixmymeals' ),
-			'vegetarian'   => __( 'Vegetarian', 'mixmymeals' ),
-			'vegan'        => __( 'Vegan', 'mixmymeals' ),
-		];
-		?>
-		<p>
-			<label for="mmm_diet_type"><?php esc_html_e( 'Diet Type', 'mixmymeals' ); ?></label>
-		</p>
-		<p>
-			<select id="mmm_diet_type" name="mmm_diet_type" style="width:90%;">
-				<?php foreach ( $options as $value => $label ) : ?>
-					<option value="<?php echo esc_attr( $value ); ?>"
-						<?php selected( $diet_type, $value ); ?>>
-						<?php echo esc_html( $label ); ?>
-					</option>
-				<?php endforeach; ?>
-			</select>
-		</p>
-		<?php
-	}
-
-	/**
-	 * Saves the diet type meta value for an ingredient.
-	 *
-	 * @param int $post_ID The post ID.
-	 */
-	public function save_ingredient_diet_meta( int $post_ID ): void {
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-			return;
-		}
-		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
-			return;
-		}
-		if (
-			! isset( $_POST['mmm_ingredient_diet_meta_nonce'] )
-			|| ! wp_verify_nonce(
-				sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_diet_meta_nonce'] ) ),
-				'mmm_ingredient_diet_meta_box'
-			)
-		) {
-			return;
-		}
-
-		$allowed   = [ '', 'vegetarian', 'vegan' ];
-		$diet_type = sanitize_text_field( wp_unslash( $_POST['mmm_diet_type'] ?? '' ) );
-
-		if ( ! in_array( $diet_type, $allowed, true ) ) {
-			$diet_type = '';
-		}
-
-		if ( $diet_type === '' ) {
-			delete_post_meta( $post_ID, '_mmm_diet_type' );
-		} else {
-			update_post_meta( $post_ID, '_mmm_diet_type', $diet_type );
-		}
-	}
 
 	/**
 	 * Meta box listing the concrete products this ingredient can be bought as.
@@ -2076,7 +2045,10 @@ class Mixmymeals_Post_Meta {
 			if ( '' !== $brand ) {
 				$product->set_brand( $brand );
 			}
-			$product->set_diet_type( isset( $row['diet_type'] ) ? (string) $row['diet_type'] : '' );
+			// An unticked box posts nothing, so an absent key means "none of
+			// them" here — unlike the text fields beside it, where absence
+			// means the row was never rendered.
+			$product->set_diets( isset( $row['diets'] ) ? (array) $row['diets'] : array() );
 			$product->set_source( isset( $row['source'] ) ? (string) $row['source'] : '' );
 			$product->set_package_weight( isset( $row['package_weight'] ) ? (float) $row['package_weight'] : 0.0 );
 			$product->set_price(
@@ -2234,26 +2206,31 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( null === $price ? '' : (string) $price )
 			. '"></label></td>';
 
-		echo '<td><label class="mmm-products__field">'
-			. '<span>' . esc_html__( 'Diet', 'mixmymeals' ) . '</span>'
-			. '<select name="' . esc_attr( $name ) . '[diet_type]">';
 		/*
-		 * The empty option says what it does. "—" would read as "no diet
-		 * information anywhere", when it means the ingredient's own
-		 * classification stands.
+		 * Checkboxes, not a select: diets became terms and a product can carry
+		 * several — vegan and gluten-free are different questions. Products
+		 * have no edit screen of their own (show_ui is false; they are a
+		 * detail of their ingredient), so the taxonomy's own box never
+		 * appears and the assignment has to live here.
+		 *
+		 * Nothing ticked means the ingredient's own classification stands,
+		 * which is what the note says. "—" would read as "no diet information
+		 * anywhere".
 		 */
-		foreach (
-			array(
-				''           => __( 'Same as ingredient', 'mixmymeals' ),
-				'vegan'      => __( 'Vegan', 'mixmymeals' ),
-				'vegetarian' => __( 'Vegetarian', 'mixmymeals' ),
-			) as $mmm_value => $mmm_label
-		) {
-			echo '<option value="' . esc_attr( $mmm_value ) . '"'
-				. selected( $is_new ? '' : $product->get_diet_type(), $mmm_value, false ) . '>'
-				. esc_html( $mmm_label ) . '</option>';
+		$mmm_product_diets = $is_new ? array() : $product->get_diets();
+
+		echo '<td><fieldset class="mmm-products__field mmm-products__diets">'
+			. '<legend>' . esc_html__( 'Diet', 'mixmymeals' ) . '</legend>';
+
+		foreach ( Mixmymeals_Diet::types() as $mmm_slug => $mmm_type ) {
+			echo '<label><input type="checkbox" name="' . esc_attr( $name ) . '[diets][]" value="'
+				. esc_attr( $mmm_slug ) . '"'
+				. checked( in_array( $mmm_slug, $mmm_product_diets, true ), true, false ) . '> '
+				. esc_html( $mmm_type['label'] ) . '</label>';
 		}
-		echo '</select></label></td>';
+
+		echo '<span class="description">' . esc_html__( 'Nothing ticked: same as ingredient.', 'mixmymeals' )
+			. '</span></fieldset></td>';
 
 		echo '<td class="mmm-products__actions">';
 		if ( ! $is_new ) {

@@ -680,14 +680,39 @@ class Mixmymeals_Product {
 	 * @return string 'vegan', 'vegetarian', or '' when the packet was not checked.
 	 */
 	public function get_diet_type(): string {
+		return Mixmymeals_Diet::strongest( $this->get_diets(), 'diet' );
+	}
+
+	/**
+	 * Everything this product states about diets.
+	 *
+	 * Terms, with the old single-value meta still answering where nothing has
+	 * been migrated — see Mixmymeals_Diet::for_post().
+	 *
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diets(): array {
 
 		if ( ! $this->is_valid() ) {
-			return '';
+			return array();
 		}
 
-		$value = get_post_meta( $this->post_id, self::META_DIET_TYPE, true );
+		return Mixmymeals_Diet::for_post( $this->post_id );
+	}
 
-		return in_array( $value, array( 'vegan', 'vegetarian' ), true ) ? $value : '';
+	/**
+	 * Replaces everything this product states about diets.
+	 *
+	 * @param string[] $slugs Diet slugs; unknown ones are dropped.
+	 * @return void
+	 */
+	public function set_diets( array $slugs ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		Mixmymeals_Diet::set_for_post( $this->post_id, $slugs );
 	}
 
 	/**
@@ -706,12 +731,24 @@ class Mixmymeals_Product {
 			return;
 		}
 
-		if ( ! in_array( $type, array( 'vegan', 'vegetarian' ), true ) ) {
-			delete_post_meta( $this->post_id, self::META_DIET_TYPE );
-			return;
+		/*
+		 * Writes the 'diet' axis only and leaves every other statement alone:
+		 * this setter speaks for one axis, and clearing gluten-free because
+		 * somebody set "vegetarian" would lose a fact nobody touched.
+		 */
+		$keep = array();
+
+		foreach ( $this->get_diets() as $slug ) {
+			if ( 'diet' !== ( Mixmymeals_Diet::types()[ $slug ]['axis'] ?? '' ) ) {
+				$keep[] = $slug;
+			}
 		}
 
-		update_post_meta( $this->post_id, self::META_DIET_TYPE, $type );
+		if ( Mixmymeals_Diet::is_known( $type ) ) {
+			$keep[] = $type;
+		}
+
+		$this->set_diets( $keep );
 	}
 
 	/* ---------------------------------------------------------------------
@@ -735,13 +772,27 @@ class Mixmymeals_Product {
 
 		$reference = self::get_reference_id( $ingredient_id );
 
-		if ( ! $reference ) {
+		return $reference ? ( new self( $reference ) )->label() : '';
+	}
+
+	/**
+	 * How to name *this* product — brand first, same rule as above.
+	 *
+	 * reference_label() resolves an ingredient to its chosen product and then
+	 * asks this; anything that already holds a product asks it directly. The
+	 * two used to be one static method, which read like an instance method at
+	 * a glance and was called as one twice.
+	 *
+	 * @return string Plain text, unescaped. Empty when the product has no title.
+	 */
+	public function label(): string {
+
+		if ( ! $this->is_valid() ) {
 			return '';
 		}
 
-		$product = new self( $reference );
-		$brand   = $product->get_brand();
-		$title   = $product->get_title();
+		$brand = $this->get_brand();
+		$title = $this->get_title();
 
 		if ( '' === $title ) {
 			return '';

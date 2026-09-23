@@ -1539,40 +1539,61 @@ class Mixmymeals_Meal_Plan {
 	 * @return string 'vegan', 'vegetarian', or ''.
 	 */
 	public function get_diet_type(): string {
-		$meals = $this->get_meals();
-		if ( empty( $meals ) ) {
-			return '';
-		}
+		return Mixmymeals_Diet::strongest( $this->collect_diets( false ), 'diet' );
+	}
 
-		$all_vegan      = true;
-		$all_vegetarian = true;
+	/**
+	 * What diet this plan can be cooked for, if every ingredient of every dish
+	 * is bought accordingly.
+	 *
+	 * The counterpart to get_diet_type(), one level up: it asks each recipe
+	 * what it is *suitable* for rather than what its reference products make
+	 * of it. A dish whose recipe no longer exists leaves the question open for
+	 * the whole plan, as it does there.
+	 *
+	 * @return string 'vegan', 'vegetarian', or ''.
+	 */
+	public function get_diet_suitability(): string {
+		return Mixmymeals_Diet::strongest( $this->collect_diets( true ), 'diet' );
+	}
 
-		foreach ( $meals as $meal_post ) {
-			$meal   = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+	/**
+	 * Every diet the plan holds, across its dishes.
+	 *
+	 * @param bool $suitability Ask each recipe what it is suitable for rather
+	 *                          than what its chosen products make of it.
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diets( bool $suitability = false ): array {
+		return $this->collect_diets( $suitability );
+	}
+
+	/**
+	 * Reduces the plan's dishes to the diets they share.
+	 *
+	 * A dish whose recipe no longer exists leaves the question open for the
+	 * whole plan — the same answer an unclassified ingredient gives a recipe,
+	 * and for the same reason: what is gone might have been anything.
+	 *
+	 * @param bool $suitability Suitability rather than what is in force.
+	 * @return string[]
+	 */
+	private function collect_diets( bool $suitability ): array {
+
+		$sets = array();
+
+		foreach ( $this->get_meals() as $meal_post ) {
+
+			$recipe = new Mixmymeals_Recipe( ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id() );
 
 			if ( ! $recipe->is_valid() ) {
-				return '';
+				return array();
 			}
 
-			$recipe_diet = $recipe->get_diet_type();
-
-			if ( $recipe_diet !== 'vegan' ) {
-				$all_vegan = false;
-			}
-			if ( $recipe_diet !== 'vegan' && $recipe_diet !== 'vegetarian' ) {
-				$all_vegetarian = false;
-				break;
-			}
+			$sets[] = $suitability ? $recipe->get_diet_suitabilities() : $recipe->get_diets();
 		}
 
-		if ( $all_vegan ) {
-			return 'vegan';
-		}
-		if ( $all_vegetarian ) {
-			return 'vegetarian';
-		}
-		return '';
+		return Mixmymeals_Diet::combine( $sets );
 	}
 	/**
 	 * Builds the human-readable needed-amount string for one shopping

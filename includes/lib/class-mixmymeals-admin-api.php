@@ -163,6 +163,7 @@ class Mixmymeals_Admin_API {
 			case 'ingredient_slug':
 			case 'equipment_slug':
 			case 'currency':
+			case 'diet_capable_format':
 			case 'plan_undated_meals_label':
 			case 'individual_tab_label':
 			case 'mail_from_name':
@@ -271,6 +272,7 @@ class Mixmymeals_Admin_API {
 				         . '</label>';
 				break;
 
+			case 'page_id_to_redirect_after_plan_created':
 			case 'page_id_to_redirect_if_new_plan_is_draft':
 			case 'subscription_subscribe_page':
 			case 'subscription_confirm_page':
@@ -289,7 +291,17 @@ class Mixmymeals_Admin_API {
 				] );
 
 				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
-				$html .= '<option value="0">' . esc_html__( '— No Redirection —', 'mixmymeals' ) . '</option>';
+				/*
+				 * What picking nothing means differs per field: for most of
+				 * these it is "do not redirect", for the success page it is
+				 * "open the plan itself". The placeholder carries the wording
+				 * where the default one would be wrong.
+				 */
+				$zero_label = '' !== (string) ( $field['placeholder'] ?? '' )
+					? (string) $field['placeholder']
+					: __( '— No Redirection —', 'mixmymeals' );
+
+				$html .= '<option value="0">' . esc_html( $zero_label ) . '</option>';
 
 				foreach ( $pages as $page ) {
 					$html .= sprintf(

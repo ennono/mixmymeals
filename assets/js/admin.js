@@ -405,9 +405,12 @@ jQuery(document).ready(function ($) {
         const stepIndex = $step.data("step");
         const ingredientIndex = $container.find(".mixmymeals-step-ingredient").length;
 
-        $template.find("select")
-            .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`)
-            .addClass("ingredient-select");
+        // The row holds two selects now, so each is named by its own class.
+        $template.find("select.ingredient-select")
+            .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][id]`);
+
+        $template.find("select.ingredient-product-select")
+            .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][product_id]`);
 
         $template.find("input.ingredient-amount-input")
             .attr("name", `mmm_recipe_steps[${stepIndex}][ingredients][${ingredientIndex}][amount]`);
@@ -425,12 +428,50 @@ jQuery(document).ready(function ($) {
     });
 
     /* ===========================
+       PRODUCT SELECT PER STEP INGREDIENT
+    ============================ */
+    /**
+     * Refills the product select of one ingredient row from the localised map.
+     *
+     * No AJAX: only ingredients that have products appear in MixMyMealsProducts,
+     * which is a short list, and a row somebody just added needs its options
+     * now rather than after a round trip. The current pin is kept when the same
+     * ingredient is re-selected, and dropped when the ingredient changes —
+     * a product of the old ingredient would be refused on save anyway.
+     */
+    function fillProductSelect($container, ingredientId) {
+        const $select = $container.find("select.ingredient-product-select");
+
+        if (!$select.length) {
+            return;
+        }
+
+        const previous = $select.val();
+        const products = (window.MixMyMealsProducts || {})[ingredientId] || [];
+
+        // Keep the translated placeholder that PHP rendered into the row.
+        const anyLabel = $select.find('option[value="0"]').first().text() || "\u2014";
+
+        $select.empty().append($("<option>").val("0").text(anyLabel));
+
+        products.forEach(function (product) {
+            $select.append($("<option>").val(product.id).text(product.label));
+        });
+
+        if (previous && $select.find('option[value="' + previous + '"]').length) {
+            $select.val(previous);
+        }
+    }
+
+    /* ===========================
        DYNAMIC UNIT SELECT (AMOUNTS)
     ============================ */
     $(document).on("change", ".mixmymeals-step-ingredient select.ingredient-select", function () {
         const $ingredientSelect = $(this);
         const ingredientId = $ingredientSelect.val();
         const $container = $ingredientSelect.closest(".mixmymeals-step-ingredient");
+
+        fillProductSelect($container, ingredientId);
 
         if (!ingredientId) {
             $container.find(".ingredient-unit-select").remove();

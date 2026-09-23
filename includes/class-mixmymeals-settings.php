@@ -253,6 +253,18 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'          => 'page_id_to_redirect_after_plan_created',
+					'label'       => __( 'Success Page', 'mixmymeals' ),
+					'description' => __( 'Where to send visitors after their new plan has been published. The plan\'s ID is appended as ?mmm_plan=, so the page can link to it. Leave unset to open the plan itself.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => __( '— The new plan —', 'mixmymeals' ),
+					'callback'    => array(
+						$this,
+						'page_id_to_redirect_after_plan_created_callback'
+					),
+				),
+				array(
 					'id'          => 'page_id_to_redirect_if_new_plan_is_draft',
 					'label'       => __( 'Alternative Redirect', 'mixmymeals' ),
 					'description' => __( 'Where to send visitors after their new plan has been saved as a draft.', 'mixmymeals' ),
@@ -377,6 +389,23 @@ class Mixmymeals_Settings {
 					'callback'    => array(
 						$this,
 						'archive_description_callback'
+					),
+				),
+				array(
+					'id'    => 'recipes_group_diets',
+					'type'  => 'heading',
+					'label' => __( 'Diets', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'diet_capable_format',
+					'label'       => __( 'Wording for "capable"', 'mixmymeals' ),
+					'description' => __( 'How a diet a dish could be cooked for is worded. %s stands for the diet, so both "%s tauglich" and "Geeignet für %s" work. Leave empty for the default. A pattern without %s is ignored — it would read the same beside every diet.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => Mixmymeals_Diet::capable_format(),
+					'callback'    => array(
+						$this,
+						'diet_capable_format_callback'
 					),
 				),
 				array(
@@ -1655,6 +1684,23 @@ class Mixmymeals_Settings {
 		return ( 'on' === $input ) ? 'on' : '';
 	}
 
+	/**
+	 * Sanitizes the wording pattern for capable diets.
+	 *
+	 * A pattern that does not contain %s is stored as empty rather than kept:
+	 * capable_format() would ignore it anyway, and a field showing a value that
+	 * has no effect is worse than an empty one.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string
+	 */
+	public function diet_capable_format_callback( mixed $input ): string {
+
+		$value = trim( sanitize_text_field( (string) $input ) );
+
+		return str_contains( $value, '%s' ) ? $value : '';
+	}
+
 	public function plan_thumbs_mode_callback( mixed $input ): string {
 
 		$mode = sanitize_key( (string) $input );
@@ -1756,6 +1802,16 @@ class Mixmymeals_Settings {
 	 * @param mixed $input Raw input value.
 	 * @return int
 	 */
+	/**
+	 * Sanitizes the success page setting. 0 means "the plan itself".
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return int
+	 */
+	public function page_id_to_redirect_after_plan_created_callback( mixed $input ): int {
+		return absint( $input );
+	}
+
 	public function page_id_to_redirect_if_new_plan_is_draft_callback( mixed $input ): int {
 		return absint( $input );
 	}

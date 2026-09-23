@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.33.0
+Stable tag: 3.33.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.33.1 =
+
+Changed:
+* Meals are no longer a search entry point. A meal is a planning of a recipe
+  and shows that recipe's dish, scaled to the servings the plan asks for — so
+  a visitor arriving from a search result landed on an arbitrary serving size
+  instead of on the recipe, once per planning of it. Meal pages now carry
+  "noindex, follow" and stay out of the site's own search. They remain fully
+  reachable: every meal card on a plan links to one, and those links are
+  unchanged.
 
 = 3.33.0 =
 
@@ -990,6 +1001,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.33.1 =
+Meal pages are no longer indexed; the recipe answers for the dish.
 
 = 3.33.0 =
 How a dish keeps moved into the header as a chip.

@@ -518,14 +518,7 @@ class Mixmymeals_Shortcodes {
 			     . esc_html( number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
 			     . '</span>';
 		}
-		$diet = $plan->get_diet_type();
-		if ( $diet === 'vegan' ) {
-			echo '<span class="mmm-meta__item mmm-meta__item--diet">'
-			     . esc_html__( 'Vegan', 'mixmymeals' ) . '</span>';
-		} elseif ( $diet === 'vegetarian' ) {
-			echo '<span class="mmm-meta__item mmm-meta__item--diet">'
-			     . esc_html__( 'Vegetarian', 'mixmymeals' ) . '</span>';
-		}
+		echo self::diet_chips( (int) $plan->get_id(), 'mmm-meta__item' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 		echo '</div>';
 
 		return ob_get_clean();
@@ -741,13 +734,9 @@ class Mixmymeals_Shortcodes {
 			}
 		}
 
-		$diet = $recipe->get_diet_type();
-		if ( $diet === 'vegan' ) {
-			$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-			           . esc_html__( 'Vegan', 'mixmymeals' ) . '</span>';
-		} elseif ( $diet === 'vegetarian' ) {
-			$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-			           . esc_html__( 'Vegetarian', 'mixmymeals' ) . '</span>';
+		$mmm_diet = self::diet_chips( (int) $recipe->get_id(), 'mmm-meta__item' );
+		if ( '' !== $mmm_diet ) {
+			$items[] = $mmm_diet;
 		}
 
 		if ( empty( $items ) ) {
@@ -2288,12 +2277,7 @@ class Mixmymeals_Shortcodes {
 											printf( '<span class="mmm-tag">%s</span>', esc_html( $tag->name ) );
 										}
 									}
-									$diet = $recipe->get_diet_type();
-									if ( 'vegan' === $diet ) {
-										printf( '<span class="mmm-tag">%s</span>', esc_html__( 'Vegan', 'mixmymeals' ) );
-									} elseif ( 'vegetarian' === $diet ) {
-										printf( '<span class="mmm-tag">%s</span>', esc_html__( 'Vegetarian', 'mixmymeals' ) );
-									}
+									echo self::diet_chips( (int) $recipe->get_id(), 'mmm-tag' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 									?>
                                 </div>
                             </div>
@@ -3504,13 +3488,9 @@ class Mixmymeals_Shortcodes {
 		// -------------------------
 		// Diet Type Badge
 		// -------------------------
-		$diet = $recipe->get_diet_type();
-		if ( $diet === 'vegan' ) {
-			$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-			           . esc_html__( 'Vegan', 'mixmymeals' ) . '</span>';
-		} elseif ( $diet === 'vegetarian' ) {
-			$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-			           . esc_html__( 'Vegetarian', 'mixmymeals' ) . '</span>';
+		$mmm_diet = self::diet_chips( (int) $recipe->get_id(), 'mmm-meta__item' );
+		if ( '' !== $mmm_diet ) {
+			$items[] = $mmm_diet;
 		}
 
 		if ( empty( $items ) ) {
@@ -4096,12 +4076,32 @@ class Mixmymeals_Shortcodes {
 
 		// Find out where to redirect now:
 		$redirect_url = get_permalink( $meal_plan_id );
+
 		if ( $post_status === 'draft' ) {
 			$page_id
 				          = (int) get_option( 'mixmymeals_page_id_to_redirect_if_new_plan_is_draft',
 				0 );
 			$redirect_url = $page_id > 0 ? get_permalink( $page_id )
 				: home_url( '/' );
+		} else {
+			/*
+			 * A success page, when one is configured. The plan's ID travels
+			 * with it as ?mmm_plan=: a page that congratulates somebody on a
+			 * plan it cannot link to is a dead end, and the visitor has no
+			 * other way back to what they just built.
+			 *
+			 * Drafts do not get this. A draft is not publicly readable, so the
+			 * link would 404 for exactly the anonymous visitor it is meant for.
+			 */
+			$success_page = (int) get_option( 'mixmymeals_page_id_to_redirect_after_plan_created', 0 );
+
+			if ( $success_page > 0 ) {
+				$success_url = get_permalink( $success_page );
+
+				if ( $success_url ) {
+					$redirect_url = add_query_arg( 'mmm_plan', $meal_plan_id, $success_url );
+				}
+			}
 		}
 
 		// Plan created successfully — empty the cart so it doesn't carry over.
@@ -4536,6 +4536,7 @@ class Mixmymeals_Shortcodes {
 				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
 				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
 				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				echo self::diet_chips( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 				?>
 				<?php if ( $num_of_days ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php
@@ -4656,6 +4657,7 @@ class Mixmymeals_Shortcodes {
 				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
 				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
 				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				echo self::diet_chips( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 				?>
 				<?php if ( $servings ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
@@ -5018,6 +5020,78 @@ class Mixmymeals_Shortcodes {
 	 * @return string
 	 */
 	/**
+	 * The diet chips of a recipe, meal or plan, ready for a chip row.
+	 *
+	 * Takes the surrounding row's base class, like disclosure_chip() and
+	 * keeping_chip(): `mmm-chip` in the three heroes, `mmm-meta__item` in the
+	 * archive rows. One helper, because the six places that showed these chips
+	 * each decided for themselves what to ask and how to label it, and the
+	 * heroes — which is what a single page actually renders — asked nothing at
+	 * all.
+	 *
+	 * A meal resolves to the recipe it plans, as every other credit does. A
+	 * plan answers for itself, since its diets are the intersection of its
+	 * dishes rather than one dish's.
+	 *
+	 * Returns '' when nothing is classified, so a row stays clean.
+	 *
+	 * @param int    $post_id Recipe, meal or plan ID.
+	 * @param string $base    Base class of the surrounding row.
+	 * @return string
+	 */
+	public static function diet_chips( int $post_id, string $base = 'mmm-chip' ): string {
+
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		$type = get_post_type( $post_id );
+
+		if ( 'mmm_meal_plan' === $type ) {
+			$plan     = new Mixmymeals_Meal_Plan( $post_id );
+			$in_force = $plan->get_diets();
+			$capable  = $plan->get_diets( true );
+		} else {
+
+			$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+			if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
+				return '';
+			}
+
+			$recipe = new Mixmymeals_Recipe( $post_id );
+
+			if ( ! $recipe->is_valid() ) {
+				return '';
+			}
+
+			$in_force = $recipe->get_diets();
+			$capable  = $recipe->get_diet_suitabilities();
+		}
+
+		$base = sanitize_html_class( $base );
+		$out  = '';
+
+		foreach ( Mixmymeals_Diet::chips( $in_force, $capable ) as $chip ) {
+
+			$classes = $base . ' ' . $base . '--diet ' . $base . '--diet-' . sanitize_html_class( $chip['slug'] );
+
+			if ( $chip['definite'] ) {
+				$classes .= ' ' . $base . '--diet-definite';
+			}
+
+			/*
+			 * No icon here. The chip carries the classes a theme needs to put
+			 * one on either row — design is the theme's, and hard-coding a
+			 * Font Awesome glyph in the plugin would decide it for every site.
+			 */
+			$out .= '<span class="' . esc_attr( $classes ) . '">' . esc_html( $chip['label'] ) . '</span>';
+		}
+
+		return $out;
+	}
+
+	/**
 	 * One chip stating how the finished dish keeps.
 	 *
 	 * Shelf life and storage go into a single chip, never two: "4 Tage" beside
@@ -5338,6 +5412,7 @@ class Mixmymeals_Shortcodes {
 				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
 				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
 				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				echo self::diet_chips( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 				?>
 				<?php if ( $day_label ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo esc_html( $day_label ); ?></span>
@@ -5566,13 +5641,9 @@ class Mixmymeals_Shortcodes {
 			/* -------------------------
 			 * Diet Type Badge
 			 * ------------------------- */
-			$diet = $recipe->get_diet_type();
-			if ( $diet === 'vegan' ) {
-				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-				           . esc_html__( 'Vegan', 'mixmymeals' ) . '</span>';
-			} elseif ( $diet === 'vegetarian' ) {
-				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-				           . esc_html__( 'Vegetarian', 'mixmymeals' ) . '</span>';
+			$mmm_diet = self::diet_chips( (int) $recipe->get_id(), 'mmm-meta__item' );
+			if ( '' !== $mmm_diet ) {
+				$items[] = $mmm_diet;
 			}
 
 		}
@@ -5663,13 +5734,9 @@ class Mixmymeals_Shortcodes {
 		/* -------------------------
 		 * Diet Type Badge
 		 * ------------------------- */
-		$diet = $plan->get_diet_type();
-		if ( $diet === 'vegan' ) {
-			$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-			           . esc_html__( 'Vegan', 'mixmymeals' ) . '</span>';
-		} elseif ( $diet === 'vegetarian' ) {
-			$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-			           . esc_html__( 'Vegetarian', 'mixmymeals' ) . '</span>';
+		$mmm_diet = self::diet_chips( (int) $plan->get_id(), 'mmm-meta__item' );
+		if ( '' !== $mmm_diet ) {
+			$items[] = $mmm_diet;
 		}
 
 		if ( empty( $items ) ) {

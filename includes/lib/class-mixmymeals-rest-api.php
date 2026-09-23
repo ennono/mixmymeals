@@ -181,9 +181,10 @@ class Mixmymeals_Rest_Api {
 						'type'                 => 'object',
 						'additionalProperties' => true,
 						'properties'           => array(
-							'id'        => array( 'type' => 'integer' ),
-							'amount'    => array( 'type' => 'number' ),
-							'amount_id' => array( 'type' => 'integer' ),
+							'id'         => array( 'type' => 'integer' ),
+							'amount'     => array( 'type' => 'number' ),
+							'amount_id'  => array( 'type' => 'integer' ),
+							'product_id' => array( 'type' => 'integer' ),
 						),
 					) ),
 				),
@@ -298,6 +299,7 @@ class Mixmymeals_Rest_Api {
 		register_rest_route( 'mixmymeals/v1', '/ingredients/search', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'search_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'query' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian' ) ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 20 ) ) ) );
 
 		// ── Audit ─────────────────────────────────────────────────────────
+		register_rest_route( 'mixmymeals/v1', '/diets/migrate', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'migrate_diets' ), 'permission_callback' => $auth, 'args' => array( 'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => true ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 200, 'minimum' => 1, 'maximum' => 1000 ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/audit', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'audit' ), 'permission_callback' => $auth, 'args' => array( 'scope' => array( 'required' => false, 'type' => 'string', 'default' => 'all', 'enum' => array( 'recipes', 'plans', 'ingredients', 'all' ) ) ) ) );
 
 		// ── Zutaten zusammenführen ────────────────────────────────────────
@@ -337,6 +339,26 @@ class Mixmymeals_Rest_Api {
 		 * serialization — nutrition, every unit, every product — which is
 		 * hundreds of times more data than the two fields being written.
 		 */
+		register_rest_route( 'mixmymeals/v1', '/diets/bulk', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'bulk_set_diets' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'items' => array(
+					'required' => true,
+					'type'     => 'array',
+					'maxItems' => 500,
+					'items'    => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'    => array( 'type' => 'integer' ),
+							'diets' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+						),
+					),
+				),
+			),
+		) );
+
 		register_rest_route( 'mixmymeals/v1', '/keeping/bulk', array(
 			'methods'             => WP_REST_Server::CREATABLE,
 			'callback'            => array( $this, 'bulk_set_keeping' ),
@@ -621,6 +643,7 @@ class Mixmymeals_Rest_Api {
 			// classification stands, which a client must be able to tell from
 			// a positive "not vegan".
 			'diet_type'      => $product->get_diet_type(),
+			'diets'          => $product->get_diets(),
 			/*
 			 * Raw, with nulls kept: null means the packet does not state the
 			 * value, which is a different claim from zero. A client merging
@@ -655,6 +678,7 @@ class Mixmymeals_Rest_Api {
 			$product->set_price( null === $price ? null : (float) $price );
 		}
 		if ( $request->has_param( 'diet_type' ) )      $product->set_diet_type( (string) $request->get_param( 'diet_type' ) );
+		if ( $request->has_param( 'diets' ) )          $product->set_diets( (array) $request->get_param( 'diets' ) );
 
 		if ( $request->has_param( 'nutrition' ) ) {
 			$nutrition = (array) $request->get_param( 'nutrition' );
@@ -856,6 +880,8 @@ class Mixmymeals_Rest_Api {
 			'related_recipes_reverse' => $recipe->get_reverse_related_recipes(),
 			'meal_plans'       => $recipe->get_meal_plans(),
 			'diet_type'        => $recipe->get_diet_type(),
+			'diets'            => $recipe->get_diets(),
+			'diet_suitability' => $recipe->get_diet_suitabilities(),
 			'categories'       => array_map( fn( $t ) => $t->term_id, $recipe->get_categories() ),
 			'tags'             => wp_get_post_terms( $post_id, 'mmm_recipe_tag', array( 'fields' => 'ids' ) ),
 			'author'           => $this->serialize_author( $post_id ),
@@ -878,6 +904,8 @@ class Mixmymeals_Rest_Api {
 			 * nutrition; that is always the resolved one above.
 			 */
 			'diet_type'      => $ing->get_diet_type(),
+			'diets'          => $ing->get_diets(),
+			'diet_suitability' => $ing->get_diet_suitabilities(),
 			// null = not specified, 0 = keeps zero days. Not the same as the
 			// recipe's shelf life, which is a different quantity entirely.
 			'shelf_life_days' => $ing->get_shelf_life(),
@@ -928,6 +956,8 @@ class Mixmymeals_Rest_Api {
 			'end_day'    => $plan->get_end_day(),
 			'count_days' => $plan->count_days(),
 			'diet_type'  => $plan->get_diet_type(),
+			'diets'      => $plan->get_diets(),
+			'diet_suitability' => $plan->get_diets( true ),
 			'author'     => $this->serialize_author( $post_id ),
 			'featured_image'     => $this->featured_image_id( $post_id ),
 			'featured_image_url' => $this->featured_image_url( $post_id ),
@@ -1518,6 +1548,7 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
 		}
 		if ( $request->has_param( 'diet_type' ) )    $ing->set_diet_type( $request->get_param( 'diet_type' ) );
+		if ( $request->has_param( 'diets' ) )        $ing->set_diets( (array) $request->get_param( 'diets' ) );
 		// null clears the field; 0 is a value.
 		if ( $request->has_param( 'shelf_life_days' ) ) {
 			$mmm_shelf = $request->get_param( 'shelf_life_days' );
@@ -1538,6 +1569,7 @@ class Mixmymeals_Rest_Api {
 		if ( $guard ) return $guard;
 		if ( $request->has_param( 'title' ) )        wp_update_post( array( 'ID' => $id, 'post_title' => $request->get_param( 'title' ) ) );
 		if ( $request->has_param( 'diet_type' ) )    $ing->set_diet_type( $request->get_param( 'diet_type' ) );
+		if ( $request->has_param( 'diets' ) )        $ing->set_diets( (array) $request->get_param( 'diets' ) );
 		// null clears the field; 0 is a value.
 		if ( $request->has_param( 'shelf_life_days' ) ) {
 			$mmm_shelf = $request->get_param( 'shelf_life_days' );
@@ -3146,6 +3178,15 @@ class Mixmymeals_Rest_Api {
 			// Units nothing references. Harmless, but they clutter every
 			// ingredient form and make the real ones harder to pick.
 			'units_unused'                  => array(),
+			/*
+			 * Ingredients nothing says a diet about — not the ingredient, not
+			 * any of its products. One of these in a recipe takes the diet
+			 * claim off the whole dish, so this is the list that decides how
+			 * many recipes can carry a "suitable for vegan" chip at all.
+			 * Entries carry the category and the recipe count, which is what
+			 * it takes to classify one without opening it.
+			 */
+			'ingredients_without_diet'      => array(),
 		);
 
 		$ingredient_ids = get_posts( array(
@@ -3169,6 +3210,19 @@ class Mixmymeals_Rest_Api {
 			$nutrition = $ingredient->get_nutrition();
 			if ( empty( $nutrition['calories_100'] ) ) {
 				$groups['ingredients_without_nutrition'][] = $this->audit_entry( $ingredient_id );
+			}
+
+			if ( empty( $ingredient->get_diet_suitabilities() ) ) {
+
+				$terms    = get_the_terms( $ingredient_id, 'mmm_ingredient_category' );
+				$category = ( $terms && ! is_wp_error( $terms ) ) ? $terms[0]->name : '';
+
+				$groups['ingredients_without_diet'][] = array(
+					'id'       => $ingredient_id,
+					'title'    => get_the_title( $ingredient_id ),
+					'category' => $category,
+					'recipes'  => count( $usage[ $ingredient_id ] ?? array() ),
+				);
 			}
 
 			$products = Mixmymeals_Product::for_ingredient( $ingredient_id );
@@ -3288,5 +3342,176 @@ class Mixmymeals_Rest_Api {
 		}
 
 		return $groups;
+	}
+
+	/**
+	 * Moves the legacy single-value diet meta of ingredients and products onto
+	 * terms of mmm_diet.
+	 *
+	 * Deliberately not an option-gated migration that runs itself on upgrade:
+	 * this rewrites a classification that decides whether a public "vegan"
+	 * label appears, and it should happen when somebody is watching. Hence a
+	 * route — dry run by default, batched, and safe to run twice.
+	 *
+	 * A post that already carries any term is skipped: somebody classified it
+	 * since, and the meta beside it is the older answer.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function migrate_diets( WP_REST_Request $request ): WP_REST_Response {
+
+		$dry_run = (bool) $request->get_param( 'dry_run' );
+		$limit   = (int) $request->get_param( 'limit' );
+
+		$done      = array();
+		$skipped   = 0;
+		$unknown   = array();
+		$remaining = 0;
+
+		foreach ( array( 'mmm_ingredient' => Mixmymeals_Diet::LEGACY_META_INGREDIENT, 'mmm_product' => Mixmymeals_Diet::LEGACY_META_PRODUCT ) as $post_type => $meta_key ) {
+
+			$ids = get_posts(
+				array(
+					'post_type'      => $post_type,
+					'post_status'    => 'any',
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query'     => array(
+						array(
+							'key'     => $meta_key,
+							'compare' => 'EXISTS',
+						),
+					),
+				)
+			);
+
+			foreach ( $ids as $post_id ) {
+
+				$post_id = (int) $post_id;
+				$value   = (string) get_post_meta( $post_id, $meta_key, true );
+
+				$terms = wp_get_object_terms( $post_id, Mixmymeals_Diet::TAXONOMY, array( 'fields' => 'ids' ) );
+
+				if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+					++$skipped;
+					continue;
+				}
+
+				if ( ! Mixmymeals_Diet::is_known( $value ) ) {
+					$unknown[] = array( 'id' => $post_id, 'value' => $value );
+					continue;
+				}
+
+				if ( count( $done ) >= $limit ) {
+					++$remaining;
+					continue;
+				}
+
+				if ( ! $dry_run ) {
+					Mixmymeals_Diet::set_for_post( $post_id, array( $value ) );
+				}
+
+				$done[] = array( 'id' => $post_id, 'type' => $post_type, 'diet' => $value );
+			}
+		}
+
+		return new WP_REST_Response(
+			array(
+				'dry_run'         => $dry_run,
+				'migrated'        => count( $done ),
+				'items'           => $done,
+				'skipped_has_terms' => $skipped,
+				'unknown_values'  => $unknown,
+				'remaining'       => $remaining,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Sets the diets of many ingredients and products at once.
+	 *
+	 * The counterpart to the audit group ingredients_without_diet, and built
+	 * for the same reason /keeping/bulk exists: the single-item routes answer
+	 * with the item's whole serialization, so classifying a library of 372
+	 * ingredients would cost 372 calls at roughly 500 tokens each. The answer
+	 * here is `id` and `ok` plus a separate error list — a handful of tokens
+	 * per item.
+	 *
+	 * `diets` replaces everything stated on that post; an empty array clears
+	 * it. There is no merge mode, because the list is short enough to send
+	 * whole and a merge would make "remove vegetarian" impossible to express.
+	 *
+	 * Failures are per item (`not_found`, `wrong_type`, `missing_id`) and the
+	 * batch continues — but an unknown diet slug **rejects the whole request**
+	 * before anything is written. Same asymmetry as /keeping/bulk: a missing
+	 * post is a data condition, an unknown slug is a caller bug, and half a
+	 * batch built on a wrong vocabulary is worse than none of it.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function bulk_set_diets( WP_REST_Request $request ) {
+
+		$items  = (array) $request->get_param( 'items' );
+		$known  = array_keys( Mixmymeals_Diet::types() );
+		$result = array();
+		$errors = array();
+
+		// Vocabulary first, over the whole batch, before a single write.
+		foreach ( $items as $index => $item ) {
+			foreach ( (array) ( $item['diets'] ?? array() ) as $slug ) {
+				if ( ! Mixmymeals_Diet::is_known( (string) $slug ) ) {
+					return new WP_Error(
+						'mmm_unknown_diet',
+						sprintf(
+							/* translators: 1: the unknown value, 2: the list of known ones. */
+							__( 'Unknown diet "%1$s". Known: %2$s', 'mixmymeals' ),
+							(string) $slug,
+							implode( ', ', $known )
+						),
+						array( 'status' => 400, 'index' => $index )
+					);
+				}
+			}
+		}
+
+		foreach ( $items as $item ) {
+
+			$id = (int) ( $item['id'] ?? 0 );
+
+			if ( $id <= 0 ) {
+				$errors[] = array( 'id' => $id, 'error' => 'missing_id' );
+				continue;
+			}
+
+			$type = get_post_type( $id );
+
+			if ( ! $type ) {
+				$errors[] = array( 'id' => $id, 'error' => 'not_found' );
+				continue;
+			}
+
+			if ( ! in_array( $type, array( 'mmm_ingredient', 'mmm_product' ), true ) ) {
+				$errors[] = array( 'id' => $id, 'error' => 'wrong_type' );
+				continue;
+			}
+
+			Mixmymeals_Diet::set_for_post( $id, (array) ( $item['diets'] ?? array() ) );
+
+			$result[] = array( 'id' => $id, 'ok' => true );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'written' => count( $result ),
+				'items'   => $result,
+				'errors'  => $errors,
+			),
+			200
+		);
 	}
 }
