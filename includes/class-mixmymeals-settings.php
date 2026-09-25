@@ -392,23 +392,6 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
-					'id'    => 'recipes_group_diets',
-					'type'  => 'heading',
-					'label' => __( 'Diets', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'diet_capable_format',
-					'label'       => __( 'Wording for "capable"', 'mixmymeals' ),
-					'description' => __( 'How a diet a dish could be cooked for is worded. %s stands for the diet, so both "%s tauglich" and "Geeignet für %s" work. Leave empty for the default. A pattern without %s is ignored — it would read the same beside every diet.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => Mixmymeals_Diet::capable_format(),
-					'callback'    => array(
-						$this,
-						'diet_capable_format_callback'
-					),
-				),
-				array(
 					'id'    => 'recipes_group_steps',
 					'type'  => 'heading',
 					'label' => __( 'Cooking Steps', 'mixmymeals' ),
@@ -977,6 +960,8 @@ class Mixmymeals_Settings {
 		);
 
 
+		$settings['mixmymeals-chips'] = $this->chip_text_fields();
+
 		// _token is 'mixmymeals', so the hook is mixmymeals_settings_fields —
 		// the sniff simply cannot resolve the property.
 		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- resolves to mixmymeals_settings_fields.
@@ -985,6 +970,61 @@ class Mixmymeals_Settings {
 			$settings
 		);
 		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+	}
+
+	/**
+	 * The "Chips" tab: one field per chip wording.
+	 *
+	 * Built from Mixmymeals_Shortcodes::chip_texts() rather than written out
+	 * here, because the chips themselves are rendered there and the two would
+	 * otherwise have to be kept in step by hand — a field for a chip that no
+	 * longer exists, or a chip nobody can reword, is exactly what that costs.
+	 *
+	 * The sanitiser is a closure per field: register_setting() hands a callback
+	 * only the value, so the key has to be carried in.
+	 *
+	 * @return array{title:string, description:string, fields:array<int, array<string, mixed>>}
+	 */
+	private function chip_text_fields(): array {
+
+		$fields = array();
+
+		foreach ( Mixmymeals_Shortcodes::chip_text_groups() as $group => $heading ) {
+
+			$in_group = array_filter(
+				Mixmymeals_Shortcodes::chip_texts(),
+				static fn( $entry ) => ( $entry['group'] ?? '' ) === $group
+			);
+
+			if ( empty( $in_group ) ) {
+				continue;
+			}
+
+			$fields[] = array(
+				'id'    => Mixmymeals_Shortcodes::CHIP_TEXT_FIELD_PREFIX . 'group_' . $group,
+				'type'  => 'heading',
+				'label' => $heading,
+			);
+
+			foreach ( $in_group as $key => $entry ) {
+				$fields[] = array(
+					'id'          => Mixmymeals_Shortcodes::CHIP_TEXT_FIELD_PREFIX . $key,
+					'label'       => $entry['label'],
+					'description' => Mixmymeals_Shortcodes::chip_text_description( $entry ),
+					'default'     => '',
+					// The default wording, so an empty field shows what it
+					// would produce rather than looking unset.
+					'placeholder' => (string) $entry['default'],
+					'callback'    => static fn( $input ) => Mixmymeals_Shortcodes::sanitize_chip_text( $key, $input ),
+				);
+			}
+		}
+
+		return array(
+			'title'       => __( 'Chips', 'mixmymeals' ),
+			'description' => __( 'The wording of the small labels on recipes, meals, plans and archive cards. Leave a field empty for the wording of the site language. Placeholders in curly braces are filled in; a pattern that drops the value the chip exists to state is ignored.', 'mixmymeals' ),
+			'fields'      => $fields,
+		);
 	}
 
 	/**
@@ -1682,23 +1722,6 @@ class Mixmymeals_Settings {
 	 */
 	public function plan_undated_meals_callback( mixed $input ): string {
 		return ( 'on' === $input ) ? 'on' : '';
-	}
-
-	/**
-	 * Sanitizes the wording pattern for capable diets.
-	 *
-	 * A pattern that does not contain %s is stored as empty rather than kept:
-	 * capable_format() would ignore it anyway, and a field showing a value that
-	 * has no effect is worse than an empty one.
-	 *
-	 * @param mixed $input Raw input value.
-	 * @return string
-	 */
-	public function diet_capable_format_callback( mixed $input ): string {
-
-		$value = trim( sanitize_text_field( (string) $input ) );
-
-		return str_contains( $value, '%s' ) ? $value : '';
 	}
 
 	public function plan_thumbs_mode_callback( mixed $input ): string {

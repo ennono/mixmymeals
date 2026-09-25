@@ -478,7 +478,25 @@ class Mixmymeals_Meal_Plan {
 	 */
 	/** @return WP_Post[] */
 	public function get_meals(): array {
-		return get_posts(
+
+		/*
+		 * Held for the request. calc_nutrition_by_day() asks once per plan day
+		 * and calc_nutrition() reloads the whole list each time, filtering by
+		 * day only afterwards — so a seven-day plan ran this unbounded query
+		 * seven times for one figure, and the plan page, the PDF, the
+		 * subscription mail and the product comparison each ask for that figure
+		 * in turn.
+		 *
+		 * Emptied again whenever a meal is written — see register_meal_cache().
+		 * A request that adds meals and then reads the plan is the normal shape
+		 * of /meal-plans/build and of the cart, and without that it answered
+		 * from the list it had loaded before the meals existed.
+		 */
+		if ( isset( self::$meals_cache[ $this->post_id ] ) ) {
+			return self::$meals_cache[ $this->post_id ];
+		}
+
+		self::$meals_cache[ $this->post_id ] = get_posts(
 			array(
 				'post_type'      => 'mmm_meal',
 				'post_parent'    => $this->post_id,
@@ -488,6 +506,56 @@ class Mixmymeals_Meal_Plan {
 				'posts_per_page' => -1,
 			)
 		);
+
+		return self::$meals_cache[ $this->post_id ];
+	}
+
+	/**
+	 * The plans whose meal list is already loaded this request.
+	 *
+	 * @var array<int, WP_Post[]>
+	 */
+	private static $meals_cache = array();
+
+	/**
+	 * Watches every event that can change a plan's meal list.
+	 *
+	 * Attached once per request from mixmymeals.php, like
+	 * Mixmymeals_Recipe::register_cook_count() — meals are created from the
+	 * REST builder, the cart and wp-admin alike, so the only place that sees
+	 * all of them is the hook.
+	 *
+	 * @return void
+	 */
+	public static function register_meal_cache(): void {
+
+		foreach ( array( 'wp_after_insert_post', 'before_delete_post', 'trashed_post', 'untrashed_post' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'flush_meals_cache' ), 10, 1 );
+		}
+	}
+
+	/**
+	 * Drops the memoised meal list of the plan this post belongs to.
+	 *
+	 * @param int $post_id The post that was written or removed.
+	 * @return void
+	 */
+	public static function flush_meals_cache( $post_id ): void {
+
+		$post = get_post( (int) $post_id );
+
+		if ( ! $post ) {
+			return;
+		}
+
+		if ( 'mmm_meal' === $post->post_type ) {
+			unset( self::$meals_cache[ (int) $post->post_parent ] );
+			return;
+		}
+
+		if ( 'mmm_meal_plan' === $post->post_type ) {
+			unset( self::$meals_cache[ (int) $post->ID ] );
+		}
 	}
 
 	/**
@@ -1034,10 +1102,27 @@ class Mixmymeals_Meal_Plan {
 					$weights[ $id ] = array(
 						'grams_person' => 0.0,
 						'meals'        => 0,
+						'products'     => array(),
+						// Grams whose recipe left the choice open. A plan can
+						// be half decided — one dish naming a packet, another
+						// not — and only the open part is still a question.
+						'open'         => 0.0,
 					);
 				}
 
-				$weights[ $id ]['grams_person'] += $weight / $servings;
+				/*
+				 * Broken down by the packet each row is made of: two recipes of
+				 * one plan may name different ones for the same ingredient, and
+				 * the comparison has to know that rather than assume the
+				 * ingredient's reference for all of it.
+				 */
+				Mixmymeals_Product::add_row_weight(
+					$weights[ $id ],
+					$id,
+					(int) ( $ing['product_id'] ?? 0 ),
+					$weight / $servings,
+					'grams_person'
+				);
 
 				if ( ! isset( $counted[ $id ] ) ) {
 					++$weights[ $id ]['meals'];
@@ -1093,8 +1178,10 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $weights as $ingredient_id => $info ) {
 			$per_ingredient[ $ingredient_id ] = array(
-				'grams' => $info['grams_person'],
-				'meals' => $info['meals'],
+				'grams'    => $info['grams_person'],
+				'meals'    => $info['meals'],
+				'products' => $info['products'] ?? array(),
+				'open'     => $info['open'] ?? null,
 			);
 		}
 
@@ -1207,8 +1294,22 @@ class Mixmymeals_Meal_Plan {
 						// ingredient across the plan is optional; a single
 						// required use flips it back to a normal purchase.
 						'optional'     => true,
+						// Every packet this plan's rows resolve to. One entry
+						// means the list can name it; several mean the recipes
+						// want different ones and naming either would send the
+						// shopper home with the wrong article for one of them.
+						'products'     => [],
+						'product_id'   => 0,
+						'product'      => '',
 					];
 				}
+
+				$row_product = Mixmymeals_Ingredient::effective_product_id(
+					$ing_id,
+					(int) ( $ing['product_id'] ?? 0 )
+				);
+
+				$ingredient_totals[ $ing_id ]['products'][ $row_product ] = true;
 
 				$ingredient_totals[ $ing_id ]['optional'] =
 					$ingredient_totals[ $ing_id ]['optional'] && ! empty( $ing['optional'] );
@@ -1272,6 +1373,21 @@ class Mixmymeals_Meal_Plan {
 			}
 			unset( $unit_data );
 			$data['total_weight'] = $total;
+
+			/*
+			 * Name the article only where the whole plan agrees on it. With
+			 * nothing pinned anywhere that is simply the ingredient's reference
+			 * product, which is what this list has always shown; with a recipe
+			 * pinning one it is that packet, because that is what the dish is
+			 * made of. Disagreement prints nothing rather than one of the two.
+			 */
+			$products           = array_keys( $data['products'] );
+			$data['product_id'] = 1 === count( $products ) ? (int) $products[0] : 0;
+			$data['product']    = $data['product_id'] > 0
+				? ( new Mixmymeals_Product( $data['product_id'] ) )->label()
+				: '';
+
+			unset( $data['products'] );
 		}
 		unset( $data );
 

@@ -219,7 +219,7 @@ class Mixmymeals_Product {
 		}
 
 		foreach ( self::NUTRITION_FIELDS as $key => $meta_key ) {
-			$value        = get_post_meta( $this->post_id, $meta_key, true );
+			$value       = get_post_meta( $this->post_id, $meta_key, true );
 			$out[ $key ] = is_numeric( $value ) ? (float) $value : null;
 		}
 
@@ -416,6 +416,74 @@ class Mixmymeals_Product {
 	}
 
 	/**
+	 * Loads the products of many ingredients in one query.
+	 *
+	 * Asked per ingredient, for_ingredient() runs once per ingredient, and a
+	 * recipe asks for every one of its own — a plan for every ingredient of every dish. On a recipe archive
+	 * that was one query per ingredient per card before anything had been read
+	 * from them.
+	 *
+	 * Also warms the post and meta caches of the products themselves, since
+	 * the very next thing asked of them is their diets and their brand.
+	 *
+	 * @param int[] $ingredient_ids Ingredient IDs.
+	 * @return void
+	 */
+	public static function prime_for_ingredients( array $ingredient_ids ): void {
+
+		$cache   = &self::ingredient_cache();
+		$missing = array();
+
+		foreach ( $ingredient_ids as $id ) {
+
+			$id = (int) $id;
+
+			if ( $id > 0 && ! isset( $cache[ $id ] ) ) {
+				$missing[ $id ] = true;
+			}
+		}
+
+		if ( empty( $missing ) ) {
+			return;
+		}
+
+		$posts = get_posts(
+			array(
+				'post_type'       => self::POST_TYPE,
+				'post_parent__in' => array_keys( $missing ),
+				'post_status'     => 'publish',
+				'posts_per_page'  => -1,
+				'orderby'         => 'ID',
+				'order'           => 'ASC',
+				'no_found_rows'   => true,
+			)
+		);
+
+		// Every id asked for gets an entry, so an ingredient without products
+		// is not looked up again one query at a time.
+		foreach ( array_keys( $missing ) as $id ) {
+			$cache[ $id ] = array();
+		}
+
+		foreach ( $posts as $post ) {
+			$cache[ (int) $post->post_parent ][] = new self( (int) $post->ID );
+		}
+	}
+
+	/**
+	 * The per-request product list per ingredient, by reference so both
+	 * for_ingredient() and prime_for_ingredients() share one store.
+	 *
+	 * @return array<int, self[]>
+	 */
+	private static function &ingredient_cache(): array {
+
+		static $cache = array();
+
+		return $cache;
+	}
+
+	/**
 	 * All products of one ingredient, oldest first.
 	 *
 	 * @param int $ingredient_id Ingredient ID.
@@ -425,6 +493,18 @@ class Mixmymeals_Product {
 
 		if ( $ingredient_id <= 0 ) {
 			return array();
+		}
+
+		/*
+		 * One query per ingredient, and a recipe asks for every one of them —
+		 * a plan for every ingredient of every dish. Held for the request,
+		 * which is as long as the answer can change without a write.
+		 * prime_for_ingredients() fills the same store for a whole page.
+		 */
+		$cache = &self::ingredient_cache();
+
+		if ( isset( $cache[ $ingredient_id ] ) ) {
+			return $cache[ $ingredient_id ];
 		}
 
 		$ids = get_posts(
@@ -439,7 +519,112 @@ class Mixmymeals_Product {
 			)
 		);
 
-		return array_map( static fn( $id ) => new self( (int) $id ), $ids );
+		$cache[ $ingredient_id ] = array_map( static fn( $id ) => new self( (int) $id ), $ids );
+
+		return $cache[ $ingredient_id ];
+	}
+
+	/**
+	 * Books one recipe row's grams into the weights array impact_groups() reads.
+	 *
+	 * The three things that array records about a row are one decision, not
+	 * three: which packet the grams are (the row's pin, else the ingredient's
+	 * reference), how many grams that packet supplies, and whether the recipe
+	 * decided at all. Written out per caller they drifted apart at the first
+	 * change to any of the three — and the recipe's and the plan's comparison
+	 * would then disagree about the same dish.
+	 *
+	 * Takes the one ingredient's entry by reference; the callers keep their own
+	 * initialisation, because a plan also counts meals and a recipe does not.
+	 *
+	 * @param array<string, mixed> $info          That ingredient's entry, modified in place.
+	 * @param int                  $ingredient_id The ingredient.
+	 * @param int                  $pinned        The row's product_id, 0 for none.
+	 * @param float                $grams         Grams one person eats from this row.
+	 * @param string               $grams_key     Where the total goes: 'grams' or 'grams_person'.
+	 * @return void
+	 */
+	public static function add_row_weight( array &$info, int $ingredient_id, int $pinned, float $grams, string $grams_key = 'grams' ): void {
+
+		$pin = Mixmymeals_Ingredient::pinned_product_id( $ingredient_id, $pinned );
+
+		// Which packet these grams are, so the table anchors on what the recipe
+		// names rather than on the ingredient's reference.
+		$product = $pin > 0 ? $pin : self::get_reference_id( $ingredient_id );
+
+		$info[ $grams_key ]           = (float) ( $info[ $grams_key ] ?? 0.0 ) + $grams;
+		$info['products'][ $product ] = (float) ( $info['products'][ $product ] ?? 0.0 ) + $grams;
+
+		// Only a pin counts as decided. A reference product is the site's
+		// default for the ingredient, not a statement about this dish.
+		if ( 0 === $pin ) {
+			$info['open'] = (float) ( $info['open'] ?? 0.0 ) + $grams;
+		}
+	}
+
+	/**
+	 * The figures a set of grams currently carries, per 100 g.
+	 *
+	 * One product supplies all of them in the ordinary case and this is simply
+	 * its merge with the ingredient. Where a plan pins different packets for
+	 * one ingredient it is their gram-weighted mix, which is what the plan
+	 * really contains — and the only figure a difference can be measured from
+	 * without overstating it for one of the recipes.
+	 *
+	 * A key nobody states stays null: null is not zero anywhere else in this
+	 * class either, and a mix of silences is still silence.
+	 *
+	 * @param Mixmymeals_Ingredient $ingredient The ingredient.
+	 * @param array<int,float>      $by_product Grams per product ID (0 = no product).
+	 * @return array<string,float|null>
+	 */
+	private static function blend_nutrition( Mixmymeals_Ingredient $ingredient, array $by_product ): array {
+
+		if ( 1 === count( $by_product ) ) {
+			return $ingredient->get_nutrition_with_product( (int) array_key_first( $by_product ) );
+		}
+
+		$sums   = array();
+		$stated = array();
+		$total  = array_sum( $by_product );
+
+		if ( $total <= 0 ) {
+			return $ingredient->get_nutrition();
+		}
+
+		foreach ( $by_product as $product_id => $grams ) {
+
+			foreach ( $ingredient->get_nutrition_with_product( (int) $product_id ) as $key => $value ) {
+
+				if ( ! isset( $sums[ $key ] ) ) {
+					$sums[ $key ]   = 0.0;
+					$stated[ $key ] = false;
+				}
+
+				if ( null === $value ) {
+					continue;
+				}
+
+				/*
+				 * Over *all* the grams, not only over those that stated the
+				 * key. Grams whose packet is silent contribute nothing to the
+				 * total, exactly as a null does in the sums downstream, and
+				 * averaging over the stating grams alone would spread one
+				 * product's figure across the whole ingredient.
+				 */
+				$sums[ $key ] += $value * (float) $grams;
+
+				$stated[ $key ] = true;
+			}
+		}
+
+		$blend = array();
+
+		foreach ( $sums as $key => $sum ) {
+			$blend[ $key ] = $stated[ $key ] ? $sum / $total : null;
+		}
+
+		return $blend;
 	}
 
 	/**
@@ -453,12 +638,19 @@ class Mixmymeals_Product {
 	 * same shape back — which is why one renderer can draw either.
 	 *
 	 * One column anchors each table and carries absolute figures; the rest carry
-	 * differences to it. The anchor is the reference product where the
-	 * ingredient has one — the packet actually in use — and otherwise a column
-	 * of the ingredient's own typical values, which is what the dish is
+	 * differences to it. The anchor is the packet actually in use — the product
+	 * the recipe rows pin, else the ingredient's reference — and otherwise a
+	 * column of the ingredient's own typical values, which is what the dish is
 	 * computed from when no product is chosen. Either way the anchor holds
 	 * exactly $current, so it replaces the separate "as planned" column rather
 	 * than sitting beside it as a row of ±0.
+	 *
+	 * Where the rows disagree — two recipes of one plan pinning different
+	 * packets of the same ingredient — no column can carry absolutes, and the
+	 * figures the differences are measured from are the gram-weighted mix the
+	 * plan actually contains. That keeps the arithmetic exact rather than
+	 * picking one of the two and being wrong about the other: the total moves
+	 * by (product − mix) × grams, whatever the mix was made of.
 	 *
 	 * Only ingredients with several products, and only where at least one
 	 * figure moves far enough to be printed. A page of ±0 answers no question.
@@ -469,12 +661,20 @@ class Mixmymeals_Product {
 	 * only holds while the divisor is independent of nutrition — see the note
 	 * on Mixmymeals_Meal_Plan::calc_nutrition_per_day_person().
 	 *
-	 * @param array<int, array{grams:float, meals:int}> $weights Grams one person
-	 *        eats per ingredient, and in how many dishes it occurs (0 to omit).
-	 * @param array<string,float>                       $current The figures those
-	 *        grams currently produce, in the caller's own unit.
-	 * @param float                                     $divisor What the caller
-	 *        divides by to reach that unit. 1.0 for a single serving.
+	 * An ingredient whose every gram the recipe has already assigned a product
+	 * to is left out entirely: the choice this table exists to inform has been
+	 * made by whoever wrote the dish.
+	 *
+	 * Per ingredient, $weights carries the grams one person eats, in how many
+	 * dishes it occurs (0 to omit), optionally those grams broken down by the
+	 * product in force for them, and optionally how many of them the recipe
+	 * left open — add_row_weight() fills all three. Without the breakdown the
+	 * ingredient's reference product is assumed for all of them, as before;
+	 * without 'open' nothing counts as decided.
+	 *
+	 * @param array<int, array<string, mixed>> $weights Grams and products per ingredient.
+	 * @param array<string, float>             $current What those grams currently produce.
+	 * @param float                            $divisor What to divide by for the caller's unit.
 	 * @return array<int, array{ingredient_id:int, ingredient:string, meals:int, current:array<string,float>, products:array}>
 	 */
 	public static function impact_groups( array $weights, array $current, float $divisor = 1.0 ): array {
@@ -486,6 +686,22 @@ class Mixmymeals_Product {
 		$groups = array();
 
 		foreach ( $weights as $ingredient_id => $info ) {
+			/*
+			 * Nothing left open means the recipe has already named the packet
+			 * for every gram of this ingredient, and the question this table
+			 * asks — which one should it be — has an author's answer. Showing
+			 * it anyway would invite the reader to redo a decision that is part
+			 * of the dish, and the figures beside it already assume that
+			 * choice.
+			 *
+			 * A plan can be half decided, one dish naming a packet and another
+			 * not; then the question is still open for the second and the
+			 * group stays. 'open' absent (a caller that supplies no breakdown)
+			 * means nothing is decided, which is how it was before.
+			 */
+			if ( isset( $info['open'] ) && (float) $info['open'] <= 0 ) {
+				continue;
+			}
 
 			$products = self::for_ingredient( (int) $ingredient_id );
 
@@ -499,14 +715,25 @@ class Mixmymeals_Product {
 				continue;
 			}
 
-			$reference = self::get_reference_id( (int) $ingredient_id );
-			$now       = $ingredient->get_nutrition();
+			/*
+			 * Which packet these grams are actually made of. A recipe row may
+			 * pin one, and then it — not the ingredient's reference — is what
+			 * the dish contains and what the anchor column has to state.
+			 */
+			$by_product = $info['products'] ?? array();
 
-			// What is in force right now — already resolved through whatever
-			// product the ingredient points at, which is what the anchor column
-			// states everywhere else in this table.
-			$diet_now = $ingredient->get_diet_type();
-			$factor    = (float) $info['grams'] / 100 / $divisor;
+			if ( empty( $by_product ) ) {
+				$by_product = array( self::get_reference_id( (int) $ingredient_id ) => (float) $info['grams'] );
+			}
+
+			$reference = 1 === count( $by_product ) ? (int) array_key_first( $by_product ) : 0;
+			$now       = self::blend_nutrition( $ingredient, $by_product );
+
+			// What is in force right now — resolved through whatever packet
+			// supplies these grams, which is what the anchor column states
+			// everywhere else in this table.
+			$diet_now = Mixmymeals_Diet::strongest( $ingredient->get_diets_pinned( $reference ), 'diet' );
+			$factor   = (float) $info['grams'] / 100 / $divisor;
 
 			$rows    = array();
 			$spreads = array_fill_keys( $keys, array() );
@@ -751,7 +978,8 @@ class Mixmymeals_Product {
 		$this->set_diets( $keep );
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * The reference product
 	 * ------------------------------------------------------------------ */
 
@@ -778,8 +1006,8 @@ class Mixmymeals_Product {
 	/**
 	 * How to name *this* product — brand first, same rule as above.
 	 *
-	 * reference_label() resolves an ingredient to its chosen product and then
-	 * asks this; anything that already holds a product asks it directly. The
+	 * The static reference_label() resolves an ingredient to its chosen product
+	 * and then asks this; anything that already holds a product asks it directly. The
 	 * two used to be one static method, which read like an instance method at
 	 * a glance and was called as one twice.
 	 *

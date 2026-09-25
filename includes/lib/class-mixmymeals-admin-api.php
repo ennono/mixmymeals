@@ -99,7 +99,16 @@ class Mixmymeals_Admin_API {
 			return true;
 		}
 
-		switch ( $field['id'] ) {
+		/*
+		 * Chip wordings are registered per chip, so they cannot be listed in
+		 * the switch by name — they all take the same plain text input, and one
+		 * id stands in for the whole set.
+		 */
+		$field_id = str_starts_with( $field['id'], Mixmymeals_Shortcodes::CHIP_TEXT_FIELD_PREFIX )
+			? 'chip_text'
+			: $field['id'];
+
+		switch ( $field_id ) {
 
 			case 'placeholder_image_id':
 				$html .= '<div class="media-field-wrapper">';
@@ -163,7 +172,6 @@ class Mixmymeals_Admin_API {
 			case 'ingredient_slug':
 			case 'equipment_slug':
 			case 'currency':
-			case 'diet_capable_format':
 			case 'plan_undated_meals_label':
 			case 'individual_tab_label':
 			case 'mail_from_name':
@@ -171,6 +179,18 @@ class Mixmymeals_Admin_API {
 				$html .= '<input id="' . esc_attr( $field['id'] )
 				         . '" type="text" name="' . esc_attr( $option_name )
 				         . '" placeholder="'
+				         . esc_attr( $field['placeholder'] ) . '" value="'
+				         . esc_attr( $data ) . '" /><p class="description">'
+				         . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			// Same input as the plain text fields above, but the full width: a
+			// currency symbol is two characters, a chip pattern a short
+			// sentence, and the narrow box cut "Geeignet für {diet}" in half.
+			case 'chip_text':
+				$html .= '<input id="' . esc_attr( $field['id'] )
+				         . '" class="regular-text" type="text" name="'
+				         . esc_attr( $option_name ) . '" placeholder="'
 				         . esc_attr( $field['placeholder'] ) . '" value="'
 				         . esc_attr( $data ) . '" /><p class="description">'
 				         . esc_html( $field['description'] ) . '</p>';

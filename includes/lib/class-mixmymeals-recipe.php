@@ -23,6 +23,20 @@ class Mixmymeals_Recipe {
 	/** Post meta flagging a recipe as a favorite (absent unless flagged). */
 	const META_IS_FAVORITE = '_mmm_is_favorite';
 
+	/**
+	 * Per-request nutrition per serving, keyed by recipe ID.
+	 *
+	 * @var array<int, array<string,float>>
+	 */
+	private static $per_serving_cache = array();
+
+	/**
+	 * Per-request cost per serving, keyed by recipe ID.
+	 *
+	 * @var array<int, float>
+	 */
+	private static $cost_cache = array();
+
 	/** The URL parameter that narrows the recipe archive to one browse view. */
 	const BROWSE_VIEW_VAR = 'mmm_view';
 
@@ -673,6 +687,14 @@ class Mixmymeals_Recipe {
 
 	public function set_steps( array $steps ): bool {
 
+		/*
+		 * Both figures are derived from the steps, and both are held for the
+		 * request. The REST API updates a recipe and serialises it in the same
+		 * call, so without this it answered with the nutrition from before the
+		 * write — found by the test suite, not in production.
+		 */
+		unset( self::$per_serving_cache[ $this->post_id ], self::$cost_cache[ $this->post_id ] );
+
 		if ( ! $this->is_valid() ) {
 			return false;
 		}
@@ -764,8 +786,18 @@ class Mixmymeals_Recipe {
 	 */
 	public function calculate_nutrition_per_serving(): array {
 
+		/*
+		 * Held for the request. A plan asks this once per meal per day — seven
+		 * times for the same recipe on a weekly plan — and every archive card
+		 * asks again. set_steps() clears it, because a write during the same
+		 * request must not read back the figures from before it.
+		 */
+		if ( isset( self::$per_serving_cache[ $this->post_id ] ) ) {
+			return self::$per_serving_cache[ $this->post_id ];
+		}
+
 		if ( ! $this->is_valid() ) {
-			return [];
+			return self::$per_serving_cache[ $this->post_id ] = [];
 		}
 
 		[ $totals, $total_weight ] = $this->_calculate_total_nutrition( 1.0 );
@@ -778,7 +810,7 @@ class Mixmymeals_Recipe {
 
 		$totals['weight_per_serving'] = $total_weight / $servings;
 
-		return $totals;
+		return self::$per_serving_cache[ $this->post_id ] = $totals;
 	}
 
 	/**
@@ -818,12 +850,22 @@ class Mixmymeals_Recipe {
 				// meals stays 0: "in 3 meals" belongs to a plan. A recipe is
 				// one dish and saying so would be filler.
 				$weights[ $id ] = array(
-					'grams' => 0.0,
-					'meals' => 0,
+					'grams'    => 0.0,
+					'meals'    => 0,
+					'products' => array(),
+					// Grams whose row left the choice open. Nothing open means
+					// the recipe has already decided and the comparison has
+					// nothing left to ask — see impact_groups().
+					'open'     => 0.0,
 				);
 			}
 
-			$weights[ $id ]['grams'] += $weight / $servings;
+			Mixmymeals_Product::add_row_weight(
+				$weights[ $id ],
+				$id,
+				(int) ( $ing['product_id'] ?? 0 ),
+				$weight / $servings
+			);
 		}
 
 		if ( empty( $weights ) ) {
@@ -855,7 +897,13 @@ class Mixmymeals_Recipe {
 			$ingredient_obj = new Mixmymeals_Ingredient($ing['id']);
 			if (!$ingredient_obj->is_valid()) continue;
 
-			$nutrition = $ingredient_obj->get_nutrition();
+			/*
+			 * Through the product this row names, where it names one: the
+			 * recipe says which packet goes into this dish, and its figures
+			 * are the ones the dish actually has. Nothing pinned resolves to
+			 * the ingredient's reference exactly as before.
+			 */
+			$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
 			$weight = floatval($ing['weight_g']);
 
 			if ($weight <= 0) continue;
@@ -927,6 +975,16 @@ class Mixmymeals_Recipe {
 			return 0.0;
 		}
 
+		/*
+		 * Held for the request, like the nutrition beside it, and cleared by
+		 * set_steps() for the same reason. An archive card walks the whole
+		 * ingredient list four times — nutrition, cost and the two diet
+		 * answers — and the cost pass repeats what the nutrition pass just did.
+		 */
+		if ( isset( self::$cost_cache[ $this->post_id ] ) ) {
+			return self::$cost_cache[ $this->post_id ];
+		}
+
 		$servings    = $this->get_servings();
 		$scale       = $servings > 0 ? 1.0 / $servings : 1.0;
 		$ingredients = $this->get_ingredients_scaled( $scale );
@@ -938,10 +996,13 @@ class Mixmymeals_Recipe {
 				continue;
 			}
 
-			$total_cost += $ingredient_obj->calculate_cost_for_weight( $ing['weight_g'] );
+			$total_cost += $ingredient_obj->calculate_cost_for_weight(
+				$ing['weight_g'],
+				(int) ( $ing['product_id'] ?? 0 )
+			);
 		}
 
-		return $total_cost;
+		return self::$cost_cache[ $this->post_id ] = $total_cost;
 	}
 
 	public function set_servings( float $servings ): bool {
@@ -997,6 +1058,30 @@ class Mixmymeals_Recipe {
 
 		$steps       = $this->get_steps();
 		$ingredients = array();
+
+		/*
+		 * Every row below instantiates its ingredient and its unit, and each of
+		 * those reads a post row and its meta. One pass over the steps first,
+		 * so the whole recipe costs two queries instead of two per row — which
+		 * on an archive of ten cards was the difference between tens and
+		 * hundreds.
+		 */
+		$prime = array();
+
+		foreach ( $steps as $step ) {
+			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
+
+				$prime[] = intval( $ing['id'] ?? 0 );
+				$prime[] = intval( $ing['amount_id'] ?? 0 );
+				$prime[] = intval( $ing['product_id'] ?? 0 );
+			}
+		}
+
+		$prime = array_values( array_unique( array_filter( $prime ) ) );
+
+		if ( $prime && function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $prime, false, true );
+		}
 
 		foreach ( $steps as $step ) {
 			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
@@ -2133,6 +2218,31 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
+	 * Warms everything a diet read touches, for a whole list of posts at once.
+	 *
+	 * Without it each ingredient and each product costs a post row, its meta
+	 * and its terms one at a time — on a recipe archive that was hundreds of
+	 * queries before a single chip appeared.
+	 *
+	 * @param int[] $post_ids Ingredient and product IDs.
+	 * @return void
+	 */
+	private static function prime_diet_reads( array $post_ids ): void {
+
+		$post_ids = array_values( array_unique( array_filter( array_map( 'intval', $post_ids ) ) ) );
+
+		if ( empty( $post_ids ) ) {
+			return;
+		}
+
+		if ( function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $post_ids, false, true );
+		}
+
+		Mixmymeals_Diet::prime( $post_ids );
+	}
+
+	/**
 	 * Every diet this recipe is in force as, given the products currently
 	 * chosen for its ingredients.
 	 *
@@ -2144,9 +2254,25 @@ class Mixmymeals_Recipe {
 			return array();
 		}
 
+		$rows = $this->get_ingredients_normalized();
+
+		// One term query for the whole recipe instead of one per ingredient
+		// and per pinned product.
+		$prime = array();
+
+		foreach ( $rows as $ing ) {
+			$prime[] = (int) $ing['id'];
+
+			if ( ! empty( $ing['product_id'] ) ) {
+				$prime[] = (int) $ing['product_id'];
+			}
+		}
+
+		self::prime_diet_reads( $prime );
+
 		$sets = array();
 
-		foreach ( $this->get_ingredients_normalized() as $ing ) {
+		foreach ( $rows as $ing ) {
 
 			$product_id = (int) ( $ing['product_id'] ?? 0 );
 
@@ -2162,15 +2288,7 @@ class Mixmymeals_Recipe {
 			 * choosing a packet that says "vegan" does not erase what the
 			 * ingredient said about gluten.
 			 */
-			if ( $product_id > 0 ) {
-				$sets[] = Mixmymeals_Diet::apply_product(
-					( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diets(),
-					( new Mixmymeals_Product( $product_id ) )->get_diets()
-				);
-				continue;
-			}
-
-			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diets();
+			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diets_pinned( $product_id );
 		}
 
 		return Mixmymeals_Diet::combine( $sets );
@@ -2193,7 +2311,8 @@ class Mixmymeals_Recipe {
 
 	/**
 	 * Every diet this recipe can be cooked for, if each ingredient is bought
-	 * accordingly. What the chips show.
+	 * accordingly — and counting only the ones that have to be in it. What the
+	 * chips show as "capable".
 	 *
 	 * @return string[] Known diet slugs.
 	 */
@@ -2203,9 +2322,50 @@ class Mixmymeals_Recipe {
 			return array();
 		}
 
+		$rows = $this->get_ingredients_normalized();
+
+		/*
+		 * Optional ingredients do not constrain what a dish can be cooked for,
+		 * because they can be left out. A recipe whose required ingredients are
+		 * all vegan and that offers cheese on the side is vegan-capable — leave
+		 * the cheese off and it is vegan. Counting the cheese here would take
+		 * the claim off a dish that only ever *might* contain it.
+		 *
+		 * The counterpart is get_diets(), which counts everything: as written,
+		 * with the cheese, the dish is not vegan. That is the difference
+		 * between "Vegan" and "Vegan-capable".
+		 *
+		 * A recipe of nothing but optional ingredients would leave nothing to
+		 * judge, so it falls back to all of them rather than claiming anything
+		 * it likes.
+		 */
+		$required = array_values( array_filter( $rows, static fn( $ing ) => empty( $ing['optional'] ) ) );
+
+		if ( ! empty( $required ) ) {
+			$rows = $required;
+		}
+
+		$prime = array();
+
+		foreach ( $rows as $ing ) {
+			$prime[] = (int) $ing['id'];
+		}
+
+		// Products first, in one query, then the diets of ingredients and
+		// products together.
+		Mixmymeals_Product::prime_for_ingredients( $prime );
+
+		foreach ( $prime as $ingredient_id ) {
+			foreach ( Mixmymeals_Product::for_ingredient( $ingredient_id ) as $product ) {
+				$prime[] = $product->get_id();
+			}
+		}
+
+		self::prime_diet_reads( $prime );
+
 		$sets = array();
 
-		foreach ( $this->get_ingredients_normalized() as $ing ) {
+		foreach ( $rows as $ing ) {
 			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diet_suitabilities();
 		}
 

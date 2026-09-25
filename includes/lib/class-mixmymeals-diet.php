@@ -54,14 +54,6 @@ class Mixmymeals_Diet {
 	const LEGACY_META_PRODUCT = '_mmm_product_diet_type';
 
 	/**
-	 * How a diet a dish is only *capable* of is worded. One pattern for all of
-	 * them, with %s standing for the diet's own name — so it carries a suffix
-	 * ("%s tauglich"), a prefix ("Geeignet für %s") or anything else a site
-	 * prefers, without four strings having to agree with each other.
-	 */
-	const CAPABLE_FORMAT_OPTION = 'mixmymeals_diet_capable_format';
-
-	/**
 	 * The diets this plugin knows how to reason about.
 	 *
 	 * Each entry carries what a term cannot:
@@ -88,32 +80,32 @@ class Mixmymeals_Diet {
 
 		$types = array(
 			'vegan'        => array(
-				'label'       => __( 'Vegan', 'mixmymeals' ),
-				'axis'        => 'diet',
-				'implies'     => array( 'vegetarian' ),
-				'rank'        => 20,
-				'schema'      => 'https://schema.org/VeganDiet',
+				'label'   => __( 'Vegan', 'mixmymeals' ),
+				'axis'    => 'diet',
+				'implies' => array( 'vegetarian' ),
+				'rank'    => 20,
+				'schema'  => 'https://schema.org/VeganDiet',
 			),
 			'vegetarian'   => array(
-				'label'       => __( 'Vegetarian', 'mixmymeals' ),
-				'axis'        => 'diet',
-				'implies'     => array(),
-				'rank'        => 10,
-				'schema'      => 'https://schema.org/VegetarianDiet',
+				'label'   => __( 'Vegetarian', 'mixmymeals' ),
+				'axis'    => 'diet',
+				'implies' => array(),
+				'rank'    => 10,
+				'schema'  => 'https://schema.org/VegetarianDiet',
 			),
 			'gluten_free'  => array(
-				'label'       => __( 'Gluten-free', 'mixmymeals' ),
-				'axis'        => 'free_from',
-				'implies'     => array(),
-				'rank'        => 10,
-				'schema'      => 'https://schema.org/GlutenFreeDiet',
+				'label'   => __( 'Gluten-free', 'mixmymeals' ),
+				'axis'    => 'free_from',
+				'implies' => array(),
+				'rank'    => 10,
+				'schema'  => 'https://schema.org/GlutenFreeDiet',
 			),
 			'lactose_free' => array(
-				'label'       => __( 'Lactose-free', 'mixmymeals' ),
-				'axis'        => 'lactose',
-				'implies'     => array(),
-				'rank'        => 10,
-				'schema'      => 'https://schema.org/LowLactoseDiet',
+				'label'   => __( 'Lactose-free', 'mixmymeals' ),
+				'axis'    => 'lactose',
+				'implies' => array(),
+				'rank'    => 10,
+				'schema'  => 'https://schema.org/LowLactoseDiet',
 			),
 		);
 
@@ -171,25 +163,27 @@ class Mixmymeals_Diet {
 			return $own;
 		}
 
-		return sprintf( self::capable_format(), $label );
+		return Mixmymeals_Shortcodes::chip_text( 'diet_capable', array( 'diet' => $label ) );
 	}
 
 	/**
-	 * The pattern the capable form is built with, %s standing for the diet.
+	 * The chip wording of a diet that is in force.
 	 *
-	 * A stored pattern without %s is ignored rather than printed: it would
-	 * render the same word for every diet, and a chip reading "tauglich" beside
-	 * another reading "tauglich" says nothing at all.
+	 * Through the same registry as the capable form, although the default is
+	 * the bare name: a site that words one of the two differently will want to
+	 * word the other to match, and having only half of the pair configurable is
+	 * how the two drift apart.
 	 *
+	 * @param string $slug Term slug.
 	 * @return string
 	 */
-	public static function capable_format(): string {
+	public static function chip_label( string $slug ): string {
 
-		/* translators: %s: the name of a diet, e.g. "Vegan". */
-		$default = __( '%s-capable', 'mixmymeals' );
-		$stored  = trim( (string) get_option( self::CAPABLE_FORMAT_OPTION, '' ) );
+		$label = self::label( $slug );
 
-		return ( '' !== $stored && str_contains( $stored, '%s' ) ) ? $stored : $default;
+		return '' === $label
+			? ''
+			: Mixmymeals_Shortcodes::chip_text( 'diet', array( 'diet' => $label ) );
 	}
 
 	/**
@@ -202,7 +196,8 @@ class Mixmymeals_Diet {
 		return (string) ( self::types()[ $slug ]['schema'] ?? '' );
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * The algebra
 	 * ------------------------------------------------------------------ */
 
@@ -426,7 +421,7 @@ class Mixmymeals_Diet {
 
 			$chips[] = array(
 				'slug'     => $slug,
-				'label'    => $definite ? self::label( $slug ) : self::suitability_label( $slug ),
+				'label'    => $definite ? self::chip_label( $slug ) : self::suitability_label( $slug ),
 				'definite' => $definite,
 			);
 		}
@@ -434,7 +429,8 @@ class Mixmymeals_Diet {
 		return $chips;
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Storage
 	 * ------------------------------------------------------------------ */
 
@@ -458,23 +454,99 @@ class Mixmymeals_Diet {
 			return array();
 		}
 
-		$slugs = wp_get_object_terms( $post_id, self::TAXONOMY, array( 'fields' => 'slugs' ) );
+		$memo = self::memo();
 
-		if ( is_wp_error( $slugs ) ) {
-			$slugs = array();
+		if ( isset( $memo[ $post_id ] ) ) {
+			return $memo[ $post_id ];
 		}
+
+		/*
+		 * get_the_terms(), not wp_get_object_terms(): only the former reads the
+		 * object term cache, which is what prime() fills. The latter queries
+		 * every time and made priming pointless.
+		 */
+		$terms = get_the_terms( $post_id, self::TAXONOMY );
+		$slugs = ( $terms && ! is_wp_error( $terms ) ) ? wp_list_pluck( $terms, 'slug' ) : array();
 
 		if ( ! empty( $slugs ) ) {
-			return array_values( array_filter( $slugs, array( __CLASS__, 'is_known' ) ) );
+			$result = array_values( array_filter( $slugs, array( __CLASS__, 'is_known' ) ) );
+		} else {
+
+			$meta = get_post_meta(
+				$post_id,
+				'mmm_product' === get_post_type( $post_id ) ? self::LEGACY_META_PRODUCT : self::LEGACY_META_INGREDIENT,
+				true
+			);
+
+			$result = self::is_known( (string) $meta ) ? array( (string) $meta ) : array();
 		}
 
-		$meta = get_post_meta(
-			$post_id,
-			'mmm_product' === get_post_type( $post_id ) ? self::LEGACY_META_PRODUCT : self::LEGACY_META_INGREDIENT,
-			true
-		);
+		self::memo( $post_id, $result );
 
-		return self::is_known( (string) $meta ) ? array( (string) $meta ) : array();
+		return $result;
+	}
+
+	/**
+	 * Per-request answers of for_post().
+	 *
+	 * A recipe asks every ingredient twice — once for what is in force, once
+	 * for what is reachable — and a plan asks every recipe. Without this the
+	 * same ingredient was read from the database a dozen times while one
+	 * archive page rendered.
+	 *
+	 * @param int|null   $post_id Post to read or write, null to read the map.
+	 * @param array|null $value   Value to store.
+	 * @return array
+	 */
+	private static function memo( ?int $post_id = null, ?array $value = null ): array {
+
+		static $memo = array();
+
+		if ( null === $post_id ) {
+			return $memo;
+		}
+
+		if ( null !== $value ) {
+			$memo[ $post_id ] = $value;
+		}
+
+		return $memo;
+	}
+
+	/**
+	 * Loads the diet terms of many posts in one query.
+	 *
+	 * wp_get_object_terms() asks per post; update_object_term_cache() asks once
+	 * for a list and fills the cache the per-post calls then hit. Callers that
+	 * know their whole set up front — a recipe with its ingredients and their
+	 * products — should prime it before the loop.
+	 *
+	 * @param int[] $post_ids Ingredient and product IDs.
+	 * @return void
+	 */
+	public static function prime( array $post_ids ): void {
+
+		$memo    = self::memo();
+		$missing = array();
+
+		foreach ( $post_ids as $id ) {
+
+			$id = (int) $id;
+
+			if ( $id > 0 && ! isset( $memo[ $id ] ) ) {
+				$missing[ $id ] = true;
+			}
+		}
+
+		if ( empty( $missing ) ) {
+			return;
+		}
+
+		/*
+		 * Both post types in one call: the cache is keyed by object id and
+		 * taxonomy, and asking per type would be two queries for no gain.
+		 */
+		update_object_term_cache( array_keys( $missing ), 'mmm_ingredient' );
 	}
 
 	/**
@@ -497,9 +569,14 @@ class Mixmymeals_Diet {
 		$known = array_values( array_unique( array_filter( array_map( 'strval', $slugs ), array( __CLASS__, 'is_known' ) ) ) );
 
 		wp_set_object_terms( $post_id, $known, self::TAXONOMY, false );
+
+		// The per-request memo would otherwise keep answering with what this
+		// post said before the write.
+		self::memo( $post_id, $known );
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Registration
 	 * ------------------------------------------------------------------ */
 

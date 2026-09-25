@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.33.1
+Stable tag: 3.34.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,39 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.34.0 =
+
+Added:
+* Diets are now a taxonomy on ingredients and products instead of a single
+  field, so an ingredient can be vegan *and* gluten-free rather than only one
+  of the two. Recipes and plans still work theirs out from their ingredients,
+  so nothing has to be kept in step by hand.
+* A recipe can name the concrete product an ingredient is cooked with. That
+  choice now counts everywhere: its nutrition and its price go into the
+  recipe, the meal and the plan, it is named in the ingredient list and on the
+  shopping list, and it decides the recipe's diet — a dish whose ingredients
+  are all settled reads "Vegan" instead of "Vegan-tauglich".
+* The product comparison leaves out every ingredient the recipe has already
+  settled: that table asks which packet to buy, and for those the author has
+  answered. It anchors on the packet a dish actually uses, and where two
+  recipes of one plan choose different ones for the same ingredient, no column
+  claims to be the current one — the differences are then measured against
+  what the plan really contains.
+
+* The wording of every chip — diets, shelf life, the advertising label,
+  servings, times, energy, prices, plan length, categories — is now a setting
+  of its own under Settings → MixMyMeals → Chips. Patterns carry placeholders
+  in curly braces, so "{count} Portionen" can become "für {count} Personen"
+  without touching a translation file. A pattern that leaves out the value the
+  chip exists to state is ignored, because it would read the same on every
+  recipe.
+
+Fixed:
+* A meal plan read in the same request that added meals to it answered from
+  the list it had loaded beforehand, and a recipe read straight after being
+  saved returned the nutrition it had before the save. Both affected the REST
+  API and the plan builder rather than ordinary page views.
 
 = 3.33.1 =
 
@@ -1001,6 +1034,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.34.0 =
+Diets became a taxonomy, a product chosen in a recipe now counts everywhere, and every chip's wording is configurable.
 
 = 3.33.1 =
 Meal pages are no longer indexed; the recipe answers for the dish.

@@ -228,7 +228,7 @@ class Mixmymeals_Meal_Plan_PDF {
 								continue;
 							}
 
-							$nutrition = $ingredient_obj->get_nutrition();
+							$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
 							$w         = floatval( $ing['weight_g'] );
 
 							if ( $w <= 0 ) {
@@ -454,9 +454,9 @@ class Mixmymeals_Meal_Plan_PDF {
 						$main_line .= ' (' . __( 'optional', 'mixmymeals' ) . ')';
 					}
 
-					// The product the figures assume, where one was chosen.
-					// This is the sheet somebody actually carries round a shop.
-					$reference_label = Mixmymeals_Product::reference_label( (int) $ing_id );
+					// The packet the figures assume, where the plan agrees on
+					// one. This is the sheet somebody carries round a shop.
+					$reference_label = (string) ( $data['product'] ?? '' );
 					?>
                     <tr>
                         <td style="text-align:center;">☐</td>

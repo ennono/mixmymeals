@@ -407,7 +407,7 @@ const TOOLS = [
                     id:        { type: "number", description: "Post-ID des mmm_ingredient" },
                     amount:    { type: "number" },
                     amount_id: { type: "number", default: 0, description: "Post-ID der mmm_ingr_unit (0 = Gramm direkt)" },
-                    product_id: { type: "number", default: 0, description: "Post-ID eines mmm_product dieser Zutat. Legt fest, mit welchem konkreten Artikel gekocht wird — entscheidet damit die Ernaehrungsform des Rezepts: sind alle Zutaten geklaert, heisst die Pille \"Vegan\" statt \"Vegan tauglich\". 0 = offen, dann entscheidet die Zutat. Ein Produkt, das nicht zu dieser Zutat gehoert, wird beim Speichern verworfen." },
+                    product_id: { type: "number", default: 0, description: "Post-ID eines mmm_product dieser Zutat. Legt fest, mit welchem konkreten Artikel gekocht wird, und gilt damit ueberall als gesetzt: seine Naehrwerte und sein Preis gehen in Rezept, Mahlzeit und Plan ein, es steht in der Zutatenliste und auf der Einkaufsliste, und es entscheidet die Ernaehrungsform — sind alle Zutaten geklaert, heisst die Pille \"Vegan\" statt \"Vegan tauglich\". Schlaegt das Referenzprodukt der Zutat. 0 = offen, dann entscheidet die Zutat. Ein Produkt, das nicht zu dieser Zutat gehoert, wird beim Speichern verworfen." },
                   },
                 },
               },

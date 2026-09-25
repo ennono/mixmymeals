@@ -29,7 +29,19 @@ and the like. Those are working-directory noise — `.distignore` keeps all of
 them out of the package, and a build made from it comes back with none. Judge
 the package, not the checkout.
 
-There is no automated test suite. PHP 8.0+ is required.
+There is no PHPUnit suite. `tools/diet-test.php` is a script of assertions
+covering diets, pinned products and the per-request caches; it runs against a
+real install because that is what it tests (terms, meta, products and the
+caches between them), creates its own posts and deletes them again:
+
+```bash
+cd <site>/app/public
+wp --exec="define('DB_HOST','localhost:<socket>');" \
+   eval-file wp-content/plugins/mixmymeals/tools/diet-test.php
+```
+
+Everything it creates is titled `T …` or `R<n>` and carries the brand `ZZ`, so
+a run cut short leaves something recognisable to clean up. PHP 8.0+ is required.
 
 ## Environment
 
@@ -98,6 +110,8 @@ The two ingredient markups in `Mixmymeals_Post_Meta` — the rendered row and th
 
 `Mixmymeals_Recipe` also owns the **edit counter** (`_mmm_edit_count`, const `META_EDIT_COUNT`): `get_edit_count()` / `set_edit_count()`, fed by the static `count_edit_on_update()` on `post_updated` (skips creation from auto-draft, autosaves and revisions). Hooked up once per request via `Mixmymeals_Recipe::register_edit_count()` in `mixmymeals.php`, same pattern as `Mixmymeals_Cart::register_ajax()`. Deliberately **not** built on post revisions: WP only versions title/content/excerpt (`_wp_post_revision_fields()`), so meta-only recipe edits — steps, ingredients, times — create no revision at all. Displayed via `[mmm_recipe_edit_count]`.
 
+**Several read paths are memoised for the request, and every one of them needs a way back out.** `Mixmymeals_Recipe::calculate_nutrition_per_serving()` and `calculate_cost_per_serving()` keep per-recipe statics that `set_steps()` clears; `Mixmymeals_Meal_Plan::get_meals()` keeps one per plan that `register_meal_cache()` clears from `wp_after_insert_post` and the delete/trash hooks, because meals are created from the REST builder, the cart and wp-admin alike. `Mixmymeals_Diet::for_post()` keeps its own and `set_for_post()` updates it. The shape that breaks without this is ordinary rather than exotic: one request writes and then serialises what it wrote, which is exactly what `/meal-plans/build` and every REST update do — both bugs were found by `tools/diet-test.php`, not in production.
+
 **Shelf life is two fields, not one.** `_mmm_shelf_life_days` exists on both `mmm_recipe` and `mmm_ingredient` (`META_SHELF_LIFE` on each class), and the two hold different quantities: how long the finished dish keeps, and how long the raw ingredient keeps. Cooking moves that number in both directions — a stew of week-old vegetables keeps three days once cooked, a salad of the same vegetables keeps one — so neither may ever fall back to or be derived from the other.
 
 `get_shelf_life()` returns `?int`: **null when nobody has said, 0 when the answer is zero.** That distinction is the whole point of the field, since "eat it the day it is made" is exactly the case worth recording — and it is why the existing numeric fields were not copied: `set_price_per_100g()` deletes on 0 and `get_preparation_time()` maps both cases to 0. The admin input prints no value for null, so an untouched field cannot save itself as a zero, and the save handler tests the raw string before `absint()`, which cannot tell `""` from `"0"`.
@@ -126,7 +140,26 @@ It belongs to the shelf life beside it: "keeps 3 days" is not an answer without 
 
 **Ingredient** — nutrition stored per-key in post meta: `_rmm_calories_100`, `_rmm_fat`, `_rmm_carbs`, `_rmm_protein`, `_rmm_sugar`, `_rmm_fiber`, `_rmm_salt`. Units are child posts (`mmm_ingr_unit`).
 
-**`Mixmymeals_Ingredient::get_nutrition()` is the only place ingredient nutrition may be read.** All nineteen call sites go through it — recipe pages, plan pages, the PDF, subscription mails, the calculator, the shopping list — and `Mixmymeals_Recipe::_calculate_total_nutrition()` does too. The `_rmm_*` keys are touched directly only inside `Mixmymeals_Ingredient` itself and where the REST API registers them. Keep it that way: a caller reading the meta directly would bypass anything the getter later resolves through (a product override, a unit conversion) and put a second, disagreeing figure on one of those channels. The same rule holds for `Mixmymeals_Post_Meta::get_author_data()` and `Mixmymeals_Ingredient_Amount::get_step_divisor()`, and for the same reason: several of this codebase's worst bugs were two channels computing one number separately.
+**`Mixmymeals_Ingredient::get_nutrition()` and its `_pinned()` sibling are the only places ingredient nutrition may be read.** All nineteen call sites go through it — recipe pages, plan pages, the PDF, subscription mails, the calculator, the shopping list — and `Mixmymeals_Recipe::_calculate_total_nutrition()` does too. The `_rmm_*` keys are touched directly only inside `Mixmymeals_Ingredient` itself and where the REST API registers them. Keep it that way: a caller reading the meta directly would bypass anything the getter later resolves through (a product override, a unit conversion) and put a second, disagreeing figure on one of those channels. The same rule holds for `Mixmymeals_Post_Meta::get_author_data()` and `Mixmymeals_Ingredient_Amount::get_step_divisor()`, and for the same reason: several of this codebase's worst bugs were two channels computing one number separately.
+
+
+**A recipe row may name the product it is cooked with**, and that choice outranks the ingredient's reference wherever it applies. `_rmm_steps[].ingredients[].product_id`, edited in the step's ingredient row and exposed over REST and MCP as `product_id`. Three getters resolve it, all through one decision — `Mixmymeals_Ingredient::effective_product_id( $ingredient_id, $pinned )`, which prefers the pin, falls back to the reference, and treats a product hanging off a *different* ingredient as nothing pinned:
+
+| Getter | Resolves | Called by |
+|---|---|---|
+| `get_nutrition_pinned()` | figures per 100 g | recipe/meal/plan nutrition, the PDF, the nutrition tables |
+| `get_price_per_100g_pinned()` | price per 100 g | `calculate_cost_for_weight()`, and so every cost chip |
+| `get_diets_pinned()` | diet claims | `Mixmymeals_Recipe::get_diets()` and everything downstream of it |
+
+The three parameterless getters are now thin calls to these with 0, so a pinned and an unpinned row cannot resolve differently — the same reason `get_nutrition()` and `get_nutrition_with_product()` share one merge.
+
+**The two levels answer different questions and only one of them is a statement about the dish.** The reference product is the site's default for an ingredient's figures; the pin is the recipe saying *this dish is made with that packet*. So the recipe's and the meal's ingredient lists print only a pin (`span.mmm-ingredient-product`), while the shopping list prints either — there the question is what to buy, and the reference has always answered it.
+
+**The shopping list names a packet only where the whole plan agrees on one.** `calc_shopping_list()` collects the effective product of every row and puts `product_id` / `product` on the aggregated row; two recipes pinning different packets of one ingredient yield 0 and '', because naming either would send the shopper home with the wrong article for the other. The three renderings read that field instead of calling `Mixmymeals_Product::reference_label()` themselves.
+
+**An ingredient the recipe has settled drops out of the product comparison.** That table asks which packet an ingredient should be, and a pinned row is the author's answer — leaving it in would invite the reader to redo a decision that is part of the dish, next to figures that already assume it. `impact_groups()` skips a group whose `open` grams are zero. A plan can be half decided, one dish naming a packet and another not; then the question is still live for the second and the group stays, anchored on the blend. The two questions are kept apart by two methods: `pinned_product_id()` answers *did the recipe decide* (the reference product does not count — it is the site's default for the ingredient, not a statement about this dish), `effective_product_id()` answers *which packet supplies the figures*.
+
+**The product comparison anchors on what is actually in use.** `impact_groups()` takes an optional `products` breakdown (grams per product) per ingredient: one entry anchors the table on that packet, several mean no column carries absolutes and the differences are measured against `blend_nutrition()`, the gram-weighted mix the plan really contains. That keeps the "difference rather than re-run" arithmetic exact — the total moves by (product − mix) × grams whatever the mix was made of — and it is why the weights arrays grew that key rather than the callers picking one packet and being wrong about the other.
 
 **Product** (`mmm_product`, `Mixmymeals_Product`) — a concrete, branded article an ingredient can be bought as. Child of the ingredient via `post_parent` and hidden like `mmm_ingr_unit`, because it is a detail of its parent rather than a page. Meta: the seven nutrition keys under `_mmm_product_*`, plus `_mmm_product_package_weight` (grams per packet), `_mmm_product_brand` (**required** — the admin field carries `required` for existing rows but never for the always-rendered blank one, which would make the ingredient unsaveable; that row is enforced on save instead, and `POST /products` requires it too so automation cannot create rows the admin screen then refuses. An update with an empty brand keeps the stored one: blanking is a loss, not an edit) and `_mmm_product_source`. Edited in the Products meta box on the ingredient screen (`render_ingredient_products_meta_box_content()` / `save_ingredient_products()`), which carries its own nonce and its own `save_post_mmm_ingredient` hook so a screen that does not render it cannot wipe the products by not posting them.
 
@@ -174,7 +207,7 @@ Resolved in `Mixmymeals_Ingredient::get_diet_type()` because that is the single 
 
 **The ingredient resolves through its reference product** (`_mmm_reference_product` on the ingredient, managed by `Mixmymeals_Product::get_reference_id()` / `set_reference_id()`). `Mixmymeals_Ingredient::get_nutrition()` merges the two **key by key**, product first: a packet often states energy and fat and nothing else, and discarding those two because the other five are missing would be the wrong trade. `weight_item` is never overridden — it describes the ingredient (one medium onion), not a packet. Because that getter is the single read path, every channel follows without knowing products exist.
 
-`Mixmymeals_Product::reference_label()` is how a chosen product is named on a shopping list — brand first ("Barilla Penne Rigate"), falling back to the title alone for products from before the brand became required, and empty when nothing was chosen. All three renderings of the list use it: the plan page, the PDF and `Mixmymeals_Subscriptions::render_ingredient_list()` (which also serves the daily list in mails). **Not** the Bring! export: those lines are parsed by Bring! itself and a brand would change what the app splits on.
+`Mixmymeals_Product::label()` is how a product is named on a shopping list (`reference_label( $ingredient_id )` is the same thing looked up from an ingredient's reference) — brand first ("Barilla Penne Rigate"), falling back to the title alone for products from before the brand became required, and empty when nothing was chosen. All three renderings of the list print it, via the `product` field `calc_shopping_list()` puts on the row: the plan page, the PDF and `Mixmymeals_Subscriptions::render_ingredient_list()` (which also serves the daily list in mails). **Not** the Bring! export: those lines are parsed by Bring! itself and a brand would change what the app splits on.
 
 **Products carry their own price, and the ingredient's price resolves through the reference product too.** `_mmm_product_price` (`Mixmymeals_Product::META_PRICE`) holds the price of **one package** — the number on the shelf label — and `get_price_per_100g()` derives the rest from `_mmm_product_package_weight`, returning null unless both are stated. `Mixmymeals_Ingredient::get_price_per_100g()` prefers that over the ingredient's own figure, and since `calculate_cost_for_weight()` is the only thing recipe costs read, every price chip follows. Edit screens and the JSON export read `get_own_price_per_100g()` instead: they write the field back, and showing the resolved figure would copy a product's price into the ingredient on the next save. Over REST and MCP the product carries `price` (null clears) and a read-only `price_per_100g`; the ingredient gains `own_price_per_100g` beside the resolved `price_per_100g`.
 
@@ -355,6 +388,22 @@ Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-socia
 | `mixmymeals_cleanup_tally_line` | Supplies the wording for a key reported via `Mixmymeals_Cleanup::record()`. |
 
 The add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server and `admin-board.js` address those paths, and a separate namespace would break both for no gain.
+
+### Chip wording
+
+**Every chip's text is an option**, and the registry sits in `Mixmymeals_Shortcodes` — the class that renders the chips, so a wording cannot drift away from the markup it words. A chip is the shortest text on a page and the most read; the wording that suits one site ("4 Portionen") is wrong for the next ("für 4 Personen"), and before this the only way to change one was to edit a .po file and lose it on the next update.
+
+`chip_texts()` is the registry: key → `label`, `default` (translated, so an untouched site gets what the translation says), `tokens` it may carry, `required` the ones it is useless without, `group` and `note` for the settings screen. Filter `mixmymeals_chip_texts`. `chip_text( $key, $tokens )` renders and returns plain text — escaping stays with the caller, as everywhere else in that class. Options are `mixmymeals_chip_text_<key>` (`CHIP_TEXT_OPTION_PREFIX`).
+
+**Placeholders are named (`{count}`), not positional.** Word order differs per language and per taste — "{days} Tage {storage}" and "{storage}, {days} Tage" are both reasonable and `%1$s`/`%2$s` cannot express the choice. A placeholder the pattern leaves out is simply not printed; one it invents makes the pattern unusable.
+
+**A pattern that drops a value the chip exists to state is refused** and the default takes over — a servings chip without `{count}` reads "Portionen" on every recipe, a diet chip without `{diet}` the same word beside every diet, and a chip that says the same thing everywhere says nothing. `sanitize_chip_text()` stores such a pattern as empty rather than keeping it, so the field never shows a value that has no effect. `{unit}` is never required: it is the already-inflected word for the count, and a site writing its own noun is deciding, not erring. That is how German says "In {count} Rezepten" where `_n()` can only supply the nominative "Rezepte".
+
+**Plurals stay in the translation, not in the option.** The call site passes `{unit}` from `_n()`; the pattern only places it. One option per chip rather than two, and nobody has to know a language's plural rules to reword a chip.
+
+The screen is the ordinary settings machinery: `Mixmymeals_Settings::chip_text_fields()` builds the tab from the registry (a closure per field carries the key into the sanitiser, since `register_setting()` hands a callback only the value), and `Mixmymeals_Admin_API::display_field()` renders it — its switch dispatches on a `$field_id` that collapses every `chip_text_*` id to one `chip_text` case, because the fields are registered per chip and cannot be listed by name. That case is a copy of the plain-text one at full width: a currency symbol is two characters, a chip pattern is a short sentence.
+
+Note what this does **not** loosen: `disclosure_label_text()` still decides *whether* a label is required and the chip text only words it. A site can word a legal disclosure badly, exactly as it could by mistranslating it before — which is why the German defaults stay "Werbung" and "Gastautor" and the note under the field says so.
 
 ### Settings
 

@@ -688,15 +688,24 @@ class Mixmymeals_Shortcodes {
 		}
 
 		if ( ! empty( $nutrition['calories'] ) ) {
+			$energy_text = self::chip_text(
+				'archive_energy',
+				array( 'kcal' => number_format_i18n( round( $nutrition['calories'] ) ) )
+			);
+
 			$items[] = '<span class="mmm-meta__item mmm-meta__item--calories">'
-			           . esc_html( round( $nutrition['calories'] ) )
-			           . ' kcal</span>';
+			           . esc_html( $energy_text ) . '</span>';
 		}
 		$cost = $recipe->calculate_cost_per_serving();
 		if ( $cost > 0 ) {
 			$currency = get_option( 'mixmymeals_currency', '€' );
+			$price_text = self::chip_text(
+				'archive_price',
+				array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency )
+			);
+
 			$items[]  = '<span class="mmm-meta__item mmm-meta__item--cost">'
-			            . esc_html( number_format_i18n( $cost, 2 ) . ' ' . $currency )
+			            . esc_html( $price_text )
 			            . '</span>';
 		}
 		$terms = get_the_terms( $post_id, 'mmm_recipe_category' );
@@ -714,12 +723,14 @@ class Mixmymeals_Shortcodes {
 					$diet_label = $term->name;
 				} else {
 					$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
-					           . esc_html( $term->name ) . '</span>';
+					           . esc_html( self::chip_text( 'category', array( 'category' => $term->name ) ) )
+					           . '</span>';
 				}
 			}
 			if ( $found_diet !== '' ) {
 				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-				           . esc_html( $diet_label ) . '</span>';
+				           . esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) )
+				           . '</span>';
 			}
 		}
 
@@ -824,6 +835,16 @@ class Mixmymeals_Shortcodes {
 		ksort( $groups, SORT_NATURAL | SORT_FLAG_CASE );
 		if ( ! empty( $uncategorized ) ) {
 			$groups[ __( 'Other', 'mixmymeals' ) ] = $uncategorized;
+		}
+
+		/*
+		 * Queried with fields => 'ids', which skips WP's own priming — so each
+		 * card below would fetch its post, its meta and its terms one at a
+		 * time. On the recipe archive the four browse rows made that a hundred
+		 * queries the page did not carry before they existed.
+		 */
+		if ( function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $ids, true, true );
 		}
 
 		$has_rating  = shortcode_exists( 'mmm_recipe_rating' );
@@ -1122,6 +1143,16 @@ class Mixmymeals_Shortcodes {
 		$ids = array_values( array_filter( array_map( 'intval', $ids ) ) );
 		if ( empty( $ids ) ) {
 			return '';
+		}
+
+		/*
+		 * Queried with fields => 'ids', which skips WP's own priming — so each
+		 * card below would fetch its post, its meta and its terms one at a
+		 * time. On the recipe archive the four browse rows made that a hundred
+		 * queries the page did not carry before they existed.
+		 */
+		if ( function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $ids, true, true );
 		}
 
 		$has_rating  = shortcode_exists( 'mmm_recipe_rating' );
@@ -1768,6 +1799,13 @@ class Mixmymeals_Shortcodes {
                                     </span>
 									<?php endif; ?>
 									<?php if ( $is_optional ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
+									<?php
+									$product_label = $this->pinned_product_label(
+										(int) $ing['id'],
+										(int) ( $ing['product_id'] ?? 0 )
+									);
+									?>
+									<?php if ( '' !== $product_label ) : ?><span class="mmm-ingredient-product"><?php echo esc_html( $product_label ); ?></span><?php endif; ?>
                                 </li>
 							<?php endforeach; ?>
                         </ul>
@@ -1843,7 +1881,8 @@ class Mixmymeals_Shortcodes {
 				continue;
 			}
 
-			$nutrition = $ingredient_obj->get_nutrition();
+			// The packet this row is made of, where it names one.
+			$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
 			$weight    = floatval( $ing['weight_g'] );
 
 			if ( $weight <= 0 ) {
@@ -2249,20 +2288,23 @@ class Mixmymeals_Shortcodes {
 									<?php echo $meal_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 									<?php if ( $meal->get_servings() ) : ?>
                                         <span class="mmm-chip"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
-											printf(
-												'%d %s',
-												(int) $meal->get_servings(),
-												$meal->get_servings() === 1
-													? esc_html__( 'Serving', 'mixmymeals' )
-													: esc_html__( 'Servings', 'mixmymeals' )
+											echo esc_html(
+												self::chip_text(
+													'servings',
+													array(
+														'count' => number_format_i18n( (int) $meal->get_servings() ),
+														/* translators: the word after a number of servings. */
+														'unit'  => _n( 'Serving', 'Servings', (int) $meal->get_servings(), 'mixmymeals' ),
+													)
+												)
 											);
 											?></span>
 									<?php endif; ?>
 									<?php if ( $prep_time_string ) : ?>
-                                        <span class="mmm-chip"><i class="mmm-icon fa-solid fa-clock" aria-hidden="true"></i><?php echo esc_html( $prep_time_string ); ?></span>
+                                        <span class="mmm-chip"><i class="mmm-icon fa-solid fa-clock" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) ) ); ?></span>
 									<?php endif; ?>
 									<?php if ( $cost > 0 ) : ?>
-                                        <span class="mmm-chip mmm-chip--price"><i class="mmm-icon fa-solid fa-tag" aria-hidden="true"></i><?php echo esc_html( number_format_i18n( $cost, 2 ) . ' ' . $currency ); ?></span>
+                                        <span class="mmm-chip mmm-chip--price"><i class="mmm-icon fa-solid fa-tag" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'archive_price', array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency ) ) ); ?></span>
 									<?php endif; ?>
                                 </div>
 
@@ -2391,13 +2433,14 @@ class Mixmymeals_Shortcodes {
 								: '' );
 
 						/*
-						 * The product the plan was costed with, where one was
-						 * chosen. A suggestion, not an instruction — the
-						 * figures on this page assume it, so somebody buying
-						 * something else should at least know which packet the
-						 * numbers came from.
+						 * The packet the plan is made of, where the whole plan
+						 * agrees on one — a recipe's own choice first, then the
+						 * ingredient's reference. A suggestion, not an
+						 * instruction, but the figures on this page assume it,
+						 * so somebody buying something else should at least
+						 * know which packet the numbers came from.
 						 */
-						$reference_label = Mixmymeals_Product::reference_label( (int) $ing_id );
+						$reference_label = (string) ( $data['product'] ?? '' );
 
 						if ( '' !== $reference_label ) {
 							$item_html .= ' <span class="mmm-shopping-item-product">'
@@ -3133,6 +3176,13 @@ class Mixmymeals_Shortcodes {
                                     </span>
 									<?php endif; ?>
 									<?php if ( $is_optional ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
+									<?php
+									$product_label = $this->pinned_product_label(
+										(int) $ing['id'],
+										(int) ( $ing['product_id'] ?? 0 )
+									);
+									?>
+									<?php if ( '' !== $product_label ) : ?><span class="mmm-ingredient-product"><?php echo esc_html( $product_label ); ?></span><?php endif; ?>
                                 </li>
 							<?php endforeach; ?>
                         </ul>
@@ -3401,9 +3451,13 @@ class Mixmymeals_Shortcodes {
 		// Calories
 		// -------------------------
 		if ( ! empty( $nutrition['calories'] ) ) {
+			$energy_text = self::chip_text(
+				'archive_energy',
+				array( 'kcal' => number_format_i18n( round( $nutrition['calories'] ) ) )
+			);
+
 			$items[] = '<span class="mmm-meta__item mmm-meta__item--calories">'
-			           . esc_html( round( $nutrition['calories'] ) )
-			           . ' kcal</span>';
+			           . esc_html( $energy_text ) . '</span>';
 		}
 
 		// -------------------------
@@ -3427,7 +3481,7 @@ class Mixmymeals_Shortcodes {
 				}
 			}
 			$items[] = '<span class="mmm-meta__item mmm-meta__item--prep-time">'
-			           . esc_html( $prep_string )
+			           . esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_string ) ) )
 			           . '</span>';
 		}
 
@@ -3437,8 +3491,13 @@ class Mixmymeals_Shortcodes {
 		$cost = $recipe->calculate_cost_per_serving();
 		if ( $cost > 0 ) {
 			$currency = get_option( 'mixmymeals_currency', '€' );
+			$price_text = self::chip_text(
+				'archive_price',
+				array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency )
+			);
+
 			$items[]  = '<span class="mmm-meta__item mmm-meta__item--cost">'
-			            . esc_html( number_format_i18n( $cost, 2 ) . ' ' . $currency )
+			            . esc_html( $price_text )
 			            . '</span>';
 		}
 
@@ -3466,7 +3525,8 @@ class Mixmymeals_Shortcodes {
 			}
 			if ( $found_diet !== '' ) {
 				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-				           . esc_html( $diet_label ) . '</span>';
+				           . esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) )
+				           . '</span>';
 			}
 		}
 
@@ -3578,7 +3638,7 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 
-        <div class="mmm-plan-builder" data-kcal-unit="<?php echo esc_attr__( 'kcal ps', 'mixmymeals' ); ?>">
+        <div class="mmm-plan-builder" data-kcal-pattern="<?php echo esc_attr( self::chip_text_pattern( 'energy' ) ); ?>">
 
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
@@ -4206,6 +4266,29 @@ class Mixmymeals_Shortcodes {
 	 * @param array $ingredients_raw Entries from Mixmymeals_Recipe::get_ingredients_scaled().
 	 * @return string
 	 */
+	/**
+	 * The article a recipe row names, ready to print beside the ingredient.
+	 *
+	 * Only what the row itself pins — deliberately not the ingredient's
+	 * reference product. The reference is the site's default for figures; the
+	 * pin is the recipe saying "this dish is made with that packet", and only
+	 * the second is a statement about the dish worth putting in its ingredient
+	 * list. The shopping list shows both, because there the question is what to
+	 * buy. Validated through Mixmymeals_Ingredient::pinned_product_id(), which
+	 * is the same "did the recipe decide" the product comparison asks before
+	 * dropping an ingredient.
+	 *
+	 * @param int $ingredient_id The ingredient of the row.
+	 * @param int $pinned        The row's product_id.
+	 * @return string '' when the row pins nothing usable.
+	 */
+	private function pinned_product_label( int $ingredient_id, int $pinned ): string {
+
+		$product_id = Mixmymeals_Ingredient::pinned_product_id( $ingredient_id, $pinned );
+
+		return $product_id > 0 ? ( new Mixmymeals_Product( $product_id ) )->label() : '';
+	}
+
 	private function render_ingredients_list( array $ingredients_raw ): string {
 
 		if ( empty( $ingredients_raw ) ) {
@@ -4236,8 +4319,18 @@ class Mixmymeals_Shortcodes {
 					'weight_g' => 0.0,
 					// Optional only while every use is optional.
 					'optional' => true,
+					// Named only while every step of the dish names the same
+					// one; two steps pinning different packets of one
+					// ingredient is not something a single line can state.
+					'pinned'   => null,
 				];
 			}
+
+			$pinned = (int) ( $ing['product_id'] ?? 0 );
+
+			$ingredients[ $id ]['pinned'] = null === $ingredients[ $id ]['pinned'] || $ingredients[ $id ]['pinned'] === $pinned
+				? $pinned
+				: 0;
 
 			// Aggregation (skalierte Werte direkt verwenden)
 			$ingredients[ $id ]['amount']   += (float) ( $ing['amount'] ?? 0 );
@@ -4269,6 +4362,15 @@ class Mixmymeals_Shortcodes {
 						<span class="mmm-ingredient-name">
 							<?php echo esc_html( $ingredient['name'] ); ?>
 						</span>
+							<?php
+							$product_label = $this->pinned_product_label(
+								(int) $ingredient['id'],
+								(int) ( $ingredient['pinned'] ?? 0 )
+							);
+							?>
+							<?php if ( '' !== $product_label ) : ?>
+								<span class="mmm-ingredient-product"><?php echo esc_html( $product_label ); ?></span>
+							<?php endif; ?>
 
 							<?php if ( ! empty( $ingredient['amount'] ) ) :
 
@@ -4404,7 +4506,9 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' );
+		// Through the energy chip's wording: it states the same fact, and two
+		// wordings for one fact on one page is what this registry removes.
+		return self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) );
 	}
 
 	/**
@@ -4540,25 +4644,42 @@ class Mixmymeals_Shortcodes {
 				?>
 				<?php if ( $num_of_days ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php
-						/* translators: %s = number of days */
-						echo esc_html( str_replace( '%s', number_format_i18n( $num_of_days ), _n( '%s Day', '%s Days', $num_of_days, 'mixmymeals' ) ) );
+						echo esc_html(
+							self::chip_text(
+								'plan_days',
+								array(
+									'count' => number_format_i18n( $num_of_days ),
+									/* translators: the word after a number of days a plan lasts. */
+									'unit'  => _n( 'Day', 'Days', $num_of_days, 'mixmymeals' ),
+								)
+							)
+						);
 						?></span>
 				<?php endif; ?>
 				<?php if ( $num_of_meals ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-book" aria-hidden="true"></i><?php
-						/* translators: %s = number of meals */
-						echo esc_html( str_replace( '%s', number_format_i18n( $num_of_meals ), _n( '%s Recipe', '%s Recipes', $num_of_meals, 'mixmymeals' ) ) );
+						echo esc_html(
+							self::chip_text(
+								'plan_recipes',
+								array(
+									'count' => number_format_i18n( $num_of_meals ),
+									/* translators: the word after a number of recipes on a plan. */
+									'unit'  => _n( 'Recipe', 'Recipes', $num_of_meals, 'mixmymeals' ),
+								)
+							)
+						);
 						?></span>
 				<?php endif; ?>
 				<?php if ( $serving_range_string ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php echo esc_html( $serving_range_string ); ?></span>
+                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'plan_servings', array( 'range' => $serving_range_string ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $avg_cost > 0 ) : ?>
                     <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php
-						printf(
-							/* translators: %s: formatted average cost incl. currency */
-							esc_html__( '%s / serving', 'mixmymeals' ),
-							esc_html( number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
+						echo esc_html(
+							self::chip_text(
+								'price',
+								array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
+							)
 						);
 						?></span>
 				<?php endif; ?>
@@ -4661,27 +4782,31 @@ class Mixmymeals_Shortcodes {
 				?>
 				<?php if ( $servings ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
-						printf(
-							'%d %s',
-							absint( $servings ),
-							1 === $servings
-								? esc_html__( 'Serving', 'mixmymeals' )
-								: esc_html__( 'Servings', 'mixmymeals' )
+						echo esc_html(
+							self::chip_text(
+								'servings',
+								array(
+									'count' => number_format_i18n( absint( $servings ) ),
+									/* translators: the word after a number of servings. */
+									'unit'  => _n( 'Serving', 'Servings', (int) $servings, 'mixmymeals' ),
+								)
+							)
 						);
 						?></span>
 				<?php endif; ?>
 				<?php if ( $prep_time_string ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-clock" aria-hidden="true"></i><?php echo esc_html( $prep_time_string ); ?></span>
+                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-clock" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $kcal > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' ) ); ?></span>
+                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $cost > 0 ) : ?>
                     <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php
-						printf(
-							/* translators: %s: formatted average cost incl. currency */
-							esc_html__( '%s / serving', 'mixmymeals' ),
-							esc_html( number_format_i18n( $cost, 2 ) . ' ' . $currency )
+						echo esc_html(
+							self::chip_text(
+								'price',
+								array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency )
+							)
 						);
 						?></span>
 				<?php endif; ?>
@@ -4953,7 +5078,7 @@ class Mixmymeals_Shortcodes {
 			// arrangement produced it.
 			case Mixmymeals_Post_Meta::DISCLOSURE_SPONSORED:
 			case Mixmymeals_Post_Meta::DISCLOSURE_COOPERATION:
-				$text = __( 'Advertisement', 'mixmymeals' );
+				$text = self::chip_text( 'disclosure_commercial' );
 				break;
 
 			// Editorial transparency, not a legal disclosure: this one says who
@@ -4961,7 +5086,7 @@ class Mixmymeals_Shortcodes {
 			// purpose so it can never be mistaken for the advertising label —
 			// see requires_disclosure_label() for the legal subset.
 			case Mixmymeals_Post_Meta::DISCLOSURE_GUEST:
-				$text = __( 'Guest author', 'mixmymeals' );
+				$text = self::chip_text( 'disclosure_guest' );
 				break;
 
 			default:
@@ -5005,6 +5130,487 @@ class Mixmymeals_Shortcodes {
 			'type' => $type,
 			'text' => $text,
 		);
+	}
+
+	/**
+	 * How chip wordings are stored: this plus the registry key. The settings
+	 * field id is the same without the plugin's own prefix, which
+	 * Mixmymeals_Settings prepends.
+	 *
+	 * @var string
+	 */
+	const CHIP_TEXT_OPTION_PREFIX = 'mixmymeals_chip_text_';
+
+	/**
+	 * The settings field id of a chip wording, before the plugin prefix.
+	 *
+	 * @var string
+	 */
+	const CHIP_TEXT_FIELD_PREFIX = 'chip_text_';
+
+	/**
+	 * The registry, built once per request.
+	 *
+	 * @var array<string, array<string, mixed>>|null
+	 */
+	private static $chip_texts = null;
+
+	/**
+	 * Every chip wording a site can change, and what each may contain.
+	 *
+	 * A chip is the shortest text on a page and the most read — a row of them
+	 * is scanned rather than read — and the wording that suits one site ("4
+	 * Portionen") is wrong for the next ("für 4 Personen"). Until this the only
+	 * way to change one was to edit a .po file, and the change was lost on the
+	 * next update.
+	 *
+	 * It lives in this class because this is where chips are rendered: all but
+	 * two of the call sites are methods below, and a wording that sits next to
+	 * the markup it words cannot drift away from it.
+	 *
+	 * Keyed by chip. `default` is the translated wording, so a site that
+	 * changes nothing gets what the translation says; `tokens` are the
+	 * placeholders that chip can carry and `required` those it is useless
+	 * without; `group` only sorts the settings screen, `note` explains the case
+	 * there. Filter `mixmymeals_chip_texts` so an add-on can register a chip of
+	 * its own — it then gets a settings field and the sanitising for free.
+	 *
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function chip_texts(): array {
+
+		if ( null !== self::$chip_texts ) {
+			return self::$chip_texts;
+		}
+
+		$diet_token    = array( 'diet' => __( 'the diet, e.g. "Vegan"', 'mixmymeals' ) );
+		$storage_token = array( 'storage' => __( 'how it is kept, e.g. "in the fridge"', 'mixmymeals' ) );
+		$unit_token    = array( 'unit' => __( 'the matching word for the number, already in singular or plural', 'mixmymeals' ) );
+
+		$texts = array(
+
+			// --- Diets -------------------------------------------------
+			'diet'                     => array(
+				'group'    => 'diet',
+				'label'    => __( 'Diet, settled', 'mixmymeals' ),
+				/* translators: chip wording. {diet} is the name of a diet, e.g. "Vegan". */
+				'default'  => __( '{diet}', 'mixmymeals' ),
+				'tokens'   => $diet_token,
+				'required' => array( 'diet' ),
+			),
+			'diet_capable'             => array(
+				'group'    => 'diet',
+				'label'    => __( 'Diet, only possible', 'mixmymeals' ),
+				'note'     => __( 'Shown when the dish could be cooked this way but the products chosen do not yet say so.', 'mixmymeals' ),
+				/* translators: chip wording. {diet} is the name of a diet, e.g. "Vegan". */
+				'default'  => __( '{diet}-capable', 'mixmymeals' ),
+				'tokens'   => $diet_token,
+				'required' => array( 'diet' ),
+			),
+
+			// --- Shelf life --------------------------------------------
+			'keeping_days_storage'     => array(
+				'group'    => 'keeping',
+				'label'    => __( 'Keeps, with storage', 'mixmymeals' ),
+				/* translators: chip wording. {days} a number, {unit} day/days, {storage} e.g. "in the fridge". */
+				'default'  => __( '{days} {unit} {storage}', 'mixmymeals' ),
+				'tokens'   => array_merge(
+					array( 'days' => __( 'the number of days', 'mixmymeals' ) ),
+					$unit_token,
+					$storage_token
+				),
+				'required' => array( 'days' ),
+			),
+			'keeping_days'             => array(
+				'group'    => 'keeping',
+				'label'    => __( 'Keeps, storage unknown', 'mixmymeals' ),
+				/* translators: chip wording. {days} a number, {unit} day/days. */
+				'default'  => __( 'Keeps {days} {unit}', 'mixmymeals' ),
+				'tokens'   => array_merge(
+					array( 'days' => __( 'the number of days', 'mixmymeals' ) ),
+					$unit_token
+				),
+				'required' => array( 'days' ),
+			),
+			'keeping_same_day_storage' => array(
+				'group'    => 'keeping',
+				'label'    => __( 'Eat the same day, with storage', 'mixmymeals' ),
+				'note'     => __( 'A shelf life of zero. Never worded as "0 days" — a zero among figures reads as a missing value.', 'mixmymeals' ),
+				/* translators: chip wording. {storage} e.g. "in the fridge". */
+				'default'  => __( 'Same day, {storage}', 'mixmymeals' ),
+				'tokens'   => $storage_token,
+				'required' => array( 'storage' ),
+			),
+			'keeping_same_day'         => array(
+				'group'    => 'keeping',
+				'label'    => __( 'Eat the same day', 'mixmymeals' ),
+				'default'  => __( 'Same day', 'mixmymeals' ),
+				'tokens'   => array(),
+				'required' => array(),
+			),
+			'keeping_storage'          => array(
+				'group'    => 'keeping',
+				'label'    => __( 'Storage alone', 'mixmymeals' ),
+				'note'     => __( 'Nobody has stated a shelf life. {storage} is the bare noun here ("Fridge"), since there is no sentence around it to carry a preposition.', 'mixmymeals' ),
+				/* translators: chip wording. {storage} is the bare noun, e.g. "Fridge". */
+				'default'  => __( '{storage}', 'mixmymeals' ),
+				'tokens'   => $storage_token,
+				'required' => array( 'storage' ),
+			),
+
+			// --- Disclosure --------------------------------------------
+			'disclosure_commercial'    => array(
+				'group'    => 'disclosure',
+				'label'    => __( 'Paid or sponsored content', 'mixmymeals' ),
+				'note'     => __( 'A legal disclosure. Softer wordings such as "in cooperation with" are widely held to be too weak.', 'mixmymeals' ),
+				'default'  => __( 'Advertisement', 'mixmymeals' ),
+				'tokens'   => array(),
+				'required' => array(),
+			),
+			'disclosure_guest'         => array(
+				'group'    => 'disclosure',
+				'label'    => __( 'Guest contribution', 'mixmymeals' ),
+				'note'     => __( 'Transparency, not a legal disclosure — and it must not look like one.', 'mixmymeals' ),
+				'default'  => __( 'Guest author', 'mixmymeals' ),
+				'tokens'   => array(),
+				'required' => array(),
+			),
+
+			// --- Recipes and meals -------------------------------------
+			'servings'                 => array(
+				'group'    => 'stats',
+				'label'    => __( 'Servings', 'mixmymeals' ),
+				/* translators: chip wording. {count} a number, {unit} serving/servings. */
+				'default'  => __( '{count} {unit}', 'mixmymeals' ),
+				'tokens'   => array_merge(
+					array( 'count' => __( 'the number of servings', 'mixmymeals' ) ),
+					$unit_token
+				),
+				'required' => array( 'count' ),
+			),
+			'prep_time'                => array(
+				'group'    => 'stats',
+				'label'    => __( 'Preparation time', 'mixmymeals' ),
+				/* translators: chip wording. {time} is the already formatted duration, e.g. "45 min". */
+				'default'  => __( '{time}', 'mixmymeals' ),
+				'tokens'   => array( 'time' => __( 'the duration, already formatted, e.g. "45 min"', 'mixmymeals' ) ),
+				'required' => array( 'time' ),
+			),
+			'energy'                   => array(
+				'group'    => 'stats',
+				'label'    => __( 'Energy', 'mixmymeals' ),
+				/* translators: chip wording. {kcal} is the energy per serving. */
+				'default'  => __( '{kcal} kcal ps', 'mixmymeals' ),
+				'tokens'   => array( 'kcal' => __( 'kilocalories per serving', 'mixmymeals' ) ),
+				'required' => array( 'kcal' ),
+			),
+			'price'                    => array(
+				'group'    => 'stats',
+				'label'    => __( 'Price', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency. */
+				'default'  => __( '{price} / serving', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
+			),
+			'meal_day'                 => array(
+				'group'    => 'stats',
+				'label'    => __( 'Day of a meal', 'mixmymeals' ),
+				/* translators: chip wording. {day} is a weekday, e.g. "Monday". */
+				'default'  => __( '{day}', 'mixmymeals' ),
+				'tokens'   => array( 'day' => __( 'the day, e.g. "Monday"', 'mixmymeals' ) ),
+				'required' => array( 'day' ),
+			),
+			'meal_type'                => array(
+				'group'    => 'stats',
+				'label'    => __( 'Kind of meal', 'mixmymeals' ),
+				/* translators: chip wording. {type} is breakfast, lunch and so on. */
+				'default'  => __( '{type}', 'mixmymeals' ),
+				'tokens'   => array( 'type' => __( 'the kind of meal, e.g. "Dinner"', 'mixmymeals' ) ),
+				'required' => array( 'type' ),
+			),
+
+			// --- Meal plans --------------------------------------------
+			'plan_days'                => array(
+				'group'    => 'plan',
+				'label'    => __( 'Length of a plan', 'mixmymeals' ),
+				/* translators: chip wording. {count} a number, {unit} day/days. */
+				'default'  => __( '{count} {unit}', 'mixmymeals' ),
+				'tokens'   => array_merge(
+					array( 'count' => __( 'the number of days', 'mixmymeals' ) ),
+					$unit_token
+				),
+				'required' => array( 'count' ),
+			),
+			'plan_recipes'             => array(
+				'group'    => 'plan',
+				'label'    => __( 'Number of recipes', 'mixmymeals' ),
+				/* translators: chip wording. {count} a number, {unit} recipe/recipes. */
+				'default'  => __( '{count} {unit}', 'mixmymeals' ),
+				'tokens'   => array_merge(
+					array( 'count' => __( 'the number of recipes', 'mixmymeals' ) ),
+					$unit_token
+				),
+				'required' => array( 'count' ),
+			),
+			'plan_servings'            => array(
+				'group'    => 'plan',
+				'label'    => __( 'Servings across a plan', 'mixmymeals' ),
+				'note'     => __( 'A range when the meals differ, a single number when they do not.', 'mixmymeals' ),
+				/* translators: chip wording. {range} is e.g. "2–4 servings". */
+				'default'  => __( '{range}', 'mixmymeals' ),
+				'tokens'   => array( 'range' => __( 'the servings, already formatted, e.g. "2–4 servings"', 'mixmymeals' ) ),
+				'required' => array( 'range' ),
+			),
+
+			// --- Ingredients and equipment -----------------------------
+			'ingredient_energy'        => array(
+				'group'    => 'ingredient',
+				'label'    => __( 'Energy of an ingredient', 'mixmymeals' ),
+				/* translators: chip wording. {kcal} is the energy per 100 g. */
+				'default'  => __( '{kcal} kcal / 100 g', 'mixmymeals' ),
+				'tokens'   => array( 'kcal' => __( 'kilocalories per 100 g', 'mixmymeals' ) ),
+				'required' => array( 'kcal' ),
+			),
+			'ingredient_price'         => array(
+				'group'    => 'ingredient',
+				'label'    => __( 'Price of an ingredient', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency. */
+				'default'  => __( '{price} / 100 g', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
+			),
+			'equipment_recipes'        => array(
+				'group'    => 'ingredient',
+				'label'    => __( 'Recipes using a piece of equipment', 'mixmymeals' ),
+				/* translators: chip wording. {count} a number, {unit} recipe/recipes. */
+				'default'  => __( 'Used in {count} {unit}', 'mixmymeals' ),
+				'tokens'   => array_merge(
+					array( 'count' => __( 'the number of recipes', 'mixmymeals' ) ),
+					$unit_token
+				),
+				'required' => array( 'count' ),
+			),
+
+			// --- Cards and archives ------------------------------------
+			'category'                 => array(
+				'group'    => 'archive',
+				'label'    => __( 'Category', 'mixmymeals' ),
+				'note'     => __( 'One chip per category, on cards and on the ingredient header.', 'mixmymeals' ),
+				/* translators: chip wording. {category} is the category name. */
+				'default'  => __( '{category}', 'mixmymeals' ),
+				'tokens'   => array( 'category' => __( 'the name of the category', 'mixmymeals' ) ),
+				'required' => array( 'category' ),
+			),
+			'archive_energy'           => array(
+				'group'    => 'archive',
+				'label'    => __( 'Energy on a card', 'mixmymeals' ),
+				/* translators: chip wording. {kcal} is the energy per serving. */
+				'default'  => __( '{kcal} kcal', 'mixmymeals' ),
+				'tokens'   => array( 'kcal' => __( 'kilocalories per serving', 'mixmymeals' ) ),
+				'required' => array( 'kcal' ),
+			),
+			'archive_price'            => array(
+				'group'    => 'archive',
+				'label'    => __( 'Price on a card', 'mixmymeals' ),
+				'note'     => __( 'The bare amount, as cards have no room for a unit. The per-serving wording is under "Recipes and meals".', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency. */
+				'default'  => __( '{price}', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
+			),
+		);
+
+		self::$chip_texts = (array) apply_filters( 'mixmymeals_chip_texts', $texts );
+
+		return self::$chip_texts;
+	}
+
+	/**
+	 * The groups the settings screen prints as headings, in order.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function chip_text_groups(): array {
+
+		return array(
+			'diet'       => __( 'Diets', 'mixmymeals' ),
+			'keeping'    => __( 'Shelf life and storage', 'mixmymeals' ),
+			'disclosure' => __( 'Disclosure', 'mixmymeals' ),
+			'stats'      => __( 'Recipes and meals', 'mixmymeals' ),
+			'plan'       => __( 'Meal plans', 'mixmymeals' ),
+			'ingredient' => __( 'Ingredients and equipment', 'mixmymeals' ),
+			'archive'    => __( 'Cards and archives', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The pattern in force for a chip: what the site stored, or the default.
+	 *
+	 * @param string $key Registry key.
+	 * @return string '' for a key nobody registered.
+	 */
+	public static function chip_text_pattern( string $key ): string {
+
+		$entry = self::chip_texts()[ $key ] ?? null;
+
+		if ( null === $entry ) {
+			return '';
+		}
+
+		$stored = trim( (string) get_option( self::CHIP_TEXT_OPTION_PREFIX . $key, '' ) );
+
+		return '' !== $stored && self::chip_text_is_usable( $stored, $entry )
+			? $stored
+			: (string) $entry['default'];
+	}
+
+	/**
+	 * Whether a pattern can be used for a chip.
+	 *
+	 * It must carry every value the chip exists to state — a servings chip
+	 * without {count} reads "Portionen" on every recipe, a diet chip without
+	 * {diet} the same word beside every diet, and a chip that says the same
+	 * thing everywhere says nothing. And it may not carry a placeholder nothing
+	 * will fill, which would print its own braces on a public page: the sort of
+	 * thing nobody notices on the settings screen and everybody notices on the
+	 * site.
+	 *
+	 * {unit} is never among the required ones. It is the already-inflected word
+	 * for the count, so a site writing its own noun instead is deciding, not
+	 * erring — which is how German says "In {count} Rezepten" where _n() can
+	 * only supply the nominative.
+	 *
+	 * @param string               $pattern The pattern.
+	 * @param array<string, mixed> $entry   Its registry entry.
+	 * @return bool
+	 */
+	private static function chip_text_is_usable( string $pattern, array $entry ): bool {
+
+		foreach ( (array) ( $entry['required'] ?? array() ) as $token ) {
+			if ( ! str_contains( $pattern, '{' . $token . '}' ) ) {
+				return false;
+			}
+		}
+
+		$known = array_keys( (array) ( $entry['tokens'] ?? array() ) );
+
+		preg_match_all( '/\{([a-z_]+)\}/', $pattern, $found );
+
+		foreach ( $found[1] as $token ) {
+			if ( ! in_array( $token, $known, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * The finished text of one chip.
+	 *
+	 * Placeholders are named rather than positional: word order differs per
+	 * language and per taste — "{days} Tage {storage}" and "{storage}, {days}
+	 * Tage" are both reasonable — and %1$s/%2$s cannot express that choice.
+	 *
+	 * Returns plain text; escaping belongs to the caller, as it does for every
+	 * other string this class renders.
+	 *
+	 * @param string                $key    Registry key.
+	 * @param array<string, string> $tokens Values for the placeholders.
+	 * @return string '' when the pattern renders to nothing, so a caller can
+	 *                simply skip the chip.
+	 */
+	public static function chip_text( string $key, array $tokens = array() ): string {
+
+		$text = self::chip_text_pattern( $key );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$search  = array();
+		$replace = array();
+
+		foreach ( $tokens as $name => $value ) {
+			$search[]  = '{' . $name . '}';
+			$replace[] = (string) $value;
+		}
+
+		$text = str_replace( $search, $replace, $text );
+
+		/*
+		 * A placeholder nobody filled leaves no trace. chip_text_is_usable()
+		 * keeps unknown ones out of a stored pattern, but a default may
+		 * legitimately offer one the caller has nothing for — {storage} on a
+		 * dish where only the shelf life is known — and braces must never reach
+		 * a page.
+		 */
+		$text = (string) preg_replace( '/\{[a-z_]+\}/', '', $text );
+
+		// Removing one leaves the space that went with it.
+		$text = (string) preg_replace( '/\s{2,}/', ' ', $text );
+
+		return trim( $text );
+	}
+
+	/**
+	 * Stores a chip pattern, or nothing.
+	 *
+	 * A pattern that cannot be used is stored as empty rather than kept: it
+	 * would be ignored on render anyway, and a field showing a value that has
+	 * no effect is worse than an empty one. Called from the per-field sanitise
+	 * callbacks Mixmymeals_Settings registers.
+	 *
+	 * @param string $key   Registry key.
+	 * @param mixed  $input Raw input.
+	 * @return string
+	 */
+	public static function sanitize_chip_text( string $key, mixed $input ): string {
+
+		$entry = self::chip_texts()[ $key ] ?? null;
+		$value = trim( sanitize_text_field( (string) $input ) );
+
+		if ( null === $entry || '' === $value ) {
+			return '';
+		}
+
+		return self::chip_text_is_usable( $value, $entry ) ? $value : '';
+	}
+
+	/**
+	 * The help line under a chip field: what it may contain, and any note.
+	 *
+	 * @param array<string, mixed> $entry Registry entry.
+	 * @return string
+	 */
+	public static function chip_text_description( array $entry ): string {
+
+		$parts = array();
+
+		foreach ( (array) ( $entry['tokens'] ?? array() ) as $token => $meaning ) {
+
+			$required = in_array( $token, (array) ( $entry['required'] ?? array() ), true );
+
+			$parts[] = sprintf(
+				/* translators: 1: placeholder, e.g. {count}. 2: what it stands for. */
+				__( '%1$s — %2$s', 'mixmymeals' ),
+				'{' . $token . '}',
+				$required
+					/* translators: %s: what a placeholder stands for. */
+					? sprintf( __( '%s (required)', 'mixmymeals' ), $meaning )
+					: $meaning
+			);
+		}
+
+		$text = empty( $parts )
+			? __( 'No placeholders; this chip states one thing.', 'mixmymeals' )
+			: implode( ' · ', $parts );
+
+		if ( ! empty( $entry['note'] ) ) {
+			$text = $entry['note'] . ' ' . $text;
+		}
+
+		return $text;
 	}
 
 	/**
@@ -5134,10 +5740,11 @@ class Mixmymeals_Shortcodes {
 			: ( Mixmymeals_Post_Types::storage_phrases()[ $storage ] ?? '' );
 
 		/*
-		 * Whole phrases, not a number and a preposition joined at runtime. Word
-		 * order and plural rules differ per language, and the storage phrase is
-		 * only ever interpolated mid-string: German capitalises the first word,
-		 * so none of these templates may open with it.
+		 * One wording per case rather than a number and a preposition joined at
+		 * runtime. Word order differs per language and per site, which is why
+		 * each of the four is its own configurable pattern; the storage phrase
+		 * is only ever interpolated mid-string, so a pattern must not open with
+		 * it in a language that capitalises the first word.
 		 *
 		 * Zero days keeps its own wording. A "0" among chips that read "4
 		 * Portionen" and "520 kcal" looks like a missing value, and this is the
@@ -5147,33 +5754,38 @@ class Mixmymeals_Shortcodes {
 
 			// Storage alone takes the noun the select boxes use, since there is
 			// no sentence around it to carry the preposition.
-			$text = Mixmymeals_Post_Types::storage_types()[ $storage ] ?? '';
+			$text = self::chip_text(
+				'keeping_storage',
+				array( 'storage' => Mixmymeals_Post_Types::storage_types()[ $storage ] ?? '' )
+			);
 
 		} elseif ( 0 === $days ) {
 
 			$text = '' === $phrase
-				? __( 'Same day', 'mixmymeals' )
-				: sprintf(
-					/* translators: %s: storage phrase, e.g. "in the fridge". */
-					__( 'Same day, %s', 'mixmymeals' ),
-					$phrase
-				);
+				? self::chip_text( 'keeping_same_day' )
+				: self::chip_text( 'keeping_same_day_storage', array( 'storage' => $phrase ) );
 
 		} elseif ( '' === $phrase ) {
 
-			$text = sprintf(
-				/* translators: %s: number of days. */
-				_n( 'Keeps %s day', 'Keeps %s days', $days, 'mixmymeals' ),
-				number_format_i18n( $days )
+			$text = self::chip_text(
+				'keeping_days',
+				array(
+					'days' => number_format_i18n( $days ),
+					/* translators: the word after the number of days a dish keeps. */
+					'unit' => _n( 'day', 'days', $days, 'mixmymeals' ),
+				)
 			);
 
 		} else {
 
-			$text = sprintf(
-				/* translators: 1: number of days. 2: storage phrase, e.g. "in the fridge". */
-				_n( '%1$s day %2$s', '%1$s days %2$s', $days, 'mixmymeals' ),
-				number_format_i18n( $days ),
-				$phrase
+			$text = self::chip_text(
+				'keeping_days_storage',
+				array(
+					'days'    => number_format_i18n( $days ),
+					/* translators: the word after the number of days a dish keeps. */
+					'unit'    => _n( 'day', 'days', $days, 'mixmymeals' ),
+					'storage' => $phrase,
+				)
 			);
 		}
 
@@ -5415,24 +6027,27 @@ class Mixmymeals_Shortcodes {
 				echo self::diet_chips( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 				?>
 				<?php if ( $day_label ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo esc_html( $day_label ); ?></span>
+                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'meal_day', array( 'day' => $day_label ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $type_label ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-book" aria-hidden="true"></i><?php echo esc_html( $type_label ); ?></span>
+                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-book" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'meal_type', array( 'type' => $type_label ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $servings ) : ?>
                     <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
-						printf(
-							'%d %s',
-							absint( $servings ),
-							1 === $servings
-								? esc_html__( 'Serving', 'mixmymeals' )
-								: esc_html__( 'Servings', 'mixmymeals' )
+						echo esc_html(
+							self::chip_text(
+								'servings',
+								array(
+									'count' => number_format_i18n( absint( $servings ) ),
+									/* translators: the word after a number of servings. */
+									'unit'  => _n( 'Serving', 'Servings', (int) $servings, 'mixmymeals' ),
+								)
+							)
 						);
 						?></span>
 				<?php endif; ?>
 				<?php if ( $kcal > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( number_format_i18n( $kcal ) . ' ' . __( 'kcal ps', 'mixmymeals' ) ); ?></span>
+                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) ) ); ?></span>
 				<?php endif; ?>
 				<?php
 				// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
@@ -5541,12 +6156,14 @@ class Mixmymeals_Shortcodes {
 			$nutrition = $recipe->calculate_nutrition_per_serving();
 
 			if ( ! empty( $nutrition['calories'] ) ) {
+				$energy_text = self::chip_text(
+					'archive_energy',
+					array( 'kcal' => number_format_i18n( round( $nutrition['calories'] ) ) )
+				);
+
 				$items[]
 					= '<span class="mmm-meta__item mmm-meta__item--calories">'
-					  . esc_html(
-						  number_format_i18n( round( $nutrition['calories'] ) )
-					  )
-					  . ' kcal</span>';
+					  . esc_html( $energy_text ) . '</span>';
 			}
 
 			/* Preparation time */
@@ -5581,7 +6198,7 @@ class Mixmymeals_Shortcodes {
 
 				$items[]
 					= '<span class="mmm-meta__item mmm-meta__item--prep-time">'
-					  . esc_html( $prep_string )
+					  . esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_string ) ) )
 					  . '</span>';
 			}
 
@@ -5613,13 +6230,14 @@ class Mixmymeals_Shortcodes {
 						$diet_label = $cat->name;
 					} else {
 						$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
-						           . esc_html( $cat->name )
+						           . esc_html( self::chip_text( 'category', array( 'category' => $cat->name ) ) )
 						           . '</span>';
 					}
 				}
 				if ( $found_diet !== '' ) {
 					$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-					           . esc_html( $diet_label ) . '</span>';
+					           . esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) )
+					           . '</span>';
 				}
 			}
 
@@ -7220,21 +7838,29 @@ class Mixmymeals_Shortcodes {
 
 			<div class="mmm-plan-hero__meta">
 				<?php foreach ( (array) $cats as $cat ) : ?>
-					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-folder" aria-hidden="true"></i><?php echo esc_html( $cat->name ); ?></span>
+					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-folder" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'category', array( 'category' => $cat->name ) ) ); ?></span>
 				<?php endforeach; ?>
 				<?php if ( '' !== $diet_label ) : ?>
-					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-leaf" aria-hidden="true"></i><?php echo esc_html( $diet_label ); ?></span>
+					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-leaf" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $calories > 0 ) : ?>
 					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php
-						/* translators: %s: calories per 100 g */
-						printf( esc_html__( '%s kcal / 100 g', 'mixmymeals' ), esc_html( number_format_i18n( round( $calories ) ) ) );
+						echo esc_html(
+							self::chip_text(
+								'ingredient_energy',
+								array( 'kcal' => number_format_i18n( round( $calories ) ) )
+							)
+						);
 					?></span>
 				<?php endif; ?>
 				<?php if ( $price > 0 ) : ?>
 					<span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign/" aria-hidden="true"></i><?php
-						/* translators: 1: price, 2: currency symbol */
-						printf( esc_html__( '%1$s %2$s / 100 g', 'mixmymeals' ), esc_html( number_format_i18n( $price, 2 ) ), esc_html( $currency ) );
+						echo esc_html(
+							self::chip_text(
+								'ingredient_price',
+								array( 'price' => number_format_i18n( $price, 2 ) . ' ' . $currency )
+							)
+						);
 					?></span>
 				<?php endif; ?>
 			</div>
@@ -8039,6 +8665,18 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
+		/*
+		 * fields => 'ids' above skips WP's priming, and the loop below asks
+		 * each ingredient for its terms, its permalink and its title — three
+		 * lookups per row. With the library past three hundred ingredients that
+		 * was the single most expensive page on the site.
+		 */
+		if ( function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $ids, true, true );
+		}
+
+		update_object_term_cache( $ids, 'mmm_ingredient' );
+
 		$groups        = array();
 		$uncategorized = array();
 		foreach ( $ids as $id ) {
@@ -8169,10 +8807,15 @@ class Mixmymeals_Shortcodes {
 			<div class="mmm-plan-hero__meta">
 				<?php if ( $recipe_count > 0 ) : ?>
 					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-utensils" aria-hidden="true"></i><?php
-						printf(
-							/* translators: %s: number of recipes using this equipment */
-							esc_html( _n( 'Used in %s recipe', 'Used in %s recipes', $recipe_count, 'mixmymeals' ) ),
-							esc_html( number_format_i18n( $recipe_count ) )
+						echo esc_html(
+							self::chip_text(
+								'equipment_recipes',
+								array(
+									'count' => number_format_i18n( $recipe_count ),
+									/* translators: the word after a number of recipes. */
+									'unit'  => _n( 'recipe', 'recipes', $recipe_count, 'mixmymeals' ),
+								)
+							)
 						);
 					?></span>
 				<?php endif; ?>
@@ -8427,7 +9070,8 @@ class Mixmymeals_Shortcodes {
 				continue;
 			}
 
-			$nutrition = $ingredient_obj->get_nutrition();
+			// The packet this row is made of, where it names one.
+			$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
 			$weight    = floatval( $ing['weight_g'] );
 			if ( $weight <= 0 ) {
 				continue;

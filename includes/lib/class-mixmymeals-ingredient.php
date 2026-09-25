@@ -214,10 +214,80 @@ class Mixmymeals_Ingredient {
 		 * nutrition is read, so recipe pages, plan pages, the PDF, the mails
 		 * and the calculator all follow without knowing products exist.
 		 */
+		return $this->get_nutrition_pinned( 0 );
+	}
+
+	/**
+	 * The nutrition of this ingredient as one recipe row actually cooks it.
+	 *
+	 * A recipe row may name a concrete product; that choice outranks the
+	 * ingredient's reference, because it says which packet goes into *this*
+	 * dish. Nothing pinned, or a product belonging to a different ingredient,
+	 * falls back to the reference — so this is the same answer get_nutrition()
+	 * gives, which is why that method is now a call to this one rather than a
+	 * second implementation of the merge.
+	 *
+	 * @param int $pinned Product ID from the recipe row, 0 when none.
+	 * @return array<string,float|null>
+	 */
+	public function get_nutrition_pinned( int $pinned ): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
 		return self::apply_product(
 			$this->read_own_nutrition(),
-			Mixmymeals_Product::get_reference_id( $this->post_id )
+			self::effective_product_id( $this->post_id, $pinned )
 		);
+	}
+
+	/**
+	 * Which product supplies this ingredient's figures for a given recipe row.
+	 *
+	 * The single place that decides it, so nutrition, price, diet, the shopping
+	 * list and the product comparison cannot disagree about which packet is in
+	 * use. A pinned product wins over the ingredient's reference; a pinned
+	 * product that hangs off a different ingredient counts as nothing pinned,
+	 * exactly as Mixmymeals_Product::get_reference_id() re-validates its own
+	 * stored pointer on every read.
+	 *
+	 * @param int $ingredient_id The ingredient.
+	 * @param int $pinned        Product ID from the recipe row, 0 when none.
+	 * @return int Product ID, or 0 when neither the row nor the ingredient names one.
+	 */
+	public static function effective_product_id( int $ingredient_id, int $pinned = 0 ): int {
+
+		$pin = self::pinned_product_id( $ingredient_id, $pinned );
+
+		return $pin > 0 ? $pin : Mixmymeals_Product::get_reference_id( $ingredient_id );
+	}
+
+	/**
+	 * The product a recipe row names, once validated — and nothing else.
+	 *
+	 * Separate from effective_product_id() because the two answer different
+	 * questions. That one asks which packet supplies the figures, and the
+	 * ingredient's reference is a perfectly good answer. This one asks whether
+	 * *the recipe* decided, which the reference is not: it is the site's
+	 * default for the ingredient, not a statement about this dish. The product
+	 * comparison turns on exactly that difference, and so does whether a
+	 * recipe's ingredient list names an article at all.
+	 *
+	 * @param int $ingredient_id The ingredient of the row.
+	 * @param int $pinned        The row's product_id.
+	 * @return int The product ID, or 0 when the row names none or names one
+	 *             belonging to a different ingredient.
+	 */
+	public static function pinned_product_id( int $ingredient_id, int $pinned ): int {
+
+		if ( $pinned <= 0 ) {
+			return 0;
+		}
+
+		$product = new Mixmymeals_Product( $pinned );
+
+		return $product->is_valid() && $product->get_ingredient_id() === $ingredient_id ? $pinned : 0;
 	}
 
 	/**
@@ -363,11 +433,18 @@ class Mixmymeals_Ingredient {
 		return get_posts( $query_args );
 	}
 
-	public function calculate_cost_for_weight( float $grams ): float {
+	/**
+	 * What a given weight of this ingredient costs.
+	 *
+	 * @param float $grams  Weight in grams.
+	 * @param int   $pinned Product the recipe row names, 0 for none.
+	 * @return float 0 when nobody states a price.
+	 */
+	public function calculate_cost_for_weight( float $grams, int $pinned = 0 ): float {
 		if ( $grams <= 0 ) {
 			return 0.0;
 		}
-		return ( $grams / 100.0 ) * $this->get_price_per_100g();
+		return ( $grams / 100.0 ) * $this->get_price_per_100g_pinned( $pinned );
 	}
 
 	/**
@@ -487,14 +564,28 @@ class Mixmymeals_Ingredient {
 	 * @return float 0 when neither states a price.
 	 */
 	public function get_price_per_100g(): float {
+		return $this->get_price_per_100g_pinned( 0 );
+	}
+
+	/**
+	 * Price per 100 g as one recipe row buys it.
+	 *
+	 * Same rule as get_nutrition_pinned(): the product the row names wins, then
+	 * the ingredient's reference, then the ingredient's own figure. A pinned
+	 * product without a price falls through rather than costing nothing.
+	 *
+	 * @param int $pinned Product ID from the recipe row, 0 when none.
+	 * @return float 0 when nobody states a price.
+	 */
+	public function get_price_per_100g_pinned( int $pinned ): float {
 		if ( ! $this->is_valid() ) {
 			return 0.0;
 		}
 
-		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+		$product_id = self::effective_product_id( $this->post_id, $pinned );
 
-		if ( $reference ) {
-			$product_price = ( new Mixmymeals_Product( $reference ) )->get_price_per_100g();
+		if ( $product_id ) {
+			$product_price = ( new Mixmymeals_Product( $product_id ) )->get_price_per_100g();
 
 			if ( null !== $product_price ) {
 				return $product_price;
@@ -589,16 +680,36 @@ class Mixmymeals_Ingredient {
 			return array();
 		}
 
-		$own       = Mixmymeals_Diet::for_post( $this->post_id );
-		$reference = Mixmymeals_Product::get_reference_id( $this->post_id );
+		return $this->get_diets_pinned( 0 );
+	}
 
-		if ( ! $reference ) {
+	/**
+	 * Everything in force for this ingredient as one recipe row cooks it.
+	 *
+	 * The third of the trio beside get_nutrition_pinned() and
+	 * get_price_per_100g_pinned(), resolving through the same
+	 * effective_product_id(): a pinned product decides for that row, and a
+	 * product belonging elsewhere is ignored rather than trusted.
+	 *
+	 * @param int $pinned Product ID from the recipe row, 0 when none.
+	 * @return string[] Known diet slugs.
+	 */
+	public function get_diets_pinned( int $pinned ): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		$own        = Mixmymeals_Diet::for_post( $this->post_id );
+		$product_id = self::effective_product_id( $this->post_id, $pinned );
+
+		if ( ! $product_id ) {
 			return $own;
 		}
 
 		return Mixmymeals_Diet::apply_product(
 			$own,
-			( new Mixmymeals_Product( $reference ) )->get_diets()
+			( new Mixmymeals_Product( $product_id ) )->get_diets()
 		);
 	}
 

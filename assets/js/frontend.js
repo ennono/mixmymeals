@@ -421,7 +421,9 @@ jQuery(function ($) {
         const $builder = $('.mmm-plan-builder');
         if (!$builder.length) return;
 
-        const unit = $builder.data('kcal-unit') || 'kcal';
+        // The whole pattern, not just the unit: where the number goes is part
+        // of the wording the site configured.
+        const pattern = String($builder.data('kcal-pattern') || '{kcal} kcal');
 
         $builder.find('.mmm-plan-day').each(function () {
             const $day = $(this);
@@ -434,7 +436,7 @@ jQuery(function ($) {
             const $value = $total.find('[data-day-total]');
 
             if (sum > 0) {
-                $value.text('≈ ' + sum.toLocaleString() + ' ' + unit);
+                $value.text('≈ ' + pattern.replace('{kcal}', sum.toLocaleString()));
                 $total.prop('hidden', false);
             } else {
                 $value.text('');

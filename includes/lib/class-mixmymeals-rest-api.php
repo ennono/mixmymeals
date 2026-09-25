@@ -1768,6 +1768,11 @@ class Mixmymeals_Rest_Api {
 					'ingredient_name' => get_the_title( $ing_id ),
 					'total_weight_g'  => round( (float) $data['total_weight'], 2 ),
 					'optional'        => ! empty( $data['optional'] ),
+					// The article this plan's rows agree on — a recipe's pinned
+					// product first, then the ingredient's reference. 0 and ''
+					// where they disagree, because no single one is right then.
+					'product_id'      => (int) ( $data['product_id'] ?? 0 ),
+					'product'         => (string) ( $data['product'] ?? '' ),
 					'details'         => array_map( static fn( $d ) => array(
 						'recipe_name' => $d['recipe_name'],
 						'amount'      => $d['amount'],
