@@ -239,6 +239,8 @@ Two rules the handler keeps that the setters do not: an **empty recipe keeps the
 
 Round trips through the callback are in `tools/plan-meals-test.php` (not distributed), the way the recipe-steps lesson above asks for.
 
+**The meal has no entry in the admin menu** (`show_in_menu => false`): a list of every meal of every plan sorts by nothing that matters and each row means nothing without its plan, and the box is now the way in. `show_ui` stays **true**, because that box links each row to the meal's own screen — and `parent_file` is filtered (`highlight_meal_parent_menu()`) so Meal Plans stays lit while a meal is open, or the whole menu goes dark on the one screen whose only route in is a plan. `show_in_admin_bar` follows `show_in_menu`, so "+ New → Meal" goes with it. The list table at `edit.php?post_type=mmm_meal` is still reachable by address; it is only unlisted.
+
 **Meal Plan** — meta: `start_day` and `end_day` (1=Mon … 7=Sun). Plans can span across Sunday (e.g. start=6, end=2).
 
 ### Ingredient amounts and weight calculation

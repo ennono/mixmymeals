@@ -124,6 +124,11 @@ Added:
 * Ingredient units say which recipes use them — the titles, linked and
   shortened, instead of a bare count.
 
+Changed:
+* Meals are gone from the admin menu. They are planned in the plan they belong
+  to; a list of every meal of every plan was a list nobody started from. Each
+  meal keeps its own screen, linked from the plan's table.
+
 Fixed:
 * Two stray debug writes on every meal edit screen.
 

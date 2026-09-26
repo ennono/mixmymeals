@@ -272,6 +272,30 @@ class Mixmymeals_Post_Types {
 		// Yoast's own filter, for the case where it prints robots outside the
 		// core pipeline. Same decision, so the two cannot disagree.
 		add_filter( 'wpseo_robots_array', array( $this, 'filter_yoast_robots' ), 20 );
+
+		add_filter( 'parent_file', array( $this, 'highlight_meal_parent_menu' ) );
+	}
+
+	/**
+	 * Keeps Meal Plans lit while a meal is being edited.
+	 *
+	 * The meal has no menu entry of its own any more, so without this the
+	 * whole menu goes dark on its screen and the one route in — the plan's
+	 * Meals box — is nowhere on the page. Meal Plans is where that screen was
+	 * reached from and where closing it should lead back to.
+	 *
+	 * @param string $parent_file The menu item slug core picked.
+	 * @return string
+	 */
+	public function highlight_meal_parent_menu( $parent_file ) {
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( $screen && 'mmm_meal' === $screen->post_type ) {
+			return 'edit.php?post_type=mmm_meal_plan';
+		}
+
+		return $parent_file;
 	}
 
 	/**
@@ -563,8 +587,20 @@ class Mixmymeals_Post_Types {
 		$args = array(
 			'labels'              => $labels,
 			'public'              => true,
+
+			/*
+			 * No entry in the admin menu, but the screen stays: meals are
+			 * planned in the plan's own Meals box, so a list of every meal of
+			 * every plan is a list nobody starts from — it sorts by nothing
+			 * that matters and each row means nothing without its plan. The
+			 * edit screen is still reachable, because the box links each row
+			 * to it for what the table leaves out (note, status, title), so
+			 * show_ui has to stay true. show_in_admin_bar follows
+			 * show_in_menu, so "+ New → Meal" goes with it.
+			 */
 			'show_ui'             => true,
-			'show_in_menu'        => 'edit.php?post_type=mmm_meal_plan',
+			'show_in_menu'        => false,
+
 			'show_in_rest'        => true,
 			'supports'            => array( 'title' ),
 			'has_archive'         => false,
