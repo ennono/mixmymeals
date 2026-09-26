@@ -522,7 +522,11 @@ class Mixmymeals_Post_Meta {
 		// Nonce für Sicherheit
 		wp_nonce_field( 'mmm_recipe_details_nonce', 'mmm_recipe_details_nonce_field' );
 
-		$recipe           = new Mixmymeals_Recipe( $post->ID );
+		$recipe = new Mixmymeals_Recipe( $post->ID );
+
+		// Empty rather than 0 when nobody has timed the dish: the field is the
+		// one place an editor would read a zero as a statement, and the archive
+		// filter now treats the absence of the row as "not stated".
 		$preparation_time = $recipe->get_preparation_time();
 		?>
 		<p>
@@ -535,9 +539,10 @@ class Mixmymeals_Post_Meta {
 				type="number"
 				id="mmm_preparation_time"
 				name="mmm_preparation_time"
-				value="<?php echo esc_attr( $preparation_time ); ?>"
-				min="0"
+				value="<?php echo esc_attr( $preparation_time > 0 ? (string) $preparation_time : '' ); ?>"
+				min="1"
 				step="1"
+				placeholder="<?php esc_attr_e( 'not stated', 'mixmymeals' ); ?>"
 				style="width:100%;"
 			/>
 		</p>

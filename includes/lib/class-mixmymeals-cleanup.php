@@ -152,6 +152,16 @@ class Mixmymeals_Cleanup {
 		$plans   = $this->delete_uncategorized_meal_plans();
 		$orphans = $this->delete_orphaned_meals();
 
+		/*
+		 * Der Archiv-Index der Rezepte, einmal täglich nachgerechnet. Er hängt
+		 * drei Schritte entfernt an Zutaten, Produkten und deren Termen; die
+		 * Hooks fangen das im Betrieb ab, aber bei drei Schritten ist ein
+		 * vergessener Hook keine Vermutung, sondern eine Frage der Zeit. Die
+		 * gemeldete Zahl ist der Messwert dafür: sie gehört auf Dauer auf 0,
+		 * und jede andere Zahl ist ein fehlender Hook, keine Toleranz.
+		 */
+		self::record( 'recipe_indexes', Mixmymeals_Recipe::recount_all_indexes() );
+
 		$stats = array(
 			'plans'        => $plans['plans'],
 			'plan_meals'   => $plans['meals'],
@@ -184,8 +194,13 @@ class Mixmymeals_Cleanup {
 	 * that never send a report. Cron scheduling stays independent — this only
 	 * passes numbers along.
 	 *
+	 * Mostly deletions, which is what the report is about — but also anything
+	 * a routine silently put right and that somebody ought to see, such as the
+	 * recipe index the daily run recomputes. A number that never returns to
+	 * zero is the point of reporting it.
+	 *
 	 * @param string $key   Identifier, see tally_line().
-	 * @param int    $count Number of deleted items.
+	 * @param int    $count Number of items deleted or corrected.
 	 *
 	 * @return void
 	 */
@@ -407,6 +422,16 @@ class Mixmymeals_Cleanup {
 		}
 
 		switch ( $key ) {
+
+			case 'recipe_indexes':
+				/* translators: %d: number of recipes whose archive index was rebuilt. */
+				$text = _n(
+					'%d recipe index recomputed',
+					'%d recipe indexes recomputed',
+					$count,
+					'mixmymeals'
+				);
+				break;
 
 			case 'mail_log_entries':
 				/* translators: %d: number of deleted mail log entries. */

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.34.0
+Stable tag: 3.35.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,39 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.35.0 =
+
+Added:
+* Recipes can be narrowed down by diet, by preparation time and by the
+  ingredients you happen to have. Each single filter has an address of its own
+  — /rezepte/vegan/, /rezepte/unter-30-minuten/ — so it can be shared and
+  bookmarked; combinations sit behind it as parameters.
+* A field "I have these in": name a few ingredients and the recipes using most
+  of them come first, with a chip on each card saying how many of them it uses.
+* The diet filter collects what a dish **can** be cooked as, so a recipe whose
+  pill reads "Vegan-capable" is in the list. The view says so in a line under
+  its heading, because a filter that quietly means something else is worse than
+  none.
+* The filters in force are shown as a row of chips above the list, each of them
+  removable on its own — with two or three filters running there was nowhere on
+  the page that said what the list was narrowed by.
+* The preparation time is now on the archive cards. It was the one figure the
+  cards never carried, which made "something quick" unanswerable from a listing.
+
+Changed:
+* A recipe with no stated preparation time no longer counts as taking zero
+  minutes: the field is now empty rather than 0, so "under 20 minutes" lists
+  dishes somebody actually timed. The same correction applies to the REST recipe
+  search, where an untimed recipe used to pass every time limit.
+* A category that happens to be called "Vegan" is shown as a category. It used
+  to be reprinted as a diet label, which put an editorial claim beside the one
+  computed from the ingredients — two answers to a question people act on.
+
+Fixed:
+* The list of recipes on an ingredient page broke off after 24 entries, in the
+  middle of the alphabet, and could stay an hour out of date. It is complete and
+  current now.
 
 = 3.34.0 =
 
@@ -1034,6 +1067,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.35.0 =
+Recipes can now be filtered by diet, time and the ingredients you have.
 
 = 3.34.0 =
 Diets became a taxonomy, a product chosen in a recipe now counts everywhere, and every chip's wording is configurable.

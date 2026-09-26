@@ -24,6 +24,25 @@ class Mixmymeals_Recipe {
 	const META_IS_FAVORITE = '_mmm_is_favorite';
 
 	/**
+	 * How long the dish takes, in minutes. **Absent when nobody has said** —
+	 * see set_preparation_time() for why this field, unlike the shelf life,
+	 * needs no separate "stated as zero" case.
+	 *
+	 * @var string
+	 */
+	const META_PREP_TIME = '_mmm_preparation_time';
+
+	/**
+	 * The thresholds the archive offers as "under N minutes", ascending.
+	 *
+	 * A short, fixed scale rather than free input: these are links with paths
+	 * of their own, and a path per arbitrary number is a page per number.
+	 *
+	 * @var int[]
+	 */
+	const PREP_TIME_STEPS = array( 20, 30, 60 );
+
+	/**
 	 * Per-request nutrition per serving, keyed by recipe ID.
 	 *
 	 * @var array<int, array<string,float>>
@@ -200,14 +219,15 @@ class Mixmymeals_Recipe {
 
 		// After the post type is registered (init 10), before the plugin's own
 		// flush runs (init 99).
-		add_action( 'init', array( __CLASS__, 'add_browse_view_rules' ), 20 );
+		add_action( 'init', array( __CLASS__, 'add_archive_view_rules' ), 20 );
 		add_filter( 'query_vars', array( __CLASS__, 'add_browse_view_query_var' ) );
 		add_filter( 'wp_unique_post_slug', array( __CLASS__, 'reserve_browse_view_slugs' ), 10, 4 );
 	}
 
 	/**
 	 * The rewrite rules that give every view a path of its own:
-	 * /recipes/frequently-cooked/ and its page/2/.
+	 * /recipes/frequently-cooked/, /recipes/vegan/, /recipes/under-30-minutes/
+	 * and each of their page/2/.
 	 *
 	 * Registered at the top, so a view wins over the post type's own
 	 * /recipes/{name}/ rule. That is a reservation, not a coincidence — the
@@ -220,7 +240,7 @@ class Mixmymeals_Recipe {
 	 *
 	 * @return void
 	 */
-	public static function add_browse_view_rules(): void {
+	public static function add_archive_view_rules(): void {
 
 		$base = self::archive_rewrite_base();
 
@@ -228,15 +248,12 @@ class Mixmymeals_Recipe {
 			return;
 		}
 
-		$slugs = self::browse_view_slugs();
+		$slugs = self::archive_view_slugs();
 
-		foreach ( $slugs as $view => $slug ) {
+		foreach ( $slugs as $slug => $entry ) {
 
-			if ( '' === $slug ) {
-				continue;
-			}
-
-			$target = 'index.php?post_type=mmm_recipe&' . self::BROWSE_VIEW_VAR . '=' . rawurlencode( $view );
+			$target = 'index.php?post_type=mmm_recipe&'
+				. self::facet_query_var( (string) $entry[0] ) . '=' . rawurlencode( (string) $entry[1] );
 
 			add_rewrite_rule( '^' . $base . '/' . $slug . '/?$', $target, 'top' );
 			add_rewrite_rule(
@@ -291,12 +308,14 @@ class Mixmymeals_Recipe {
 	public static function add_browse_view_query_var( $vars ) {
 
 		$vars[] = self::BROWSE_VIEW_VAR;
+		$vars[] = self::DIET_VIEW_VAR;
+		$vars[] = self::TIME_VIEW_VAR;
 
 		return $vars;
 	}
 
 	/**
-	 * Keeps recipes out of the four paths the views occupy.
+	 * Keeps recipes out of the paths the archive's own views occupy.
 	 *
 	 * Without this a recipe called "Frequently cooked" would take the slug
 	 * haeufig-gekocht, and its page would be unreachable ever after — the view
@@ -304,8 +323,13 @@ class Mixmymeals_Recipe {
 	 * recipe on the way in is the lesser surprise: it happens while somebody is
 	 * looking at the editor, rather than silently months later.
 	 *
-	 * Both vocabularies are reserved, the internal keys as well as the
-	 * translated slugs, because both resolve to a view.
+	 * Every slug in the registry is reserved: the browse views, the diets, the
+	 * time steps, and for each of them both the internal key and the translated
+	 * word, because both resolve to a view.
+	 *
+	 * Note what this cannot do: a recipe that already holds one of these slugs
+	 * keeps it and becomes unreachable the moment the rule appears. New paths
+	 * therefore need a look at the existing slugs before they go live.
 	 *
 	 * @param string $slug      The unique slug WordPress settled on.
 	 * @param int    $post_id   Post ID.
@@ -319,7 +343,7 @@ class Mixmymeals_Recipe {
 			return $slug;
 		}
 
-		$taken = array_merge( self::browse_views(), array_values( self::browse_view_slugs() ) );
+		$taken = array_keys( self::archive_view_slugs() );
 
 		if ( ! in_array( (string) $slug, $taken, true ) ) {
 			return $slug;
@@ -440,6 +464,218 @@ class Mixmymeals_Recipe {
 		$view = array_search( $slug, self::browse_view_slugs(), true );
 
 		return is_string( $view ) ? $view : '';
+	}
+
+
+	/**
+	 * Query variable carrying a diet facet, filled by the rewrite rule.
+	 *
+	 * Deliberately not `mmm_diet`: that is the taxonomy's name. One word for
+	 * two things is the sort of trap somebody walks into a year later.
+	 *
+	 * @var string
+	 */
+	const DIET_VIEW_VAR = 'mmm_diet_view';
+
+	/**
+	 * Query variable carrying a time facet.
+	 *
+	 * @var string
+	 */
+	const TIME_VIEW_VAR = 'mmm_time_view';
+
+	/**
+	 * Every path the recipe archive answers under, as slug => [kind, value].
+	 *
+	 * Three families share one namespace — the browse views that were here
+	 * first, the diets and the time steps — so they share one registry, one
+	 * reservation against recipe slugs, one fingerprint and one flush. Three
+	 * parallel slug managers under /recipes/ would be the actual bug.
+	 *
+	 * Both vocabularies are registered for each entry: the internal key
+	 * (`gluten_free`) as well as the translated slug (`glutenfrei`), so a
+	 * shared link survives a change of wording. Where two families want the
+	 * same slug the first one keeps it, which makes the outcome depend on the
+	 * order here and not on the order a hash happens to have.
+	 *
+	 * @return array<string, array{0:string,1:mixed}>
+	 */
+	public static function archive_view_slugs(): array {
+
+		$map = array();
+
+		$claim = static function ( $slug, $kind, $value ) use ( &$map ) {
+
+			$slug = sanitize_title( (string) $slug );
+
+			if ( '' !== $slug && ! isset( $map[ $slug ] ) ) {
+				$map[ $slug ] = array( $kind, $value );
+			}
+		};
+
+		// Browse views first: they are the oldest addresses on this archive.
+		foreach ( self::browse_view_slugs() as $view => $slug ) {
+			$claim( $view, 'view', $view );
+			$claim( $slug, 'view', $view );
+		}
+
+		foreach ( array_keys( Mixmymeals_Diet::types() ) as $diet ) {
+			$claim( $diet, 'diet', $diet );
+			$claim( Mixmymeals_Diet::label( $diet ), 'diet', $diet );
+		}
+
+		foreach ( self::prep_time_steps() as $minutes ) {
+
+			// The untranslated literal first, as the stable key: it is what the
+			// diets get from their internal slug, and without it a translated
+			// time path would break every link shared before the translation.
+			// In an untranslated install the two are the same word and the
+			// second claim simply finds the slug taken.
+			$claim( sprintf( 'under-%d-minutes', $minutes ), 'time', $minutes );
+			$claim( self::time_view_slug( $minutes ), 'time', $minutes );
+		}
+
+		/**
+		 * Filters the paths the recipe archive answers under.
+		 *
+		 * @param array<string, array{0:string,1:mixed}> $map Slug => [kind, value].
+		 */
+		return (array) apply_filters( 'mixmymeals_archive_view_slugs', $map );
+	}
+
+	/**
+	 * The translatable slug of one time step.
+	 *
+	 * Literal _x() calls per step rather than a built string, for the reason
+	 * translated_view_slug() already gives: a slug assembled at runtime never
+	 * reaches the .pot file. A step a filter added falls back to a built slug,
+	 * which is untranslated but reachable — better than no path at all.
+	 *
+	 * @param int $minutes The step.
+	 * @return string
+	 */
+	private static function time_view_slug( int $minutes ): string {
+
+		switch ( $minutes ) {
+
+			case 20:
+				return _x( 'under-20-minutes', 'archive view URL slug', 'mixmymeals' );
+
+			case 30:
+				return _x( 'under-30-minutes', 'archive view URL slug', 'mixmymeals' );
+
+			case 60:
+				return _x( 'under-60-minutes', 'archive view URL slug', 'mixmymeals' );
+
+			default:
+				return sprintf(
+					/* translators: %d: number of minutes. Slug for an archive path, lowercase and hyphenated. */
+					_x( 'under-%d-minutes', 'archive view URL slug', 'mixmymeals' ),
+					$minutes
+				);
+		}
+	}
+
+	/**
+	 * What a URL slug names, or an empty array when it names nothing.
+	 *
+	 * @param string $slug Raw slug from the URL.
+	 * @return array{kind:string, value:mixed}|array{}
+	 */
+	public static function resolve_archive_view( string $slug ): array {
+
+		$slug = sanitize_title( $slug );
+
+		if ( '' === $slug ) {
+			return array();
+		}
+
+		$entry = self::archive_view_slugs()[ $slug ] ?? null;
+
+		if ( null === $entry ) {
+			return array();
+		}
+
+		return array(
+			'kind'  => (string) $entry[0],
+			'value' => 'time' === $entry[0] ? (int) $entry[1] : (string) $entry[1],
+		);
+	}
+
+	/**
+	 * The archive URL for one facet, with any other filters as parameters.
+	 *
+	 * @param string               $kind   'view', 'diet' or 'time'.
+	 * @param string|int           $value  The facet's value.
+	 * @param array<string,string> $params Further filters to carry along.
+	 * @return string '' when there is no such facet or no archive.
+	 */
+	public static function archive_view_url( string $kind, $value, array $params = array() ): string {
+
+		$base = get_post_type_archive_link( 'mmm_recipe' );
+
+		if ( ! $base ) {
+			return '';
+		}
+
+		/*
+		 * add_query_arg() urlencodes the arguments a URL already carries and
+		 * passes new ones through untouched, so a value with a space or a comma
+		 * has to arrive encoded. esc_url() papers over the space at print time,
+		 * which is exactly why an unencoded URL survives a visual check and
+		 * breaks wherever it is used raw.
+		 */
+		$params = array_map( 'rawurlencode', array_map( 'strval', $params ) );
+
+		$slug = '';
+
+		foreach ( self::archive_view_slugs() as $candidate => $entry ) {
+			if ( $entry[0] === $kind && (string) $entry[1] === (string) $value ) {
+				$slug = $candidate;
+				// The last match is the translated one, which is the vocabulary
+				// a link should be built in; the internal key stays as a way in.
+			}
+		}
+
+		if ( '' === $slug ) {
+			return $params ? add_query_arg( $params, $base ) : $base;
+		}
+
+		/*
+		 * With pretty permalinks the rewrite rule answers this path; without
+		 * them there is no rule and the parameter is all there is. Both arrive
+		 * at the same query.
+		 */
+		if ( get_option( 'permalink_structure' ) ) {
+			$url = user_trailingslashit( trailingslashit( $base ) . $slug );
+
+			return $params ? add_query_arg( $params, $url ) : $url;
+		}
+
+		$var = self::facet_query_var( $kind );
+
+		return add_query_arg( array_merge( array( $var => (string) $value ), $params ), $base );
+	}
+
+	/**
+	 * The query variable a facet arrives in.
+	 *
+	 * @param string $kind 'view', 'diet' or 'time'.
+	 * @return string
+	 */
+	public static function facet_query_var( string $kind ): string {
+
+		switch ( $kind ) {
+
+			case 'diet':
+				return self::DIET_VIEW_VAR;
+
+			case 'time':
+				return self::TIME_VIEW_VAR;
+
+			default:
+				return self::BROWSE_VIEW_VAR;
+		}
 	}
 
 	/**
@@ -1872,6 +2108,630 @@ class Mixmymeals_Recipe {
 		}
 	}
 
+
+	/*
+	----------------------------------------------------------
+	ARCHIVE INDEX
+	----------------------------------------------------------
+	*/
+
+	/**
+	 * The diets this recipe can be cooked for, one meta row per slug.
+	 *
+	 * **This index answers queries. It never states anything.** The chips, the
+	 * schema and the REST output all keep computing through get_diets() and
+	 * get_diet_suitabilities(), because a diet is a claim people act on and a
+	 * stale row must not be able to put "vegan" on a page. What a stale row can
+	 * do is leave a recipe out of a filtered list — a visible, harmless kind of
+	 * wrong, and the direction this whole mechanism is built to fail in.
+	 *
+	 * Meta rather than terms on purpose: an mmm_diet term means "somebody said
+	 * so" everywhere else in this plugin, and Mixmymeals_Diet::for_post() would
+	 * start answering for recipes the moment the taxonomy knew them. Meta
+	 * cannot be mistaken for a statement, has no admin column, no metabox and
+	 * no REST route anybody could set by hand.
+	 *
+	 * Absent when the recipe is classified nowhere — the META_COOK_COUNT
+	 * convention, so "no diet at all" stays a cheap NOT EXISTS.
+	 *
+	 * @var string
+	 */
+	const META_DIET_INDEX = '_mmm_diet_index';
+
+	/**
+	 * The ingredients of this recipe, one meta row per ingredient ID.
+	 *
+	 * Exists so that "which recipes use this ingredient" is an indexed query
+	 * instead of an unanchored LIKE over serialized step meta. It also carries
+	 * this index's own invalidation: when an ingredient's diet changes, this is
+	 * how the recipes that have to be recomputed are found.
+	 *
+	 * @var string
+	 */
+	const META_INGREDIENT_INDEX = '_mmm_ingredient_index';
+
+	/**
+	 * Gate for the one-off backfill; bump to rebuild every index.
+	 *
+	 * @var string
+	 */
+	const INDEX_BACKFILL_OPTION = 'mixmymeals_recipe_index_version';
+
+	/**
+	 * The version the gate compares against.
+	 *
+	 * @var string
+	 */
+	const INDEX_BACKFILL_VERSION = '1';
+
+	/**
+	 * Recipes queued for reindexing at the end of the request.
+	 *
+	 * @var array<int, bool>
+	 */
+	private static $index_dirty = array();
+
+	/**
+	 * Whether the shutdown flush is already attached.
+	 *
+	 * @var bool
+	 */
+	private static $index_flush_hooked = false;
+
+	/**
+	 * Guards against re-entering the flush from the writes it performs.
+	 *
+	 * @var bool
+	 */
+	private static $index_flushing = false;
+
+	/**
+	 * How many recipes one request will reindex before handing the rest to
+	 * cron.
+	 *
+	 * Saving an ingredient that appears in a hundred dishes queues a hundred
+	 * recipes, and each of them walks its whole ingredient list through
+	 * products and terms. Inline that is a save that appears to hang. The
+	 * counter has the same batching problem and answers it with `shutdown`;
+	 * here `shutdown` is not far enough.
+	 *
+	 * @var int
+	 */
+	const INDEX_FLUSH_MAX = 40;
+
+	/**
+	 * The event the overflow is handed to.
+	 *
+	 * @var string
+	 */
+	const INDEX_CRON_HOOK = 'mixmymeals_reindex_recipes';
+
+	/**
+	 * Rebuilds this recipe's index rows from the recipe itself.
+	 *
+	 * Recomputed, never patched — the same rule recount_cook_count() keeps, and
+	 * for the same reason: a value that is only ever derived cannot drift if
+	 * nothing is allowed to nudge it.
+	 *
+	 * Writes only on difference, so an unchanged recipe costs a read and
+	 * nothing else, and the meta cache of every other recipe stays warm.
+	 *
+	 * @return bool Whether anything changed.
+	 */
+	public function recount_indexes(): bool {
+
+		if ( ! $this->is_valid() ) {
+			return false;
+		}
+
+		$ingredients = array();
+
+		foreach ( $this->get_ingredients_normalized() as $row ) {
+			$id = (int) ( $row['id'] ?? 0 );
+
+			if ( $id > 0 ) {
+				$ingredients[ $id ] = $id;
+			}
+		}
+
+		$changed = self::sync_index_rows( $this->post_id, self::META_INGREDIENT_INDEX, array_values( $ingredients ) );
+
+		// The capable set, not the one in force: the filter answers "what can I
+		// cook", and the chip beside it keeps the distinction between "Vegan"
+		// and "Vegan-capable".
+		$changed = self::sync_index_rows(
+			$this->post_id,
+			self::META_DIET_INDEX,
+			Mixmymeals_Diet::expand( $this->get_diet_suitabilities() )
+		) || $changed;
+
+		/*
+		 * A zero left behind by the core meta route, which sanitises with
+		 * absint() and never sees set_preparation_time(). Cleaning it here is
+		 * what keeps such a recipe out of the fastest time bucket — one write
+		 * late, but without a filter on update_post_metadata.
+		 */
+		$stored = get_post_meta( $this->post_id, self::META_PREP_TIME, true );
+
+		if ( '' !== $stored && (int) $stored <= 0 ) {
+			delete_post_meta( $this->post_id, self::META_PREP_TIME );
+			$changed = true;
+		}
+
+		return $changed;
+	}
+
+	/**
+	 * Brings one repeated meta key in line with a list of values.
+	 *
+	 * @param int                    $post_id Post to write to.
+	 * @param string                 $key     Meta key.
+	 * @param array<int, string|int> $values  What it should hold; empty deletes the key.
+	 * @return bool Whether anything changed.
+	 */
+	private static function sync_index_rows( int $post_id, string $key, array $values ): bool {
+
+		$want = array_values( array_unique( array_map( 'strval', $values ) ) );
+		$have = array_map( 'strval', (array) get_post_meta( $post_id, $key, false ) );
+
+		sort( $want );
+		sort( $have );
+
+		if ( $want === $have ) {
+			return false;
+		}
+
+		delete_post_meta( $post_id, $key );
+
+		foreach ( $want as $value ) {
+			add_post_meta( $post_id, $key, $value );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Rebuilds every recipe's index. Backfill and repair in one.
+	 *
+	 * Warms the whole library once before walking it: the diets of one recipe
+	 * reach through its ingredients into their products and those products'
+	 * terms, and priming per recipe would ask for the same ingredient again for
+	 * every dish it appears in.
+	 *
+	 * @return int How many recipes changed.
+	 */
+	public static function recount_all_indexes(): int {
+
+		$recipe_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		if ( empty( $recipe_ids ) ) {
+			return 0;
+		}
+
+		$recipe_ids = array_map( 'intval', (array) $recipe_ids );
+
+		update_meta_cache( 'post', $recipe_ids );
+
+		// Everything the diet answer reaches through, primed in two queries
+		// rather than two per recipe.
+		$ingredient_ids = array();
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$steps = get_post_meta( $recipe_id, '_rmm_steps', true );
+
+			if ( ! is_array( $steps ) ) {
+				continue;
+			}
+
+			foreach ( $steps as $step ) {
+				foreach ( (array) ( $step['ingredients'] ?? array() ) as $entry ) {
+					$id = (int) ( $entry['id'] ?? 0 );
+
+					if ( $id > 0 ) {
+						$ingredient_ids[ $id ] = $id;
+					}
+				}
+			}
+		}
+
+		if ( $ingredient_ids ) {
+			Mixmymeals_Product::prime_for_ingredients( array_values( $ingredient_ids ) );
+			Mixmymeals_Diet::prime( array_values( $ingredient_ids ) );
+		}
+
+		$changed = 0;
+
+		foreach ( $recipe_ids as $recipe_id ) {
+			if ( ( new self( $recipe_id ) )->recount_indexes() ) {
+				++$changed;
+			}
+		}
+
+		delete_transient( 'mmm_archive_diet_counts' );
+		delete_transient( 'mmm_archive_time_counts' );
+
+		return $changed;
+	}
+
+	/**
+	 * Builds the index once, on the first admin request after a version bump.
+	 *
+	 * @return void
+	 */
+	public static function maybe_backfill_indexes(): void {
+
+		if ( self::INDEX_BACKFILL_VERSION === get_option( self::INDEX_BACKFILL_OPTION ) ) {
+			return;
+		}
+
+		self::recount_all_indexes();
+		update_option( self::INDEX_BACKFILL_OPTION, self::INDEX_BACKFILL_VERSION, false );
+	}
+
+	/**
+	 * Queues one recipe for reindexing at the end of the request.
+	 *
+	 * @param int $recipe_id Recipe ID.
+	 * @return void
+	 */
+	public static function mark_index_dirty( $recipe_id ): void {
+
+		$recipe_id = (int) $recipe_id;
+
+		if ( $recipe_id <= 0 || self::$index_flushing ) {
+			return;
+		}
+
+		self::$index_dirty[ $recipe_id ] = true;
+
+		if ( ! self::$index_flush_hooked ) {
+			self::$index_flush_hooked = true;
+			add_action( 'shutdown', array( __CLASS__, 'flush_recipe_indexes' ) );
+		}
+	}
+
+	/**
+	 * Queues every recipe that uses an ingredient.
+	 *
+	 * The ingredient index is what makes this a query rather than a scan — and
+	 * before the backfill has run it is empty, which is why the caller of last
+	 * resort is the backfill itself rather than a fallback scan here.
+	 *
+	 * @param int $ingredient_id Ingredient ID.
+	 * @return void
+	 */
+	public static function mark_ingredient_dirty( $ingredient_id ): void {
+
+		foreach ( self::ids_using_ingredient( (int) $ingredient_id, array( 'post_status' => 'any' ) ) as $recipe_id ) {
+			self::mark_index_dirty( $recipe_id );
+		}
+	}
+
+	/**
+	 * Queues every recipe. For changes to the vocabulary itself.
+	 *
+	 * @return void
+	 */
+	public static function mark_all_indexes_dirty(): void {
+
+		$recipe_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		foreach ( (array) $recipe_ids as $recipe_id ) {
+			self::mark_index_dirty( (int) $recipe_id );
+		}
+	}
+
+	/**
+	 * Reindexes everything queued this request.
+	 *
+	 * Public because a test — and a repair routine — has to be able to reach
+	 * the end of the request without ending it, exactly like
+	 * flush_cook_counts().
+	 *
+	 * @return void
+	 */
+	public static function flush_recipe_indexes(): void {
+
+		$recipe_ids        = array_keys( self::$index_dirty );
+		self::$index_dirty = array();
+
+		if ( empty( $recipe_ids ) ) {
+			return;
+		}
+
+		/*
+		 * Too many for one request: reindex nothing here and let a single cron
+		 * event a minute from now rebuild the lot. Doing the first forty and
+		 * dropping the rest would be worse than doing none — it leaves a set
+		 * nobody can name half correct, while this leaves it wholly stale for a
+		 * minute and then wholly right.
+		 */
+		if ( count( $recipe_ids ) > self::INDEX_FLUSH_MAX ) {
+
+			if ( ! wp_next_scheduled( self::INDEX_CRON_HOOK ) ) {
+				wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::INDEX_CRON_HOOK );
+			}
+
+			return;
+		}
+
+		/*
+		 * The flush writes meta, and meta writes are among the events that
+		 * queue a recipe. Without this guard a single save would keep
+		 * rediscovering itself.
+		 */
+		self::$index_flushing = true;
+
+		foreach ( $recipe_ids as $recipe_id ) {
+			( new self( (int) $recipe_id ) )->recount_indexes();
+		}
+
+		self::$index_flushing = false;
+
+		// The pill row counts from the same index; a cache of it that nothing
+		// clears is the trap this plugin has already fallen into once, with the
+		// ingredient-page transient.
+		delete_transient( 'mmm_archive_diet_counts' );
+		delete_transient( 'mmm_archive_time_counts' );
+	}
+
+	/**
+	 * The recipes that use an ingredient, from the index.
+	 *
+	 * @param int                  $ingredient_id Ingredient ID.
+	 * @param array<string, mixed> $args          Overrides for the query.
+	 * @return int[] Recipe IDs.
+	 */
+	public static function ids_using_ingredient( int $ingredient_id, array $args = array() ): array {
+
+		if ( $ingredient_id <= 0 ) {
+			return array();
+		}
+
+		$query = wp_parse_args(
+			$args,
+			array(
+				'post_type'      => 'mmm_recipe',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		$query['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			array(
+				'key'   => self::META_INGREDIENT_INDEX,
+				'value' => (string) $ingredient_id,
+			),
+		);
+
+		return array_map( 'intval', (array) get_posts( Mixmymeals_Post_Types::exclude_unlisted( $query ) ) );
+	}
+
+
+	/**
+	 * Watches everything that can change a recipe's index.
+	 *
+	 * Attached once per request from mixmymeals.php, beside
+	 * register_cook_count(). The shape is the same and so is the reason: the
+	 * value belongs to a recipe, but almost every event that changes it happens
+	 * somewhere else — here three hops away, on an ingredient's terms or on a
+	 * product of that ingredient. That distance is why this one also gets a
+	 * repair run (Mixmymeals_Cleanup) rather than trusting the hooks alone.
+	 *
+	 * @return void
+	 */
+	public static function register_recipe_index(): void {
+
+		static $done = false;
+
+		if ( $done ) {
+			return;
+		}
+
+		$done = true;
+
+		// The recipe itself: saved, or its steps and time written directly.
+		add_action( 'wp_after_insert_post', array( __CLASS__, 'index_on_post_saved' ), 10, 2 );
+		add_action( 'added_post_meta', array( __CLASS__, 'index_on_meta_written' ), 10, 4 );
+		add_action( 'updated_post_meta', array( __CLASS__, 'index_on_meta_written' ), 10, 4 );
+		add_action( 'deleted_post_meta', array( __CLASS__, 'index_on_meta_written' ), 10, 4 );
+
+		// Diets are terms on ingredients and products, so the event that
+		// changes a recipe's answer never touches the recipe.
+		add_action( 'set_object_terms', array( __CLASS__, 'index_on_terms_set' ), 10, 6 );
+		add_action( 'delete_term', array( __CLASS__, 'index_on_term_deleted' ), 10, 3 );
+
+		// An ingredient or product leaving, changing status or being rehung.
+		// The relations are read before the row disappears; the recount runs on
+		// shutdown, when it no longer could.
+		add_action( 'before_delete_post', array( __CLASS__, 'index_on_before_delete' ), 10, 2 );
+		add_action( 'trashed_post', array( __CLASS__, 'index_on_status_event' ) );
+		add_action( 'untrashed_post', array( __CLASS__, 'index_on_status_event' ) );
+
+		add_action( 'admin_init', array( __CLASS__, 'maybe_backfill_indexes' ) );
+
+		// The overflow from a change that touched more recipes than one request
+		// should carry; see flush_recipe_indexes().
+		add_action( self::INDEX_CRON_HOOK, array( __CLASS__, 'recount_all_indexes' ) );
+	}
+
+	/**
+	 * A post was saved: the recipe itself, or something a recipe reads through.
+	 *
+	 * @param int          $post_id Post ID.
+	 * @param WP_Post|null $post    The post.
+	 * @return void
+	 */
+	public static function index_on_post_saved( $post_id, $post = null ): void {
+
+		if ( ! $post instanceof WP_Post ) {
+			$post = get_post( (int) $post_id );
+		}
+
+		if ( ! $post instanceof WP_Post ) {
+			return;
+		}
+
+		self::mark_index_source_dirty( $post );
+	}
+
+	/**
+	 * A trash or untrash: a product leaving the shelf changes what its
+	 * ingredient can be bought as, and for_ingredient() lists published
+	 * products only.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public static function index_on_status_event( $post_id ): void {
+
+		$post = get_post( (int) $post_id );
+
+		if ( $post instanceof WP_Post ) {
+			self::mark_index_source_dirty( $post );
+		}
+	}
+
+	/**
+	 * A post is about to be deleted for good. Read the relations now.
+	 *
+	 * @param int          $post_id Post ID.
+	 * @param WP_Post|null $post    The post.
+	 * @return void
+	 */
+	public static function index_on_before_delete( $post_id, $post = null ): void {
+
+		if ( ! $post instanceof WP_Post ) {
+			$post = get_post( (int) $post_id );
+		}
+
+		if ( $post instanceof WP_Post ) {
+			self::mark_index_source_dirty( $post );
+		}
+	}
+
+	/**
+	 * Queues whatever a post is relevant to: itself if it is a recipe, its
+	 * recipes if it is an ingredient, its parent's recipes if it is a product.
+	 *
+	 * @param WP_Post $post The post.
+	 * @return void
+	 */
+	private static function mark_index_source_dirty( WP_Post $post ): void {
+
+		if ( 'mmm_recipe' === $post->post_type ) {
+			self::mark_index_dirty( (int) $post->ID );
+			return;
+		}
+
+		if ( 'mmm_ingredient' === $post->post_type ) {
+			self::mark_ingredient_dirty( (int) $post->ID );
+			return;
+		}
+
+		if ( 'mmm_product' === $post->post_type ) {
+			self::mark_ingredient_dirty( (int) $post->post_parent );
+		}
+	}
+
+	/**
+	 * Meta that an index reads through was written.
+	 *
+	 * @param int    $meta_id  Meta row ID.
+	 * @param int    $post_id  Post ID.
+	 * @param string $meta_key Meta key.
+	 * @param mixed  $value    Value; part of the hook signature, unused here —
+	 *                         what changed matters, not what it changed to.
+	 * @return void
+	 */
+	public static function index_on_meta_written( $meta_id, $post_id, $meta_key, $value = null ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+
+		$post_id = (int) $post_id;
+
+		/*
+		 * The index's own rows, written by the flush. Ignored explicitly rather
+		 * than left to the re-entry guard, because a later change of key names
+		 * would otherwise turn into an endless queue nobody can see.
+		 */
+		if ( in_array( $meta_key, array( self::META_DIET_INDEX, self::META_INGREDIENT_INDEX ), true ) ) {
+			return;
+		}
+
+		if ( in_array( $meta_key, array( '_rmm_steps', self::META_PREP_TIME ), true ) ) {
+			self::mark_index_dirty( $post_id );
+			return;
+		}
+
+		// The legacy diet fields Mixmymeals_Diet::for_post() still falls back
+		// to, and the ingredient's pointer at the product its figures come from.
+		if ( in_array( $meta_key, array( Mixmymeals_Diet::LEGACY_META_INGREDIENT, Mixmymeals_Product::META_REFERENCE ), true ) ) {
+			self::mark_ingredient_dirty( $post_id );
+			return;
+		}
+
+		if ( Mixmymeals_Diet::LEGACY_META_PRODUCT === $meta_key ) {
+			self::mark_ingredient_dirty( (int) wp_get_post_parent_id( $post_id ) );
+		}
+	}
+
+	/**
+	 * Diet terms were set on an ingredient or a product.
+	 *
+	 * @param int    $object_id Object ID.
+	 * @param array  $terms     Terms passed in.
+	 * @param array  $tt_ids    Term taxonomy IDs.
+	 * @param string $taxonomy  Taxonomy.
+	 * @return void
+	 */
+	public static function index_on_terms_set( $object_id, $terms, $tt_ids, $taxonomy ): void {
+
+		if ( Mixmymeals_Diet::TAXONOMY !== $taxonomy ) {
+			return;
+		}
+
+		$post = get_post( (int) $object_id );
+
+		if ( $post instanceof WP_Post ) {
+			self::mark_index_source_dirty( $post );
+		}
+	}
+
+	/**
+	 * A diet term was deleted: every recipe's answer may have changed.
+	 *
+	 * @param int    $term     Term ID.
+	 * @param int    $tt_id    Term taxonomy ID.
+	 * @param string $taxonomy Taxonomy.
+	 * @return void
+	 */
+	public static function index_on_term_deleted( $term, $tt_id, $taxonomy ): void {
+
+		if ( Mixmymeals_Diet::TAXONOMY === $taxonomy ) {
+			self::mark_all_indexes_dirty();
+		}
+	}
+
 	/*
 	----------------------------------------------------------
 	EDIT COUNTER
@@ -1971,6 +2831,23 @@ class Mixmymeals_Recipe {
 		$recipe->set_edit_count( $recipe->get_edit_count() + 1 );
 	}
 
+	/**
+	 * Stores how long the dish takes, or clears the field.
+	 *
+	 * **0 deletes the row rather than storing a zero.** A dish that takes no
+	 * time is not a thing anyone means; a zero here has only ever meant "the
+	 * field was left empty". Note the deliberate difference to
+	 * set_shelf_life(): there 0 is a real answer ("eat it the day it is made")
+	 * and had to be told apart from silence with a ?int, which is why that
+	 * setter deletes on null and stores on 0. Here silence and zero are the
+	 * same claim, so the absence of the row carries it — the convention
+	 * META_COOK_COUNT keeps, and the one the archive's "under N minutes" filter
+	 * depends on: its meta_query joins on the key, so a recipe nobody has timed
+	 * drops out by itself instead of counting as the fastest dish on the site.
+	 *
+	 * @param int|string $minutes Minutes, 0 or '' to clear.
+	 * @return void
+	 */
 	public function set_preparation_time( $minutes ): void {
 
 		if ( ! $this->is_valid() ) {
@@ -1978,7 +2855,42 @@ class Mixmymeals_Recipe {
 		}
 
 		$minutes = max( 0, absint( $minutes ) );
-		update_post_meta( $this->post_id, '_mmm_preparation_time', $minutes );
+
+		if ( 0 === $minutes ) {
+			delete_post_meta( $this->post_id, self::META_PREP_TIME );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_PREP_TIME, $minutes );
+	}
+
+	/**
+	 * The thresholds the archive filters by, ascending and positive.
+	 *
+	 * Filter `mixmymeals_prep_time_steps` so a site can offer its own scale;
+	 * anything that is not a positive integer is dropped rather than turned
+	 * into a path nobody can reach.
+	 *
+	 * @return int[]
+	 */
+	public static function prep_time_steps(): array {
+
+		$steps = (array) apply_filters( 'mixmymeals_prep_time_steps', self::PREP_TIME_STEPS );
+
+		/*
+		 * intval() and then a positivity test, not absint(): absint( -5 ) is 5,
+		 * so a site that passed a negative by mistake would silently gain an
+		 * "under 5 minutes" filter it never asked for. A step nobody can mean
+		 * is dropped.
+		 */
+		$steps = array_filter(
+			array_map( 'intval', $steps ),
+			static fn( $minutes ) => $minutes > 0
+		);
+
+		sort( $steps );
+
+		return array_values( array_unique( $steps ) );
 	}
 
 	/**
@@ -2094,14 +3006,32 @@ class Mixmymeals_Recipe {
 		update_post_meta( $this->post_id, self::META_SHELF_LIFE, max( 0, $days ) );
 	}
 
+	/**
+	 * How long the dish takes, in minutes; 0 when nobody has said.
+	 *
+	 * Deliberately not ?int: with 0 no longer storable (see
+	 * set_preparation_time()), 0 and "not stated" are one and the same, and the
+	 * eight places that print this all test `> 0` already.
+	 *
+	 * @return int
+	 */
 	public function get_preparation_time(): int {
 
 		if ( ! $this->is_valid() ) {
 			return 0;
 		}
 
-		$time = get_post_meta( $this->post_id, '_mmm_preparation_time', true );
+		$time = get_post_meta( $this->post_id, self::META_PREP_TIME, true );
 		return $time !== '' ? max( 0, intval( $time ) ) : 0;
+	}
+
+	/**
+	 * Whether anybody has timed this dish.
+	 *
+	 * @return bool
+	 */
+	public function has_preparation_time(): bool {
+		return $this->get_preparation_time() > 0;
 	}
 
 	public function get_priority(): int {

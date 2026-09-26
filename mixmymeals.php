@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 3.34.0
+ * Version: 3.35.0
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data and PDF export.
  * Author: Timo Fricke
@@ -86,7 +86,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '3.34.0' );
+	$instance = Mixmymeals::instance( __FILE__, '3.35.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
@@ -107,6 +107,10 @@ Mixmymeals_Meal_Plan_PDF::register_ajax();
 // werden, der Hook aber einmal pro Request hängen muss.
 Mixmymeals_Recipe::register_edit_count();
 Mixmymeals_Recipe::register_cook_count();
+// Archiv-Index (Ernaehrungsform und Zutaten je Rezept): derselbe Zuschnitt wie
+// der Kochzähler — der Wert gehoert zum Rezept, die Ereignisse passieren an
+// Zutaten und Produkten.
+Mixmymeals_Recipe::register_recipe_index();
 // Eigene Pfade für die Browse-Ansichten des Rezeptarchivs (/rezepte/favoriten/):
 // Rewrite-Regeln, Query-Var und die Reservierung dieser Slugs gegen Rezepte.
 Mixmymeals_Recipe::register_browse_views();

@@ -73,6 +73,10 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_archive_search',
 			array( $this, 'mmm_archive_search_callback' ) );
 
+		// Die Diaet-Pillen ueber dem Rezeptarchiv; die Zeitstufe sitzt als
+		// Auswahlfeld im Suchformular daneben.
+		add_shortcode( 'mmm_archive_filters',
+			array( $this, 'mmm_archive_filters_callback' ) );
 
 		// Recipe Archive:
 
@@ -351,8 +355,19 @@ class Mixmymeals_Shortcodes {
 		add_action( 'pre_get_posts',
 			array( $this, 'filter_recipe_archive_by_view' ) );
 
+		// After the view: the facets merge their clauses into whatever is
+		// already in the query, and the view's own meta_query has to be there
+		// by then.
+		add_action( 'pre_get_posts',
+			array( __CLASS__, 'apply_archive_filters' ) );
+
 		add_filter( 'posts_where',
 			array( $this, 'archive_search_title_where' ), 10, 2 );
+
+		// Kombinationen und Suchen gehoeren nicht in den Index, einzelne
+		// Facetten schon — siehe filter_archive_noindex().
+		add_filter( 'mixmymeals_seo_noindex',
+			array( __CLASS__, 'filter_archive_noindex' ) );
 
 		add_filter( 'get_the_archive_title',
 			[ $this, 'remove_recipe_category_archive_title_prefix' ], 20 );
@@ -708,28 +723,41 @@ class Mixmymeals_Shortcodes {
 			            . esc_html( $price_text )
 			            . '</span>';
 		}
+
+		/*
+		 * Every category is a category. A term that happens to be called
+		 * "vegan" used to be lifted out and printed as a diet chip, which put a
+		 * second, editorial source next to the computed one — and a public
+		 * "vegan" on whatever an editor had filed there, whether or not the
+		 * ingredients agreed. The diet chips below answer that question from
+		 * the recipe itself.
+		 */
+
+		/*
+		 * How long it takes, right after what it costs. It was the one figure
+		 * the card never carried, which made "something quick" unanswerable
+		 * from a listing even once the filter existed.
+		 */
+		$prep = self::prep_time_chip( $post_id, 'mmm-meta__item' );
+
+		if ( '' !== $prep ) {
+			$items[] = $prep;
+		}
+
+		// Only while somebody is searching by ingredients, and then first,
+		// because it is the answer to what they asked.
+		$match = self::ingredient_match_chip( $post_id, 'mmm-meta__item' );
+
+		if ( '' !== $match ) {
+			array_unshift( $items, $match );
+		}
+
 		$terms = get_the_terms( $post_id, 'mmm_recipe_category' );
 		if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
 			usort( $terms, fn( $a, $b ) => strcasecmp( $a->name, $b->name ) );
-			$found_diet = '';
-			$diet_label = '';
 			foreach ( $terms as $term ) {
-				$name = strtolower( $term->name );
-				if ( $name === 'vegan' ) {
-					$found_diet = 'vegan';
-					$diet_label = $term->name;
-				} elseif ( in_array( $name, [ 'vegetarisch', 'vegetarian' ], true ) && $found_diet !== 'vegan' ) {
-					$found_diet = 'vegetarian';
-					$diet_label = $term->name;
-				} else {
-					$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
-					           . esc_html( self::chip_text( 'category', array( 'category' => $term->name ) ) )
-					           . '</span>';
-				}
-			}
-			if ( $found_diet !== '' ) {
-				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-				           . esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) )
+				$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
+				           . esc_html( self::chip_text( 'category', array( 'category' => $term->name ) ) )
 				           . '</span>';
 			}
 		}
@@ -2224,22 +2252,7 @@ class Mixmymeals_Shortcodes {
 						endif;
 
 						$prep_minutes     = $recipe->get_preparation_time();
-						$prep_time_string = '';
-						if ( $prep_minutes > 0 ) {
-							if ( $prep_minutes < 60 ) {
-								$prep_time_string = sprintf( '%s min',
-									number_format_i18n( $prep_minutes ) );
-							} else {
-								$hours            = floor( $prep_minutes / 60 );
-								$minutes          = $prep_minutes % 60;
-								$prep_time_string = sprintf( '%s h',
-									number_format_i18n( $hours ) );
-								if ( $minutes > 0 ) {
-									$prep_time_string .= ' ' . sprintf( '%s min',
-										number_format_i18n( $minutes ) );
-								}
-							}
-						}
+						$prep_time_string = self::format_prep_time( $prep_minutes );
 
 						$meal_url   = get_permalink( $meal->get_id() );
 						$title      = get_the_title( $recipe_id );
@@ -3464,22 +3477,8 @@ class Mixmymeals_Shortcodes {
 		// Preparation Time
 		// -------------------------
 		if ( $prep_minutes > 0 ) {
-			if ( $prep_minutes < 60 ) {
-				/* translators: %s: preparation time in minutes. */
-				$prep_string = sprintf( __( '%s min', 'mixmymeals' ),
-					number_format_i18n( $prep_minutes ) );
-			} else {
-				$hours       = floor( $prep_minutes / 60 );
-				$minutes     = $prep_minutes % 60;
-				/* translators: %s: preparation time in full hours. */
-				$prep_string = sprintf( __( '%s h', 'mixmymeals' ),
-					number_format_i18n( $hours ) );
-				if ( $minutes > 0 ) {
-					/* translators: %s: remaining minutes on top of the full hours. */
-					$prep_string .= ' ' . sprintf( __( '%s min', 'mixmymeals' ),
-							number_format_i18n( $minutes ) );
-				}
-			}
+			$prep_string = self::format_prep_time( $prep_minutes );
+
 			$items[] = '<span class="mmm-meta__item mmm-meta__item--prep-time">'
 			           . esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_string ) ) )
 			           . '</span>';
@@ -3504,28 +3503,14 @@ class Mixmymeals_Shortcodes {
 		// -------------------------
 		// Recipe Categories
 		// -------------------------
+		// A category is a category — see build_recipe_archive_meta_chips() for
+		// why one called "vegan" no longer becomes a diet chip.
 		$terms = get_the_terms( $post_id, 'mmm_recipe_category' );
 		if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
 			usort( $terms, fn( $a, $b ) => strcasecmp( $a->name, $b->name ) );
-			$found_diet = '';
-			$diet_label = '';
 			foreach ( $terms as $term ) {
-				$name = strtolower( $term->name );
-				if ( $name === 'vegan' ) {
-					$found_diet = 'vegan';
-					$diet_label = $term->name;
-				} elseif ( in_array( $name, [ 'vegetarisch', 'vegetarian' ], true ) && $found_diet !== 'vegan' ) {
-					$found_diet = 'vegetarian';
-					$diet_label = $term->name;
-				} else {
-					$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
-					           . esc_html( $term->name )
-					           . '</span>';
-				}
-			}
-			if ( $found_diet !== '' ) {
-				$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-				           . esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) )
+				$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
+				           . esc_html( self::chip_text( 'category', array( 'category' => $term->name ) ) )
 				           . '</span>';
 			}
 		}
@@ -4746,19 +4731,7 @@ class Mixmymeals_Shortcodes {
 		$kcal      = (int) round( $nutrition['calories'] ?? 0 );
 
 		$prep_minutes     = $recipe->get_preparation_time();
-		$prep_time_string = '';
-		if ( $prep_minutes > 0 ) {
-			if ( $prep_minutes < 60 ) {
-				$prep_time_string = sprintf( '%s min', number_format_i18n( $prep_minutes ) );
-			} else {
-				$hours            = floor( $prep_minutes / 60 );
-				$minutes          = $prep_minutes % 60;
-				$prep_time_string = sprintf( '%s h', number_format_i18n( $hours ) );
-				if ( $minutes > 0 ) {
-					$prep_time_string .= ' ' . sprintf( '%s min', number_format_i18n( $minutes ) );
-				}
-			}
-		}
+		$prep_time_string = self::format_prep_time( $prep_minutes );
 
 		ob_start();
 		?>
@@ -5401,6 +5374,18 @@ class Mixmymeals_Shortcodes {
 				'tokens'   => array( 'category' => __( 'the name of the category', 'mixmymeals' ) ),
 				'required' => array( 'category' ),
 			),
+			'archive_ingredient_match' => array(
+				'group'    => 'archive',
+				'label'    => __( 'Ingredient match on a card', 'mixmymeals' ),
+				'note'     => __( 'Only while somebody is searching by the ingredients they have.', 'mixmymeals' ),
+				/* translators: chip wording. {hits} of {total} searched ingredients are in this dish. */
+				'default'  => __( '{hits} of {total} ingredients', 'mixmymeals' ),
+				'tokens'   => array(
+					'hits'  => __( 'how many of the ingredients are in this dish', 'mixmymeals' ),
+					'total' => __( 'how many were searched for', 'mixmymeals' ),
+				),
+				'required' => array( 'hits' ),
+			),
 			'archive_energy'           => array(
 				'group'    => 'archive',
 				'label'    => __( 'Energy on a card', 'mixmymeals' ),
@@ -5695,6 +5680,137 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return $out;
+	}
+
+
+	/**
+	 * How long a dish takes, as a finished string.
+	 *
+	 * The minutes-or-hours formatting stood inline in four places, worded the
+	 * same way by hand each time. One of them is now enough — the archive card
+	 * would have been the fifth.
+	 *
+	 * @param int $minutes Minutes; 0 means nobody has said.
+	 * @return string '' when there is nothing to state.
+	 */
+	public static function format_prep_time( int $minutes ): string {
+
+		if ( $minutes <= 0 ) {
+			return '';
+		}
+
+		if ( $minutes < 60 ) {
+			return sprintf(
+				/* translators: %s: preparation time in minutes. */
+				__( '%s min', 'mixmymeals' ),
+				number_format_i18n( $minutes )
+			);
+		}
+
+		$hours = (int) floor( $minutes / 60 );
+		$rest  = $minutes % 60;
+
+		$out = sprintf(
+			/* translators: %s: preparation time in full hours. */
+			__( '%s h', 'mixmymeals' ),
+			number_format_i18n( $hours )
+		);
+
+		if ( $rest > 0 ) {
+			$out .= ' ' . sprintf(
+				/* translators: %s: remaining minutes on top of the full hours. */
+				__( '%s min', 'mixmymeals' ),
+				number_format_i18n( $rest )
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * One chip stating how long a dish takes.
+	 *
+	 * The sister of diet_chips() and keeping_chip(), taking the surrounding
+	 * row's base class for the same reason. Empty when nobody has timed the
+	 * dish — the archive filter treats that as "not stated", and a chip reading
+	 * "0 min" would contradict it.
+	 *
+	 * @param int    $post_id Recipe or meal ID.
+	 * @param string $base    Base class of the surrounding row.
+	 * @return string
+	 */
+	public static function prep_time_chip( int $post_id, string $base = 'mmm-chip' ): string {
+
+		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
+
+		if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
+			return '';
+		}
+
+		$text = self::format_prep_time( ( new Mixmymeals_Recipe( $post_id ) )->get_preparation_time() );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$text = self::chip_text( 'prep_time', array( 'time' => $text ) );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$base = sanitize_html_class( $base );
+
+		return sprintf(
+			'<span class="%1$s %1$s--prep-time">%2$s</span>',
+			esc_attr( $base ),
+			esc_html( $text )
+		);
+	}
+
+	/**
+	 * One chip stating how much of what somebody has is in this dish.
+	 *
+	 * Only while an ingredient search is running, and read from the ranking the
+	 * query already built — a count per card would be a query per card.
+	 *
+	 * @param int    $post_id Recipe ID.
+	 * @param string $base    Base class of the surrounding row.
+	 * @return string
+	 */
+	public static function ingredient_match_chip( int $post_id, string $base = 'mmm-chip' ): string {
+
+		$tokens = self::archive_filters()['ingredients'];
+
+		if ( empty( $tokens ) ) {
+			return '';
+		}
+
+		$hits = self::rank_recipes_by_ingredients( $tokens )[ $post_id ] ?? 0;
+
+		if ( $hits < 1 ) {
+			return '';
+		}
+
+		$text = self::chip_text(
+			'archive_ingredient_match',
+			array(
+				'hits'  => number_format_i18n( $hits ),
+				'total' => number_format_i18n( count( $tokens ) ),
+			)
+		);
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$base = sanitize_html_class( $base );
+
+		return sprintf(
+			'<span class="%1$s %1$s--match">%2$s</span>',
+			esc_attr( $base ),
+			esc_html( $text )
+		);
 	}
 
 	/**
@@ -6171,30 +6287,7 @@ class Mixmymeals_Shortcodes {
 
 			if ( $prep_minutes > 0 ) {
 
-				if ( $prep_minutes < 60 ) {
-					$prep_string = sprintf(
-						/* translators: %s: preparation time in minutes. */
-						__( '%s min', 'mixmymeals' ),
-						number_format_i18n( $prep_minutes )
-					);
-				} else {
-					$hours   = floor( $prep_minutes / 60 );
-					$minutes = $prep_minutes % 60;
-
-					$prep_string = sprintf(
-						/* translators: %s: preparation time in full hours. */
-						__( '%s h', 'mixmymeals' ),
-						number_format_i18n( $hours )
-					);
-
-					if ( $minutes > 0 ) {
-						$prep_string .= ' ' . sprintf(
-								/* translators: %s: remaining minutes on top of the full hours. */
-								__( '%s min', 'mixmymeals' ),
-								number_format_i18n( $minutes )
-							);
-					}
-				}
+				$prep_string = self::format_prep_time( $prep_minutes );
 
 				$items[]
 					= '<span class="mmm-meta__item mmm-meta__item--prep-time">'
@@ -6216,27 +6309,13 @@ class Mixmymeals_Shortcodes {
 			/* -------------------------
 			 * Categories
 			 * ------------------------- */
+			// As above: the diet comes from the recipe, not from what a
+			// category happens to be called.
 			$categories = $recipe->get_categories();
 			if ( $categories ) {
-				$found_diet = '';
-				$diet_label = '';
 				foreach ( $categories as $cat ) {
-					$name = strtolower( $cat->name );
-					if ( $name === 'vegan' ) {
-						$found_diet = 'vegan';
-						$diet_label = $cat->name;
-					} elseif ( in_array( $name, [ 'vegetarisch', 'vegetarian' ], true ) && $found_diet !== 'vegan' ) {
-						$found_diet = 'vegetarian';
-						$diet_label = $cat->name;
-					} else {
-						$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
-						           . esc_html( self::chip_text( 'category', array( 'category' => $cat->name ) ) )
-						           . '</span>';
-					}
-				}
-				if ( $found_diet !== '' ) {
-					$items[] = '<span class="mmm-meta__item mmm-meta__item--diet">'
-					           . esc_html( self::chip_text( 'diet', array( 'diet' => $diet_label ) ) )
+					$items[] = '<span class="mmm-meta__item mmm-meta__item--category">'
+					           . esc_html( self::chip_text( 'category', array( 'category' => $cat->name ) ) )
 					           . '</span>';
 				}
 			}
@@ -7674,17 +7753,134 @@ class Mixmymeals_Shortcodes {
 			? get_post_type_archive_link( $post_type )
 			: get_term_link( get_queried_object() );
 
+		// Recipes carry the extra fields; the plan archive shares this form and
+		// has neither a time nor an ingredient index behind it.
+		$recipes = 'mmm_recipe' === $post_type;
+		$filters = $recipes ? self::archive_filters() : array();
+		$has_any = $recipes && ( '' !== $cur_s || ! empty( $filters['diet'] ) || ! empty( $filters['time'] )
+			|| ! empty( $filters['ingredients'] ) || '' !== $filters['view'] );
+
 		ob_start();
 		?>
-		<form class="mmm-archive-search" method="get" role="search">
+		<form class="mmm-archive-search" method="get" role="search" action="<?php echo esc_url( self::archive_form_action() ); ?>">
 			<input type="search" name="mmm_s" class="mmm-archive-search__text" value="<?php echo esc_attr( $cur_s ); ?>" placeholder="<?php esc_attr_e( 'Search by title…', 'mixmymeals' ); ?>">
+			<?php if ( $recipes ) : ?>
+				<input
+					type="search"
+					name="zutat"
+					class="mmm-archive-search__text mmm-archive-search__text--ingredients"
+					value="<?php echo esc_attr( implode( ', ', (array) $filters['ingredients'] ) ); ?>"
+					aria-label="<?php esc_attr_e( 'Recipes with these ingredients', 'mixmymeals' ); ?>"
+					placeholder="<?php esc_attr_e( 'I have these in: courgette, feta…', 'mixmymeals' ); ?>">
+				<?php
+				/*
+				 * The filters the path carries but no field shows. Without
+				 * these a search from /rezepte/vegan/ silently drops the diet,
+				 * which is the sort of thing a visitor reads as "the filter
+				 * does not work" rather than "the form forgot".
+				 */
+				foreach ( self::archive_form_hidden_fields( $filters ) as $name => $value ) :
+					?>
+					<input type="hidden" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $value ); ?>">
+					<?php
+				endforeach;
+				?>
+			<?php endif; ?>
 			<button type="submit" class="mmm-archive-search__submit"><?php esc_html_e( 'Search', 'mixmymeals' ); ?></button>
-			<?php if ( '' !== $cur_s && $reset && ! is_wp_error( $reset ) ) : ?>
+			<?php if ( ( $has_any || '' !== $cur_s ) && $reset && ! is_wp_error( $reset ) ) : ?>
 				<a class="mmm-archive-search__reset" href="<?php echo esc_url( $reset ); ?>"><?php esc_html_e( 'Reset', 'mixmymeals' ); ?></a>
 			<?php endif; ?>
 		</form>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Where the archive form posts to: the current path, without its page.
+	 *
+	 * An empty action would inherit /page/3/ from the URL, and a new search
+	 * would start on page three of a result set that no longer exists.
+	 *
+	 * @return string
+	 */
+	private static function archive_form_action(): string {
+
+		$post_type = (string) get_query_var( 'post_type' );
+		$post_type = '' !== $post_type ? $post_type : 'mmm_recipe';
+
+		$base = is_post_type_archive()
+			? get_post_type_archive_link( $post_type )
+			: get_term_link( get_queried_object() );
+
+		if ( ! $base || is_wp_error( $base ) ) {
+			return '';
+		}
+
+		$filters = self::archive_filters();
+		$primary = self::archive_primary_facet( $filters );
+
+		if ( '' === $primary ) {
+			return (string) $base;
+		}
+
+		// The path keeps the facet that owns it, so submitting the form does
+		// not quietly leave the view the visitor is looking at.
+		$url = Mixmymeals_Recipe::archive_view_url( $primary, $filters[ $primary ] );
+
+		return '' !== $url ? $url : (string) $base;
+	}
+
+	/**
+	 * Which facet owns the address of the current view.
+	 *
+	 * One order, asked in one place: the form's action, the hidden fields and
+	 * the heading all have to agree about which filter the path stands for, and
+	 * three separate answers would disagree on the day somebody adds a facet.
+	 *
+	 * @param array<string,mixed> $filters As archive_filters() returns them.
+	 * @return string 'diet', 'time', 'view' or ''.
+	 */
+	public static function archive_primary_facet( array $filters ): string {
+
+		foreach ( array( 'diet', 'time', 'view' ) as $kind ) {
+			if ( ! empty( $filters[ $kind ] ) ) {
+				return $kind;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * The active filters that no visible field carries.
+	 *
+	 * @param array<string,mixed> $filters As archive_filters() returns them.
+	 * @return array<string,string>
+	 */
+	private static function archive_form_hidden_fields( array $filters ): array {
+
+		$hidden  = array();
+		$primary = self::archive_primary_facet( $filters );
+
+		/*
+		 * Everything except the facet the action's path already carries —
+		 * repeating that one would produce /rezepte/vegan/?diaet=vegan on every
+		 * submit. The time needs no hidden field either way: the select posts
+		 * it.
+		 */
+		if ( ! empty( $filters['diet'] ) && 'diet' !== $primary ) {
+			$hidden['diaet'] = (string) $filters['diet'];
+		}
+
+		if ( ! empty( $filters['time'] ) && 'time' !== $primary ) {
+			$hidden['zeit'] = (string) $filters['time'];
+		}
+
+		if ( ! empty( $filters['view'] ) && 'view' !== $primary ) {
+			$hidden[ Mixmymeals_Recipe::BROWSE_VIEW_VAR ] = (string) $filters['view'];
+		}
+
+		return $hidden;
 	}
 
 	/**
@@ -7732,6 +7928,764 @@ class Mixmymeals_Shortcodes {
 
 			$query->set( $key, $value );
 		}
+	}
+
+
+
+	/**
+	 * Shortcode [mmm_archive_filters]: the diet pills above the recipe archive.
+	 *
+	 * Links, not a form: one facet is one address, and a link is what a visitor
+	 * can share, bookmark and open in a new tab. The time step is a select in
+	 * the search form instead — four ordered values on one scale read as a
+	 * scale, while four diets are four alternatives and read as pills.
+	 *
+	 * A diet nothing is classified under is left out rather than shown empty:
+	 * the counts come from one grouped query over the index, so this costs one
+	 * query no matter how many diets exist.
+	 *
+	 * @param array|string $atts Unused.
+	 * @return string
+	 */
+	public function mmm_archive_filters_callback( $atts = array() ): string {
+
+		unset( $atts );
+
+		if ( ! is_post_type_archive( 'mmm_recipe' ) && ! is_tax( array( 'mmm_recipe_category', 'mmm_recipe_tag' ) ) ) {
+			return '';
+		}
+
+		$filters = self::archive_filters();
+		$diets   = self::archive_diet_counts();
+		$times   = self::archive_time_counts();
+
+		$rows = '';
+
+		if ( $diets ) {
+
+			$links = array();
+
+			foreach ( $diets as $slug => $count ) {
+				$links[] = array(
+					'label'  => Mixmymeals_Diet::label( $slug ),
+					'count'  => $count,
+					'active' => $slug === $filters['diet'],
+					'url'    => self::archive_url_for( array_merge( $filters, array( 'diet' => $slug ) ) ),
+				);
+			}
+
+			$rows .= self::render_filter_row(
+				__( 'Diet', 'mixmymeals' ),
+				__( 'Any', 'mixmymeals' ),
+				self::archive_url_for( self::archive_filters_without( $filters, 'diet' ) ),
+				'' === $filters['diet'],
+				$links
+			);
+		}
+
+		if ( $times ) {
+
+			$links = array();
+
+			foreach ( $times as $minutes => $count ) {
+				$links[] = array(
+					'label'  => sprintf(
+						/* translators: %d: number of minutes. */
+						__( 'Under %d min', 'mixmymeals' ),
+						(int) $minutes
+					),
+					'count'  => $count,
+					'active' => (int) $minutes === (int) $filters['time'],
+					'url'    => self::archive_url_for( array_merge( $filters, array( 'time' => (int) $minutes ) ) ),
+				);
+			}
+
+			$rows .= self::render_filter_row(
+				__( 'Time', 'mixmymeals' ),
+				__( 'Any', 'mixmymeals' ),
+				self::archive_url_for( self::archive_filters_without( $filters, 'time' ) ),
+				0 === (int) $filters['time'],
+				$links
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * One row of facet links: a label, an "any" link and the choices.
+	 *
+	 * Both rows go through here, because two rows that mean the same kind of
+	 * thing have to look and behave the same — and because the second one was
+	 * a select in the form until somebody noticed that choosing a diet and
+	 * choosing a duration are the same act.
+	 *
+	 * The label is not decoration: with two rows, two links reading "Any" need
+	 * to say what they are any of.
+	 *
+	 * @param string                                                           $label      What this row filters by.
+	 * @param string                                                           $any_label  Wording of the unrestricted choice.
+	 * @param string                                                           $any_url    Where it leads.
+	 * @param bool                                                             $any_active Whether nothing is chosen here.
+	 * @param array<int, array{label:string,count:int,active:bool,url:string}> $links      The choices.
+	 * @return string
+	 */
+	private static function render_filter_row( string $label, string $any_label, string $any_url, bool $any_active, array $links ): string {
+
+		ob_start();
+		?>
+		<div class="mmm-archive-filters">
+			<span class="mmm-archive-filters__label"><?php echo esc_html( $label ); ?></span>
+			<?php if ( '' !== $any_url ) : ?>
+				<a class="<?php echo esc_attr( $any_active ? 'active' : '' ); ?>" href="<?php echo esc_url( $any_url ); ?>">
+					<?php echo esc_html( $any_label ); ?>
+				</a>
+			<?php endif; ?>
+			<?php foreach ( $links as $link ) : ?>
+				<?php if ( '' !== $link['url'] ) : ?>
+					<a class="<?php echo esc_attr( $link['active'] ? 'active' : '' ); ?>" href="<?php echo esc_url( $link['url'] ); ?>">
+						<?php echo esc_html( $link['label'] ); ?>
+						<span class="mmm-archive-filters__count"><?php echo esc_html( number_format_i18n( $link['count'] ) ); ?></span>
+					</a>
+				<?php endif; ?>
+			<?php endforeach; ?>
+		</div>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * How many published recipes fall under each time step.
+	 *
+	 * One query for the whole scale rather than one per step, and counted with
+	 * conditional sums so the steps stay comparable: every step counts the
+	 * recipes at or below it, which is what "under 30 minutes" means and what
+	 * the filter does.
+	 *
+	 * A recipe nobody has timed carries no row and is therefore in no step —
+	 * the same rule the filter keeps, so the number beside a step is the number
+	 * the step produces.
+	 *
+	 * @return array<int,int> Minutes => count, steps with no recipes left out.
+	 */
+	public static function archive_time_counts(): array {
+		/*
+		 * No static memo beside the transient: get_transient() is served from
+		 * the object cache within a request anyway, and a second layer that
+		 * nothing can clear meant the row kept its old numbers after the index
+		 * had already been rebuilt in the same request.
+		 */
+		$cached = get_transient( 'mmm_archive_time_counts' );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		$steps = Mixmymeals_Recipe::prep_time_steps();
+
+		if ( empty( $steps ) ) {
+			return array();
+		}
+
+		global $wpdb;
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- cached in the transient below.
+			$wpdb->prepare(
+				"SELECT CAST( pm.meta_value AS UNSIGNED ) AS minutes, COUNT( DISTINCT p.ID ) AS total
+				 FROM {$wpdb->postmeta} pm
+				 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+				 WHERE pm.meta_key = %s
+				   AND p.post_type = %s
+				   AND p.post_status = 'publish'
+				 GROUP BY minutes",
+				Mixmymeals_Recipe::META_PREP_TIME,
+				'mmm_recipe'
+			)
+		);
+
+		$counts = array();
+
+		foreach ( $steps as $step ) {
+
+			$total = 0;
+
+			foreach ( (array) $rows as $row ) {
+				if ( (int) $row->minutes > 0 && (int) $row->minutes <= $step ) {
+					$total += (int) $row->total;
+				}
+			}
+
+			if ( $total > 0 ) {
+				$counts[ $step ] = $total;
+			}
+		}
+
+		set_transient( 'mmm_archive_time_counts', $counts, 15 * MINUTE_IN_SECONDS );
+
+		return $counts;
+	}
+
+	/**
+	 * How many published recipes each diet can be cooked for.
+	 *
+	 * One grouped query over the index rather than one per diet — the pill row
+	 * is rendered on every archive page, and four counting queries there is how
+	 * an archive gets slow without anybody noticing which feature did it.
+	 *
+	 * Held for the request and behind a transient that
+	 * Mixmymeals_Recipe::flush_recipe_indexes() clears — a cached count of an
+	 * index, with nothing to invalidate it, is exactly the mistake the
+	 * ingredient page's own transient made for years.
+	 *
+	 * @return array<string,int> Diet slug => count, known diets only, in the
+	 *                           vocabulary's own order.
+	 */
+	public static function archive_diet_counts(): array {
+		/*
+		 * No static memo beside the transient: get_transient() is served from
+		 * the object cache within a request anyway, and a second layer that
+		 * nothing can clear meant the row kept its old numbers after the index
+		 * had already been rebuilt in the same request.
+		 */
+		$cached = get_transient( 'mmm_archive_diet_counts' );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		global $wpdb;
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- cached in the transient below.
+			$wpdb->prepare(
+				"SELECT pm.meta_value AS diet, COUNT(DISTINCT p.ID) AS total
+				 FROM {$wpdb->postmeta} pm
+				 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+				 WHERE pm.meta_key = %s
+				   AND p.post_type = %s
+				   AND p.post_status = 'publish'
+				 GROUP BY pm.meta_value",
+				Mixmymeals_Recipe::META_DIET_INDEX,
+				'mmm_recipe'
+			)
+		);
+
+		$found = array();
+
+		foreach ( (array) $rows as $row ) {
+			$found[ (string) $row->diet ] = (int) $row->total;
+		}
+
+		// Ordered by the vocabulary, not by the database: the row reads the
+		// same on every page, and vegan stands before vegetarian because that
+		// is how the two relate.
+		$counts = array();
+
+		foreach ( array_keys( Mixmymeals_Diet::types() ) as $slug ) {
+			if ( ! empty( $found[ $slug ] ) ) {
+				$counts[ $slug ] = $found[ $slug ];
+			}
+		}
+
+		set_transient( 'mmm_archive_diet_counts', $counts, 15 * MINUTE_IN_SECONDS );
+
+		return $counts;
+	}
+
+	/**
+	 * Whether the current archive view should stay out of the index.
+	 *
+	 * A single facet is a page worth finding: "vegan recipes" and "recipes
+	 * under 30 minutes" are things people search for, and each has one address.
+	 * A combination is not — it is one reader's question, it has no canonical
+	 * address of its own, and every further filter multiplies the number of
+	 * near-identical pages a crawler could walk into. Same for a search: the
+	 * results belong to whoever typed it.
+	 *
+	 * Only ever tightens, like every other caller of this filter.
+	 *
+	 * @param bool $noindex Decision so far.
+	 * @return bool
+	 */
+	public static function filter_archive_noindex( $noindex ): bool {
+
+		if ( $noindex || is_admin() ) {
+			return (bool) $noindex;
+		}
+
+		if ( ! is_post_type_archive( 'mmm_recipe' ) && ! is_tax( array( 'mmm_recipe_category', 'mmm_recipe_tag' ) ) ) {
+			return (bool) $noindex;
+		}
+
+		$filters = self::archive_filters();
+
+		if ( ! empty( $filters['ingredients'] ) || '' !== $filters['title'] ) {
+			return true;
+		}
+
+		$facets = 0;
+
+		foreach ( array( 'view', 'diet', 'time' ) as $kind ) {
+			if ( ! empty( $filters[ $kind ] ) ) {
+				++$facets;
+			}
+		}
+
+		return $facets > 1;
+	}
+
+	/**
+	 * What the current request asks the recipe archive to show.
+	 *
+	 * One place reads the request, so the query, the heading, the pills, the
+	 * form and the empty state cannot disagree about what is filtered.
+	 *
+	 * Three sources: the query variables a rewrite rule filled, the public
+	 * parameters, and mmm_s. **A parameter beats a path** for the same facet —
+	 * a form submitted from /rezepte/vegan/ has to be able to say "vegetarian"
+	 * without the path contradicting it.
+	 *
+	 * The parameters are read straight from $_GET and validated here rather
+	 * than registered as query variables: short German names like `zeit` are
+	 * only safe to use because nothing else in WordPress ever sees them.
+	 *
+	 * @return array{view:string, diet:string, time:int, ingredients:string[], title:string}
+	 */
+	public static function archive_filters(): array {
+
+		static $filters = null;
+
+		if ( null !== $filters ) {
+			return $filters;
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only public GET filters, like mmm_s.
+		$diet = isset( $_GET['diaet'] ) ? sanitize_title( wp_unslash( $_GET['diaet'] ) ) : '';
+		$time = isset( $_GET['zeit'] ) ? absint( wp_unslash( $_GET['zeit'] ) ) : 0;
+		$raw  = isset( $_GET['zutat'] ) ? sanitize_text_field( wp_unslash( $_GET['zutat'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( '' === $diet ) {
+			$diet = sanitize_title( (string) get_query_var( Mixmymeals_Recipe::DIET_VIEW_VAR, '' ) );
+		}
+
+		if ( 0 === $time ) {
+			$time = absint( get_query_var( Mixmymeals_Recipe::TIME_VIEW_VAR, 0 ) );
+		}
+
+		// A diet decides what a public page claims to be cookable, and a time
+		// step decides which path exists: neither is passed through unchecked.
+		$resolved = Mixmymeals_Recipe::resolve_archive_view( $diet );
+		$diet     = ( $resolved && 'diet' === $resolved['kind'] ) ? (string) $resolved['value'] : '';
+
+		if ( ! in_array( $time, Mixmymeals_Recipe::prep_time_steps(), true ) ) {
+			$time = 0;
+		}
+
+		$filters = array(
+			'view'        => Mixmymeals_Recipe::current_browse_view(),
+			'diet'        => $diet,
+			'time'        => $time,
+			'ingredients' => self::parse_ingredient_tokens( $raw ),
+			'title'       => self::archive_search_term(),
+		);
+
+		return $filters;
+	}
+
+	/**
+	 * Splits the "what I have in" field into tokens.
+	 *
+	 * Capped in both directions: six tokens, forty characters each. The cap is
+	 * not about abuse but about the query behind it — one lookup per token,
+	 * and a ranking that stops meaning anything once half the kitchen is in it.
+	 *
+	 * @param string $raw Raw field value.
+	 * @return string[]
+	 */
+	private static function parse_ingredient_tokens( string $raw ): array {
+
+		if ( '' === trim( $raw ) ) {
+			return array();
+		}
+
+		$tokens = preg_split( '/[,;\r\n]+/', $raw );
+		$out    = array();
+
+		foreach ( (array) $tokens as $token ) {
+
+			$token = trim( (string) $token );
+
+			if ( '' === $token ) {
+				continue;
+			}
+
+			$out[ mb_strtolower( $token ) ] = mb_substr( $token, 0, 40 );
+
+			if ( count( $out ) >= 6 ) {
+				break;
+			}
+		}
+
+		return array_values( $out );
+	}
+
+	/**
+	 * The search term of the current archive request.
+	 *
+	 * @return string
+	 */
+	public static function archive_search_term(): string {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only public GET filter.
+		return isset( $_GET['mmm_s'] ) ? trim( sanitize_text_field( wp_unslash( $_GET['mmm_s'] ) ) ) : '';
+	}
+
+	/**
+	 * The query arguments a set of filters produces.
+	 *
+	 * A pure function of its input, so the whole filter behaviour is testable
+	 * without a request: hand it an array, read the clauses.
+	 *
+	 * @param array<string,mixed> $filters As archive_filters() returns them.
+	 * @return array<string,mixed> Query arguments; empty when nothing filters.
+	 */
+	public static function archive_filter_query_args( array $filters ): array {
+
+		$args = array();
+		$meta = array();
+
+		if ( ! empty( $filters['diet'] ) ) {
+			$meta[] = array(
+				'key'   => Mixmymeals_Recipe::META_DIET_INDEX,
+				'value' => (string) $filters['diet'],
+			);
+		}
+
+		if ( ! empty( $filters['time'] ) ) {
+			/*
+			 * The join does the work that matters here: a recipe nobody has
+			 * timed carries no row at all, so it drops out instead of passing
+			 * as the fastest dish on the site. That is the whole reason
+			 * set_preparation_time() stopped storing zeroes.
+			 */
+			$meta[] = array(
+				'key'     => Mixmymeals_Recipe::META_PREP_TIME,
+				'value'   => (int) $filters['time'],
+				'compare' => '<=',
+				'type'    => 'NUMERIC',
+			);
+		}
+
+		if ( $meta ) {
+			$args['meta_query'] = $meta; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+		}
+
+		if ( ! empty( $filters['ingredients'] ) ) {
+
+			$ranked = self::rank_recipes_by_ingredients( (array) $filters['ingredients'] );
+
+			/*
+			 * An empty post__in is not a filter that matches nothing, it is no
+			 * filter at all — WordPress drops it and shows everything. A list
+			 * holding only 0 is the one that means "nothing matched".
+			 */
+			$args['post__in'] = $ranked ? array_keys( $ranked ) : array( 0 );
+			$args['orderby']  = 'post__in';
+		}
+
+		return $args;
+	}
+
+	/**
+	 * Applies the archive filters to the main query.
+	 *
+	 * @param WP_Query $query The query.
+	 * @return void
+	 */
+	public static function apply_archive_filters( $query ): void {
+
+		if ( is_admin() || ! $query instanceof WP_Query || ! $query->is_main_query() ) {
+			return;
+		}
+
+		if (
+			! $query->is_post_type_archive( 'mmm_recipe' )
+			&& ! $query->is_tax( array( 'mmm_recipe_category', 'mmm_recipe_tag' ) )
+		) {
+			return;
+		}
+
+		$args = self::archive_filter_query_args( self::archive_filters() );
+
+		if ( empty( $args ) ) {
+			return;
+		}
+
+		if ( ! empty( $args['meta_query'] ) ) {
+			/*
+			 * Merged, never replaced — the same rule and the same reason as in
+			 * filter_recipe_archive_by_view(): the unlisted clause from
+			 * Mixmymeals_Post_Types::filter_unlisted_from_main_query() is
+			 * already in there, and replacing it would put unlisted recipes
+			 * back on a public page.
+			 */
+			$existing = $query->get( 'meta_query' );
+			$existing = is_array( $existing ) ? $existing : array();
+
+			$query->set( 'meta_query', array_merge( $existing, $args['meta_query'] ) );
+		}
+
+		if ( isset( $args['post__in'] ) ) {
+			$query->set( 'post__in', $args['post__in'] );
+
+			// The ingredient ranking outranks a browse view's own ordering:
+			// "most of what I have" is the question that was asked last.
+			$query->set( 'orderby', $args['orderby'] );
+		}
+	}
+
+
+	/**
+	 * The normalised address of a filter set.
+	 *
+	 * The primary facet becomes the path, everything else a parameter — so the
+	 * same state always has the same address, whichever way somebody arrived at
+	 * it. This is what the remove links in the filter row are built from, and
+	 * why removing the last filter lands on the plain archive rather than on a
+	 * path with an empty query string.
+	 *
+	 * @param array<string,mixed> $filters As archive_filters() returns them.
+	 * @return string
+	 */
+	public static function archive_url_for( array $filters ): string {
+
+		$params = array();
+
+		if ( ! empty( $filters['ingredients'] ) ) {
+			$params['zutat'] = implode( ', ', (array) $filters['ingredients'] );
+		}
+
+		if ( ! empty( $filters['title'] ) ) {
+			$params['mmm_s'] = (string) $filters['title'];
+		}
+
+		$primary = self::archive_primary_facet( $filters );
+
+		if ( '' === $primary ) {
+			$base = get_post_type_archive_link( 'mmm_recipe' );
+
+			if ( ! $base ) {
+				return '';
+			}
+
+			// Encoded here for the same reason archive_view_url() encodes.
+			return $params
+				? add_query_arg( array_map( 'rawurlencode', $params ), $base )
+				: $base;
+		}
+
+		// Whatever the path does not carry travels as a parameter beside it.
+		foreach ( array( 'diet', 'time', 'view' ) as $kind ) {
+
+			if ( $kind === $primary || empty( $filters[ $kind ] ) ) {
+				continue;
+			}
+
+			$params[ 'time' === $kind ? 'zeit' : ( 'diet' === $kind ? 'diaet' : Mixmymeals_Recipe::BROWSE_VIEW_VAR ) ]
+				= (string) $filters[ $kind ];
+		}
+
+		return Mixmymeals_Recipe::archive_view_url( $primary, $filters[ $primary ], $params );
+	}
+
+	/**
+	 * The same filter set with one filter taken out.
+	 *
+	 * @param array<string,mixed> $filters As archive_filters() returns them.
+	 * @param string              $kind    'diet', 'time', 'view', 'title' or 'ingredient'.
+	 * @param string              $value   For 'ingredient': which token to drop.
+	 * @return array<string,mixed>
+	 */
+	public static function archive_filters_without( array $filters, string $kind, string $value = '' ): array {
+
+		switch ( $kind ) {
+
+			case 'ingredient':
+				$filters['ingredients'] = array_values(
+					array_filter(
+						(array) $filters['ingredients'],
+						static fn( $token ) => $token !== $value
+					)
+				);
+				break;
+
+			case 'title':
+				$filters['title'] = '';
+				break;
+
+			case 'time':
+				$filters['time'] = 0;
+				break;
+
+			default:
+				$filters[ $kind ] = '';
+				break;
+		}
+
+		return $filters;
+	}
+
+	/**
+	 * Every filter in force, each with the address that drops it.
+	 *
+	 * The plugin answers what is filtered and where each chip links; the words
+	 * are the theme's, as they are for the browse views — which is why this
+	 * returns a value and a kind rather than a finished label.
+	 *
+	 * @return array<int, array{kind:string, value:string, url:string}>
+	 */
+	public static function active_archive_filters(): array {
+
+		$filters = self::archive_filters();
+		$out     = array();
+
+		foreach ( array( 'diet', 'time', 'view' ) as $kind ) {
+
+			if ( empty( $filters[ $kind ] ) ) {
+				continue;
+			}
+
+			$out[] = array(
+				'kind'  => $kind,
+				'value' => (string) $filters[ $kind ],
+				'url'   => self::archive_url_for( self::archive_filters_without( $filters, $kind ) ),
+			);
+		}
+
+		foreach ( (array) $filters['ingredients'] as $token ) {
+			$out[] = array(
+				'kind'  => 'ingredient',
+				'value' => (string) $token,
+				'url'   => self::archive_url_for( self::archive_filters_without( $filters, 'ingredient', (string) $token ) ),
+			);
+		}
+
+		if ( '' !== $filters['title'] ) {
+			$out[] = array(
+				'kind'  => 'title',
+				'value' => (string) $filters['title'],
+				'url'   => self::archive_url_for( self::archive_filters_without( $filters, 'title' ) ),
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Which ingredients a set of tokens names.
+	 *
+	 * An exact title first, then a title that contains the token — "Zwiebel"
+	 * finding "Frühlingszwiebel" is usually what somebody standing in front of
+	 * an open fridge means.
+	 *
+	 * @param string[] $tokens Raw tokens.
+	 * @return array{matched: array<string, int[]>, unknown: string[]}
+	 */
+	public static function resolve_ingredient_tokens( array $tokens ): array {
+
+		$matched = array();
+		$unknown = array();
+
+		foreach ( $tokens as $token ) {
+
+			$ids = get_posts(
+				array(
+					'post_type'      => 'mmm_ingredient',
+					'post_status'    => 'publish',
+					'posts_per_page' => 20,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					's'              => $token,
+					'search_columns' => array( 'post_title' ),
+				)
+			);
+
+			$ids = array_map( 'intval', (array) $ids );
+
+			if ( $ids ) {
+				$matched[ $token ] = $ids;
+			} else {
+				$unknown[] = $token;
+			}
+		}
+
+		return array(
+			'matched' => $matched,
+			'unknown' => $unknown,
+		);
+	}
+
+	/**
+	 * Recipes that contain any of the named ingredients, best match first.
+	 *
+	 * Counted per **token**, not per ingredient ID: "Paprika" names three
+	 * ingredients, and a recipe using one of them has answered the question
+	 * once, not three times.
+	 *
+	 * The whole ordered list is built here rather than in the main query,
+	 * because ordering by a count and paginating are otherwise irreconcilable:
+	 * WordPress can page through a list of IDs perfectly well, it just cannot
+	 * sort by something no column holds. At this library's size the list is a
+	 * few hundred integers.
+	 *
+	 * @param string[] $tokens Raw tokens.
+	 * @return array<int,int> Recipe ID => number of tokens matched, ordered.
+	 */
+	public static function rank_recipes_by_ingredients( array $tokens ): array {
+
+		static $memo = array();
+
+		$key = md5( (string) wp_json_encode( $tokens ) );
+
+		if ( isset( $memo[ $key ] ) ) {
+			return $memo[ $key ];
+		}
+
+		$hits = array();
+
+		foreach ( self::resolve_ingredient_tokens( $tokens )['matched'] as $ids ) {
+
+			$recipe_ids = get_posts(
+				Mixmymeals_Post_Types::exclude_unlisted(
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => -1,
+						'fields'         => 'ids',
+						'no_found_rows'  => true,
+						// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+						'meta_query'     => array(
+							array(
+								'key'     => Mixmymeals_Recipe::META_INGREDIENT_INDEX,
+								'value'   => array_map( 'strval', $ids ),
+								'compare' => 'IN',
+							),
+						),
+					)
+				)
+			);
+
+			foreach ( (array) $recipe_ids as $recipe_id ) {
+				$recipe_id          = (int) $recipe_id;
+				$hits[ $recipe_id ] = ( $hits[ $recipe_id ] ?? 0 ) + 1;
+			}
+		}
+
+		arsort( $hits );
+
+		$memo[ $key ] = $hits;
+
+		return $hits;
 	}
 
 	/**
@@ -8711,72 +9665,28 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Returns published recipe IDs that use the given ingredient. Pre-filters via
-	 * a serialized-token LIKE on _rmm_steps, then verifies in PHP. Cached per
-	 * ingredient for an hour.
+	 * The published recipes that use an ingredient.
 	 *
-	 * @param int $ingredient_id Ingredient post ID.
-	 * @param int $limit         Max recipes to return.
-	 * @return int[]
+	 * Reads the recipe index rather than scanning: this used to be an
+	 * unanchored LIKE over the serialized step meta, capped at a hundred
+	 * candidates sorted by title and twenty-four results, behind a transient
+	 * nothing ever cleared. The cap is why the ingredient page broke off in the
+	 * middle of the alphabet, and the transient is why it stayed broken off for
+	 * an hour after somebody fixed the recipe.
+	 *
+	 * Drafts are deliberately not here. Deciding whether an ingredient may be
+	 * deleted is a different question with a different answer, and it still
+	 * scans — see Mixmymeals_REST_API::ingredient_usage_map().
+	 *
+	 * @param int $ingredient_id Ingredient ID.
+	 * @param int $limit         0 for all of them.
+	 * @return int[] Recipe IDs, alphabetical.
 	 */
-	private function recipes_using_ingredient( int $ingredient_id, int $limit = 24 ): array {
+	private function recipes_using_ingredient( int $ingredient_id, int $limit = 0 ): array {
 
-		if ( $ingredient_id <= 0 ) {
-			return array();
-		}
+		$ids = Mixmymeals_Recipe::ids_using_ingredient( $ingredient_id );
 
-		$cache_key = 'mmm_ing_recipes_' . $ingredient_id;
-		$cached    = get_transient( $cache_key );
-		if ( is_array( $cached ) ) {
-			return $cached;
-		}
-
-		$idn = (string) $ingredient_id;
-		$ids = get_posts(
-			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-						'post_type'      => 'mmm_recipe',
-						'post_status'    => 'publish',
-						'posts_per_page' => 100,
-						'fields'         => 'ids',
-						'orderby'        => 'title',
-						'order'          => 'ASC',
-						'no_found_rows'  => true,
-						// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-						'meta_query'     => array(
-							'relation' => 'OR',
-							array(
-								'key'     => '_rmm_steps',
-								'value'   => 's:2:"id";i:' . $idn . ';',
-								'compare' => 'LIKE',
-							),
-							array(
-								'key'     => '_rmm_steps',
-								'value'   => 's:2:"id";s:' . strlen( $idn ) . ':"' . $idn . '";',
-								'compare' => 'LIKE',
-							),
-						),
-				)
-			)
-		);
-
-		$result = array();
-		foreach ( $ids as $rid ) {
-			$recipe = new Mixmymeals_Recipe( (int) $rid );
-			foreach ( $recipe->get_ingredients_normalized() as $ing ) {
-				if ( (int) $ing['id'] === $ingredient_id ) {
-					$result[] = (int) $rid;
-					break;
-				}
-			}
-			if ( count( $result ) >= $limit ) {
-				break;
-			}
-		}
-
-		set_transient( $cache_key, $result, HOUR_IN_SECONDS );
-
-		return $result;
+		return $limit > 0 ? array_slice( $ids, 0, $limit ) : $ids;
 	}
 
 	/**

@@ -163,6 +163,16 @@ class Mixmymeals_Rest_Api {
 
 		// mmm_recipe
 		register_post_meta( 'mmm_recipe', '_mmm_servings', array( 'type' => 'number', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
+
+		/*
+		 * Note the gap: this core meta route sanitises with absint() and will
+		 * happily store a 0, which Mixmymeals_Recipe::set_preparation_time()
+		 * no longer does — a 0 written this way reads as "takes no time" and
+		 * would put the recipe into the archive's fastest bucket. The recipe's
+		 * index recount normalises it away on the next write to that post; the
+		 * namespace's own /recipes routes go through the setter and never
+		 * produce it.
+		 */
 		register_post_meta( 'mmm_recipe', '_mmm_preparation_time', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_recipe', '_mmm_priority', array( 'type' => 'integer', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => 'absint', 'auth_callback' => $can_edit ) );
 		register_post_meta( 'mmm_recipe', '_mmm_equipment', array( 'type' => 'array', 'single' => true, 'show_in_rest' => array( 'schema' => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ) ) ), 'auth_callback' => $can_edit ) );
@@ -2235,6 +2245,7 @@ class Mixmymeals_Rest_Api {
 			$diet_type = $recipe->get_diet_type();
 			$prep      = (int) $recipe->get_preparation_time();
 
+
 			if ( $diet && $diet_type !== $diet ) {
 				continue;
 			}
@@ -2244,7 +2255,14 @@ class Mixmymeals_Rest_Api {
 			if ( null !== $max_cal && $calories > $max_cal ) {
 				continue;
 			}
-			if ( null !== $max_prep && $prep > $max_prep ) {
+
+			/*
+			 * A recipe nobody has timed reads 0 and must not pass as the
+			 * fastest dish on the site. Asking for "at most 20 minutes" is
+			 * asking for a stated time — the same rule the archive's time
+			 * filter keeps, where the meta_query's join enforces it.
+			 */
+			if ( null !== $max_prep && ( $prep <= 0 || $prep > $max_prep ) ) {
 				continue;
 			}
 
