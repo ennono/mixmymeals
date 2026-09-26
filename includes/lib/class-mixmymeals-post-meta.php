@@ -192,6 +192,10 @@ class Mixmymeals_Post_Meta {
 			'add_meta_boxes_mmm_meal_plan',
 			array( $this, 'add_meal_plan_overview_meta_box' )
 		);
+		// Its own hook, like the products box on the ingredient: a plan screen
+		// that does not render this table must not wipe the meals by not
+		// posting them.
+		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_meals' ) );
 	}
 
 	/*
@@ -877,20 +881,40 @@ class Mixmymeals_Post_Meta {
 
 	/*
 	======================================================
-	*  MEAL PLAN META BOX (Overview of linked meals)
-	* ====================================================== */
+	 *  MEAL PLAN META BOX (the plan's meals, editable)
+	 * ====================================================== */
 
+	/**
+	 * Registers the meals box on the plan screen.
+	 *
+	 * @return void
+	 */
 	public function add_meal_plan_overview_meta_box(): void {
 		add_meta_box(
 			'mixmymeals_plan_overview_box',
-			__( 'Meal Overview', 'mixmymeals' ),
+			__( 'Meals', 'mixmymeals' ),
 			array( $this, 'render_meal_plan_overview_meta_box' ),
 			'mmm_meal_plan',
 			'normal'
 		);
 	}
 
+	/**
+	 * The plan's meals, editable in place.
+	 *
+	 * The same shape as the units table on an ingredient: a meal is a detail of
+	 * its plan, and moving one to another day should not mean opening a screen
+	 * of its own. The meal keeps that screen for everything this table leaves
+	 * out — its note, its status, its own title.
+	 *
+	 * @param WP_Post $post The meal plan.
+	 * @return void
+	 */
 	public function render_meal_plan_overview_meta_box( WP_Post $post ): void {
+
+		wp_nonce_field( 'mmm_plan_meals_meta_box', 'mmm_plan_meals_nonce' );
+
+		$plan  = new Mixmymeals_Meal_Plan( $post->ID );
 		$meals = get_children(
 			array(
 				'post_parent' => $post->ID,
@@ -901,63 +925,379 @@ class Mixmymeals_Post_Meta {
 			)
 		);
 
-		if ( empty( $meals ) ) {
-			echo '<p>' . esc_html__(
-				'No meals linked to this plan yet.',
-				'mixmymeals'
-			) . '</p>';
+		$recipes = Mixmymeals_Recipe::get_all_recipes();
+		$days    = $plan->get_day_range();
 
-			return;
-		}
+		/*
+		 * Sorted the way the plan reads, not by menu_order: every meal here
+		 * carries a day, and a plan spanning Sunday has its own order of them
+		 * (6, 7, 1, 2) that a numeric sort would scramble. Meals without a day
+		 * go last, and equal days keep their insertion order.
+		 */
+		$order = array_flip( $days );
+		$meals = (array) $meals;
 
-		echo '<table class="widefat" style="width:100%; border-collapse:collapse;">';
-		echo '<thead><tr>
-		<th>' . esc_html__( 'Meal', 'mixmymeals' ) . '</th>
-		<th>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</th>
-		<th style="text-align:right;">' . esc_html__( 'Servings', 'mixmymeals' )
-			. '</th>
-	</tr></thead><tbody>';
+		usort(
+			$meals,
+			static function ( $a, $b ) use ( $order ) {
 
-		foreach ( $meals as $meal ) {
-			$meal_obj  = new Mixmymeals_Meal( $meal->ID );
-			$recipe_id = $meal_obj->get_recipe_id();
+				$rank = static function ( $meal ) use ( $order ) {
+					$day = (int) get_post_meta( $meal->ID, '_mmm_day', true );
+					return $order[ $day ] ?? PHP_INT_MAX;
+				};
 
-			if ( ! $recipe_id ) {
-				continue;
+				$by_day = $rank( $a ) <=> $rank( $b );
+
+				return 0 !== $by_day ? $by_day : $a->ID <=> $b->ID;
 			}
+		);
 
-			$servings    = max( 1, intval( $meal_obj->get_servings() ) );
-			$recipe_link = get_edit_post_link( $recipe_id );
+		echo '<table class="widefat striped mmm-plan-meals">';
+		echo '<thead><tr>';
+		echo '<th>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Type', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Day', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Servings', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Meal', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
+		echo '</tr></thead><tbody>';
 
-			echo '<tr>';
-			// translators: Meal ID
-			echo '<td>' . esc_html(
-				$meal->post_title
-				/* translators: %d: ID of the meal, used when it has no title yet. */
-				?: sprintf( __( 'Meal #%d', 'mixmymeals' ), $meal->ID )
-			)
-				. '</td>';
+		foreach ( (array) $meals as $meal ) {
 
-			echo '<td>';
-			if ( $recipe_link ) {
-				echo '<a href="' . esc_url( $recipe_link )
-					. '" target="_blank"><strong>'
-					. esc_html( get_the_title( $recipe_id ) )
-					. '</strong></a>';
-			} else {
-				echo esc_html( get_the_title( $recipe_id ) );
-			}
-			echo '</td>';
+			$meal_obj = new Mixmymeals_Meal( $meal->ID );
+			$field    = 'mmm_plan_meals[' . (int) $meal->ID . ']';
 
-			echo '<td style="text-align:right;">' . esc_html( $servings )
-				. '</td>';
+			echo '<tr data-id="' . esc_attr( (string) $meal->ID ) . '">';
+
+			echo '<td>' . self::meal_recipe_select( $field . '[recipe_id]', $recipes, $meal_obj->get_recipe_id() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td>' . self::meal_type_select( $field . '[type]', $meal_obj->get_type() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td>' . self::meal_day_select( $field . '[day]', $days, (int) $meal_obj->get_day() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+
+			printf(
+				'<td><input type="number" min="1" step="1" name="%s" value="%s" class="small-text"></td>',
+				esc_attr( $field . '[servings]' ),
+				esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) )
+			);
+
+			// The meal keeps its own screen: notes, status and everything else
+			// this table deliberately does not carry live there.
+			$link = get_edit_post_link( $meal->ID );
+
+			printf(
+				'<td>%s</td>',
+				$link
+					? sprintf(
+						'<a href="%s" target="_blank" rel="noopener">%s</a>',
+						esc_url( $link ),
+						esc_html( self::meal_row_title( $meal ) )
+					)
+					: esc_html( self::meal_row_title( $meal ) )
+			);
+
+			printf(
+				'<td><label><input type="checkbox" name="%s" value="1"><span class="screen-reader-text">%s</span></label></td>',
+				esc_attr( $field . '[delete]' ),
+				esc_html(
+					sprintf(
+						/* translators: %s: name of the meal. */
+						__( 'Delete %s', 'mixmymeals' ),
+						self::meal_row_title( $meal )
+					)
+				)
+			);
+
 			echo '</tr>';
 		}
 
+		// The empty row at the foot, like the units box: adding a meal is the
+		// thing one comes here to do, and a separate screen for it was the
+		// reason this box was read-only for so long.
+		echo '<tr class="mmm-plan-meals__new">';
+		echo '<td>' . self::meal_recipe_select( 'mmm_plan_meals[new][recipe_id]', $recipes, 0 ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+		echo '<td>' . self::meal_type_select( 'mmm_plan_meals[new][type]', 'dinner' ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+		echo '<td>' . self::meal_day_select( 'mmm_plan_meals[new][day]', $days, 0 ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+		echo '<td><input type="number" min="1" step="1" name="mmm_plan_meals[new][servings]" value="" class="small-text" placeholder="1"></td>';
+		echo '<td colspan="2"><span class="description">' . esc_html__( 'Pick a recipe to add a meal.', 'mixmymeals' ) . '</span></td>';
+		/*
+		 * The block editor posts the meta boxes without re-rendering them, so
+		 * a second Save sends the filled-in new row a second time and would
+		 * plan the same meal twice. The token is spent on the save that uses
+		 * it; every later post of the same row finds it gone.
+		 */
+		printf(
+			'<input type="hidden" name="mmm_plan_meals[new][token]" value="%s">',
+			esc_attr( wp_generate_uuid4() )
+		);
+		echo '</tr>';
+
 		echo '</tbody></table>';
+
+		if ( ! $days ) {
+			echo '<p class="description">' . esc_html__( 'This plan has no days yet — set its first and last day in the plan settings.', 'mixmymeals' ) . '</p>';
+		}
 	}
 
+	/**
+	 * How a meal names itself in the table.
+	 *
+	 * @param WP_Post $meal The meal.
+	 * @return string
+	 */
+	private static function meal_row_title( WP_Post $meal ): string {
 
+		if ( '' !== trim( (string) $meal->post_title ) ) {
+			return (string) $meal->post_title;
+		}
+
+		/* translators: %d: ID of the meal, used when it has no title. */
+		return sprintf( __( 'Meal #%d', 'mixmymeals' ), $meal->ID );
+	}
+
+	/**
+	 * The recipe chooser of one meal row.
+	 *
+	 * @param string    $name    Field name.
+	 * @param WP_Post[] $recipes All recipes.
+	 * @param int       $current Chosen recipe.
+	 * @return string
+	 */
+	private static function meal_recipe_select( string $name, array $recipes, int $current ): string {
+
+		$out  = '<select name="' . esc_attr( $name ) . '" class="mmm-plan-meals__recipe">';
+		$out .= '<option value="">' . esc_html__( '— Select Recipe —', 'mixmymeals' ) . '</option>';
+
+		foreach ( $recipes as $recipe ) {
+			$out .= sprintf(
+				'<option value="%d" %s>%s</option>',
+				absint( $recipe->ID ),
+				selected( $current, $recipe->ID, false ),
+				esc_html( $recipe->post_title )
+			);
+		}
+
+		return $out . '</select>';
+	}
+
+	/**
+	 * The meal-type chooser of one row.
+	 *
+	 * @param string $name    Field name.
+	 * @param string $current Chosen type.
+	 * @return string
+	 */
+	private static function meal_type_select( string $name, string $current ): string {
+
+		$out = '<select name="' . esc_attr( $name ) . '">';
+
+		foreach ( Mixmymeals_Meal::get_plaintext_meal_type_map() as $value => $label ) {
+			$out .= sprintf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( (string) $value ),
+				selected( $current, $value, false ),
+				esc_html( (string) $label )
+			);
+		}
+
+		return $out . '</select>';
+	}
+
+	/**
+	 * The day chooser of one row.
+	 *
+	 * Offers the plan's own days, not all seven: a meal on a day the plan does
+	 * not span is a meal nothing renders, and the day list is the one thing
+	 * this table knows better than the meal's own screen — which reads the
+	 * range from the parent and shows whatever it finds.
+	 *
+	 * @param string $name    Field name.
+	 * @param int[]  $days    The plan's days, in its own order.
+	 * @param int    $current Chosen day.
+	 * @return string
+	 */
+	private static function meal_day_select( string $name, array $days, int $current ): string {
+
+		$out  = '<select name="' . esc_attr( $name ) . '">';
+		$out .= '<option value="">' . esc_html__( '— No day —', 'mixmymeals' ) . '</option>';
+
+		// A meal already sitting outside the plan's range keeps its day in the
+		// list, or saving this table would silently move it.
+		$offer = $days;
+
+		if ( $current > 0 && ! in_array( $current, $offer, true ) ) {
+			$offer[] = $current;
+		}
+
+		foreach ( $offer as $day ) {
+			$out .= sprintf(
+				'<option value="%d" %s>%s</option>',
+				absint( $day ),
+				selected( $current, $day, false ),
+				esc_html( Mixmymeals_Meal_Plan::weekday_name( (int) $day ) )
+			);
+		}
+
+		return $out . '</select>';
+	}
+
+	/**
+	 * Saves the meals edited in the plan's own screen.
+	 *
+	 * Its own nonce and its own hook, like the products box on the ingredient:
+	 * a screen that does not render this table must not be able to wipe a
+	 * plan's meals by not posting them.
+	 *
+	 * @param int $post_id Meal plan ID.
+	 * @return void
+	 */
+	public function save_plan_meals( int $post_id ): void {
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		if (
+			! isset( $_POST['mmm_plan_meals_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_plan_meals_nonce'] ) ),
+				'mmm_plan_meals_meta_box'
+			)
+		) {
+			return;
+		}
+
+		if ( ! isset( $_POST['mmm_plan_meals'] ) || ! is_array( $_POST['mmm_plan_meals'] ) ) {
+			return;
+		}
+
+		// Sanitised element by element below; the sniff only sees the array as
+		// it arrives.
+		$rows = wp_unslash( $_POST['mmm_plan_meals'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per element below.
+
+		foreach ( $rows as $id => $row ) {
+
+			if ( 'new' === $id ) {
+				continue;
+			}
+
+			$meal_id = absint( $id );
+			$meal    = get_post( $meal_id );
+
+			if ( ! $meal || 'mmm_meal' !== $meal->post_type || (int) $meal->post_parent !== $post_id ) {
+				continue;
+			}
+
+			/*
+			 * Deleted for good, not trashed: a meal is a planning of a recipe
+			 * inside one plan and has no life of its own — a trashed one would
+			 * sit in the bin forever, and the cleanup run deletes orphans
+			 * outright for the same reason.
+			 */
+			if ( ! empty( $row['delete'] ) ) {
+				wp_delete_post( $meal_id, true );
+				continue;
+			}
+
+			$this->apply_meal_row( new Mixmymeals_Meal( $meal_id ), (array) $row );
+		}
+
+		// The new row last, so its day and type see a table that is already in
+		// the state the editor just described.
+		$new = isset( $rows['new'] ) && is_array( $rows['new'] ) ? $rows['new'] : array();
+
+		if ( ! empty( $new['recipe_id'] ) && $this->spend_new_meal_token( $new['token'] ?? '' ) ) {
+
+			$recipe_id = absint( $new['recipe_id'] );
+			$recipe    = get_post( $recipe_id );
+
+			if ( $recipe && 'mmm_recipe' === $recipe->post_type ) {
+
+				// create() throws, and this runs on save_post: an uncaught
+				// exception here would replace the editor with a blank page
+				// and lose the rest of the save.
+				try {
+					$meal = Mixmymeals_Meal::create( (string) $recipe->post_title, $post_id );
+
+					$this->apply_meal_row( $meal, $new );
+				} catch ( \Exception $e ) {
+					// Nothing to report to: this is a redirecting POST.
+					unset( $e );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Uses up the new row's one-shot token.
+	 *
+	 * @param mixed $token Raw token from the request.
+	 * @return bool True when this save may create the meal.
+	 */
+	private function spend_new_meal_token( $token ): bool {
+
+		$token = sanitize_key( (string) $token );
+
+		if ( '' === $token ) {
+			return false;
+		}
+
+		$key = 'mmm_plan_meal_new_' . md5( $token );
+
+		if ( get_transient( $key ) ) {
+			return false;
+		}
+
+		// A day is far longer than an editing session and short enough that
+		// nothing accumulates.
+		set_transient( $key, 1, DAY_IN_SECONDS );
+
+		return true;
+	}
+
+	/**
+	 * Writes one row of the table onto a meal.
+	 *
+	 * @param Mixmymeals_Meal      $meal The meal.
+	 * @param array<string, mixed> $row  Raw row.
+	 * @return void
+	 */
+	private function apply_meal_row( Mixmymeals_Meal $meal, array $row ): void {
+		/*
+		 * An empty recipe keeps the stored one rather than clearing it: a meal
+		 * without a recipe is a meal nothing can render, and the way to get rid
+		 * of one is the delete box in the same row.
+		 */
+		if ( ! empty( $row['recipe_id'] ) ) {
+
+			$recipe = get_post( absint( $row['recipe_id'] ) );
+
+			if ( $recipe && 'mmm_recipe' === $recipe->post_type ) {
+				$meal->set_recipe_id( (int) $recipe->ID );
+			}
+		}
+
+		// set_type() stores whatever it is given, so the vocabulary is checked
+		// here — the select can only post a known key, a forged POST cannot.
+		if ( isset( $row['type'] ) ) {
+
+			$type = sanitize_key( (string) $row['type'] );
+
+			if ( array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ) {
+				$meal->set_type( $type );
+			}
+		}
+
+		if ( isset( $row['day'] ) ) {
+			$meal->set_day( absint( $row['day'] ) );
+		}
+
+		if ( isset( $row['servings'] ) && '' !== $row['servings'] ) {
+			$meal->set_servings( max( 1, absint( $row['servings'] ) ) );
+		}
+	}
 
 	/**
 	 * Helper to sum nutrition values for a recipe's steps × servings.
@@ -1687,7 +2027,6 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 1;
-		mixmymeals_write_to_log( $plan_start );
 		$plan_end = $parent_id ? intval(
 			get_post_meta(
 				$parent_id,
@@ -1695,7 +2034,6 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 7;
-		mixmymeals_write_to_log( $plan_end );
 
 		echo '<p><label><strong>' . esc_html__(
 			'Day (within Meal Plan)',
@@ -2141,6 +2479,104 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
+	 * The recipes using one unit, as a list of links.
+	 *
+	 * This column held a number, which answered "may I delete this?" with a
+	 * yes or a no and nothing else. The names answer the question behind it —
+	 * *which* recipes would start reading their amounts as grams — and that is
+	 * the one worth seeing before ticking Delete.
+	 *
+	 * The links go to the editor, not to the public page: this is an edit
+	 * screen, half the recipes in here may be drafts, and an editor following
+	 * one of these wants to fix it. They open in a new tab because the
+	 * ingredient being edited usually has unsaved changes, and a column of
+	 * links that quietly discard them would be a trap.
+	 *
+	 * @param array<int, array{recipe_id:int,recipe_title:string,status:string,occurrences:int}> $usage From get_usage().
+	 * @return string Escaped markup.
+	 */
+	private static function unit_usage_list( array $usage ): string {
+
+		if ( ! $usage ) {
+			return '<span class="mmm-unit-usage__none">' . esc_html__( 'not used', 'mixmymeals' ) . '</span>';
+		}
+
+		$items = array();
+
+		foreach ( $usage as $row ) {
+
+			$recipe_id = (int) ( $row['recipe_id'] ?? 0 );
+
+			if ( $recipe_id <= 0 ) {
+				continue;
+			}
+
+			$title = self::shorten_title( (string) ( $row['recipe_title'] ?? '' ) );
+			$link  = get_edit_post_link( $recipe_id );
+
+			$label = $link
+				? sprintf(
+					'<a href="%s" target="_blank" rel="noopener">%s</a>',
+					esc_url( $link ),
+					esc_html( $title )
+				)
+				: esc_html( $title );
+
+			// A unit used three times in one recipe is three lines that would
+			// change meaning, and that is what the deletion warning counts.
+			$occurrences = (int) ( $row['occurrences'] ?? 1 );
+
+			if ( $occurrences > 1 ) {
+				$label .= ' <span class="mmm-unit-usage__times">' . esc_html( sprintf( '×%d', $occurrences ) ) . '</span>';
+			}
+
+			// A draft explains why a unit is in use although nothing public
+			// shows it — without the note the list looks wrong.
+			if ( 'publish' !== (string) ( $row['status'] ?? '' ) ) {
+				$label .= ' <span class="mmm-unit-usage__status">' . esc_html__( '(draft)', 'mixmymeals' ) . '</span>';
+			}
+
+			$items[] = '<li>' . $label . '</li>';
+		}
+
+		return $items ? '<ul class="mmm-unit-usage__list">' . implode( '', $items ) . '</ul>' : '';
+	}
+
+	/**
+	 * A recipe title cut to something a narrow column can carry.
+	 *
+	 * Cut on a word boundary and marked with "(…)", so it reads as a shortened
+	 * name rather than as a name that happens to end oddly.
+	 *
+	 * @param string $title The full title.
+	 * @param int    $max   Longest title kept whole.
+	 * @return string
+	 */
+	private static function shorten_title( string $title, int $max = 30 ): string {
+
+		$title = trim( wp_strip_all_tags( $title ) );
+
+		if ( '' === $title ) {
+			return __( '(no title)', 'mixmymeals' );
+		}
+
+		if ( mb_strlen( $title ) <= $max ) {
+			return $title;
+		}
+
+		$cut   = mb_substr( $title, 0, $max );
+		$space = mb_strrpos( $cut, ' ' );
+
+		// Only back to the last space when that leaves something worth reading;
+		// one very long word would otherwise shrink the title to nothing.
+		if ( false !== $space && $space > $max / 2 ) {
+			$cut = mb_substr( $cut, 0, $space );
+		}
+
+		return rtrim( $cut, ' ,;:-–' ) . ' (…)';
+	}
+
+	/**
 	 * One product as two table rows, or the empty "add" pair when $product is
 	 * null.
 	 *
@@ -2306,7 +2742,7 @@ class Mixmymeals_Post_Meta {
 		echo '<thead>';
 		echo '<tr>';
 		echo '<th>' . esc_html__( 'Title', 'mixmymeals' ) . '</th>';
-		echo '<th>' . esc_html__( 'Used', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Used in', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Weight', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Divisibility', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
@@ -2324,7 +2760,7 @@ class Mixmymeals_Post_Meta {
 					continue; // Skip if unit is invalid.
 				}
 
-				$usage_count = $amount->get_amount_usage_count();
+				$usage = $amount->get_usage();
 
 				echo '<tr data-id="' . esc_attr( $unit->ID ) . '">';
 
@@ -2337,8 +2773,8 @@ class Mixmymeals_Post_Meta {
                     class="regular-text">';
 				echo '</td>';
 
-                // Nutzung
-				echo '<td>' . esc_html( $usage_count ) . '</td>';
+				// Nutzung: welche Rezepte, nicht wie viele.
+				echo '<td class="mmm-unit-usage">' . self::unit_usage_list( $usage ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per link below.
 
 				// Gewicht als Input-Feld
 				echo '<td>';

@@ -229,6 +229,16 @@ Over REST a unit carries `divisor`, a read-only `step_divisor` and the older `is
 
 **Meal** — child post of a meal plan. Meta: `recipe_id`, `servings`, `mmm_meal_type` (breakfast/lunch/dinner/snack/other), `_mmm_day` (1–7).
 
+**Meals are edited in the plan's own screen**, in the Meals box (`render_meal_plan_overview_meta_box()` / `save_plan_meals()` in `Mixmymeals_Post_Meta`) — the same shape as the units table on an ingredient, and for the same reason: a meal is a detail of its plan, and moving one to another day should not mean opening a screen of its own. The meal keeps that screen for what the table leaves out. Its own nonce and its own `save_post_mmm_meal_plan` hook, per the products-box rule above.
+
+The day select offers the **plan's own days, in the plan's own order** (`get_day_range()`, so a plan crossing Sunday reads 6, 7, 1, 2) — plus, for a meal already sitting outside that range, its own day, or saving the table would silently move it. Weekday wording comes from `Mixmymeals_Meal_Plan::weekday_name()`; there is no second vocabulary.
+
+Two rules the handler keeps that the setters do not: an **empty recipe keeps the stored one** (blanking is a loss, not an edit — the way to remove a meal is the delete box in its row), and an unknown meal type is discarded, since `Mixmymeals_Meal::set_type()` stores whatever it is given. Deletion is `wp_delete_post( …, true )`, not the trash: a meal has no life outside its plan.
+
+**The new row carries a one-shot token** (`mmm_plan_meals[new][token]`, spent through a day-long transient). The block editor posts the meta boxes without re-rendering them, so a second Save sends the still-filled new row again and plans the same meal twice — verified before the guard existed. Any table of this shape that creates rows needs one; the units box on the ingredient has the same gap.
+
+Round trips through the callback are in `tools/plan-meals-test.php` (not distributed), the way the recipe-steps lesson above asks for.
+
 **Meal Plan** — meta: `start_day` and `end_day` (1=Mon … 7=Sun). Plans can span across Sunday (e.g. start=6, end=2).
 
 ### Ingredient amounts and weight calculation

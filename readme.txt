@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.35.0
+Stable tag: 3.36.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.36.0 =
+
+Added:
+* A meal plan's meals are edited in the plan itself: one row per meal with its
+  recipe, type, day and servings, a box to delete one and an empty row at the
+  foot to add one. Same shape as the units on an ingredient.
+* The day list offers the plan's own days in the plan's own order, so a plan
+  running Saturday to Tuesday reads Sat, Sun, Mon, Tue. A meal already sitting
+  outside that range keeps its day in the list rather than being moved by a
+  save that never meant to.
+* Ingredient units say which recipes use them — the titles, linked and
+  shortened, instead of a bare count.
+
+Fixed:
+* Two stray debug writes on every meal edit screen.
 
 = 3.35.0 =
 

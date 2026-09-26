@@ -874,3 +874,56 @@
 .mmm-products__field--source > input {
     width: 100%;
 }
+
+/* Welche Rezepte eine Einheit benutzen. Stand hier lange als blanke Zahl —
+   die beantwortete „darf ich löschen?" mit ja oder nein, aber nicht die Frage
+   dahinter: welche Rezepte ihre Mengen plötzlich als Gramm lesen würden.
+
+   Die Spalte wird gedeckelt, damit sie die Eingabefelder daneben nicht
+   zusammendrückt; die Titel sind vorher schon gekürzt, das hier ist der
+   Gürtel zum Hosenträger. */
+.mmm-unit-usage {
+    max-width: 22em;
+}
+
+.mmm-unit-usage__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.mmm-unit-usage__list li + li {
+    margin-top: 2px;
+}
+
+.mmm-unit-usage__times,
+.mmm-unit-usage__status,
+.mmm-unit-usage__none {
+    color: #646970;
+}
+
+.mmm-unit-usage__none {
+    font-size: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Meals in the plan screen
+ * ------------------------------------------------------------------------- */
+
+.mmm-plan-meals select {
+    max-width: 100%;
+}
+
+.mmm-plan-meals__recipe {
+    max-width: 22em;
+}
+
+.mmm-plan-meals__new {
+    background: #f6f7f7;
+}
+
+.mmm-plan-meals__new .description {
+    font-style: italic;
+}
