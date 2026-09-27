@@ -109,6 +109,8 @@ class Mixmymeals_Post_Meta {
 			array( $this, 'add_ingredient_products_meta_box' )
 		);
 		add_action( 'save_post_mmm_ingredient', array( $this, 'save_ingredient_products' ) );
+		add_action( 'wp_ajax_mmm_add_equipment', array( $this, 'ajax_add_equipment' ) );
+		add_action( 'wp_ajax_mmm_rename_equipment', array( $this, 'ajax_rename_equipment' ) );
 		add_action(
 			'wp_ajax_mixmymeals_get_ingredient_units',
 			array( $this, 'ajax_mixmymeals_get_ingredient_units_handler' )
@@ -2944,58 +2946,14 @@ class Mixmymeals_Post_Meta {
 		echo '</tr></thead><tbody>';
 
 		foreach ( $equipment as $piece ) {
-
-			$id    = (int) $piece->ID;
-			$count = (int) ( $counts[ $id ] ?? 0 );
-
-			echo '<tr>';
-
-			printf(
-				'<td class="mmm-equipment__pick"><label><input type="checkbox" name="mmm_equipment[]" value="%d"%s><span class="screen-reader-text">%s</span></label></td>',
-				esc_attr( (string) $id ),
-				checked( in_array( $id, $selected, true ), true, false ),
-				esc_html(
-					sprintf(
-						/* translators: %s: name of a piece of equipment. */
-						__( 'This recipe needs %s', 'mixmymeals' ),
-						$piece->post_title
-					)
-				)
+			// One builder for the rendered row and the one AJAX appends, or
+			// a piece added without a reload would differ from its neighbours.
+			echo self::equipment_row( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
+				(int) $piece->ID,
+				(string) $piece->post_title,
+				in_array( (int) $piece->ID, $selected, true ),
+				(int) ( $counts[ (int) $piece->ID ] ?? 0 )
 			);
-
-			printf(
-				'<td><input type="text" class="mmm-equipment__title" name="mmm_equipment_titles[%d]" value="%s"></td>',
-				esc_attr( (string) $id ),
-				esc_attr( (string) $piece->post_title )
-			);
-
-			printf(
-				'<td class="mmm-equipment__count">%s</td>',
-				esc_html(
-					sprintf(
-						/* translators: %d: number of recipes. */
-						_n( '%d recipe', '%d recipes', $count, 'mixmymeals' ),
-						$count
-					)
-				)
-			);
-
-			// New tab, like the unit usage list: the recipe usually has
-			// unsaved changes and a link that discards them is a trap.
-			$link = get_edit_post_link( $id );
-
-			printf(
-				'<td class="mmm-equipment__open">%s</td>',
-				$link
-					? sprintf(
-						'<a href="%s" target="_blank" rel="noopener">%s</a>',
-						esc_url( $link ),
-						esc_html__( 'Open', 'mixmymeals' )
-					)
-					: ''
-			);
-
-			echo '</tr>';
 		}
 
 		// The empty row: a piece of equipment that does not exist yet is the
@@ -3007,7 +2965,7 @@ class Mixmymeals_Post_Meta {
 			'<td><input type="text" class="mmm-equipment__title" name="mmm_equipment_new" value="" placeholder="%s"></td>',
 			esc_attr__( 'e.g. 26 cm springform tin', 'mixmymeals' )
 		);
-		echo '<td colspan="2"><span class="description">'
+		echo '<td colspan="2"><span class="description mmm-equipment__hint">'
 			. esc_html__( 'Created and ticked when you save.', 'mixmymeals' )
 			. '</span></td>';
 		echo '</tr>';
@@ -3017,6 +2975,155 @@ class Mixmymeals_Post_Meta {
 		echo '<p class="description">'
 			. esc_html__( 'A piece of equipment is shared: renaming one here renames it in every recipe that needs it. Nothing is deleted from this screen.', 'mixmymeals' )
 			. '</p>';
+	}
+
+	/**
+	 * Creates (or finds) a piece of equipment without saving the recipe.
+	 *
+	 * Adding one used to cost a full post save, after which the box did not
+	 * re-render and the new row simply did not appear — so the one thing this
+	 * box exists for gave no sign that it had worked. The piece is created
+	 * here; whether *this* recipe needs it stays recipe data and travels with
+	 * the recipe's own save, which is why the row comes back ticked but not
+	 * yet stored on the post.
+	 *
+	 * @return void
+	 */
+	public function ajax_add_equipment(): void {
+
+		check_ajax_referer( 'mmm_equipment_ajax', 'nonce' );
+
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'mixmymeals' ) ), 403 );
+		}
+
+		$title = isset( $_POST['title'] )
+			? sanitize_text_field( wp_unslash( $_POST['title'] ) )
+			: '';
+
+		if ( '' === $title ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter a name.', 'mixmymeals' ) ), 400 );
+		}
+
+		$id = $this->find_or_create_equipment( $title );
+
+		if ( $id <= 0 ) {
+			wp_send_json_error( array( 'message' => __( 'Could not be created.', 'mixmymeals' ) ), 500 );
+		}
+
+		$piece = new Mixmymeals_Equipment( $id );
+
+		wp_send_json_success(
+			array(
+				'id'    => $id,
+				'title' => $piece->get_title(),
+				// find_or_create may have returned one that already exists and
+				// is already in the table; the client decides on this.
+				'html'  => self::equipment_row( $id, $piece->get_title(), true, $piece->count_recipes() ),
+			)
+		);
+	}
+
+	/**
+	 * Renames a piece of equipment without saving the recipe.
+	 *
+	 * @return void
+	 */
+	public function ajax_rename_equipment(): void {
+
+		check_ajax_referer( 'mmm_equipment_ajax', 'nonce' );
+
+		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+
+		if ( ! current_user_can( 'edit_post', $id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'mixmymeals' ) ), 403 );
+		}
+
+		$piece = new Mixmymeals_Equipment( $id );
+
+		if ( ! $piece->is_valid() ) {
+			wp_send_json_error( array( 'message' => __( 'Not found.', 'mixmymeals' ) ), 404 );
+		}
+
+		$title = isset( $_POST['title'] )
+			? sanitize_text_field( wp_unslash( $_POST['title'] ) )
+			: '';
+
+		// Same rule as the posted form: an empty name keeps the stored one,
+		// because blanking is a loss and it would reach every recipe.
+		if ( '' === $title ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Please enter a name.', 'mixmymeals' ),
+					'title'   => $piece->get_title(),
+				),
+				400
+			);
+		}
+
+		if ( $title !== $piece->get_title() ) {
+			$piece->set_title( $title );
+		}
+
+		wp_send_json_success(
+			array(
+				'id'    => $id,
+				'title' => $piece->get_title(),
+			)
+		);
+	}
+
+	/**
+	 * One row of the equipment table.
+	 *
+	 * Shared by the renderer and the AJAX that appends a freshly created
+	 * piece: two builders would drift, and the row added without a reload is
+	 * exactly the one nobody checks against its neighbours.
+	 *
+	 * @param int    $id      Equipment ID.
+	 * @param string $title   Its name.
+	 * @param bool   $checked Whether this recipe needs it.
+	 * @param int    $count   Recipes needing it.
+	 * @return string Escaped markup.
+	 */
+	private static function equipment_row( int $id, string $title, bool $checked, int $count ): string {
+
+		$link = get_edit_post_link( $id );
+
+		return sprintf(
+			'<tr>'
+				. '<td class="mmm-equipment__pick"><label><input type="checkbox" name="mmm_equipment[]" value="%1$d"%2$s><span class="screen-reader-text">%3$s</span></label></td>'
+				. '<td><input type="text" class="mmm-equipment__title" name="mmm_equipment_titles[%1$d]" value="%4$s" data-mmm-title="%4$s"></td>'
+				. '<td class="mmm-equipment__count">%5$s</td>'
+				. '<td class="mmm-equipment__open">%6$s</td>'
+			. '</tr>',
+			$id,
+			checked( $checked, true, false ),
+			esc_html(
+				sprintf(
+					/* translators: %s: name of a piece of equipment. */
+					__( 'This recipe needs %s', 'mixmymeals' ),
+					$title
+				)
+			),
+			esc_attr( $title ),
+			esc_html(
+				sprintf(
+					/* translators: %d: number of recipes. */
+					_n( '%d recipe', '%d recipes', $count, 'mixmymeals' ),
+					$count
+				)
+			),
+			$link
+				// New tab, like the unit usage list: the recipe usually has
+				// unsaved changes and a link that discards them is a trap.
+				? sprintf(
+					'<a href="%s" target="_blank" rel="noopener">%s</a>',
+					esc_url( $link ),
+					esc_html__( 'Open', 'mixmymeals' )
+				)
+				: ''
+		);
 	}
 
 	/**

@@ -499,6 +499,28 @@ class Mixmymeals {
 		 */
 		wp_localize_script( 'mixmymeals-admin', 'MixMyMealsProducts', self::admin_product_map() );
 
+		/*
+		 * Equipment is created and renamed from the recipe screen without
+		 * saving the post. The strings travel with the nonces because the
+		 * answers are rendered in PHP and only the two failures below are
+		 * worded by the script.
+		 */
+		wp_localize_script(
+			'mixmymeals-admin',
+			'MixMyMealsEquipment',
+			array(
+				'ajaxurl'  => admin_url( 'admin-ajax.php' ),
+				'nonce'    => wp_create_nonce( 'mmm_equipment_ajax' ),
+				'saved'    => __( 'Saved', 'mixmymeals' ),
+				'failed'   => __( 'Could not be saved.', 'mixmymeals' ),
+				'existing' => __( 'That one is already in the list.', 'mixmymeals' ),
+				// The rendered hint describes the save-and-reload route, which
+				// is what happens without this script. With it, the piece is
+				// created on Enter, so the box must say so instead.
+				'hint'     => __( 'Type a name and press Enter.', 'mixmymeals' ),
+			)
+		);
+
 		wp_localize_script(
 			'mixmymeals-admin',
 			'MixMyMealsAmounts',

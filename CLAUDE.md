@@ -249,6 +249,14 @@ An empty name keeps the stored one, the same rule the product brand and the meal
 
 **And therefore no one-shot token here**, unlike the meals box. The block editor's second Save carries the checkbox list the first one was rendered with, which cannot contain what the first save just created; since `set_equipment()` writes the list whole, a token that suppressed the second resolution silently unticked the new piece. Resolving the name on every save fixes it, and find-or-create is what stops the duplicate. The token helper is `spend_new_row_token( $scope, $token )`, shared by any box that creates a row with no natural key.
 
+**Adding and renaming go over AJAX, not the post's save** — `ajax_add_equipment()` / `ajax_rename_equipment()` (nonce `mmm_equipment_ajax`, localised as `MixMyMealsEquipment`). Creating a piece used to cost a full post save, after which the box did not re-render and the new row simply never appeared: the one thing the box exists for gave no sign it had worked. Now Enter creates it and the row arrives ticked.
+
+**Only the piece is created there; the tick is still recipe data** and travels with the recipe's own save. So a piece added and then abandoned stays behind with no recipes, the way a tag would — that is the trade for not saving the post.
+
+`equipment_row()` builds the row for the renderer **and** for the AJAX answer, because the row nobody compares against its neighbours is exactly the one that arrives without a reload. The handler returns finished markup rather than data for the same reason the unit select does: the plural and the wording stay in PHP.
+
+The posted path is untouched and still works without JavaScript, which is why the empty row's hint is worded for *that* route and the script swaps it (`.mmm-equipment__hint`) for the one that is true with it.
+
 `Mixmymeals_Equipment::usage_counts()` is the one pass over the recipes that name any equipment, tallied in PHP and memoised per request; `count_recipes()` derives from it so the two cannot disagree, while `get_recipe_ids()` keeps its own transient because the front end needs the list. That transient was never cleared until `set_equipment()` started calling `flush_recipe_cache()` on both the pieces added and the ones dropped — tolerable while the number only sat on the equipment list, wrong the moment it sits beside the box that just changed it.
 
 ### Ingredient amounts and weight calculation

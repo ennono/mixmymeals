@@ -124,11 +124,10 @@ Added:
 * Ingredient units say which recipes use them — the titles, linked and
   shortened, instead of a bare count.
 
-* Kitchen equipment is picked, renamed and added straight in the recipe. A
-  piece that does not exist yet no longer means leaving the recipe and losing
-  whatever was unsaved on the way. Each piece shows how many recipes need it,
-  because a rename here reaches all of them; nothing is deleted from this
-  screen.
+* Kitchen equipment is picked, renamed and added straight in the recipe, and
+  adding one no longer costs a save: type the name, press Enter, and the row
+  is there and ticked. Each piece shows how many recipes need it, because a
+  rename here reaches all of them; nothing is deleted from this screen.
 
 Changed:
 * Meals are gone from the admin menu. They are planned in the plan they belong

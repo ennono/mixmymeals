@@ -1060,3 +1060,14 @@ tbody > tr:first-child.mmm-products__head {
 .mmm-equipment__new .description {
     font-style: italic;
 }
+
+.mmm-equipment__status {
+    min-height: 1.4em;
+    margin: 6px 0 0;
+    color: #3F6F1E;
+    font-size: 12px;
+}
+
+.mmm-equipment__status.is-error {
+    color: #d2622c;
+}

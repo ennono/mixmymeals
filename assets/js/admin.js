@@ -737,4 +737,141 @@ jQuery(document).ready(function ($) {
         });
     });
 
+
+    /* ===========================
+       EQUIPMENT ON THE RECIPE SCREEN
+       — create and rename without saving the post
+    ============================ */
+    const $equipmentTable = $('.mmm-equipment');
+
+    if ($equipmentTable.length && window.MixMyMealsEquipment) {
+
+        const eq = window.MixMyMealsEquipment;
+
+        // The status line lives beside the table, not in the row: a message
+        // inside a cell shifts the column widths of every row while it shows.
+        const $eqStatus = $('<p class="mmm-equipment__status" role="status" aria-live="polite"></p>')
+            .insertAfter($equipmentTable);
+
+        // Without this script the piece is created by the post's own save, and
+        // that is what the rendered hint says. Here it is created on Enter.
+        if (eq.hint) {
+            $equipmentTable.find('.mmm-equipment__hint').text(eq.hint);
+        }
+
+        let eqStatusTimer = null;
+
+        const eqSay = (text, ok) => {
+            window.clearTimeout(eqStatusTimer);
+            $eqStatus.text(text).toggleClass('is-error', !ok);
+
+            if (ok) {
+                eqStatusTimer = window.setTimeout(() => $eqStatus.text(''), 4000);
+            }
+        };
+
+        const eqPost = (action, data) => $.ajax({
+            url: eq.ajaxurl,
+            method: 'POST',
+            data: $.extend({ action: action, nonce: eq.nonce }, data)
+        });
+
+        const eqMessage = (response, fallback) =>
+            (response && response.data && response.data.message) ? response.data.message : fallback;
+
+        /* --- Adding --- */
+
+        const $eqNew = $equipmentTable.find('input[name="mmm_equipment_new"]');
+
+        const addEquipment = () => {
+            const title = $.trim($eqNew.val());
+
+            if (!title || $eqNew.prop('disabled')) {
+                return;
+            }
+
+            $eqNew.prop('disabled', true);
+
+            eqPost('mmm_add_equipment', { title: title }).done(function (response) {
+                if (!response || !response.success) {
+                    eqSay(eqMessage(response, eq.failed), false);
+                    return;
+                }
+
+                // find-or-create may hand back one the table already shows —
+                // then tick that row rather than listing it twice.
+                const $existing = $equipmentTable
+                    .find('input[name="mmm_equipment[]"][value="' + response.data.id + '"]');
+
+                if ($existing.length) {
+                    $existing.prop('checked', true);
+                    eqSay(eq.existing, true);
+                } else {
+                    $(response.data.html).insertBefore($equipmentTable.find('.mmm-equipment__new'));
+                    eqSay(eq.saved, true);
+                }
+
+                $eqNew.val('');
+            }).fail(function (xhr) {
+                eqSay(eqMessage(xhr && xhr.responseJSON, eq.failed), false);
+            }).always(function () {
+                // Focus back in the field: adding one piece of equipment
+                // usually means adding the next.
+                $eqNew.prop('disabled', false).trigger('focus');
+            });
+        };
+
+        $equipmentTable.on('keydown', 'input[name="mmm_equipment_new"]', function (event) {
+            if (event.key === 'Enter') {
+                // Or the block editor takes the Return as a submit.
+                event.preventDefault();
+                addEquipment();
+            }
+        });
+
+        $equipmentTable.on('blur', 'input[name="mmm_equipment_new"]', addEquipment);
+
+        /* --- Renaming --- */
+
+        $equipmentTable.on('change', '.mmm-equipment__title', function () {
+            const $input = $(this);
+            const id = ($input.attr('name') || '').replace(/\D+/g, '');
+            const title = $.trim($input.val());
+
+            if (!id || title === $input.data('mmm-title')) {
+                return;
+            }
+
+            $input.prop('disabled', true);
+
+            eqPost('mmm_rename_equipment', { id: id, title: title }).done(function (response) {
+                if (response && response.success) {
+                    $input.val(response.data.title).data('mmm-title', response.data.title);
+                    eqSay(eq.saved, true);
+                    return;
+                }
+
+                // An empty name keeps the stored one, and the field has to say
+                // so — otherwise it sits there blank and looks saved.
+                const kept = response && response.data && response.data.title;
+
+                if (kept) {
+                    $input.val(kept);
+                }
+
+                eqSay(eqMessage(response, eq.failed), false);
+            }).fail(function (xhr) {
+                const kept = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.title;
+
+                if (kept) {
+                    $input.val(kept);
+                }
+
+                eqSay(eqMessage(xhr && xhr.responseJSON, eq.failed), false);
+            }).always(function () {
+                $input.prop('disabled', false);
+            });
+        });
+    }
+
 });

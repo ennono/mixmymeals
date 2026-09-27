@@ -110,7 +110,80 @@ $ok( 'list picks the recipe up at once', in_array( $recipe_id, $fresh->get_recip
 ( new Mixmymeals_Recipe( $recipe_id ) )->set_equipment( array() );
 $ok( 'and drops it again', ! in_array( $recipe_id, ( new Mixmymeals_Equipment( $fresh->get_id() ) )->get_recipe_ids(), true ) );
 
-echo '-- 12. The box renders what the handler reads' . PHP_EOL;
+echo '-- 12. The AJAX that adds and renames without saving the recipe' . PHP_EOL;
+/*
+ * wp_send_json_* ends the request, so each call runs behind a handler that
+ * turns the exit into an exception. That is the only way to drive these from
+ * a script; everything they do happens before the send.
+ */
+$call = function ( $method, array $post ) use ( $meta ) {
+	$_POST          = $post;
+	$_POST['nonce'] = $post['nonce'] ?? wp_create_nonce( 'mmm_equipment_ajax' );
+	$_REQUEST       = $_POST;
+
+	/*
+	 * wp_send_json_* echoes and then calls wp_die(), which in a script ends
+	 * the process outright — the first assertion would be the last. Swapping
+	 * the die handler for one that throws turns the end of the response into
+	 * something a test can catch; the JSON is already in the buffer by then.
+	 */
+	$thrower = static function () {
+		return static function () {
+			throw new \RuntimeException( 'wp_die' );
+		};
+	};
+
+	add_filter( 'wp_doing_ajax', '__return_true' );
+	add_filter( 'wp_die_ajax_handler', $thrower );
+	add_filter( 'wp_die_handler', $thrower );
+	ob_start();
+
+	try {
+		$meta->$method();
+	} catch ( \Throwable $e ) {
+		unset( $e );
+	}
+
+	$raw = ob_get_clean();
+	remove_filter( 'wp_die_handler', $thrower );
+	remove_filter( 'wp_die_ajax_handler', $thrower );
+	remove_filter( 'wp_doing_ajax', '__return_true' );
+	$_POST = array();
+	$_REQUEST = array();
+
+	$out = json_decode( $raw, true );
+
+	return is_array( $out ) ? $out : array( 'raw' => $raw );
+};
+
+$res = $call( 'ajax_add_equipment', array( 'title' => 'ZZ Schnellkochtopf' ) );
+$ok( 'add answers success', ! empty( $res['success'] ) );
+$added = (int) ( $res['data']['id'] ?? 0 );
+$ok( 'the piece exists now', 'mmm_equipment' === get_post_type( $added ) );
+$ok( 'and comes back as a ready row', false !== strpos( (string) ( $res['data']['html'] ?? '' ), 'mmm_equipment_titles[' . $added . ']' ) );
+$ok( 'ticked in that row', (bool) preg_match( '/value="' . $added . '"\s+checked/', (string) ( $res['data']['html'] ?? '' ) ) );
+$ok( 'but not yet on the recipe', ! in_array( $added, $equip_of(), true ) );
+
+$again = $call( 'ajax_add_equipment', array( 'title' => 'ZZ Schnellkochtopf' ) );
+$ok( 'the same name returns the same piece', $added === (int) ( $again['data']['id'] ?? 0 ) );
+$ok( 'and no second one was made', 1 === count( get_posts( array( 'post_type' => 'mmm_equipment', 'title' => 'ZZ Schnellkochtopf', 'posts_per_page' => -1, 'fields' => 'ids', 'post_status' => 'any' ) ) ) );
+
+$empty = $call( 'ajax_add_equipment', array( 'title' => '   ' ) );
+$ok( 'an empty name is refused', empty( $empty['success'] ) );
+
+$ren = $call( 'ajax_rename_equipment', array( 'id' => $added, 'title' => 'ZZ Dampfdrucktopf' ) );
+$ok( 'rename answers success', ! empty( $ren['success'] ) );
+$ok( 'and persisted at once', 'ZZ Dampfdrucktopf' === get_post( $added )->post_title );
+
+$blank = $call( 'ajax_rename_equipment', array( 'id' => $added, 'title' => '' ) );
+$ok( 'an empty rename is refused', empty( $blank['success'] ) );
+$ok( 'and hands back the stored name', 'ZZ Dampfdrucktopf' === ( $blank['data']['title'] ?? '' ) );
+$ok( 'which is still the stored one', 'ZZ Dampfdrucktopf' === get_post( $added )->post_title );
+
+$call( 'ajax_add_equipment', array( 'title' => 'ZZ Ohne Nonce', 'nonce' => 'wrong' ) );
+$ok( 'without a nonce nothing is created', ! get_posts( array( 'post_type' => 'mmm_equipment', 'title' => 'ZZ Ohne Nonce', 'posts_per_page' => 1, 'fields' => 'ids', 'post_status' => 'any' ) ) );
+
+echo '-- 13. The box renders what the handler reads' . PHP_EOL;
 ( new Mixmymeals_Recipe( $recipe_id ) )->set_equipment( array( $pot->get_id() ) );
 ob_start();
 $meta->render_equipment_meta_box_content( get_post( $recipe_id ) );
@@ -130,7 +203,8 @@ $ok( 'no delete control', false === stripos( $html, 'mmm_equipment_delete' ) );
 $made = array_merge(
 	array( $pan->get_id(), $pot->get_id(), $fresh->get_id() ),
 	array_map( 'intval', $steamer ),
-	array_map( 'intval', $new )
+	array_map( 'intval', $new ),
+	array( $added )
 );
 
 foreach ( array_unique( $made ) as $id ) {
