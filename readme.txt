@@ -130,6 +130,11 @@ Changed:
   meal keeps its own screen, linked from the plan's table.
 
 Fixed:
+* The product fields on the ingredient screen no longer squeeze each other.
+  Six table columns fought over one width, so the brand, the pack size and the
+  price were left with whatever the long "use this product" label did not take,
+  labels were cut off and the diet checkboxes ran into their own words. Each
+  product is a card now whose fields wrap.
 * Two stray debug writes on every meal edit screen.
 
 = 3.35.0 =

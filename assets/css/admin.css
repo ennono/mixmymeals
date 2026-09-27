@@ -763,32 +763,43 @@
 /* ==========================================================
    Products on the ingredient screen.
 
+   The markup is a table, but nothing here is tabular: there is
+   no thead, no column means the same thing twice, and every
+   field carries its own label above it. Six columns therefore
+   only ever fought each other for width — the brand, the pack
+   size and the price were squeezed to whatever the long
+   "use this product" label left over, and the diet checkboxes
+   collided with their own labels.
+
+   So the table stops laying out as a table. Each product is a
+   card: the identity row is a wrapping flex row of its cells,
+   the panel below it keeps its own flow. That also removes the
+   old warning about flex on a <td> — nothing is a table cell
+   here any more, so nothing can collapse to the first column.
+
    A product occupies two rows — identity above, the panel off
-   the packet below — so this table is NOT .striped: striping
+   the packet below — so this is NOT .striped: striping
    alternates per <tr> and cut every product in half. The
    alternating class is set in PHP, per product.
-
-   Note the flex containers are divs inside the cells, never the
-   cells themselves: display:flex on a <td> drops it out of the
-   table layout and it collapses to the first column's width.
    ========================================================== */
 
-.mmm-products td {
+.mmm-products,
+.mmm-products > tbody,
+.mmm-products__detail {
+    display: block;
+}
+
+.mmm-products__head > td,
+.mmm-products__detail > td {
+    display: block;
     border-top: 0;
-    vertical-align: bottom;
-    padding: 8px 10px;
+    padding: 0;
 }
 
-.mmm-products__head > td {
-    border-top: 1px solid #dcdcde;
-    padding-top: 14px;
-}
-
-.mmm-products tbody tr:first-child > td {
-    border-top: 0;
-}
-
-.mmm-products--alt > td {
+/* The tint belongs to the whole product now, not to each cell:
+   flex items differ in height, so a background per cell leaves
+   steps along the bottom of the row. */
+tr.mmm-products--alt {
     background: #f6f7f7;
 }
 
@@ -798,8 +809,10 @@
     display: block;
 }
 
-.mmm-products__field > span {
+.mmm-products__field > span,
+.mmm-products__diets > legend {
     display: block;
+    padding: 0;
     margin-bottom: 2px;
     font-size: 11px;
     line-height: 1.3;
@@ -810,10 +823,35 @@
     margin: 0;
 }
 
-/* --- Head row --- */
+/* --- Identity row --- */
 
-.mmm-products__title {
-    width: 34%;
+.mmm-products__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 16px;
+    border-top: 1px solid #dcdcde;
+    padding: 14px 10px 0;
+}
+
+tbody > tr:first-child.mmm-products__head {
+    border-top: 0;
+}
+
+/*
+ * One basis for every cell, so a column that gains a field
+ * later needs no rule of its own. 150px is what the longest
+ * label in the row ("Preis je Packung (€)") needs — below that
+ * it was being cut, which is the complaint this block answers.
+ */
+.mmm-products__head > td {
+    flex: 1 1 150px;
+    min-width: 0;
+}
+
+.mmm-products__head > .mmm-products__title {
+    flex: 3 1 240px;
+    width: auto;
 }
 
 .mmm-products__head .mmm-products__field > input {
@@ -824,9 +862,50 @@
     max-width: 110px;
 }
 
-.mmm-products__actions {
+/*
+ * Four checkboxes with nothing between them ran their labels
+ * into the next box, which made the wrong one easy to hit.
+ * inline-flex keeps a box and its word together when the group
+ * wraps; the gap is what separates them.
+ */
+.mmm-products__diets {
+    margin: 0;
+}
+
+.mmm-products__diets label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 12px 2px 0;
     white-space: nowrap;
-    text-align: right;
+}
+
+.mmm-products__diets input {
+    margin: 0;
+}
+
+.mmm-products__diets .description {
+    display: block;
+    margin: 2px 0 0;
+}
+
+/*
+ * "Use this product's nutrition and price" is the longest string
+ * in the row, and as a nowrap cell it set the width of every
+ * field beside it. It wraps now, and its basis is wide enough
+ * that it drops to a line of its own before it starts squeezing
+ * anything — which is what the whole row width does on a narrow
+ * screen anyway.
+ *
+ * Note the child combinator: .mmm-products__head > td carries
+ * two classes and one element, so a bare class here loses to it
+ * and the basis above would win.
+ */
+.mmm-products__head > .mmm-products__actions {
+    flex: 1 1 260px;
+    padding-top: 2px;
+    text-align: left;
+    white-space: normal;
 }
 
 .mmm-products__use {
@@ -835,15 +914,16 @@
 
 .mmm-products__use,
 .mmm-products__delete {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding-bottom: 4px;
 }
 
 /* --- Detail row: the panel off the packet --- */
 
-.mmm-products__detail > td {
-    padding-top: 2px;
-    padding-bottom: 16px;
+.mmm-products__detail {
+    padding: 8px 10px 16px;
 }
 
 .mmm-products__panel-label {
@@ -856,19 +936,27 @@
     color: #787c82;
 }
 
+/*
+ * A grid, not a flex row: seven figures of equal importance
+ * read as a rank, and auto-fill keeps them lined up under each
+ * other when the row wraps instead of leaving a ragged tail.
+ * Capped, or on a wide screen one number gets a 200px field.
+ */
 .mmm-products__figures {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
     gap: 8px 12px;
+    max-width: 880px;
 }
 
 .mmm-products__figures .mmm-products__field > input {
-    width: 92px;
+    width: 100%;
 }
 
+/* A real source is a sentence — 420px cut most of them off. */
 .mmm-products__field--source {
     margin-top: 10px;
-    max-width: 420px;
+    max-width: 880px;
 }
 
 .mmm-products__field--source > input {
