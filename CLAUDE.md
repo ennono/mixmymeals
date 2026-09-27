@@ -243,6 +243,14 @@ Round trips through the callback are in `tools/plan-meals-test.php` (not distrib
 
 **Meal Plan** — meta: `start_day` and `end_day` (1=Mon … 7=Sun). Plans can span across Sunday (e.g. start=6, end=2).
 
+**Equipment is picked, renamed and added on the recipe screen** — `render_equipment_meta_box_content()` / `save_equipment_metabox()`, full width rather than the sidebar since the names became editable. It is the third box of this shape after the units on an ingredient and the meals in a plan, and the one that differs: **equipment has no parent**. Every recipe needing a frying pan points at the same post, so a rename here reaches all of them, and the box therefore shows the recipe count beside each piece — the only thing on the screen that says how far the edit goes — and offers **no delete**, which would take a piece out of every other recipe with nothing on this screen naming them.
+
+An empty name keeps the stored one, the same rule the product brand and the meal recipe keep. The empty row runs through `find_or_create_equipment()`: equipment has a natural key, so a name that already exists is reused rather than duplicated — the author-term rule, for the same reason.
+
+**And therefore no one-shot token here**, unlike the meals box. The block editor's second Save carries the checkbox list the first one was rendered with, which cannot contain what the first save just created; since `set_equipment()` writes the list whole, a token that suppressed the second resolution silently unticked the new piece. Resolving the name on every save fixes it, and find-or-create is what stops the duplicate. The token helper is `spend_new_row_token( $scope, $token )`, shared by any box that creates a row with no natural key.
+
+`Mixmymeals_Equipment::usage_counts()` is the one pass over the recipes that name any equipment, tallied in PHP and memoised per request; `count_recipes()` derives from it so the two cannot disagree, while `get_recipe_ids()` keeps its own transient because the front end needs the list. That transient was never cleared until `set_equipment()` started calling `flush_recipe_cache()` on both the pieces added and the ones dropped — tolerable while the number only sat on the equipment list, wrong the moment it sits beside the box that just changed it.
+
 ### Ingredient amounts and weight calculation
 
 `Mixmymeals_Recipe::get_ingredients_scaled($scale)` is the canonical method for getting ingredient lists with correct weights. It:

@@ -1015,3 +1015,48 @@ tbody > tr:first-child.mmm-products__head {
 .mmm-plan-meals__new .description {
     font-style: italic;
 }
+
+/* ==========================================================
+   Equipment on the recipe screen.
+
+   A picker that also renames, so the name column takes what
+   the three narrow ones leave. The count is there because a
+   rename here reaches every recipe in it — it is the only
+   thing on the screen that says how far the edit goes.
+   ========================================================== */
+
+.mmm-equipment {
+    max-width: 780px;
+}
+
+.mmm-equipment__pick {
+    width: 60px;
+    text-align: center;
+}
+
+.mmm-equipment__count,
+.mmm-equipment__open {
+    width: 110px;
+    white-space: nowrap;
+}
+
+.mmm-equipment__count {
+    color: #646970;
+}
+
+.mmm-equipment__title {
+    width: 100%;
+}
+
+.mmm-equipment__new {
+    background: #f6f7f7;
+}
+
+.mmm-equipment__new .mmm-equipment__pick {
+    font-size: 16px;
+    color: #787c82;
+}
+
+.mmm-equipment__new .description {
+    font-style: italic;
+}

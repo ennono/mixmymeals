@@ -1208,7 +1208,7 @@ class Mixmymeals_Post_Meta {
 		// the state the editor just described.
 		$new = isset( $rows['new'] ) && is_array( $rows['new'] ) ? $rows['new'] : array();
 
-		if ( ! empty( $new['recipe_id'] ) && $this->spend_new_meal_token( $new['token'] ?? '' ) ) {
+		if ( ! empty( $new['recipe_id'] ) && $this->spend_new_row_token( 'plan_meal', $new['token'] ?? '' ) ) {
 
 			$recipe_id = absint( $new['recipe_id'] );
 			$recipe    = get_post( $recipe_id );
@@ -1231,12 +1231,18 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
-	 * Uses up the new row's one-shot token.
+	 * Uses up a new row's one-shot token.
 	 *
-	 * @param mixed $token Raw token from the request.
-	 * @return bool True when this save may create the meal.
+	 * The block editor posts the meta boxes without re-rendering them, so a
+	 * second Save sends a filled-in "new" row again and creates the same
+	 * thing twice. Every box here that creates a post from an empty row
+	 * needs this; the scope keeps two boxes on one screen apart.
+	 *
+	 * @param string $scope Which box the token was rendered for.
+	 * @param mixed  $token Raw token from the request.
+	 * @return bool True when this save may create the row.
 	 */
-	private function spend_new_meal_token( $token ): bool {
+	private function spend_new_row_token( string $scope, $token ): bool {
 
 		$token = sanitize_key( (string) $token );
 
@@ -1244,7 +1250,7 @@ class Mixmymeals_Post_Meta {
 			return false;
 		}
 
-		$key = 'mmm_plan_meal_new_' . md5( $token );
+		$key = 'mmm_new_row_' . md5( $scope . '|' . $token );
 
 		if ( get_transient( $key ) ) {
 			return false;
@@ -2883,86 +2889,253 @@ class Mixmymeals_Post_Meta {
 		wp_send_json_success( array( 'html' => $html ) );
 	}
 
+	/**
+	 * Registers the equipment box on the recipe screen.
+	 *
+	 * @return void
+	 */
 	public function add_equipment_meta_box(): void {
+		/*
+		 * Full width, not the sidebar: the box stopped being a list of ticks
+		 * the day the names became editable, and a column of text inputs in a
+		 * 280px sidebar is the squeeze the products box was just cured of.
+		 */
 		add_meta_box(
 			'mmm_equipment_box',
-			__('Required Equipment', 'mixmymeals'),
-			[$this, 'render_equipment_meta_box_content'], // oder 'mmm_render_equipment_metabox'
-			'mmm_recipe', // dein CPT für Rezepte
-			'side',
+			__( 'Required Equipment', 'mixmymeals' ),
+			array( $this, 'render_equipment_meta_box_content' ),
+			'mmm_recipe',
+			'normal',
 			'default'
 		);
 	}
 
-	public function save_equipment_metabox( int $post_id ): void {
-		if ( ! isset( $_POST['mmm_equipment_nonce'] )
-			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mmm_equipment_nonce'] ) ), 'mmm_equipment_save' ) ) {
-			return;
-		}
-		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-			return;
-		}
-		if (!current_user_can('edit_post', $post_id)) {
-			return;
-		}
-
-		$equipment = isset($_POST['mmm_equipment']) ? array_map('intval', $_POST['mmm_equipment']) : [];
-		//update_post_meta($post_id, '_mmm_equipment', $equipment);
-		$recipe = new Mixmymeals_Recipe( $post_id );
-		$recipe->set_equipment(
-			array_map( 'absint', (array) wp_unslash( $_POST['mmm_equipment'] ?? [] ) )
-		);
-	}
-
+	/**
+	 * The equipment this recipe needs, tickable and renameable in place.
+	 *
+	 * Equipment is *shared*, unlike the units of an ingredient or the meals of
+	 * a plan: it has no parent, and every recipe that needs a frying pan
+	 * points at the same post. So this box ticks, renames and adds — and
+	 * deliberately does not delete. Deleting from here would take the piece
+	 * out of every other recipe silently, and nothing on this screen says
+	 * which those are.
+	 *
+	 * The same reason the count is shown at all: a rename is global, and the
+	 * number is the only thing on the screen that says how far it reaches.
+	 *
+	 * @param WP_Post $post The recipe.
+	 * @return void
+	 */
 	public function render_equipment_meta_box_content( WP_Post $post ): void {
 
-		// Sicherheits-Nonce
 		wp_nonce_field( 'mmm_equipment_save', 'mmm_equipment_nonce' );
 
-		// Bisher gespeicherte IDs abrufen
-		//$saved_equipment = get_post_meta( $post->ID, '_mmm_equipment', true );
-		$recipe = new Mixmymeals_Recipe( $post->ID );
-		//$saved_equipment = get_post_meta( $post->ID, '_mmm_equipment', true );
-		$saved_equipment = $recipe->get_equipment();
-		if ( ! is_array( $saved_equipment ) ) {
-			$saved_equipment = [];
+		$recipe    = new Mixmymeals_Recipe( $post->ID );
+		$selected  = array_map( 'intval', $recipe->get_equipment() );
+		$equipment = Mixmymeals_Equipment::get_all();
+		$counts    = Mixmymeals_Equipment::usage_counts();
+
+		echo '<table class="widefat striped mmm-equipment">';
+		echo '<thead><tr>';
+		echo '<th class="mmm-equipment__pick">' . esc_html__( 'Needed', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Name', 'mixmymeals' ) . '</th>';
+		echo '<th class="mmm-equipment__count">' . esc_html__( 'Used in', 'mixmymeals' ) . '</th>';
+		echo '<th class="mmm-equipment__open">' . esc_html__( 'Edit', 'mixmymeals' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $equipment as $piece ) {
+
+			$id    = (int) $piece->ID;
+			$count = (int) ( $counts[ $id ] ?? 0 );
+
+			echo '<tr>';
+
+			printf(
+				'<td class="mmm-equipment__pick"><label><input type="checkbox" name="mmm_equipment[]" value="%d"%s><span class="screen-reader-text">%s</span></label></td>',
+				esc_attr( (string) $id ),
+				checked( in_array( $id, $selected, true ), true, false ),
+				esc_html(
+					sprintf(
+						/* translators: %s: name of a piece of equipment. */
+						__( 'This recipe needs %s', 'mixmymeals' ),
+						$piece->post_title
+					)
+				)
+			);
+
+			printf(
+				'<td><input type="text" class="mmm-equipment__title" name="mmm_equipment_titles[%d]" value="%s"></td>',
+				esc_attr( (string) $id ),
+				esc_attr( (string) $piece->post_title )
+			);
+
+			printf(
+				'<td class="mmm-equipment__count">%s</td>',
+				esc_html(
+					sprintf(
+						/* translators: %d: number of recipes. */
+						_n( '%d recipe', '%d recipes', $count, 'mixmymeals' ),
+						$count
+					)
+				)
+			);
+
+			// New tab, like the unit usage list: the recipe usually has
+			// unsaved changes and a link that discards them is a trap.
+			$link = get_edit_post_link( $id );
+
+			printf(
+				'<td class="mmm-equipment__open">%s</td>',
+				$link
+					? sprintf(
+						'<a href="%s" target="_blank" rel="noopener">%s</a>',
+						esc_url( $link ),
+						esc_html__( 'Open', 'mixmymeals' )
+					)
+					: ''
+			);
+
+			echo '</tr>';
 		}
 
-		// Alle Equipment-Posts laden
-		$equipment = get_posts( [
-			'post_type'      => 'mmm_equipment',
-			'posts_per_page' => -1,
-			'post_status'    => 'publish',
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-		] );
+		// The empty row: a piece of equipment that does not exist yet is the
+		// one reason an author had to leave the recipe, losing whatever was
+		// unsaved on the way.
+		echo '<tr class="mmm-equipment__new">';
+		echo '<td class="mmm-equipment__pick" aria-hidden="true">+</td>';
+		printf(
+			'<td><input type="text" class="mmm-equipment__title" name="mmm_equipment_new" value="" placeholder="%s"></td>',
+			esc_attr__( 'e.g. 26 cm springform tin', 'mixmymeals' )
+		);
+		echo '<td colspan="2"><span class="description">'
+			. esc_html__( 'Created and ticked when you save.', 'mixmymeals' )
+			. '</span></td>';
+		echo '</tr>';
 
-		echo '<p>' . esc_html__( 'Select equipment needed for this recipe:', 'mixmymeals' ) . '</p>';
+		echo '</tbody></table>';
 
-		// Wenn keine Equipment-Posts existieren → Hinweis mit Link
-		if ( empty( $equipment ) ) {
-			$link = admin_url( 'post-new.php?post_type=mmm_equipment' );
-			echo '<p>'
-			     . esc_html__( 'No equipment available yet.', 'mixmymeals' )
-			     . ' <a href="' . esc_url( $link ) . '">'
-			     . esc_html__( 'Create new equipment', 'mixmymeals' )
-			     . '</a></p>';
+		echo '<p class="description">'
+			. esc_html__( 'A piece of equipment is shared: renaming one here renames it in every recipe that needs it. Nothing is deleted from this screen.', 'mixmymeals' )
+			. '</p>';
+	}
+
+	/**
+	 * Saves the equipment picked, renamed and added on the recipe screen.
+	 *
+	 * @param int $post_id Recipe ID.
+	 * @return void
+	 */
+	public function save_equipment_metabox( int $post_id ): void {
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
 
-		echo '<ul style="max-height:200px; overflow:auto;">';
-
-		foreach ( $equipment as $piece_of_equipment ) {
-			$checked = in_array( $piece_of_equipment->ID, $saved_equipment ) ? 'checked' : '';
-			printf(
-				'<li><label><input type="checkbox" name="mmm_equipment[]" value="%d" %s> %s</label></li>',
-				esc_attr( $piece_of_equipment->ID ),
-				esc_attr( $checked ),
-				esc_html( get_the_title( $piece_of_equipment ) )
-			);
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
 		}
 
-		echo '</ul>';
+		if (
+			! isset( $_POST['mmm_equipment_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_key( wp_unslash( $_POST['mmm_equipment_nonce'] ) ),
+				'mmm_equipment_save'
+			)
+		) {
+			return;
+		}
+
+		$picked = array_map(
+			'absint',
+			(array) wp_unslash( $_POST['mmm_equipment'] ?? array() ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- absint per element.
+		);
+
+		// Renames first, so a piece created below cannot be renamed by a
+		// stale row in the same post.
+		$titles = (array) wp_unslash( $_POST['mmm_equipment_titles'] ?? array() ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per element.
+
+		foreach ( $titles as $id => $title ) {
+
+			$piece = new Mixmymeals_Equipment( absint( $id ) );
+
+			if ( ! $piece->is_valid() ) {
+				continue;
+			}
+
+			$title = sanitize_text_field( (string) $title );
+
+			/*
+			 * An empty name keeps the stored one — blanking is a loss, not an
+			 * edit, and here it would leave a nameless row in every recipe
+			 * that uses the piece. Written only on a real change, so a save
+			 * that touched nothing does not bump every piece of equipment.
+			 */
+			if ( '' !== $title && $title !== $piece->get_title() ) {
+				$piece->set_title( $title );
+			}
+		}
+
+		/*
+		 * Resolved on every save, not only the first. The block editor posts
+		 * the meta boxes without re-rendering them, so a second Save carries
+		 * the *old* checkbox list — one that cannot contain the piece the
+		 * first Save just created. set_equipment() writes the list whole, so
+		 * gating this on a one-shot token silently unticked the new piece on
+		 * the very next save.
+		 *
+		 * No token is needed instead: unlike a meal, a piece of equipment has
+		 * a natural key, and find_or_create_equipment() reuses the one with
+		 * that name rather than making a second.
+		 */
+		if ( ! empty( $_POST['mmm_equipment_new'] ) ) {
+
+			$new = sanitize_text_field( wp_unslash( $_POST['mmm_equipment_new'] ) );
+
+			if ( '' !== $new ) {
+				$picked[] = $this->find_or_create_equipment( $new );
+			}
+		}
+
+		$recipe = new Mixmymeals_Recipe( $post_id );
+		$recipe->set_equipment( $picked );
+	}
+
+	/**
+	 * The piece of equipment with that name, creating it when there is none.
+	 *
+	 * Find-or-create rather than create, as the author term does: two people
+	 * typing "Springform" a week apart should not end up with two springform
+	 * tins, each on half the recipes.
+	 *
+	 * @param string $title Name typed into the empty row.
+	 * @return int Equipment ID, 0 when it could not be created.
+	 */
+	private function find_or_create_equipment( string $title ): int {
+
+		$found = get_posts(
+			array(
+				'post_type'        => 'mmm_equipment',
+				'post_status'      => 'any',
+				'posts_per_page'   => 1,
+				'fields'           => 'ids',
+				'no_found_rows'    => true,
+				'title'            => $title,
+				'suppress_filters' => false,
+			)
+		);
+
+		if ( $found ) {
+			return (int) $found[0];
+		}
+
+		// create() throws, and this runs on save_post: an uncaught exception
+		// would replace the editor with a blank page and lose the save.
+		try {
+			return Mixmymeals_Equipment::create( $title )->get_id();
+		} catch ( \Exception $e ) {
+			unset( $e );
+			return 0;
+		}
 	}
 
 	/**

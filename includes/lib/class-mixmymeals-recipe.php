@@ -1516,9 +1516,18 @@ class Mixmymeals_Recipe {
 			return false;
 		}
 
-		$clean = array_filter( array_map( 'intval', $ids ), fn( $id ) => $id > 0 );
+		$before = $this->get_equipment();
+		$clean  = array_values(
+			array_unique( array_filter( array_map( 'intval', $ids ), fn( $id ) => $id > 0 ) )
+		);
 
 		update_post_meta( $this->post_id, '_mmm_equipment', $clean );
+
+		/*
+		 * Both sides of the change: a piece dropped here loses a recipe just
+		 * as surely as one added gains one, and each caches its own list.
+		 */
+		Mixmymeals_Equipment::flush_recipe_cache( array_merge( $before, $clean ) );
 
 		return true;
 	}

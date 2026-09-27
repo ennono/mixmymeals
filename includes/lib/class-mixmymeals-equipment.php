@@ -185,9 +185,99 @@ class Mixmymeals_Equipment {
 
 	/**
 	 * How many published recipes require this piece of equipment.
+	 *
+	 * Derived from usage_counts() rather than counting get_recipe_ids(): two
+	 * ways of counting one thing drift, which is the lesson the units box
+	 * already learned. The list keeps its own method because a list is what
+	 * the front end needs.
 	 */
 	public function count_recipes(): int {
-		return count( $this->get_recipe_ids() );
+
+		if ( ! $this->is_valid() ) {
+			return 0;
+		}
+
+		$counts = self::usage_counts();
+
+		return (int) ( $counts[ $this->post_id ] ?? 0 );
+	}
+
+	/**
+	 * How often every piece of equipment is required, in one pass.
+	 *
+	 * Asking each piece separately opens every recipe once per piece — ten
+	 * pieces against a hundred recipes is a thousand reads for ten numbers,
+	 * and the recipe screen needs all ten at once. So this is one query over
+	 * the recipes that name any equipment, tallied in PHP and memoised for
+	 * the request.
+	 *
+	 * @return array<int, int> Equipment ID => number of recipes.
+	 */
+	public static function usage_counts(): array {
+
+		static $counts = null;
+
+		if ( null !== $counts ) {
+			return $counts;
+		}
+
+		$recipe_ids = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_recipe',
+					'post_status'    => 'publish',
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'meta_query'     => array(
+						array(
+							'key'     => '_mmm_equipment',
+							'compare' => 'EXISTS',
+						),
+					),
+				)
+			)
+		);
+
+		$counts = array();
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$ids = get_post_meta( (int) $recipe_id, '_mmm_equipment', true );
+
+			// One recipe naming a piece twice is still one recipe.
+			foreach ( array_unique( array_map( 'intval', (array) $ids ) ) as $id ) {
+
+				if ( $id > 0 ) {
+					$counts[ $id ] = ( $counts[ $id ] ?? 0 ) + 1;
+				}
+			}
+		}
+
+		return $counts;
+	}
+
+	/**
+	 * Drops the cached recipe lists of the pieces given.
+	 *
+	 * get_recipe_ids() caches for an hour and nothing used to clear it, so
+	 * the count beside a piece of equipment stayed wrong for up to an hour
+	 * after a recipe changed. That was tolerable while the number only
+	 * appeared on the equipment list; it is not once it sits in the recipe
+	 * screen next to the box that just changed it.
+	 *
+	 * @param int[] $ids Equipment IDs.
+	 * @return void
+	 */
+	public static function flush_recipe_cache( array $ids ): void {
+
+		foreach ( array_unique( array_map( 'intval', $ids ) ) as $id ) {
+
+			if ( $id > 0 ) {
+				delete_transient( 'mmm_eq_recipes_' . $id );
+			}
+		}
 	}
 
 	/**
