@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 3.36.0
+ * Version: 3.37.0
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data and PDF export.
  * Author: Timo Fricke
@@ -86,7 +86,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '3.36.0' );
+	$instance = Mixmymeals::instance( __FILE__, '3.37.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
@@ -130,6 +130,7 @@ Mixmymeals_Meal_Plan::register_meal_cache();
 Mixmymeals_Author::register_term_admin();
 // Einmalige Überführung des alten Unteilbar-Flags in den Teiler der Einheit.
 add_action( 'admin_init', array( 'Mixmymeals_Ingredient_Amount', 'migrate_indivisible' ) );
+add_action( 'admin_init', array( 'Mixmymeals_Meal', 'migrate_notes' ) );
 mixmymeals()->add_post_meta();
 mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();

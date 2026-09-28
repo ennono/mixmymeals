@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.36.0
+Stable tag: 3.37.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.37.0 =
+
+Added:
+* A meal can carry its own short text — "cook double, freeze half", "the
+  evening before the shopping trip". It belongs to that one planning, not to
+  the recipe, and never borrows the recipe's own line. Shown under the dish on
+  the plan and above the meal page. Editable on the meal screen and through
+  the API; visitors planning for themselves are not offered it.
+
+Fixed:
+* Saving a meal could silently skip everything a second save carried: the
+  recursion guard was raised before its own checks and never lowered again on
+  the three paths that return early.
 
 = 3.36.0 =
 

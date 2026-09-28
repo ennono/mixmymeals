@@ -2297,6 +2297,19 @@ class Mixmymeals_Shortcodes {
                             <div class="mmm-recipe-card__body">
                                 <h3 class="mmm-recipe-card__title"><?php echo esc_html( $title ); ?></h3>
 
+								<?php
+								/*
+								 * Directly under the title, above the chips: it
+								 * is the one thing on this card that is not
+								 * true of the recipe in general, and it is why
+								 * this meal is on this day.
+								 */
+								$mmm_meal_text = $meal->get_text();
+								?>
+								<?php if ( '' !== $mmm_meal_text ) : ?>
+                                    <p class="mmm-recipe-card__note"><?php echo esc_html( $mmm_meal_text ); ?></p>
+								<?php endif; ?>
+
                                 <div class="mmm-recipe-card__meta">
 									<?php echo $meal_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 									<?php if ( $meal->get_servings() ) : ?>
@@ -6171,6 +6184,21 @@ class Mixmymeals_Shortcodes {
 				echo self::keeping_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 				?>
             </div>
+
+			<?php
+			/*
+			 * The planning's own note, in the recipe hero's place and markup —
+			 * a meal page is a recipe page with a serving size, and a reader
+			 * arriving from the plan expects the same shape. Never the
+			 * recipe's excerpt: that is the dish's line and it already shows
+			 * on the recipe, so repeating it here would push what somebody
+			 * actually said about this planning out of the way.
+			 */
+			$mmm_meal_text = $meal->get_text();
+			?>
+			<?php if ( '' !== $mmm_meal_text ) : ?>
+                <p class="mmm-plan-hero__lead"><?php echo esc_html( $mmm_meal_text ); ?></p>
+			<?php endif; ?>
 
             <div class="mmm-plan-hero__actions">
 				<?php if ( $has_steps ) : ?>

@@ -229,6 +229,16 @@ Over REST a unit carries `divisor`, a read-only `step_divisor` and the older `is
 
 **Meal** — child post of a meal plan. Meta: `recipe_id`, `servings`, `mmm_meal_type` (breakfast/lunch/dinner/snack/other), `_mmm_day` (1–7).
 
+**A meal carries its own short text**, in `post_excerpt` — `Mixmymeals_Meal::get_text()` / `set_text()`. The same dish is planned for different reasons ("cook double, freeze half", "the evening before the shopping trip"), and that belongs to the planning rather than to the dish. It **never falls back to the recipe's excerpt**: borrowing it would put the recipe's own line on every planning of it and read as if somebody had said it about this one.
+
+`supports` deliberately still omits `excerpt`, although the field lives there. Listing it would add core's Excerpt box beside the plugin's own field on the meal screen — two controls writing one value, the race the diet meta box was removed over. Editable in the Meal Details box (`mmm_meal_text`), over REST as `text` on `GET|POST /meals`, `/meals/{id}` and inside the `meals[]` of `/meal-plans/build` and `/meals/bulk`, and through MCP on `mmm_update_meal`, `mmm_build_meal_plan` and `mmm_add_meals`.
+
+**Visitors cannot set one.** The cart has carried a per-item `note` for years whose transfer to the meal is commented out, and it stays that way: the planner is for choosing dishes, not for writing on somebody else's plan. `tools/meal-text-test.php` asserts it against the *comment-stripped* source, since the line is in the file and a plain search would pass on a comment.
+
+It replaces a `note` meta whose getter, setter, admin field and save branch were **all** commented out — one field short of existing, and invisible for as long as it had been there. `Mixmymeals_Meal::migrate_notes()` moves any leftover row into an empty text once, gated on `mixmymeals_meal_text_version`, and leaves the meta in place as the way back.
+
+Rendered in two places and no more: `[mmm_meals_in_a_single_meal_plan]` puts it under the card title as `.mmm-recipe-card__note` (the one thing on that card that is not true of the recipe in general), and `[mmm_meal_hero]` prints it as `.mmm-plan-hero__lead` — the recipe hero's own place and class, because a meal page is a recipe page with a serving size and a reader arriving from the plan expects the same shape.
+
 **Meals are edited in the plan's own screen**, in the Meals box (`render_meal_plan_overview_meta_box()` / `save_plan_meals()` in `Mixmymeals_Post_Meta`) — the same shape as the units table on an ingredient, and for the same reason: a meal is a detail of its plan, and moving one to another day should not mean opening a screen of its own. The meal keeps that screen for what the table leaves out. Its own nonce and its own `save_post_mmm_meal_plan` hook, per the products-box rule above.
 
 The day select offers the **plan's own days, in the plan's own order** (`get_day_range()`, so a plan crossing Sunday reads 6, 7, 1, 2) — plus, for a meal already sitting outside that range, its own day, or saving the table would silently move it. Weekday wording comes from `Mixmymeals_Meal_Plan::weekday_name()`; there is no second vocabulary.

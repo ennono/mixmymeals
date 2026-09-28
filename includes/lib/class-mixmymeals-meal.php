@@ -23,6 +23,10 @@ class Mixmymeals_Meal {
 		$this->post_id = $post_id;
 	}
 
+	/** Option guarding the one-off move of `note` meta into the text. */
+	const TEXT_MIGRATION_OPTION  = 'mixmymeals_meal_text_version';
+	const TEXT_MIGRATION_VERSION = '1';
+
 	public function get_id(): int {
 		return $this->post_id;
 	}
@@ -125,32 +129,112 @@ class Mixmymeals_Meal {
 	}
 
 	/**
-	 * Returns the note associated with the meal.
+	 * The meal's own short text.
 	 *
-	 * @return string The note text.
+	 * A meal is a planning of a recipe, and the same dish gets planned for
+	 * different reasons — "cook double, freeze half", "the evening before the
+	 * shopping trip". That belongs to the planning, not to the dish, which is
+	 * why it lives here and **never falls back to the recipe's excerpt**: an
+	 * empty one means nobody said anything about *this* planning, and
+	 * borrowing the recipe's would put the same sentence on every planning of
+	 * it and read as if somebody had.
+	 *
+	 * Stored in post_excerpt rather than in meta: it is a short piece of prose
+	 * about the post, which is exactly what that column is for, and it comes
+	 * with WordPress's own storage, export and revisions. Note that
+	 * `supports` deliberately does **not** list `excerpt` — that would add
+	 * core's own Excerpt box beside the field on the meal screen, two controls
+	 * writing one value, which is the race the diet box was removed over.
+	 *
+	 * This replaces a `note` meta whose getter, setter, admin field and save
+	 * branch were *all* commented out — one field short of existing. Whatever
+	 * rows it left behind are moved here once by migrate_notes().
+	 *
+	 * @return string Empty when nothing was said.
 	 */
-	/*
-	public function get_note(): string {
-		return get_post_meta( $this->post_id, 'note', true );
+	public function get_text(): string {
+
+		$post = get_post( $this->post_id );
+
+		return $post ? (string) $post->post_excerpt : '';
 	}
-	*/
 
 	/**
-	 * Sets the note for the meal.
+	 * Sets the meal's own short text. An empty string clears it.
 	 *
-	 * @param string $note The note text to set.
-	 *
+	 * @param string $text The text.
 	 * @return void
 	 */
-	/*
-	public function set_note( $note ): void {
-		update_post_meta(
-			$this->post_id,
-			'note',
-			sanitize_textarea_field( $note )
+	public function set_text( string $text ): void {
+
+		// This class has no is_valid(); the post type is the check, and it
+		// keeps a stray ID from writing an excerpt onto some other post.
+		if ( 'mmm_meal' !== get_post_type( $this->post_id ) ) {
+			return;
+		}
+
+		wp_update_post(
+			array(
+				'ID'           => $this->post_id,
+				'post_excerpt' => sanitize_textarea_field( $text ),
+			)
 		);
 	}
-	*/
+
+	/**
+	 * Moves any leftover `note` meta into the text, once.
+	 *
+	 * Nothing has written that meta for a long time — every one of its call
+	 * sites is commented out — but a meal from before then may still carry a
+	 * sentence somebody typed, and it has been invisible ever since. Only
+	 * fills an empty text, and leaves the meta where it is: it is inert once
+	 * the text is set, and it is the way back if this ever picked the wrong
+	 * one.
+	 *
+	 * @return int How many meals were given a text.
+	 */
+	public static function migrate_notes(): int {
+
+		if ( get_option( self::TEXT_MIGRATION_OPTION ) === self::TEXT_MIGRATION_VERSION ) {
+			return 0;
+		}
+
+		$meal_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_meal',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'meta_query'     => array(
+					array(
+						'key'     => 'note',
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+
+		$moved = 0;
+
+		foreach ( $meal_ids as $meal_id ) {
+
+			$note = trim( (string) get_post_meta( (int) $meal_id, 'note', true ) );
+			$post = get_post( (int) $meal_id );
+
+			if ( '' === $note || ! $post || '' !== trim( (string) $post->post_excerpt ) ) {
+				continue;
+			}
+
+			( new self( (int) $meal_id ) )->set_text( $note );
+			++$moved;
+		}
+
+		update_option( self::TEXT_MIGRATION_OPTION, self::TEXT_MIGRATION_VERSION );
+
+		return $moved;
+	}
 
 	/**
 	 * Returns the parent plan ID of the meal.

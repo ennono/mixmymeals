@@ -1924,7 +1924,6 @@ class Mixmymeals_Post_Meta {
 
 		$recipe_id = $meal_obj->get_recipe_id();
 		$servings  = $meal_obj->get_servings();
-		//$note      = $meal_obj->get_note();
 		$parent_id = $meal_obj->get_parent_plan_id();
 		$meal_day  = $meal_obj->get_day(); // NEU
 		$type      = $meal_obj->get_type();
@@ -2087,17 +2086,21 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $servings ?: 1 )
 			. '" min="1" step="1" style="width:100px;"></p>';
 
-		// -------------------------------------
-		// Notiz
-		// -------------------------------------
-        /*
-		echo '<p><label><strong>' . esc_html__(
-			'Note (optional)',
-			'mixmymeals'
-		) . '</strong></label><br>';
-		echo '<textarea name="note" rows="2" style="width:100%;">'
-			. esc_textarea( $note ) . '</textarea></p>';
-        */
+		/*
+		 * The meal's own text. Not core's Excerpt box — mmm_meal does not
+		 * support `excerpt` on purpose, or there would be two controls on this
+		 * screen writing one value. The label says what it is for; "Excerpt"
+		 * would not.
+		 */
+		echo '<p><label for="mmm_meal_text"><strong>'
+			. esc_html__( 'Note on this planning (optional)', 'mixmymeals' )
+			. '</strong></label><br>';
+		echo '<textarea id="mmm_meal_text" name="mmm_meal_text" rows="2" style="width:100%;" placeholder="'
+			. esc_attr__( 'e.g. Cook double and freeze half.', 'mixmymeals' ) . '">'
+			. esc_textarea( $meal_obj->get_text() ) . '</textarea>';
+		echo '<span class="description">'
+			. esc_html__( 'Belongs to this planning, not to the recipe — it is shown on the plan and on the meal page.', 'mixmymeals' )
+			. '</span></p>';
 	}
 
 	public function save_meal_meta( int $post_id ): void {
@@ -2105,7 +2108,6 @@ class Mixmymeals_Post_Meta {
 		if ( self::$updating_meal_meta ) {
 			return;
 		}
-		self::$updating_meal_meta = true;
 
 		if (
 			! isset( $_POST['mmm_meal_meta_nonce'] )
@@ -2126,6 +2128,16 @@ class Mixmymeals_Post_Meta {
 			return;
 		}
 
+		/*
+		 * Raised here and not above the guards: the setters below write through
+		 * wp_update_post, which fires this hook again, and the flag is what
+		 * stops that. Set before the checks it was never lowered again on the
+		 * three early returns, so the *next* meal saved in the same request was
+		 * skipped in silence — which is how creating a meal and then saving it
+		 * in one pass lost everything the second save carried.
+		 */
+		self::$updating_meal_meta = true;
+
 		$meal_obj = new Mixmymeals_Meal( $post_id );
 
 		if ( isset( $_POST['mmm_parent_id'] ) ) {
@@ -2140,11 +2152,9 @@ class Mixmymeals_Post_Meta {
 			$meal_obj->set_servings( floatval( wp_unslash( $_POST['servings'] ) ) );
 		}
 
-        /*
-		if ( isset( $_POST['note'] ) ) {
-			$meal_obj->set_note( sanitize_text_field( wp_unslash( $_POST['note'] ) ) );
+		if ( isset( $_POST['mmm_meal_text'] ) ) {
+			$meal_obj->set_text( sanitize_textarea_field( wp_unslash( $_POST['mmm_meal_text'] ) ) );
 		}
-        */
 
 		// -----------------------
 		// NEU: Wochentag speichern
