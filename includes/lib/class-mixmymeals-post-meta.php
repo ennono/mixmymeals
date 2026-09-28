@@ -2497,7 +2497,12 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
-	 * The recipes using one unit, as a list of links.
+	 * The recipes using one thing, as a list of links.
+	 *
+	 * Units and products alike: both are rows an editor may remove from an
+	 * ingredient, and the question before removing either is the same one.
+	 * They deliver the same shape from their own usage_map(), so this stays a
+	 * single builder rather than two lists that would slowly stop matching.
 	 *
 	 * This column held a number, which answered "may I delete this?" with a
 	 * yes or a no and nothing else. The names answer the question behind it —
@@ -2513,10 +2518,10 @@ class Mixmymeals_Post_Meta {
 	 * @param array<int, array{recipe_id:int,recipe_title:string,status:string,occurrences:int}> $usage From get_usage().
 	 * @return string Escaped markup.
 	 */
-	private static function unit_usage_list( array $usage ): string {
+	private static function usage_list( array $usage ): string {
 
 		if ( ! $usage ) {
-			return '<span class="mmm-unit-usage__none">' . esc_html__( 'not used', 'mixmymeals' ) . '</span>';
+			return '<span class="mmm-usage__none">' . esc_html__( 'not used', 'mixmymeals' ) . '</span>';
 		}
 
 		$items = array();
@@ -2545,19 +2550,19 @@ class Mixmymeals_Post_Meta {
 			$occurrences = (int) ( $row['occurrences'] ?? 1 );
 
 			if ( $occurrences > 1 ) {
-				$label .= ' <span class="mmm-unit-usage__times">' . esc_html( sprintf( '×%d', $occurrences ) ) . '</span>';
+				$label .= ' <span class="mmm-usage__times">' . esc_html( sprintf( '×%d', $occurrences ) ) . '</span>';
 			}
 
 			// A draft explains why a unit is in use although nothing public
 			// shows it — without the note the list looks wrong.
 			if ( 'publish' !== (string) ( $row['status'] ?? '' ) ) {
-				$label .= ' <span class="mmm-unit-usage__status">' . esc_html__( '(draft)', 'mixmymeals' ) . '</span>';
+				$label .= ' <span class="mmm-usage__status">' . esc_html__( '(draft)', 'mixmymeals' ) . '</span>';
 			}
 
 			$items[] = '<li>' . $label . '</li>';
 		}
 
-		return $items ? '<ul class="mmm-unit-usage__list">' . implode( '', $items ) . '</ul>' : '';
+		return $items ? '<ul class="mmm-usage__list">' . implode( '', $items ) . '</ul>' : '';
 	}
 
 	/**
@@ -2730,6 +2735,54 @@ class Mixmymeals_Post_Meta {
 			. esc_attr( $is_new ? '' : $product->get_source() ) . '" placeholder="'
 			. esc_attr__( 'e.g. packet, 08/2026', 'mixmymeals' ) . '">'
 			. '</label>';
+
+		/*
+		 * Which recipes chose this packet. In the panel rather than in the
+		 * identity row above: a list of links is taller than an input and
+		 * would drag the whole flex row down, and this is a fact about the
+		 * product in the same way the source is.
+		 *
+		 * The blank row has nothing to be used by yet.
+		 */
+		if ( ! $is_new ) {
+
+			$usage = $product->get_usage();
+			$lines = $product->count_usage();
+
+			echo '<div class="mmm-products__usage">';
+
+			// Only where there is something to count: the list says "not used"
+			// on its own, and a heading reading "chosen in 0 recipe lines"
+			// above it is the same nothing said twice.
+			if ( $lines > 0 ) {
+				echo '<span class="mmm-products__panel-label">'
+					. esc_html(
+						sprintf(
+							/* translators: %d: number of recipe lines. */
+							_n( 'Chosen in %d recipe line', 'Chosen in %d recipe lines', $lines, 'mixmymeals' ),
+							$lines
+						)
+					)
+					. '</span>';
+			}
+
+			echo self::usage_list( $usage ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per link in the builder.
+
+			/*
+			 * Said out loud, because otherwise "0 recipes" sits next to the
+			 * packet that in fact supplies every recipe using this ingredient.
+			 * The number counts choices made in a recipe; being the reference
+			 * is a property of the ingredient, not of this packet.
+			 */
+			if ( $id === $reference ) {
+				echo '<p class="description">'
+					. esc_html__( 'Beside this, it supplies the figures wherever a recipe has not chosen a product of its own.', 'mixmymeals' )
+					. '</p>';
+			}
+
+			echo '</div>';
+		}
+
 		echo '</div>'; // .mmm-products__panel
 		echo '</td></tr>';
 	}
@@ -2792,7 +2845,7 @@ class Mixmymeals_Post_Meta {
 				echo '</td>';
 
 				// Nutzung: welche Rezepte, nicht wie viele.
-				echo '<td class="mmm-unit-usage">' . self::unit_usage_list( $usage ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per link below.
+				echo '<td class="mmm-unit-usage">' . self::usage_list( $usage ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per link below.
 
 				// Gewicht als Input-Feld
 				echo '<td>';

@@ -1061,6 +1061,114 @@ class Mixmymeals_Product {
 	}
 
 	/**
+	 * The recipes that pin this product, with how many lines each.
+	 *
+	 * Same shape as a unit's usage, because it answers the same question on
+	 * the same screen: which recipes would change if this row went away.
+	 *
+	 * @return array<int, array{recipe_id:int,recipe_title:string,status:string,occurrences:int}>
+	 */
+	public function get_usage(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		return self::usage_map()[ $this->post_id ] ?? array();
+	}
+
+	/**
+	 * How many recipe lines pin this product.
+	 *
+	 * @return int
+	 */
+	public function count_usage(): int {
+
+		$total = 0;
+
+		foreach ( $this->get_usage() as $row ) {
+			$total += (int) ( $row['occurrences'] ?? 1 );
+		}
+
+		return $total;
+	}
+
+	/**
+	 * Every product any recipe pins, from a single pass.
+	 *
+	 * The units' own map read one key across: asking per product would open
+	 * every recipe once per product, and an ingredient screen shows all of its
+	 * products at once. Memoised for the request like that one, and it costs
+	 * little beside it — both walk the same recipes, whose `_rmm_steps` the
+	 * object cache already holds after the first pass.
+	 *
+	 * **Counts pins only.** A reference product feeds every recipe that uses
+	 * the ingredient without pinning anything, but that is a fact about the
+	 * *ingredient*, not about the packet — the same line the chip under the
+	 * product table draws. Folding it in would hand one product a number that
+	 * belongs to its parent.
+	 *
+	 * Drafts count, exactly as for units: a draft is a recipe somebody is
+	 * still writing.
+	 *
+	 * @return array<int, array<int, array{recipe_id:int,recipe_title:string,status:string,occurrences:int}>>
+	 */
+	public static function usage_map(): array {
+
+		static $map = null;
+
+		if ( null !== $map ) {
+			return $map;
+		}
+
+		$map = array();
+
+		$recipe_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'posts_per_page' => -1,
+				'post_status'    => 'any',
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		foreach ( $recipe_ids as $recipe_id ) {
+
+			$recipe = new Mixmymeals_Recipe( (int) $recipe_id );
+			$counts = array();
+
+			foreach ( $recipe->get_steps() as $step ) {
+				foreach ( $step['ingredients'] ?? array() as $ing ) {
+
+					$product_id = (int) ( $ing['product_id'] ?? 0 );
+
+					if ( $product_id > 0 ) {
+						$counts[ $product_id ] = ( $counts[ $product_id ] ?? 0 ) + 1;
+					}
+				}
+			}
+
+			if ( ! $counts ) {
+				continue;
+			}
+
+			$post = get_post( (int) $recipe_id );
+
+			foreach ( $counts as $product_id => $occurrences ) {
+				$map[ $product_id ][] = array(
+					'recipe_id'    => (int) $recipe_id,
+					'recipe_title' => get_the_title( (int) $recipe_id ),
+					'status'       => $post ? $post->post_status : '',
+					'occurrences'  => $occurrences,
+				);
+			}
+		}
+
+		return $map;
+	}
+
+	/**
 	 * Points an ingredient at one of its products, or at none with 0.
 	 *
 	 * @param int $ingredient_id Ingredient ID.

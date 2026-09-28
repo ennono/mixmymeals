@@ -953,6 +953,19 @@ tbody > tr:first-child.mmm-products__head {
     width: 100%;
 }
 
+/* Welche Rezepte diesen Artikel gewaehlt haben. Neben der Quelle, nicht
+   in der Kopfzeile: eine Linkliste ist hoeher als ein Eingabefeld und
+   wuerde die ganze Flex-Zeile nach unten ziehen. */
+.mmm-products__usage {
+    margin-top: 12px;
+    max-width: 440px;
+}
+
+.mmm-products__usage .description {
+    display: block;
+    margin: 4px 0 0;
+}
+
 /* A real source is a sentence — 420px cut most of them off. */
 .mmm-products__field--source {
     margin-top: 10px;
@@ -974,7 +987,7 @@ tbody > tr:first-child.mmm-products__head {
     max-width: 22em;
 }
 
-.mmm-unit-usage__list {
+.mmm-usage__list {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -982,17 +995,17 @@ tbody > tr:first-child.mmm-products__head {
     line-height: 1.6;
 }
 
-.mmm-unit-usage__list li + li {
+.mmm-usage__list li + li {
     margin-top: 2px;
 }
 
-.mmm-unit-usage__times,
-.mmm-unit-usage__status,
-.mmm-unit-usage__none {
+.mmm-usage__times,
+.mmm-usage__status,
+.mmm-usage__none {
     color: #646970;
 }
 
-.mmm-unit-usage__none {
+.mmm-usage__none {
     font-size: 12px;
 }
 
