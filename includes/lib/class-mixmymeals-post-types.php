@@ -722,6 +722,36 @@ class Mixmymeals_Post_Types {
 	/**
 	 * Register equipment post type
 	 */
+	/** Option guarding the one-off flush that gives equipment its URLs back. */
+	const EQUIPMENT_RULES_OPTION  = 'mixmymeals_equipment_rules_version';
+	const EQUIPMENT_RULES_VERSION = '1';
+
+	/**
+	 * Flushes the rewrite rules once, after equipment became reachable again.
+	 *
+	 * An install that has been running carries rules written while the post
+	 * type had none, so deploying the registration alone changes nothing — the
+	 * pages keep answering 404 until somebody happens to open Settings →
+	 * Permalinks. This raises the plugin's existing flag instead, which
+	 * maybe_flush_rewrite_rules() consumes at init:99, after every post type
+	 * has registered.
+	 *
+	 * Hooked on init between the two: the registrations run at 10 and the
+	 * flush at 99, so asking here means the rules are right within the same
+	 * request rather than the next one.
+	 *
+	 * @return void
+	 */
+	public static function maybe_flush_equipment_rules(): void {
+
+		if ( get_option( self::EQUIPMENT_RULES_OPTION ) === self::EQUIPMENT_RULES_VERSION ) {
+			return;
+		}
+
+		update_option( 'mixmymeals_flush_needed', 1 );
+		update_option( self::EQUIPMENT_RULES_OPTION, self::EQUIPMENT_RULES_VERSION );
+	}
+
 	public function register_equipment_post_type(): void {
 
 		$labels = array(
@@ -732,23 +762,43 @@ class Mixmymeals_Post_Types {
 			'all_items'     => __( 'Equipment', 'mixmymeals' ),
 		);
 
+		/*
+		 * Equipment has public pages, like ingredients. It had them switched
+		 * off — publicly_queryable, rewrite and query_var were all false — for
+		 * long enough that every "Required equipment" link on a recipe pointed
+		 * at a 404, and the archive with it. Everything else for those pages
+		 * had been there the whole time: both templates in the child theme,
+		 * the hero, index and affiliate shortcodes, the archive description
+		 * setting, and the slug option whose flush hooks fired for a slug
+		 * nothing read.
+		 *
+		 * Note that `public => true` alone never made them reachable: it is
+		 * only the default the three flags below override, and each of them
+		 * said no.
+		 */
 		$args = array(
 			'labels'              => $labels,
 			'public'              => true,
-			'publicly_queryable'  => false,
-			'exclude_from_search' => true,
+			'publicly_queryable'  => true,
+			'exclude_from_search' => false,
 			'show_ui'             => true,
 			'show_in_menu'        => true,
-			'show_in_nav_menus'   => false,
+			'show_in_nav_menus'   => true,
 			'show_in_admin_bar'   => false,
 			'show_in_rest'        => true,
 			'capability_type'     => 'post',
 			'map_meta_cap'        => true,
 			'supports'            => array( 'title', 'editor', 'thumbnail' ),
 			'hierarchical'        => false,
-			'has_archive'         => false,
-			'rewrite'             => false,
-			'query_var'           => false,
+			'has_archive'         => true,
+			'rewrite'             => array(
+				// Same default as the settings field, or the two would
+				// disagree about where these pages live.
+				'slug'       => get_option( 'mixmymeals_equipment_slug', 'equipment' ),
+				'with_front' => false,
+				'feeds'      => false,
+			),
+			'query_var'           => true,
 			'menu_icon'           => 'dashicons-hammer',
 		);
 

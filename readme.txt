@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.38.0
+Stable tag: 3.39.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,15 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.39.0 =
+
+Fixed:
+* Kitchen equipment had no public pages at all. The archive, every equipment
+  permalink and every "Required equipment" link on a recipe answered 404,
+  although both templates, the hero, the index and the affiliate links had
+  been there the whole time. The post type is reachable again and the
+  permalinks are flushed once on update.
 
 = 3.38.0 =
 

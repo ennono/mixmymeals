@@ -90,6 +90,12 @@ All types are prefixed `mmm_`:
 | `mmm_meal` | `Mixmymeals_Meal` | Child post of `mmm_meal_plan` via `post_parent` |
 | `mmm_equipment` | `Mixmymeals_Equipment` | Public, has archive, slug from settings option; linked from recipes via `_mmm_equipment` meta (array of equipment post IDs) |
 
+**Equipment's public pages were switched off for years and this table was the only thing that still said otherwise.** `publicly_queryable`, `rewrite` and `query_var` were all `false` from `c3440b2` onward, so the archive, every equipment permalink and even `?post_type=mmm_equipment&p=<id>` answered 404 — while the child theme kept both templates, `[mmm_equipment_hero]`, `[mmm_equipment_index]` and the affiliate-link shortcode kept rendering, the archive-description setting kept saving, and the slug option's flush hooks kept firing for a slug nothing read. Every "Required equipment" link on a recipe pointed into nothing, and a design review of the live site is what finally surfaced it.
+
+Two things to take from it. **`public => true` proves nothing**: it is only the default that `publicly_queryable`, `has_archive`, `rewrite` and `query_var` each override, and all four said no beneath it. And a post type whose front end nobody visits can lose it without a single error — the templates and shortcodes stayed valid the whole time.
+
+Restoring the registration is not enough on an install that has been running: its rewrite rules were written while the type had none, so `Mixmymeals_Post_Types::maybe_flush_equipment_rules()` raises the plugin's own `mixmymeals_flush_needed` flag once (gated on `mixmymeals_equipment_rules_version`), hooked on `init` at 95 — after the registrations at 10, before `maybe_flush_rewrite_rules()` at 99, so the rules are right within the same request.
+
 Slugs for public post types and their taxonomy archives are configurable in Settings and stored as WP options (`mixmymeals_recipe_slug`, `mixmymeals_meal_plan_slug`, `mixmymeals_meal_slug`, `mixmymeals_ingredient_slug`, `mixmymeals_equipment_slug`). After changing slugs, WordPress permalinks must be flushed (the ingredient/equipment slug options schedule a flush automatically).
 
 ### Taxonomies
