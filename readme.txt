@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.40.0
+Stable tag: 3.41.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.41.0 =
+
+Fixed:
+* The planner could not be used on a phone. A recipe's day could only be set by
+  dragging, and HTML5 drag and drop does not fire from a touch — so with the
+  dialog defaulting to no day, everything piled up under "unassigned" with no
+  way out. Every item now has a day select, which moves it exactly as a drop
+  does. The drag handle is hidden where it cannot work.
+* The planner card fell apart on a phone: the recipe name was left 77px of a
+  386px screen and the controls ran 45px out of the card. It wraps into two
+  rows now — 235px for the name, nothing overflowing.
 
 = 3.40.0 =
 

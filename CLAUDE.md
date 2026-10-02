@@ -294,6 +294,13 @@ The posted path is untouched and still works without JavaScript, which is why th
 
 ### Cart
 
+**The day of a planner item lives in the DOM, not on the item.** `[mmm_meal_plan_builder]` reads it from the containing `.mmm-plan-day-list[data-day-list]` when the plan is created — so moving the `<li>` *is* the change, and `mmmMoveItemToDay()` in `frontend.js` both moves and saves. Drag and drop and the day select call that one function; saving without moving would be lost on the next render, moving without saving forgotten on the next load.
+
+**That select exists because dragging is unreachable on a phone.** `frontend.js` has `dragstart`/`dragover`/`drop` and no `touchstart`, `touchmove` or `pointerdown` at all, and HTML5 drag and drop does not fire from a touch on iOS Safari or Android Chrome. With the add-dialog defaulting to no day, every recipe landed in the unassigned list with no way out — the planner's core function was unusable on the device most people cook with. The drag handle is hidden below the phone breakpoint for the same reason: a handle that does nothing is worse than none.
+
+`render_plan_item()` builds one item for both the unassigned list and the seven days; the two used to be copies of fifty lines apiece, already diverging in whitespace.
+
+
 `Mixmymeals_Cart` stores recipe selections (recipe_id, servings, type, day) in:
 - **Logged-in users**: `mixmymeals_cart` user meta
 - **Anonymous users**: WP transient keyed by UUID stored in cookie `mixmymeals_cart_uuid`

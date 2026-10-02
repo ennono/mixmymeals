@@ -474,6 +474,37 @@ jQuery(function ($) {
         $(this).removeClass('drop-target');
     });
 
+    /**
+     * Moves one planner item into the list of a day.
+     *
+     * Shared by the drop handler and the day select, because the two must do
+     * the same thing: the day of an item is read from its containing list when
+     * the plan is created, so moving the element IS the change — saving it
+     * without moving it would be lost, and moving without saving would be
+     * forgotten on the next load.
+     *
+     * @param {jQuery} item   The .mmm-plan-item.
+     * @param {number} newDay 0 for unassigned, 1-7 for a weekday.
+     */
+    function mmmMoveItemToDay(item, newDay) {
+        const targetList = $('.mmm-plan-day-list[data-day-list="' + newDay + '"]').first();
+        if (!targetList.length) return;
+
+        targetList.append(item);
+        item.attr('data-day', newDay);
+
+        // Keep the select in step when the move came from a drag.
+        item.find('.mmm-plan-item-day').val(String(newDay));
+
+        mmmSavePlanChange({
+            index: item.data('index'),
+            field: 'day',
+            value: newDay
+        });
+
+        mmmUpdatePlannerTotals();
+    }
+
     $(document).on('drop', '.mmm-plan-day-list, .mmm-plan-item', function (e) {
         e.preventDefault();
         if (!draggedItem) return;
@@ -483,20 +514,15 @@ jQuery(function ($) {
             : $(this).closest('.mmm-plan-day-list')[0];
 
         $(targetList).removeClass('drop-target');
-        targetList.appendChild(draggedItem);
+        mmmMoveItemToDay($(draggedItem), $(targetList).data('day-list'));
+    });
 
-        const newDay = $(targetList).data('day-list');
-        const index = $(draggedItem).data('index');
-
-        $(draggedItem).attr('data-day', newDay);
-
-        mmmSavePlanChange({
-            index: index,
-            field: 'day',
-            value: newDay
-        });
-
-        mmmUpdatePlannerTotals();
+    /* The same move without a mouse. Dragging is unreachable on a phone —
+       HTML5 drag and drop does not fire from a touch — and this is the only
+       other way to give a recipe its day. */
+    $(document).on('change', '.mmm-plan-item-day', function () {
+        const item = $(this).closest('.mmm-plan-item');
+        mmmMoveItemToDay(item, parseInt($(this).val(), 10) || 0);
     });
 
     /* ==========================================================

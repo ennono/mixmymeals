@@ -3698,6 +3698,100 @@ class Mixmymeals_Shortcodes {
 
 
 	/**
+	 * One recipe in the planner.
+	 *
+	 * Both lists — the unassigned one and the seven days — rendered this the
+	 * same way, as two copies of fifty lines that had already drifted apart in
+	 * nothing but indentation. One builder, so the day select below exists
+	 * once rather than twice.
+	 *
+	 * @param int                  $index    Cart index.
+	 * @param array<string, mixed> $item     Cart row.
+	 * @param array<string,string> $types    Meal types, key => label.
+	 * @param array<int,string>    $days     Weekdays, 1-7 => label.
+	 * @param int                  $day      The list this item sits in, 0 = unassigned.
+	 * @return string Escaped markup.
+	 */
+	private function render_plan_item( int $index, array $item, array $types, array $days, int $day ): string {
+
+		$recipe_id = intval( $item['recipe_id'] ?? 0 );
+		$title     = get_the_title( $recipe_id );
+		$thumb     = get_the_post_thumbnail_url( $recipe_id, 'thumbnail' );
+		$type      = (string) ( $item['type'] ?? '' );
+		$servings  = (int) ( $item['servings'] ?? 2 );
+
+		ob_start();
+		?>
+		<li class="mmm-plan-item"
+			data-index="<?php echo esc_attr( (string) $index ); ?>"
+			data-recipe-id="<?php echo esc_attr( (string) $recipe_id ); ?>"
+			data-kcal="<?php echo esc_attr( (string) $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
+			draggable="true">
+
+			<div class="mmm-plan-item-drag" aria-hidden="true">&#9776;</div>
+
+			<?php if ( $thumb ) : ?>
+				<img class="mmm-plan-item-thumb" src="<?php echo esc_url( $thumb ); ?>" alt="">
+			<?php endif; ?>
+
+			<div class="mmm-plan-item-content">
+
+				<div class="mmm-plan-item-title"><?php echo esc_html( $title ); ?></div>
+
+				<div class="mmm-plan-item-controls">
+
+					<?php
+					/*
+					 * The day, as a control rather than only as a place to drop
+					 * into. Dragging is the only way to assign one today, and
+					 * HTML5 drag and drop does not fire from a touch — so on a
+					 * phone the day could not be set at all, while the dialog
+					 * that adds a recipe defaults to none. That put every
+					 * recipe in the unassigned list with no way out.
+					 *
+					 * It moves the item between the lists exactly as a drop
+					 * does, because the day is read from the containing list
+					 * when the plan is created, not from the item.
+					 */
+					?>
+					<select class="mmm-plan-item-day" data-field="day"
+						aria-label="<?php esc_attr_e( 'Day', 'mixmymeals' ); ?>">
+						<option value="0"<?php selected( $day, 0 ); ?>>
+							<?php esc_html_e( 'No day', 'mixmymeals' ); ?>
+						</option>
+						<?php foreach ( $days as $day_key => $day_label ) : ?>
+							<option value="<?php echo esc_attr( (string) $day_key ); ?>"<?php selected( $day, $day_key ); ?>>
+								<?php echo esc_html( $day_label ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
+					<select class="mmm-plan-item-type" data-field="type"
+						aria-label="<?php esc_attr_e( 'Meal type', 'mixmymeals' ); ?>">
+						<?php foreach ( $types as $key => $label ) : ?>
+							<option value="<?php echo esc_attr( (string) $key ); ?>"<?php selected( $type, $key ); ?>>
+								<?php echo esc_html( $label ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
+					<input type="number" class="mmm-plan-item-servings" data-field="servings"
+						min="1" value="<?php echo esc_attr( (string) $servings ); ?>"
+						aria-label="<?php esc_attr_e( 'Servings', 'mixmymeals' ); ?>">
+				</div>
+
+			</div>
+
+			<button class="mmm-plan-item-remove" type="button"
+				aria-label="<?php esc_attr_e( 'Remove item', 'mixmymeals' ); ?>"
+				data-action="remove">&times;</button>
+
+		</li>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
 	 * Shortcode: [mmm_meal_plan_builder]
 	 *
 	 * Outputs an interactive meal plan builder UI.
@@ -3748,72 +3842,17 @@ class Mixmymeals_Shortcodes {
 
                 <ul class="mmm-plan-day-list" data-day-list="0">
 
-					<?php foreach ( $items as $index => $item ) :
+					<?php
+					foreach ( $items as $index => $item ) :
 
 						if ( ! empty( $item['day'] ) ) {
 							continue;
 						}
 
-						$recipe_id = intval( $item['recipe_id'] );
-						$title     = get_the_title( $recipe_id );
-						$thumb     = get_the_post_thumbnail_url( $recipe_id,
-							'thumbnail' );
-						$type      = $item['type'] ?? '';
-						$servings  = $item['servings'] ?? 2;
-						?>
+						echo $this->render_plan_item( (int) $index, $item, $types, $days, 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
 
-                        <li class="mmm-plan-item"
-                            data-index="<?php echo esc_attr( $index ); ?>"
-                            data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
-                            data-kcal="<?php echo esc_attr( $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
-                            draggable="true">
-
-                            <div class="mmm-plan-item-drag">☰</div>
-
-							<?php if ( $thumb ) : ?>
-                                <img class="mmm-plan-item-thumb"
-                                     src="<?php echo esc_url( $thumb ); ?>"
-                                     alt="">
-							<?php endif; ?>
-
-                            <div class="mmm-plan-item-content">
-
-                                <div class="mmm-plan-item-title">
-									<?php echo esc_html( $title ); ?>
-                                </div>
-
-                                <div class="mmm-plan-item-controls">
-
-                                    <select class="mmm-plan-item-type"
-                                            data-field="type">
-										<?php foreach (
-											$types as $key => $label
-										) : ?>
-                                            <option value="<?php echo esc_attr( $key ); ?>"
-												<?php selected( $type,
-													$key ); ?>>
-												<?php echo esc_html( $label ); ?>
-                                            </option>
-										<?php endforeach; ?>
-                                    </select>
-
-                                    <input type="number"
-                                           class="mmm-plan-item-servings"
-                                           data-field="servings"
-                                           min="1"
-                                           value="<?php echo esc_attr( $servings ); ?>">
-                                </div>
-
-                            </div>
-
-                            <button class="mmm-plan-item-remove"
-                                    aria-label="<?php esc_attr_e( 'Remove item', 'mixmymeals' ); ?>"
-                                    data-action="remove">×
-                            </button>
-
-                        </li>
-
-					<?php endforeach; ?>
+					endforeach;
+					?>
 
 					<?php
 					/*
@@ -3858,76 +3897,17 @@ class Mixmymeals_Shortcodes {
                         <ul class="mmm-plan-day-list"
                             data-day-list="<?php echo esc_attr( $day_key ); ?>">
 
-							<?php foreach ( $items as $index => $item ) :
+							<?php
+							foreach ( $items as $index => $item ) :
 
-								if ( intval( $item['day'] ) !== $day_key ) {
+								if ( intval( $item['day'] ?? 0 ) !== $day_key ) {
 									continue;
 								}
 
-								$recipe_id = intval( $item['recipe_id'] );
-								$title     = get_the_title( $recipe_id );
-								$thumb
-								           = get_the_post_thumbnail_url( $recipe_id,
-									'thumbnail' );
-								$type      = $item['type'] ?? '';
-								$servings  = $item['servings'] ?? 2;
-								?>
+								echo $this->render_plan_item( (int) $index, $item, $types, $days, $day_key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
 
-                                <li class="mmm-plan-item"
-                                    data-index="<?php echo esc_attr( $index ); ?>"
-                                    data-recipe-id="<?php echo esc_attr( $recipe_id ); ?>"
-                                    data-kcal="<?php echo esc_attr( $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
-                                    draggable="true">
-
-                                    <div class="mmm-plan-item-drag">☰</div>
-
-									<?php if ( $thumb ) : ?>
-                                        <img class="mmm-plan-item-thumb"
-                                             src="<?php echo esc_url( $thumb ); ?>"
-                                             alt="">
-									<?php endif; ?>
-
-                                    <div class="mmm-plan-item-content">
-
-                                        <div class="mmm-plan-item-title">
-											<?php echo esc_html( $title ); ?>
-                                        </div>
-
-                                        <div class="mmm-plan-item-controls">
-
-                                            <!-- Meal Type -->
-                                            <select class="mmm-plan-item-type"
-                                                    data-field="type">
-												<?php foreach (
-													$types as $key => $label
-												) : ?>
-                                                    <option value="<?php echo esc_attr( $key ); ?>"
-														<?php selected( $type,
-															$key ); ?>>
-														<?php echo esc_html( $label ); ?>
-                                                    </option>
-												<?php endforeach; ?>
-                                            </select>
-
-                                            <!-- Servings -->
-                                            <input type="number"
-                                                   class="mmm-plan-item-servings"
-                                                   data-field="servings"
-                                                   min="1"
-                                                   value="<?php echo esc_attr( $servings ); ?>">
-                                        </div>
-
-                                    </div>
-
-                                    <button class="mmm-plan-item-remove"
-                                            aria-label="<?php esc_attr_e( 'Remove item', 'mixmymeals' ); ?>"
-                                            data-action="remove">
-                                        ×
-                                    </button>
-
-                                </li>
-
-							<?php endforeach; ?>
+							endforeach;
+							?>
 
                             <?php
                             /*
