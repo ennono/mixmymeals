@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.39.0
+Stable tag: 3.40.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.40.0 =
+
+Changed:
+* A meal plan in a carousel shows several of its dishes instead of one, so a
+  plan can be told from a recipe at a glance. Recipes are untouched. Plans with
+  fewer than two pictures keep the single-image card.
 
 = 3.39.0 =
 

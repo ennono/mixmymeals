@@ -490,6 +490,12 @@ The chips live in the theme (`mmm_print_active_filter_chips()`), in the hero whe
 
 `[mmm_recipes_index]` knows `mmm_s` but none of the new filters. Deliberate, and noted here so it is not rediscovered as a bug.
 
+**A plan in a carousel shows several of its dishes, a recipe one.** `render_meal_plan_browse_cards()` asks `get_meal_plan_card_images()` for up to three pictures — the plan's own featured image first where there is one, then its recipes by priority, each recipe once — and wraps them in `.mmm-recipe-row__mosaic`; the theme grids that into one large tile and two stacked. Below two pictures the card falls back to `get_meal_plan_card_thumbnail()` and the single-image shape, because a mosaic with one tile reads as a layout that failed.
+
+**The tiles get their own wrapper rather than the media box becoming the grid**, and the images are placed explicitly by `nth-of-type`. Two things share that box: the disclosure pill, which is in normal flow and would take a tile — the ad label, of all things — and a `<noscript>` the image optimiser adds beside every thumbnail, twelve of them on the live front page. Auto-placement scatters the mosaic as soon as either appears.
+
+Grid items take their content as their minimum size, so the 300px thumbnails pushed their `1fr` rows to 91.5px against a 140px box and hung out of the card; `min-height: 0` on the tiles is what holds the row height. Recipes are untouched throughout.
+
 ### Settings
 
 Settings are registered via `Mixmymeals_Settings` using the WordPress Settings API. All option names are prefixed `mixmymeals_`. Notable options: `mixmymeals_public_mode` (allow guest plan creation), `mixmymeals_published_meal_plans_per_hour_limit`, `mixmymeals_save_meal_plans_published_by_visitors_as_draft`, `mixmymeals_placeholder_image_id`.

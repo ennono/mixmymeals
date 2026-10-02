@@ -1523,7 +1523,15 @@ class Mixmymeals_Shortcodes {
 		foreach ( $ids as $id ) {
 
 			$permalink = (string) get_permalink( $id );
-			$thumb     = $this->get_meal_plan_card_thumbnail( $id );
+			$images    = $this->get_meal_plan_card_images( $id );
+
+			/*
+			 * Below two pictures there is no mosaic to build, so the card keeps
+			 * the single-image shape the recipes use — one tile in a grid meant
+			 * for three looks like a layout that failed, not like a plan.
+			 */
+			$mosaic = count( $images ) >= 2;
+			$thumb  = $mosaic ? implode( '', $images ) : $this->get_meal_plan_card_thumbnail( $id );
 
 			echo '<article class="mmm-recipe-row__card mmm-recipe-row__card--plan">';
 			// Same placement as the recipe cards: over the picture when there is
@@ -1531,9 +1539,33 @@ class Mixmymeals_Shortcodes {
 			$disclosure = self::disclosure_pill( $id );
 
 			if ( '' !== $thumb ) {
-				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '">'
-					. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
-					. $disclosure // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+				printf(
+					'<a class="mmm-recipe-row__media" href="%s">',
+					esc_url( $permalink )
+				);
+
+				/*
+				 * The tiles get a wrapper of their own rather than turning the
+				 * media box into the grid. Two things live in that box beside
+				 * the pictures: the disclosure pill, which is in normal flow
+				 * and would take a tile, and a <noscript> that the image
+				 * optimiser adds next to every thumbnail — a dozen of them on
+				 * the live front page. Either would push the mosaic apart.
+				 */
+				if ( $mosaic ) {
+					printf(
+						'<span class="mmm-recipe-row__mosaic mmm-recipe-row__mosaic--%d">',
+						count( $images )
+					);
+				}
+
+				echo $thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
+
+				if ( $mosaic ) {
+					echo '</span>';
+				}
+
+				echo $disclosure // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 					. '</a>';
 			}
 			echo '<div class="mmm-recipe-row__body">';
@@ -1548,6 +1580,77 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The pictures a plan card shows: several dishes, not one.
+	 *
+	 * A plan and a recipe used to arrive in the same carousel as the same
+	 * object — one picture, one title — and nothing said that one of them is a
+	 * week of cooking. So a plan shows what it is made of: the plan's own
+	 * featured image leads where there is one, otherwise the strongest recipe,
+	 * and further recipes follow.
+	 *
+	 * Ordered by recipe priority like the single thumbnail already was, each
+	 * recipe used once — a plan that cooks one dish three times must not show
+	 * it three times. Returns fewer than asked for rather than repeating, and
+	 * the caller falls back to the single-image card below two: a mosaic with
+	 * one tile is a broken mosaic, not a plan.
+	 *
+	 * @param int    $plan_id Meal plan post ID.
+	 * @param int    $max     How many pictures at most.
+	 * @param string $size    Image size for the tiles.
+	 * @return string[] Escaped <img> markup, in display order.
+	 */
+	private function get_meal_plan_card_images( int $plan_id, int $max = 3, string $size = 'medium' ): array {
+
+		$images = array();
+		$seen   = array();
+		$attr   = array(
+			'loading' => 'lazy',
+			'alt'     => '',
+		);
+
+		$plan_thumb_id = (int) get_post_thumbnail_id( $plan_id );
+
+		if ( $plan_thumb_id ) {
+			$images[] = (string) get_the_post_thumbnail( $plan_id, $size, $attr );
+		}
+
+		$plan   = new Mixmymeals_Meal_Plan( $plan_id );
+		$ranked = array();
+
+		foreach ( $plan->get_meals() as $meal_post ) {
+
+			$recipe_id = (int) ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id();
+
+			if ( $recipe_id <= 0 || isset( $seen[ $recipe_id ] ) ) {
+				continue;
+			}
+
+			if ( ! Mixmymeals_Recipe::exists_by_id( $recipe_id ) || ! get_post_thumbnail_id( $recipe_id ) ) {
+				continue;
+			}
+
+			$seen[ $recipe_id ] = true;
+			$ranked[]           = array(
+				'id'       => $recipe_id,
+				'priority' => ( new Mixmymeals_Recipe( $recipe_id ) )->get_priority(),
+			);
+		}
+
+		usort( $ranked, static fn( $a, $b ) => $a['priority'] <=> $b['priority'] );
+
+		foreach ( $ranked as $row ) {
+
+			if ( count( $images ) >= $max ) {
+				break;
+			}
+
+			$images[] = (string) get_the_post_thumbnail( $row['id'], $size, $attr );
+		}
+
+		return $images;
 	}
 
 	/**
