@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.43.0
+Stable tag: 3.43.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.43.1 =
+
+Fixed:
+* The planner on a phone. The remove button lay over the right edge of the day
+  field, the day marker of the timeline sat on the first letter of the day's
+  name, and the three actions below the board shared one line of text, so
+  "Clear plan" wrapped around the "Create meal plan" button and over it. The
+  card is now a grid with a column of its own for the remove button, and each
+  action gets its own full-width line.
+* Every control in the planner and in the plan-a-recipe dialog is at least
+  44px tall. The selects were 36px and the dialog's fields 40px, which is a
+  mouse height.
+* The hint on an empty day asked the visitor to drag a recipe there. A touch
+  device cannot: HTML5 drag and drop does not fire from a touch. It now reads
+  "Choose this day on a recipe to plan it here" wherever hovering is
+  impossible, which is the way that actually works there.
 
 = 3.43.0 =
 

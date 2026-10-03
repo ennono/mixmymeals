@@ -4021,10 +4021,20 @@ class Mixmymeals_Shortcodes {
                              * Markup; sichtbar ist er nur, solange der Tag leer
                              * ist. Anfangszustand aus PHP, danach CSS (:has) —
                              * sonst bliebe er nach Drag & Drop oder × stehen.
+                             *
+                             * Zwei Wortlaute, weil es zwei Bedienwege gibt: Am
+                             * Telefon feuert HTML5-Drag-and-Drop nicht aus einer
+                             * Berührung, dort führt nur das Tag-Feld auf der
+                             * Karte hierher. Ein Hinweis, der zum Ziehen
+                             * auffordert, nennt dem Besucher also genau den Weg,
+                             * den sein Gerät nicht kann. Welcher Satz steht,
+                             * entscheidet das Theme über (hover:none) — das ist
+                             * eine Frage des Eingabegeräts, nicht der Breite.
                              */
                             ?>
                             <li class="mmm-plan-day-hint"<?php echo empty( $days_with_items[ $day_key ] ) ? '' : ' hidden'; ?>>
-                                <?php esc_html_e( 'Drag a recipe here to plan it for this day.', 'mixmymeals' ); ?>
+                                <span class="mmm-plan-day-hint__drag"><?php esc_html_e( 'Drag a recipe here to plan it for this day.', 'mixmymeals' ); ?></span>
+                                <span class="mmm-plan-day-hint__tap"><?php esc_html_e( 'Choose this day on a recipe to plan it here.', 'mixmymeals' ); ?></span>
                             </li>
 
                         </ul>
