@@ -268,6 +268,8 @@ class Mixmymeals_Cart {
 			'mmm_update_cart_item'    => 'mmm_update_cart_item_ajax_callback',
 			'mmm_clear_cart'          => 'mmm_clear_cart_ajax_callback',
 			'mmm_load_plan_into_cart' => 'mmm_load_plan_into_cart_ajax_callback',
+			'mmm_share_cart'          => 'mmm_share_cart_ajax_callback',
+			'mmm_load_shared_cart'    => 'mmm_load_shared_cart_ajax_callback',
 		);
 
 		foreach ( $endpoints as $action => $method ) {
@@ -457,6 +459,112 @@ class Mixmymeals_Cart {
 			'message' => __( 'Item updated.', 'mixmymeals' ),
 			'item'    => $item,
 		] );
+	}
+
+	/** Prefix of a shared snapshot. */
+	const SHARE_PREFIX = 'mmm_cart_share_';
+
+	/** How long a shared link stays good. */
+	const SHARE_EXPIRATION = 30 * DAY_IN_SECONDS;
+
+	/**
+	 * AJAX: makes a shareable copy of the planner as it stands.
+	 *
+	 * **A snapshot, not the cart itself.** The obvious shortcut is to put the
+	 * cart's own UUID in the link — but that cookie value is the live key: a
+	 * link holder would keep reading the sharer's planner as it changed, and
+	 * anything that later wrote through it would write into somebody else's.
+	 * A copy under its own token can only ever say what the planner looked
+	 * like at the moment it was shared, and it ages out on its own.
+	 *
+	 * @return void
+	 */
+	public static function mmm_share_cart_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$items = ( new self() )->get_items();
+
+		if ( empty( $items ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'There is nothing in the planner to share.', 'mixmymeals' ) ),
+				400
+			);
+		}
+
+		$token = wp_generate_uuid4();
+
+		set_transient(
+			self::SHARE_PREFIX . $token,
+			array(
+				'items'   => $items,
+				'created' => time(),
+			),
+			self::SHARE_EXPIRATION
+		);
+
+		wp_send_json_success( array( 'token' => $token ) );
+	}
+
+	/**
+	 * AJAX: copies a shared snapshot into this visitor's own planner.
+	 *
+	 * Copies — the visitor keeps their own cookie and their own cart. Nothing
+	 * here hands out the other planner's key, and nothing written afterwards
+	 * reaches it.
+	 *
+	 * @return void
+	 */
+	public static function mmm_load_shared_cart_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$token = isset( $_POST['token'] )
+			? sanitize_text_field( wp_unslash( $_POST['token'] ) )
+			: '';
+
+		// A uuid4 and nothing else, so a crafted token cannot reach for
+		// another transient.
+		if ( ! wp_is_uuid( $token, 4 ) ) {
+			wp_send_json_error( array( 'message' => __( 'This link is not valid.', 'mixmymeals' ) ), 400 );
+		}
+
+		$shared = get_transient( self::SHARE_PREFIX . $token );
+
+		if ( ! is_array( $shared ) || empty( $shared['items'] ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'This shared planner is no longer available.', 'mixmymeals' ) ),
+				404
+			);
+		}
+
+		$cart = new self();
+		$cart->clear();
+
+		foreach ( $shared['items'] as $item ) {
+
+			$recipe_id = intval( $item['recipe_id'] ?? 0 );
+
+			// The recipes are re-checked rather than trusted: one of them may
+			// have been unpublished since the link was made.
+			if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+				continue;
+			}
+
+			$cart->add(
+				$recipe_id,
+				max( 1, intval( $item['servings'] ?? 1 ) ),
+				sanitize_text_field( (string) ( $item['type'] ?? '' ) ),
+				isset( $item['day'] ) ? intval( $item['day'] ) : null
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'message' => __( 'Shared planner loaded.', 'mixmymeals' ),
+				'count'   => count( $cart->get_items() ),
+			)
+		);
 	}
 
 	/**

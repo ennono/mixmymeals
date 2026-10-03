@@ -72,6 +72,15 @@ Weitere Hinweise zu Verarbeitungsprozessen, Verfahren und Diensten:
   Personenbezug; die Rezeptauswahl selbst wird serverseitig gespeichert und nach
   einer Woche automatisch gelöscht.
 
+- Planer teilen: Wer den Teilen-Knopf im Planer benutzt, legt damit bewusst eine
+  Kopie seiner Rezeptauswahl an. Sie wird unter einer eigenen zufälligen Kennung
+  serverseitig gespeichert, ist über den erzeugten Link für jeden abrufbar, der
+  ihn besitzt, und wird nach 30 Tagen automatisch gelöscht. Die Kopie ist
+  eingefroren: spätere Änderungen am eigenen Planer erscheinen nicht im Link,
+  und der Link gibt keinen Zugriff auf den Planer selbst. Es werden dabei nur
+  Rezept-IDs, Portionen, Mahlzeitentyp und Wochentag gespeichert — keine
+  Kennung des Teilenden. Wer nicht teilt, erzeugt diese Kopie nicht.
+
 - PDF-Export: Zur Begrenzung von Missbrauch wird die IP-Adresse beim Abruf eines
   Plan-PDFs in gehashter (pseudonymisierter) Form als kurzlebiger Zähler
   gespeichert und nach etwa einer Minute automatisch gelöscht.

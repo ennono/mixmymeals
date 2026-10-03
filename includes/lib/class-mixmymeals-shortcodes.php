@@ -3862,6 +3862,31 @@ class Mixmymeals_Shortcodes {
 
         <div class="mmm-plan-builder" data-kcal-pattern="<?php echo esc_attr( self::chip_text_pattern( 'energy' ) ); ?>">
 
+			<?php
+			/*
+			 * The week at a glance. Which days are full and which are still
+			 * empty costs three screens of scrolling to find out otherwise,
+			 * and the numbers are already there — every item carries its
+			 * kilocalories and each day prints its own total.
+			 *
+			 * aria-hidden, because it says nothing the day headings and
+			 * totals below do not say in words. A screen reader would only
+			 * hear the same seven numbers twice.
+			 */
+			?>
+            <div class="mmm-plan-week" aria-hidden="true">
+				<?php foreach ( $days as $mmm_week_day => $mmm_week_label ) : ?>
+                    <div class="mmm-plan-week__day" data-week-day="<?php echo esc_attr( (string) $mmm_week_day ); ?>">
+                        <div class="mmm-plan-week__track">
+                            <span class="mmm-plan-week__bar"></span>
+                        </div>
+                        <span class="mmm-plan-week__label">
+							<?php echo esc_html( Mixmymeals_Meal_Plan::weekday_name( (int) $mmm_week_day, true ) ); ?>
+                        </span>
+                    </div>
+				<?php endforeach; ?>
+            </div>
+
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
                 <h3><?php echo esc_html__( 'Unassigned Recipes',
@@ -3894,11 +3919,65 @@ class Mixmymeals_Shortcodes {
 					if ( $recipe_archive ) :
 						?>
                         <li class="mmm-plan-empty"<?php echo empty( $items ) ? '' : ' hidden'; ?>>
-							<?php esc_html_e( 'Your planner is still empty.', 'mixmymeals' ); ?>
-                            <a class="mmm-plan-empty__link"
-                               href="<?php echo esc_url( $recipe_archive ); ?>">
-								<?php esc_html_e( 'Find recipes', 'mixmymeals' ); ?>
-                            </a>
+                            <p class="mmm-plan-empty__line">
+								<?php esc_html_e( 'Your planner is still empty.', 'mixmymeals' ); ?>
+                                <a class="mmm-plan-empty__link"
+                                    href="<?php echo esc_url( $recipe_archive ); ?>">
+									<?php esc_html_e( 'Find recipes', 'mixmymeals' ); ?>
+                                </a>
+                            </p>
+
+							<?php
+							/*
+							 * A finished plan as a starting point. Building a
+							 * week from nothing is seven passes through the
+							 * dialog; taking one that exists is a tap, and the
+							 * machinery for it has been there all along — the
+							 * same control the plan pages use, with the same
+							 * confirmation, because it replaces the planner.
+							 *
+							 * Only on the empty state: once something is in
+							 * the planner, an offer to clear it is a trap.
+							 */
+							$mmm_templates = get_posts(
+								Mixmymeals_Post_Types::exclude_unlisted(
+									array(
+										'post_type'      => 'mmm_meal_plan',
+										'post_status'    => 'publish',
+										'posts_per_page' => 3,
+										'orderby'        => 'date',
+										'order'          => 'DESC',
+										'no_found_rows'  => true,
+									)
+								)
+							);
+
+							if ( $mmm_templates ) :
+								?>
+                                <div class="mmm-plan-templates">
+                                    <span class="mmm-plan-templates__lead">
+										<?php esc_html_e( 'Or start from a finished plan:', 'mixmymeals' ); ?>
+                                    </span>
+                                    <ul class="mmm-plan-templates__list">
+										<?php foreach ( $mmm_templates as $mmm_template ) : ?>
+                                            <li class="mmm-plan-templates__item">
+                                                <span class="mmm-plan-templates__name">
+													<?php echo esc_html( get_the_title( $mmm_template->ID ) ); ?>
+                                                </span>
+												<?php
+												echo $this->render_meal_plan_card_meta( (int) $mmm_template->ID ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+												?>
+                                                <button type="button"
+                                                    class="mmm-meal-plan-actions__item mmm-meal-plan-actions__item--load-into-cart mmm-plan-templates__use"
+                                                    data-meal-plan-id="<?php echo esc_attr( (string) $mmm_template->ID ); ?>"
+                                                    data-redirect-url="">
+													<?php esc_html_e( 'Use as a template', 'mixmymeals' ); ?>
+                                                </button>
+                                            </li>
+										<?php endforeach; ?>
+                                    </ul>
+                                </div>
+							<?php endif; ?>
                         </li>
 					<?php endif; ?>
 
@@ -3959,6 +4038,22 @@ class Mixmymeals_Shortcodes {
 
 				<?php endforeach; ?>
 
+            </div>
+
+			<?php
+			/*
+			 * Sharing without publishing. A finished plan becomes a post on
+			 * the site; this is the other case — "look what I have for the
+			 * week" as a message, with nothing created and no account asked
+			 * for. Hidden while the planner is empty, because an empty
+			 * planner is nothing to send.
+			 */
+			?>
+            <div class="mmm-plan-share"<?php echo empty( $items ) ? ' hidden' : ''; ?>>
+                <button type="button" class="mmm-plan-share__button">
+					<?php esc_html_e( 'Share planner', 'mixmymeals' ); ?>
+                </button>
+                <span class="mmm-plan-share__message" role="status" aria-live="polite"></span>
             </div>
 
         </div>

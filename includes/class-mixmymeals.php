@@ -414,6 +414,15 @@ class Mixmymeals {
 						'count_many' => sprintf( _n( '%s recipe in the planner.', '%s recipes in the planner.', 2, 'mixmymeals' ), '%s' ),
 						'to_plan'    => __( 'To the planner', 'mixmymeals' ),
 					),
+					'share'    => array(
+						'title'     => __( 'My meal plan', 'mixmymeals' ),
+						'text'      => __( 'Here is what I have planned for the week.', 'mixmymeals' ),
+						'copied'    => __( 'Link copied.', 'mixmymeals' ),
+						'failed'    => __( 'The link could not be created.', 'mixmymeals' ),
+						'loading'   => __( 'Loading the shared planner…', 'mixmymeals' ),
+						'ask'       => __( 'Someone shared a planner with you. Your own planner will be replaced by it. Continue?', 'mixmymeals' ),
+						'ask_title' => __( 'Load shared planner', 'mixmymeals' ),
+					),
 					'days'     => array(
 						1 => __( 'Monday', 'mixmymeals' ),
 						2 => __( 'Tuesday', 'mixmymeals' ),

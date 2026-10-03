@@ -453,7 +453,12 @@ jQuery(function ($) {
         backdrop.on('click', function (e) {
             if (e.target === this) mmmClosePlannerDialog();
         });
-        backdrop.find('.mmm-planner-dialog-cancel').on('click', mmmClosePlannerDialog);
+        backdrop.find('.mmm-planner-dialog-cancel').on('click', function () {
+            if (typeof opts.onCancel === 'function') {
+                opts.onCancel();
+            }
+            mmmClosePlannerDialog();
+        });
         $(document).on('keydown.mmmPlanner', function (e) {
             if (e.key === 'Escape') mmmClosePlannerDialog();
         });
@@ -590,6 +595,9 @@ jQuery(function ($) {
         const $builder = $('.mmm-plan-builder');
         if (!$builder.length) return;
 
+        const sums = {};
+        const counts = {};
+
         // The whole pattern, not just the unit: where the number goes is part
         // of the wording the site configured.
         const pattern = String($builder.data('kcal-pattern') || '{kcal} kcal');
@@ -611,10 +619,61 @@ jQuery(function ($) {
                 $value.text('');
                 $total.prop('hidden', true);
             }
+
+            const key = parseInt($day.find('.mmm-plan-day-list').attr('data-day-list'), 10);
+            sums[key] = sum;
+            counts[key] = $day.find('.mmm-plan-item').length;
         });
+
+        mmmUpdatePlannerWeek($builder, sums, counts);
+    }
+
+    /**
+     * The seven bars above the planner.
+     *
+     * Scaled against the fullest day rather than against an absolute: the
+     * question the row answers is which days are heavy and which are still
+     * empty, and a fixed ceiling would flatten every ordinary week into
+     * nothing.
+     *
+     * **A day counts as planned by its meals, never by its energy** — the same
+     * rule calc_nutrition_per_day_person() keeps. A dish whose recipe has no
+     * nutrition data yet would otherwise leave its day looking empty, and
+     * filling that data in later would make a bar appear where the plan had
+     * not changed at all. So a planned day always shows a stub.
+     *
+     * @param {jQuery} $builder The planner.
+     * @param {Object} sums     Day number to kcal.
+     * @param {Object} counts   Day number to number of meals.
+     */
+    function mmmUpdatePlannerWeek($builder, sums, counts) {
+        const $week = $builder.find('.mmm-plan-week');
+        if (!$week.length) return;
+
+        const max = Math.max.apply(null, Object.keys(sums).map(k => sums[k] || 0).concat([0]));
+        const planned = Object.keys(counts).reduce((n, k) => n + (counts[k] || 0), 0);
+        const startDay = parseInt($builder.find('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
+
+        $week.find('.mmm-plan-week__day').each(function () {
+            const $day = $(this);
+            const key = parseInt($day.attr('data-week-day'), 10);
+            const sum = sums[key] || 0;
+            const has = (counts[key] || 0) > 0;
+            const share = has ? Math.max(8, max > 0 ? Math.round((sum / max) * 100) : 8) : 0;
+
+            $day.find('.mmm-plan-week__bar').css('height', share + '%');
+            $day.toggleClass('is-filled', has);
+            $day.toggleClass('is-start', key === startDay);
+        });
+
+        // Nothing planned at all: seven empty tracks say less than no row.
+        $week.toggleClass('is-empty', planned === 0);
     }
 
     mmmUpdatePlannerTotals();
+
+    // The start day marks a bar, so changing it has to repaint the row.
+    $(document).on('change', 'input[name="mmm-plan-startday"]', mmmUpdatePlannerTotals);
 
     /* ==========================================================
        DRAG & DROP
@@ -843,6 +902,112 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
+       SHARE THE PLANNER
+       ========================================================== */
+
+    /**
+     * Makes a link to what the planner holds right now.
+     *
+     * The server stores a copy under its own token rather than handing out
+     * the cart's key, so the link says what was planned at that moment and
+     * nothing the sharer does afterwards travels with it.
+     */
+    $(document).on('click', '.mmm-plan-share__button', function (e) {
+        e.preventDefault();
+
+        const $btn = $(this);
+        const $msg = $btn.siblings('.mmm-plan-share__message');
+        const labels = (window.mixmymeals && mixmymeals.planner_dialog && mixmymeals.planner_dialog.share) || {};
+
+        mmmSetBusy($btn, true);
+        $msg.text('');
+
+        mmmPost('mmm_share_cart', {})
+            .done(function (response) {
+                if (!response || !response.success || !response.data.token) {
+                    $msg.text(mmmMessageOf(response, labels.failed));
+                    return;
+                }
+
+                const url = window.location.origin + window.location.pathname
+                    + '?mmm_plan=' + encodeURIComponent(response.data.token);
+
+                // The sheet the phone already has, where there is one; the
+                // clipboard otherwise. Both end in the same place.
+                if (navigator.share) {
+                    navigator.share({ title: labels.title, text: labels.text, url: url })
+                        .catch(function () { /* dismissed; nothing to report */ });
+                    return;
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url).then(
+                        function () { $msg.text(labels.copied || ''); },
+                        function () { $msg.text(url); }
+                    );
+                    return;
+                }
+
+                $msg.text(url);
+            })
+            .fail(function (xhr) {
+                $msg.text(mmmMessageOf(xhr && xhr.responseJSON, labels.failed));
+            })
+            .always(function () {
+                mmmSetBusy($btn, false);
+            });
+    });
+
+    /** The server's own wording where there is one, ours otherwise. */
+    function mmmMessageOf(response, fallback) {
+        return (response && response.data && response.data.message) ? response.data.message : (fallback || '');
+    }
+
+    /**
+     * Opening a shared link: asks first, because it replaces the planner.
+     *
+     * The token is taken out of the address once it has been dealt with, so a
+     * reload does not ask again and the link does not sit in the bar as if it
+     * were this visitor's own planner.
+     */
+    (function mmmMaybeLoadSharedPlanner() {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('mmm_plan');
+        if (!token || !$('.mmm-plan-builder').length) return;
+
+        const labels = (window.mixmymeals && mixmymeals.planner_dialog && mixmymeals.planner_dialog.share) || {};
+        const dialog = (window.mixmymeals && mixmymeals.load_into_cart_dialog) || {};
+
+        const clean = function () {
+            params.delete('mmm_plan');
+            const rest = params.toString();
+            window.history.replaceState({}, '', window.location.pathname + (rest ? '?' + rest : ''));
+        };
+
+        mmmOpenConfirmDialog({
+            title: labels.ask_title,
+            message: labels.ask,
+            confirm: dialog.confirm,
+            cancel: dialog.cancel,
+            onConfirm: function (ctx) {
+                mmmPost('mmm_load_shared_cart', { token: token })
+                    .done(function (response) {
+                        if (response && response.success) {
+                            clean();
+                            window.location.reload();
+                            return;
+                        }
+                        mmmHandleAjaxError(response, { inlineEl: ctx.msgBox, fallbackMessage: labels.failed });
+                    })
+                    .fail(function (xhr) {
+                        mmmHandleRequestFail(xhr, { inlineEl: ctx.msgBox, failMessage: labels.failed });
+                    });
+            },
+            onCancel: clean
+        });
+    })();
+
+    /* ==========================================================
        LOAD PLAN INTO CART
        ========================================================== */
     $(document).on('click', '.mmm-meal-plan-actions__item--load-into-cart', function (e) {
@@ -866,6 +1031,13 @@ jQuery(function ($) {
                             ctx.close();
                             if (redirectUrl) {
                                 window.location.href = redirectUrl;
+                                return;
+                            }
+                            // On the planner itself the plan has to appear;
+                            // the badge alone would say it worked while the
+                            // page still showed the empty state.
+                            if ($('.mmm-plan-builder').length) {
+                                window.location.reload();
                             }
                             return;
                         }

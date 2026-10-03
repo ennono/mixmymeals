@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.42.0
+Stable tag: 3.43.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.43.0 =
+
+Added:
+* The week at a glance above the planner: seven bars, one per day, so which
+  days are full and which are still empty can be seen without scrolling three
+  screens. A day counts as planned by its meals, never by its calories.
+* An empty planner offers the latest finished plans as a starting point. One
+  tap instead of seven passes through the dialog.
+* A planner can be shared without being published. The share button makes a
+  copy under a token of its own and hands out a link; opening it offers to
+  load that copy. The copy is frozen at the moment of sharing, gives no access
+  to the planner it came from, and is deleted after 30 days.
 
 = 3.42.0 =
 
