@@ -136,6 +136,9 @@ jQuery(function ($) {
     /* ==========================================================
        CART BADGE
        ========================================================== */
+    // The bar first, so its own badge is in the DOM when the count arrives
+    // and both are filled by the same pass.
+    mmmEnsureCartBar();
     mmmUpdateCartBadge();
 
     /* ==========================================================
@@ -149,7 +152,7 @@ jQuery(function ($) {
         }
     }
 
-    function mmmOpenPlannerDialog(recipeId, defaultServings) {
+    function mmmOpenPlannerDialog(recipeId, defaultServings, recipeTitle) {
         const labels = mixmymeals.planner_dialog || {};
         const types = labels.types || {};
         const days = labels.days || {};
@@ -212,6 +215,22 @@ jQuery(function ($) {
             })
                 .done(function (response) {
                     if (response && response.success) {
+                        const cfg = (window.mixmymeals && mixmymeals.planner_dialog) || {};
+                        const added = cfg.added || {};
+                        const count = response.data && response.data.count;
+                        const countText = (typeof count === 'number')
+                            ? mmmFormat(count === 1 ? added.count_one : added.count_many, String(count))
+                            : '';
+
+                        mmmAnnounce(
+                            mmmAddedText(
+                                recipeTitle,
+                                backdrop.find('.mmm-planner-dialog-day').val() || '',
+                                backdrop.find('.mmm-planner-dialog-type').val() || ''
+                            ),
+                            countText
+                        );
+
                         mmmUpdateCartBadge();
                         mmmClosePlannerDialog();
                         // On the planner page, reload so the new item shows
@@ -231,6 +250,152 @@ jQuery(function ($) {
         });
     }
 
+    /* ==========================================================
+       BOTTOM BAR
+       ========================================================== */
+
+    /**
+     * A bar at the foot of the screen while the planner is not empty.
+     *
+     * The count and the only way into the planner sit in the header, at the
+     * very top of pages that run to twenty thousand pixels — the worst place
+     * a thumb can reach. This repeats both where the hand already is.
+     *
+     * Built from the header's own planner link rather than from a setting:
+     * that link is wherever the site owner put the [mmm_cart_badge], and a
+     * second place that has to know the address would sooner or later know a
+     * different one. No link, no bar.
+     */
+    function mmmEnsureCartBar() {
+        if ($('.mmm-cart-bar').length) return;
+
+        // On the planner itself the bar would link to the page you are on.
+        if ($('.mmm-plan-builder').length) return;
+
+        const headerBadge = $('.mmm-cart-badge').first();
+        const link = headerBadge.closest('a');
+        if (!link.length || !link.attr('href')) return;
+
+        const bar = $('<div class="mmm-cart-bar"></div>');
+        $('<span class="mmm-cart-badge mmm-cart-bar__count"></span>')
+            .attr('data-label-singular', headerBadge.data('label-singular') || '')
+            .attr('data-label-plural', headerBadge.data('label-plural') || '')
+            .text(headerBadge.text())
+            .appendTo(bar);
+
+        const labels = (window.mixmymeals && mixmymeals.planner_dialog && mixmymeals.planner_dialog.added) || {};
+
+        $('<a class="mmm-cart-bar__link"></a>')
+            .attr('href', link.attr('href'))
+            .text(labels.to_plan || link.text().trim())
+            .appendTo(bar);
+
+        $('body').append(bar);
+    }
+
+    /* ==========================================================
+       SAYING WHAT HAPPENED
+       ========================================================== */
+
+    /**
+     * The one live region on the page, made on first use.
+     *
+     * Adding a recipe changed nothing a reader could see: the dialog closed
+     * and the only trace was a badge in a header that is far above the fold
+     * on a long archive. A screen reader heard nothing at all — there was no
+     * aria-live anywhere on the site.
+     */
+    function mmmStatusRegion() {
+        let region = $('#mmm-status');
+        if (!region.length) {
+            region = $('<div id="mmm-status" class="screen-reader-text" role="status" aria-live="polite"></div>');
+            $('body').append(region);
+        }
+        return region;
+    }
+
+    /**
+     * Announces something and shows it briefly.
+     *
+     * One source for both, so what is read aloud and what is shown cannot
+     * drift apart. The toast carries a link to the planner where there is one
+     * — on a long page that is also the shortest way back to it.
+     *
+     * @param {string} text  What happened.
+     * @param {string} [extra] A second, quieter line.
+     */
+    function mmmAnnounce(text, extra) {
+        if (!text) return;
+
+        mmmStatusRegion().text(extra ? text + ' ' + extra : text);
+
+        $('.mmm-toast').remove();
+
+        const toast = $('<div class="mmm-toast" aria-hidden="true"></div>');
+        $('<span class="mmm-toast__text"></span>').text(text).appendTo(toast);
+
+        if (extra) {
+            $('<span class="mmm-toast__extra"></span>').text(extra).appendTo(toast);
+        }
+
+        // The planner link is wherever the header already points; no second
+        // place that has to know the URL.
+        const plannerHref = $('.mmm-cart-badge').closest('a').attr('href');
+        const toPlan = (window.mixmymeals && mixmymeals.planner_dialog && mixmymeals.planner_dialog.added)
+            ? mixmymeals.planner_dialog.added.to_plan
+            : '';
+
+        if (plannerHref && toPlan) {
+            $('<a class="mmm-toast__link"></a>').attr('href', plannerHref).text(toPlan).appendTo(toast);
+        }
+
+        $('body').append(toast);
+
+        // Two frames, so the transition has a state to come from.
+        window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () {
+                toast.addClass('is-visible');
+            });
+        });
+
+        window.setTimeout(function () {
+            toast.removeClass('is-visible');
+            window.setTimeout(function () { toast.remove(); }, 400);
+        }, 5000);
+    }
+
+    /**
+     * Wording for "this was planned", assembled from what was actually chosen.
+     *
+     * Three sentences rather than one with holes in it: "X planned for , ."
+     * is what a single template produces when nobody picked a day or a type.
+     *
+     * @param {string} recipe Recipe name.
+     * @param {string} day    Day key, '' or null for none.
+     * @param {string} type   Type key, '' for none.
+     * @returns {string}
+     */
+    function mmmAddedText(recipe, day, type) {
+        const cfg = (window.mixmymeals && mixmymeals.planner_dialog) || {};
+        const t = cfg.added || {};
+        const dayLabel = (cfg.days && day) ? cfg.days[day] : '';
+        const typeLabel = (cfg.types && type) ? cfg.types[type] : '';
+
+        if (dayLabel && typeLabel) return mmmFormat(t.full, recipe, dayLabel, typeLabel);
+        if (dayLabel) return mmmFormat(t.day, recipe, dayLabel);
+        if (typeLabel) return mmmFormat(t.type, recipe, typeLabel);
+        return mmmFormat(t.plain, recipe);
+    }
+
+    /** Fills %1$s/%2$s/%3$s or a single %s, the way the PHP side writes them. */
+    function mmmFormat(template, ...args) {
+        if (!template) return args[0] || '';
+        let i = 0;
+        return String(template)
+            .replace(/%(\d)\$s/g, (m, n) => args[parseInt(n, 10) - 1] || '')
+            .replace(/%s/g, () => args[i++] || '');
+    }
+
     /* Unified busy state for AJAX-triggering buttons/links: disables the
        control, exposes aria-busy for assistive tech and adds .is-busy for
        the spinner/opacity styling. */
@@ -247,7 +412,11 @@ jQuery(function ($) {
     $(document).on('click', '.mmm-recipe-actions__item--cart', function (e) {
         e.preventDefault();
         const btn = $(this);
-        mmmOpenPlannerDialog(btn.data('recipe-id'), parseInt(btn.data('servings'), 10) || 1);
+        mmmOpenPlannerDialog(
+            btn.data('recipe-id'),
+            parseInt(btn.data('servings'), 10) || 1,
+            btn.data('recipe-title') || ''
+        );
     });
 
     /* A confirmation popup that reuses the planner-dialog markup/styling, so it
@@ -760,6 +929,11 @@ jQuery(function ($) {
                     const plural = badge.data('label-plural') || '';
                     badge.text(count + (count === 1 ? singular : plural));
                 });
+
+                // One class for "there is something in the planner", so the
+                // bottom bar can appear and disappear in CSS instead of being
+                // toggled from three places.
+                $('body').toggleClass('mmm-cart-empty', count === 0);
             })
             .fail(function () {
                 // optional

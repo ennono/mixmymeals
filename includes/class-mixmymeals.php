@@ -389,6 +389,31 @@ class Mixmymeals {
 					'submit'   => __( 'Add to Planner', 'mixmymeals' ),
 					'cancel'   => __( 'Cancel', 'mixmymeals' ),
 					'types'    => Mixmymeals_Meal::get_plaintext_meal_type_map(),
+
+					/*
+					 * Wording for the confirmation after planning. The recipe
+					 * name is always there; the day and the type are left out
+					 * when nobody chose them, which is why there are three
+					 * sentences instead of one with holes in it. The two
+					 * plural forms are resolved here because the script
+					 * cannot ask the catalogue — 1 and 2 stand in for the
+					 * two cases.
+					 */
+					'added'    => array(
+						/* translators: 1: recipe name, 2: weekday, 3: meal type. */
+						'full'       => __( '%1$s planned for %2$s, %3$s.', 'mixmymeals' ),
+						/* translators: 1: recipe name, 2: weekday. */
+						'day'        => __( '%1$s planned for %2$s.', 'mixmymeals' ),
+						/* translators: 1: recipe name, 2: meal type. */
+						'type'       => __( '%1$s planned as %2$s.', 'mixmymeals' ),
+						/* translators: %s: recipe name. */
+						'plain'      => __( '%s added to the planner.', 'mixmymeals' ),
+						/* translators: %s: number of recipes in the planner. */
+						'count_one'  => sprintf( _n( '%s recipe in the planner.', '%s recipes in the planner.', 1, 'mixmymeals' ), '%s' ),
+						/* translators: %s: number of recipes in the planner. */
+						'count_many' => sprintf( _n( '%s recipe in the planner.', '%s recipes in the planner.', 2, 'mixmymeals' ), '%s' ),
+						'to_plan'    => __( 'To the planner', 'mixmymeals' ),
+					),
 					'days'     => array(
 						1 => __( 'Monday', 'mixmymeals' ),
 						2 => __( 'Tuesday', 'mixmymeals' ),

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.41.0
+Stable tag: 3.42.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.42.0 =
+
+Added:
+* Planning a recipe now says so. A short confirmation names the dish, the day
+  and the meal type, counts what is in the planner and carries a link to it —
+  announced to screen readers through a live region the site did not have.
+* A bar at the foot of the screen while the planner is not empty, on phones:
+  the count and the way into the planner, where the thumb already is.
+
+Fixed:
+* A recipe added without a meal type showed "Breakfast" in the planner, a
+  value nobody chose, and "Other" could not be set there at all — the planner
+  kept its own four-entry list instead of the one the rest of the plugin uses.
+* The "Add to Planner" button on recipe cards was a <span>: not focusable, no
+  role, unreachable by keyboard. It is a button, and 44px tall like the other
+  controls it sits beside.
 
 = 3.41.0 =
 

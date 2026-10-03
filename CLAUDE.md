@@ -294,6 +294,10 @@ The posted path is untouched and still works without JavaScript, which is why th
 
 ### Cart
 
+**Adding a recipe says so.** `mmmAnnounce()` writes one sentence into `#mmm-status` (`role="status"`, `aria-live="polite"` — the site had no live region at all) and shows the same text as a toast, so what is read aloud and what is seen cannot drift. The wording comes from `planner_dialog.added` in three variants rather than one template with holes, because a recipe planned without a day or a type otherwise reads "X planned for , .". The count rides along on the `mmm_add_to_cart` answer instead of costing a second request.
+
+**The bottom bar is built from the header's own planner link**, not from a setting: `[mmm_cart_badge]` is placed by the site owner, and a second place that had to know the planner's address would sooner or later know a different one. No link, no bar. It carries its own `.mmm-cart-badge`, so the existing updater fills it, and `body.mmm-cart-empty` — set in that same pass — is what hides it.
+
 **The day of a planner item lives in the DOM, not on the item.** `[mmm_meal_plan_builder]` reads it from the containing `.mmm-plan-day-list[data-day-list]` when the plan is created — so moving the `<li>` *is* the change, and `mmmMoveItemToDay()` in `frontend.js` both moves and saves. Drag and drop and the day select call that one function; saving without moving would be lost on the next render, moving without saving forgotten on the next load.
 
 **That select exists because dragging is unreachable on a phone.** `frontend.js` has `dragstart`/`dragover`/`drop` and no `touchstart`, `touchmove` or `pointerdown` at all, and HTML5 drag and drop does not fire from a touch on iOS Safari or Android Chrome. With the add-dialog defaulting to no day, every recipe landed in the unassigned list with no way out — the planner's core function was unusable on the device most people cook with. The drag handle is hidden below the phone breakpoint for the same reason: a handle that does nothing is worse than none.

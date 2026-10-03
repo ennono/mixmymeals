@@ -3436,12 +3436,21 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$element = ( isset( $args['element'] ) && 'button' === $args['element'] ) ? 'button' : 'span';
+		/*
+		 * Always a button. The card variant was a <span> with a click handler:
+		 * not focusable, no role, nothing a keyboard or a screen reader could
+		 * reach — the primary action of the whole archive. The argument stays
+		 * because it still picks the class set, and the card keeps its look:
+		 * the theme sets this control's background, border and display with
+		 * !important either way.
+		 */
+		$element = 'button';
+		$shape   = ( isset( $args['element'] ) && 'button' === $args['element'] ) ? 'button' : 'span';
 
 		$defaults = array(
 			// Card default keeps the generic action-item look; the hero passes
 			// its own button classes.
-			'class'    => 'button' === $element ? 'mmm-btn mmm-btn--primary' : 'mmm-recipe-actions__item',
+			'class'    => 'button' === $shape ? 'mmm-btn mmm-btn--primary' : 'mmm-recipe-actions__item',
 			'text'     => __( 'Add to Planner', 'mixmymeals' ),
 			'servings' => 0,
 		);
@@ -3458,13 +3467,19 @@ class Mixmymeals_Shortcodes {
 
 		$classes = trim( (string) $args['class'] . ' mmm-recipe-actions__item--cart' );
 
+		/*
+		 * The name travels with the button so the confirmation after planning
+		 * can say which dish it was. Reading it back out of the card would tie
+		 * the script to a markup it does not own.
+		 */
 		return sprintf(
-			'<%1$s%2$s class="%3$s" data-recipe-id="%4$d" data-servings="%5$d">%6$s</%1$s>',
+			'<%1$s%2$s class="%3$s" data-recipe-id="%4$d" data-servings="%5$d" data-recipe-title="%6$s">%7$s</%1$s>',
 			$element,
-			'button' === $element ? ' type="button"' : '',
+			' type="button"',
 			esc_attr( $classes ),
 			$recipe_id,
 			$servings,
+			esc_attr( get_the_title( $recipe_id ) ),
 			esc_html( (string) $args['text'] )
 		);
 	}
@@ -3768,6 +3783,16 @@ class Mixmymeals_Shortcodes {
 
 					<select class="mmm-plan-item-type" data-field="type"
 						aria-label="<?php esc_attr_e( 'Meal type', 'mixmymeals' ); ?>">
+						<?php
+						/*
+						 * The dialog offers "no type"; without the same option
+						 * here the select had nothing to show for an item that
+						 * has none, so it fell back to the first entry.
+						 */
+						?>
+						<option value=""<?php selected( $type, '' ); ?>>
+							<?php esc_html_e( 'No type', 'mixmymeals' ); ?>
+						</option>
 						<?php foreach ( $types as $key => $label ) : ?>
 							<option value="<?php echo esc_attr( (string) $key ); ?>"<?php selected( $type, $key ); ?>>
 								<?php echo esc_html( $label ); ?>
@@ -3814,13 +3839,15 @@ class Mixmymeals_Shortcodes {
 			7 => __( 'Sunday', 'mixmymeals' ),
 		);
 
-		// Meal Types
-		$types = array(
-			'breakfast' => __( 'Breakfast', 'mixmymeals' ),
-			'lunch'     => __( 'Lunch', 'mixmymeals' ),
-			'dinner'    => __( 'Dinner', 'mixmymeals' ),
-			'snack'     => __( 'Snack', 'mixmymeals' ),
-		);
+		/*
+		 * The one vocabulary, not a second copy of it. This list had four
+		 * entries against the five the rest of the plugin knows, and no empty
+		 * one at all — so a recipe added without a type showed "Breakfast"
+		 * here, the first option of a select that had nothing else to fall
+		 * back to, and "Other" could not be set at all. A value nobody chose
+		 * went into the plan on the next save.
+		 */
+		$types = Mixmymeals_Meal::get_plaintext_meal_type_map();
 
 		// Welche Tage schon belegt sind — nur für den Anfangszustand des
 		// Ablage-Hinweises; ab dann übernimmt CSS (:has), damit Drag & Drop den

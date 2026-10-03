@@ -329,8 +329,15 @@ class Mixmymeals_Cart {
 		}
 
 
+		/*
+		 * The count travels with the answer so the page can say what just
+		 * happened without asking again. Adding a recipe used to change
+		 * nothing a reader could see — the only trace was a badge in a header
+		 * that is far out of sight on a long archive.
+		 */
 		wp_send_json_success( [
 			'message' => __( 'Recipe added to meal plan.', 'mixmymeals' ),
+			'count'   => count( ( new self() )->get_items() ),
 		] );
 
 	}
