@@ -280,6 +280,7 @@ class Mixmymeals_Admin_API {
 				break;
 
 			case 'plan_undated_meals':
+			case 'planner_templates_require_category':
 			case 'save_meal_plans_published_by_visitors_as_draft':
 				$checked = '';
 				if ( $data && 'on' === $data ) {

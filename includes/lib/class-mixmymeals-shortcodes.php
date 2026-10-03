@@ -3939,17 +3939,42 @@ class Mixmymeals_Shortcodes {
 							 * Only on the empty state: once something is in
 							 * the planner, an offer to clear it is a trap.
 							 */
-							$mmm_templates = get_posts(
-								Mixmymeals_Post_Types::exclude_unlisted(
+							$mmm_template_args = array(
+								'post_type'      => 'mmm_meal_plan',
+								'post_status'    => 'publish',
+								'posts_per_page' => 3,
+								'orderby'        => 'date',
+								'order'          => 'DESC',
+								'no_found_rows'  => true,
+							);
+
+							/*
+							 * Optional: nur Pläne mit Kategorie anbieten. Ein
+							 * Besucherplan trägt keine — das ist dieselbe
+							 * Definition, nach der
+							 * Mixmymeals_Cleanup::delete_uncategorized_meal_plans()
+							 * sie wieder abräumt, und es wäre eine seltsame
+							 * Vorlage, einen Plan anzubieten, den der nächste
+							 * Cron-Lauf löscht.
+							 *
+							 * Die Klausel geht in die Abfrage und nicht als
+							 * Filter hinterher: bei drei Posts würde ein
+							 * nachträglich aussortierter Plan seinen Platz
+							 * behalten und die Liste auf zwei schrumpfen
+							 * lassen.
+							 */
+							if ( 'on' === (string) get_option( 'mixmymeals_planner_templates_require_category', '' ) ) {
+								// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+								$mmm_template_args['tax_query'] = array(
 									array(
-										'post_type'      => 'mmm_meal_plan',
-										'post_status'    => 'publish',
-										'posts_per_page' => 3,
-										'orderby'        => 'date',
-										'order'          => 'DESC',
-										'no_found_rows'  => true,
-									)
-								)
+										'taxonomy' => 'mmm_meal_plan_category',
+										'operator' => 'EXISTS',
+									),
+								);
+							}
+
+							$mmm_templates = get_posts(
+								Mixmymeals_Post_Types::exclude_unlisted( $mmm_template_args )
 							);
 
 							if ( $mmm_templates ) :

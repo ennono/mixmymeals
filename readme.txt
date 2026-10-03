@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.43.1
+Stable tag: 3.44.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,15 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.44.0 =
+
+Added:
+* A setting under Meal Plans → Planner: offer only plans that have a category
+  as a template in the empty planner. A plan a visitor built carries no
+  category, which is the same thing the cleanup cron goes by when it removes
+  them again — so without this the planner could offer a plan that is about to
+  be deleted. Off by default; nothing changes until it is switched on.
 
 = 3.43.1 =
 

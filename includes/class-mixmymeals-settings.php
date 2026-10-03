@@ -570,6 +570,18 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'          => 'planner_templates_require_category',
+					'label'       => __( 'Plans offered as templates', 'mixmymeals' ),
+					'description' => __( 'Only offer plans that have a category. Plans a visitor built carry none, so this keeps them out.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'planner_templates_require_category_callback'
+					),
+				),
+				array(
 					'id'          => 'individual_tab_label',
 					'label'       => __( 'Individual Tab Label', 'mixmymeals' ),
 					'description' => __( 'Label for the "Individual" tab in the meal plan switcher.',
@@ -1770,6 +1782,16 @@ class Mixmymeals_Settings {
 	 * @return string 'on' or ''
 	 */
 	public function save_meal_plans_published_by_visitors_as_draft_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
+	}
+
+	/**
+	 * Sanitizes the templates-need-a-category checkbox.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function planner_templates_require_category_callback( mixed $input ): string {
 		return ( 'on' === $input ) ? 'on' : '';
 	}
 
