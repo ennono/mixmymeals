@@ -986,12 +986,34 @@ class Mixmymeals_Recipe {
 						continue;
 					}
 
+					/*
+					 * Pakete, die für dieses Gericht nicht in Frage kommen.
+					 *
+					 * Geprüft wie der Pin daneben: nur Produkte dieser Zutat
+					 * — ein Ausschluss, der auf fremde Ware zeigt, würde
+					 * stillschweigend nichts tun und später als Fehler
+					 * auftauchen.
+					 */
+					$blocked = array();
+
+					foreach ( (array) ( $ing['excluded_products'] ?? array() ) as $blocked_id ) {
+
+						$blocked_id = intval( $blocked_id );
+
+						if ( $blocked_id <= 0 || (int) wp_get_post_parent_id( $blocked_id ) !== $ing_id ) {
+							continue;
+						}
+
+						$blocked[] = $blocked_id;
+					}
+
 					$new_step['ingredients'][] = array(
-						'id'         => $ing_id,
-						'amount'     => $amount,
-						'amount_id'  => $amount_id,
-						'optional'   => ! empty( $ing['optional'] ),
-						'product_id' => $product,
+						'id'                => $ing_id,
+						'amount'            => $amount,
+						'amount_id'         => $amount_id,
+						'optional'          => ! empty( $ing['optional'] ),
+						'product_id'        => $product,
+						'excluded_products' => array_values( array_unique( $blocked ) ),
 					);
 				}
 			}
@@ -1100,7 +1122,9 @@ class Mixmymeals_Recipe {
 				$weights[ $id ],
 				$id,
 				(int) ( $ing['product_id'] ?? 0 ),
-				$weight / $servings
+				$weight / $servings,
+				'grams',
+				array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
 			);
 		}
 
@@ -1357,13 +1381,14 @@ class Mixmymeals_Recipe {
 				}
 
 				$ingredients[] = array(
-					'id'       => $id,
-					'name'     => get_the_title( $id ), // bewusst WP-Funktion
-					'amount'   => round( $amount, 1 ),
-					'unit'     => $unit_title,
-					'weight_g' => round( $total_weight ),
-					'optional'   => ! empty( $ing['optional'] ),
-					'product_id' => $product_id,
+					'id'                => $id,
+					'name'              => get_the_title( $id ), // bewusst WP-Funktion
+					'amount'            => round( $amount, 1 ),
+					'unit'              => $unit_title,
+					'weight_g'          => round( $total_weight ),
+					'optional'          => ! empty( $ing['optional'] ),
+					'product_id'        => $product_id,
+					'excluded_products' => array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
 				);
 			}
 		}
@@ -1456,6 +1481,7 @@ class Mixmymeals_Recipe {
 					'amount_id'       => $amount_id,
 					'optional'        => ! empty( $ing['optional'] ),
 					'product_id'      => $product_id,
+					'excluded_products' => array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
 					'step'            => $step_index,
 				);
 			}
@@ -3304,8 +3330,17 @@ class Mixmymeals_Recipe {
 
 		$sets = array();
 
+		/*
+		 * Je Zeile ihre eigene Ausschlussliste. Dieselbe Zutat kann in zwei
+		 * Schritten stehen und dort verschieden ausgeschlossen sein; combine()
+		 * schneidet die Mengen, also setzt sich der strengere Stand durch. Wer
+		 * ein Paket in einem Schritt ausschliesst und es im anderen vergisst,
+		 * bekommt trotzdem den Ausschluss — das ist die Richtung, in der ein
+		 * Versehen nichts behauptet, was niemand behaupten wollte.
+		 */
 		foreach ( $rows as $ing ) {
-			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )->get_diet_suitabilities();
+			$sets[] = ( new Mixmymeals_Ingredient( (int) $ing['id'] ) )
+				->get_diet_suitabilities( array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ) );
 		}
 
 		return Mixmymeals_Diet::combine( $sets );

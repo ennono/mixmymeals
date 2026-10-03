@@ -298,6 +298,13 @@ class Mixmymeals_Post_Meta {
 			. '<input type="checkbox" class="ingredient-optional-input" value="1"> '
 			. esc_html__( 'optional', 'mixmymeals' ) . '</label>';
 		echo ' <button type="button" class="button mixmymeals-remove-ingredient">-</button>';
+		/*
+		 * Leer in der Vorlage: welche Pakete zur Auswahl stehen, hängt an der
+		 * Zutat, die hier noch nicht gewählt ist. admin.js füllt den Behälter,
+		 * sobald eine Zutat feststeht — aus derselben lokalisierten Karte, aus
+		 * der auch das Produkt-Select seine Optionen bekommt.
+		 */
+		echo '<div class="mixmymeals-ingredient-excludes"></div>';
 		echo '</div></div>';
 
 		echo '</div>';
@@ -484,6 +491,41 @@ class Mixmymeals_Post_Meta {
 
 			// Remove button
 			echo '<button type="button" class="button mixmymeals-remove-ingredient">-</button>';
+
+			/*
+			 * Pakete, die für dieses Gericht nicht in Frage kommen.
+			 *
+			 * Eine Zutat gilt als „vegan möglich“, sobald *irgendeines* ihrer
+			 * Produkte vegan ist — das ist der Sinn der „möglich“-Pille. Wo
+			 * ein Paket für dieses Gericht nicht in Frage kommt (gesüßter
+			 * Joghurt in einem herzhaften Gericht), soll es die Aussage auch
+			 * nicht tragen und im Produktvergleich nicht als Spalte stehen.
+			 *
+			 * Nur gerendert, wenn es überhaupt Pakete gibt: eine leere
+			 * Überschrift wäre eine Frage ohne Antwortmöglichkeit.
+			 */
+			$row_products = $ing_id > 0 ? Mixmymeals_Product::for_ingredient( (int) $ing_id ) : array();
+
+			echo '<div class="mixmymeals-ingredient-excludes">';
+
+			if ( $row_products ) {
+
+				$blocked = array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) );
+
+				echo '<span class="mixmymeals-ingredient-excludes__label">'
+					. esc_html__( 'Not an option here:', 'mixmymeals' ) . '</span> ';
+
+				foreach ( $row_products as $row_product ) {
+					echo '<label><input type="checkbox" name="mmm_recipe_steps['
+						. absint( $index ) . '][ingredients][' . absint( $i )
+						. '][excluded_products][]" value="'
+						. absint( $row_product->get_id() ) . '" '
+						. checked( in_array( $row_product->get_id(), $blocked, true ), true, false )
+						. '> ' . esc_html( $row_product->label() ) . '</label> ';
+				}
+			}
+
+			echo '</div>';
 			echo '</div>';
 		}
 
@@ -840,6 +882,13 @@ class Mixmymeals_Post_Meta {
 									'product_id' => isset( $ingredient['product_id'] )
 										? intval( wp_unslash( $ingredient['product_id'] ) )
 										: 0,
+									// Packets this dish rules out. Unticked
+									// boxes post nothing, so an absent key is
+									// an empty list; set_steps() drops ids that
+									// do not belong to the ingredient.
+									'excluded_products' => isset( $ingredient['excluded_products'] )
+										? array_map( 'intval', (array) wp_unslash( $ingredient['excluded_products'] ) )
+										: array(),
 								);
 							},
 							$step['ingredients'] ?? array()

@@ -463,6 +463,68 @@ jQuery(document).ready(function ($) {
         }
     }
 
+    /**
+     * Rebuilds the "not an option here" boxes of one ingredient row.
+     *
+     * Which packets there are depends on the ingredient, so the row cannot
+     * carry them before one is chosen — the template ships an empty container
+     * and this fills it from the same localised map the product select uses.
+     *
+     * The field name is derived from the ingredient select beside it rather
+     * than passed in: that select already carries the step and row index, and
+     * a second place computing them would be a second place to get them wrong.
+     *
+     * Ticks already set survive a refill of the same ingredient and are
+     * dropped when the ingredient changes — an exclusion pointing at another
+     * ingredient's product is discarded on save anyway.
+     */
+    function fillExcludeBoxes($container, ingredientId) {
+        const $box = $container.find(".mixmymeals-ingredient-excludes");
+
+        if (!$box.length) {
+            return;
+        }
+
+        const name = $container.find("select.ingredient-select").attr("name");
+
+        if (!name) {
+            return;
+        }
+
+        const checked = {};
+        $box.find("input:checked").each(function () {
+            checked[$(this).val()] = true;
+        });
+
+        const products = (window.MixMyMealsProducts || {})[ingredientId] || [];
+        $box.empty();
+
+        if (!products.length) {
+            return;
+        }
+
+        const field = name.replace(/\[id\]$/, "[excluded_products][]");
+
+        $box.append(
+            $("<span>")
+                .addClass("mixmymeals-ingredient-excludes__label")
+                .text(window.mixmymealsAdmin?.excludeLabel || "")
+        );
+
+        products.forEach(function (product) {
+            const $input = $("<input>")
+                .attr("type", "checkbox")
+                .attr("name", field)
+                .val(product.id);
+
+            if (checked[product.id]) {
+                $input.prop("checked", true);
+            }
+
+            $box.append($("<label>").append($input).append(" " + product.label)).append(" ");
+        });
+    }
+
     /* ===========================
        DYNAMIC UNIT SELECT (AMOUNTS)
     ============================ */
@@ -472,6 +534,7 @@ jQuery(document).ready(function ($) {
         const $container = $ingredientSelect.closest(".mixmymeals-step-ingredient");
 
         fillProductSelect($container, ingredientId);
+        fillExcludeBoxes($container, ingredientId);
 
         if (!ingredientId) {
             $container.find(".ingredient-unit-select").remove();

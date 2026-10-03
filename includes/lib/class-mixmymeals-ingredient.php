@@ -747,7 +747,7 @@ class Mixmymeals_Ingredient {
 	 *
 	 * @return string[] Known diet slugs.
 	 */
-	public function get_diet_suitabilities(): array {
+	public function get_diet_suitabilities( array $without = array() ): array {
 
 		if ( ! $this->is_valid() ) {
 			return array();
@@ -755,7 +755,22 @@ class Mixmymeals_Ingredient {
 
 		$sets = array( Mixmymeals_Diet::for_post( $this->post_id ) );
 
+		/*
+		 * $without sind die Pakete, die ein Rezept für sein Gericht
+		 * ausgeschlossen hat. Die Zutat selbst kennt keine Rezepte, also wird
+		 * die Liste hereingereicht — derselbe Weg wie bei
+		 * get_nutrition_pinned(), und aus demselben Grund: eine Aussage über
+		 * ein Gericht darf nicht an der Zutat hängen bleiben.
+		 *
+		 * Ohne Liste ist die Antwort die alte: eine Zutat ist „vegan
+		 * möglich“, sobald irgendeines ihrer Pakete vegan ist.
+		 */
 		foreach ( Mixmymeals_Product::for_ingredient( $this->post_id ) as $product ) {
+
+			if ( $without && in_array( $product->get_id(), $without, true ) ) {
+				continue;
+			}
+
 			$sets[] = $product->get_diets();
 		}
 

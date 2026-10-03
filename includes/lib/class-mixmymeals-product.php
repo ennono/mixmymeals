@@ -542,9 +542,19 @@ class Mixmymeals_Product {
 	 * @param int                  $pinned        The row's product_id, 0 for none.
 	 * @param float                $grams         Grams one person eats from this row.
 	 * @param string               $grams_key     Where the total goes: 'grams' or 'grams_person'.
+	 * @param int[]                $excluded      Products this row rules out for its dish.
 	 * @return void
 	 */
-	public static function add_row_weight( array &$info, int $ingredient_id, int $pinned, float $grams, string $grams_key = 'grams' ): void {
+	public static function add_row_weight( array &$info, int $ingredient_id, int $pinned, float $grams, string $grams_key = 'grams', array $excluded = array() ): void {
+		/*
+		 * Pakete, die eine Rezeptzeile für ihr Gericht ausgeschlossen hat.
+		 * Vereinigt über alle Zeilen: der Vergleich zeigt eine Tabelle je
+		 * Zutat, braucht also eine Antwort, und wer ein Paket in einem Schritt
+		 * ausschliesst und im anderen vergisst, meinte den Ausschluss.
+		 */
+		foreach ( $excluded as $excluded_id ) {
+			$info['excluded'][ (int) $excluded_id ] = true;
+		}
 
 		$pin = Mixmymeals_Ingredient::pinned_product_id( $ingredient_id, $pinned );
 
@@ -704,6 +714,24 @@ class Mixmymeals_Product {
 			}
 
 			$products = self::for_ingredient( (int) $ingredient_id );
+
+			/*
+			 * Was das Rezept ausgeschlossen hat, steht nicht zur Wahl. Der
+			 * Filter sitzt vor der Zählung: bleibt danach nur noch ein Paket
+			 * übrig, gibt es nichts mehr zu vergleichen und die Gruppe
+			 * entfällt — dieselbe Regel wie bei einer Zutat, die von Haus aus
+			 * nur ein Produkt hat.
+			 */
+			$blocked = array_keys( (array) ( $info['excluded'] ?? array() ) );
+
+			if ( $blocked ) {
+				$products = array_values(
+					array_filter(
+						$products,
+						static fn( $product ) => ! in_array( $product->get_id(), $blocked, true )
+					)
+				);
+			}
 
 			if ( count( $products ) < 2 ) {
 				continue;

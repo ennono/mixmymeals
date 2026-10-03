@@ -520,6 +520,10 @@ class Mixmymeals {
 			array(
 				'ajaxurl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'mixmymeals_admin_nonce' ),
+				// Die Beschriftung der Ausschluss-Kaestchen. Sie entsteht in
+				// einer frisch geklonten Zeile im Browser, also muss der
+				// Wortlaut dorthin — uebersetzt wie der gerenderte daneben.
+				'excludeLabel' => __( 'Not an option here:', 'mixmymeals' ),
 			)
 		);
 

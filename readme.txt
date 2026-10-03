@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.45.0
+Stable tag: 3.46.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.46.0 =
+
+Added:
+* A recipe step can rule single products out for its dish. Each ingredient row
+  lists the packets that ingredient has; ticking one takes it out of the
+  product comparison and stops it carrying the diet badge.
+* That badge is why this exists: an ingredient counts as "vegan possible" as
+  soon as *any* of its packets is vegan, which is the point of "possible" —
+  but a sweetened soy yoghurt has no business making a savoury dish vegan.
+* Set per ingredient row, in force for the whole recipe. The same ingredient
+  can appear in two steps; ruling a packet out in one of them is enough,
+  because the diets of the rows are intersected. Ticking it in one step and
+  forgetting the other therefore honours the exclusion rather than dropping
+  it.
+* Over REST and MCP as `excluded_products` on the step ingredient. Ids that
+  belong to another ingredient are discarded on save, like a misplaced pin.
 
 = 3.45.0 =
 

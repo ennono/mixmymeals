@@ -1121,7 +1121,8 @@ class Mixmymeals_Meal_Plan {
 					$id,
 					(int) ( $ing['product_id'] ?? 0 ),
 					$weight / $servings,
-					'grams_person'
+					'grams_person',
+					array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
 				);
 
 				if ( ! isset( $counted[ $id ] ) ) {
