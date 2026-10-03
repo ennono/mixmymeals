@@ -294,8 +294,14 @@ class Mixmymeals_Photos {
 			);
 		}
 
+		/*
+		 * Unter MixMyMeals statt unter Rezepte. Die Seite moderiert, was
+		 * Besucher hochgeladen haben — das ist Betrieb, nicht Redaktion, und
+		 * hört an keinem einzelnen Rezept auf. Im Rezeptmenü stand sie
+		 * zwischen Kategorien und Import, wo niemand sie suchte.
+		 */
 		add_submenu_page(
-			'edit.php?post_type=' . self::RECIPE_POST_TYPE,
+			'mixmymeals_settings',
 			__( 'Meal Photos', 'mixmymeals' ),
 			$label,
 			'edit_others_posts',

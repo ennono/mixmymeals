@@ -368,7 +368,10 @@ class Mixmymeals_Subscriptions {
 				),
 				'public'          => false,
 				'show_ui'         => true,
-				'show_in_menu'    => 'edit.php?post_type=mmm_meal_plan',
+				// Unter MixMyMeals: ein Abo hängt an keinem einzelnen Plan,
+				// es ist eine laufende Zustellung. Im Planmenü las es sich wie
+				// eine Eigenschaft der Pläne.
+				'show_in_menu'    => 'mixmymeals_settings',
 				'capability_type' => 'post',
 				'capabilities'    => array( 'create_posts' => 'do_not_allow' ),
 				'map_meta_cap'    => true,

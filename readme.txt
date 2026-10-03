@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.44.0
+Stable tag: 3.45.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,31 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.45.0 =
+
+Changed:
+* The admin area is one plugin again instead of four menus and a settings page
+  filed somewhere else. Equipment moved under Recipes, Authors appears once
+  instead of under both Recipes and Meal Plans, the two pages called "Import"
+  became one with a tab each, and a MixMyMeals menu now holds the settings,
+  the import, the meal photos and the subscriptions. Recipes, Ingredients and
+  Meal Plans sit at fixed positions 30, 31 and 32; the first two shared 30 and
+  pushed each other around depending on registration order.
+* The settings screen gained a Visitors tab. What a guest may do was spread
+  over three tabs: plans under General, photo approval under Subscriptions,
+  and the four notices visitors read back under General. Scheduled cleanup
+  moved from Meal Plans to General, since it prunes mail logs and
+  subscriptions too. No option was renamed, so nothing stored is lost.
+* The settings URL changed from options-general.php to admin.php. Links to it
+  go through Mixmymeals_Settings::settings_url() now, including the ones in
+  the social add-on, which pointed at the old address.
+
+Fixed:
+* assets/css/admin.css carried a 100-line block twice, verbatim, plus rules
+  for a calendar that no longer exists. Colours and radii are tokens now
+  (four greys did one border's job, three radii one card's), and the import
+  screen's inline <style> moved in, so admin CSS has one home.
 
 = 3.44.0 =
 

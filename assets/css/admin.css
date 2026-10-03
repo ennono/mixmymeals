@@ -1,58 +1,74 @@
 /* ==========================================================================
-   MixMyMeals – Compact Calendar View for Daily Recipes
+   MixMyMeals — Admin
+
+   Ein Stylesheet für alles, was dieses Plugin in wp-admin zeichnet. Es wird
+   auf jedem Admin-Bildschirm geladen; die Selektoren sind deshalb an die
+   eigenen Klassen gebunden und nie an WordPress-eigene allein.
+
+   Abschnitte in dieser Reihenfolge:
+
+     1. Tokens              Farben, Radien — eine Quelle statt Literale
+     2. Mahlzeiten je Tag   die Tageskarten im Essensplan
+     3. Rezeptschritte      die große Box auf dem Rezeptbildschirm
+     4. Versandregeln       die Abo-Tabelle
+     5. Einstellungen       Gruppenüberschriften, Felder, Autorenbox
+     6. Produkte            die Karten auf dem Zutatenbildschirm
+     7. Nutzung             „in N Rezepten benutzt“, geteilt von Einheiten,
+                            Produkten und Küchengeräten
+     8. Import              der Bildschirm unter MixMyMeals → Import
+
+   ZWEI KLASSENPRÄFIXE, und das ist kein Versehen. Neueres heißt `mmm-`,
+   Älteres `mixmymeals-`. Der naheliegende Umbau — alles auf `mmm-` — geht
+   nicht: fünf der siebzehn Kurznamen sind im Frontend schon vergeben
+   (`mmm-day`, `mmm-step-image`, `mmm-step-ingredients`, `mmm-recipe-meta`,
+   `mmm-ingredient-optional`). Ein Admin-Stil und ein Frontend-Stil hätten
+   dann denselben Namen und unterschiedliche Regeln. Wer das vereinheitlichen
+   will, braucht ein eigenes Präfix für den Adminbereich (`mmm-admin-`) und
+   muss 159 Fundstellen in CSS, PHP, admin.js und admin.min.js mitziehen —
+   eine eigene Aufgabe, keine Nebenbei-Umbenennung.
+
    ========================================================================== */
 
-/* === Overall Layout ====================================================== */
+/* ==========================================================================
+   1. Tokens
 
-/* Year Container */
+   Die Werte sind die der WordPress-Admin-Palette, nicht eigene: eine Box in
+   diesem Plugin soll aussehen wie eine Box daneben. Vorher standen sie als
+   Literale verstreut — unter anderem vier Grauabstufungen für denselben
+   Rahmen und drei verschiedene Eckenradien für dieselbe Karte.
+   ========================================================================== */
 
-.mixmymeals-year > h3 {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1d2327;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 6px;
-    margin-bottom: 12px;
+:root {
+    --mmm-ad-ink:     #1d2327;  /* Fließtext, Überschriften */
+    --mmm-ad-ink-2:   #646970;  /* Sekundärtext, Beschreibungen */
+    --mmm-ad-link:    #2271b1;  /* Links, Fokus */
+    --mmm-ad-danger:  #b32d2e;  /* Löschen, Fehler */
+
+    --mmm-ad-line:    #c3c4c7;  /* Rahmen einer Karte */
+    --mmm-ad-line-2:  #dcdcde;  /* leiserer Rahmen, Trenner */
+    --mmm-ad-grey:    #8c8f94;  /* Platzhalter, deaktiviert */
+
+    --mmm-ad-surface: #fff;     /* Kartenfläche */
+    --mmm-ad-bg:      #f6f7f7;  /* abgesetzte Fläche */
+    --mmm-ad-bg-2:    #f0f0f1;  /* noch leiser, Trennlinien */
+    --mmm-ad-notice:  #fffbea;  /* Hinweisfläche */
+    --mmm-ad-link-bg: #f0f6fc;  /* Blauton hinter Hervorhebungen */
+    --mmm-ad-danger-d:#8a2424;  /* Löschen, bei Hover */
+
+    /* Die beiden Markenfarben der Seite. Nur dort, wo dieses Plugin etwas
+       über sich selbst sagt — eine Gruppenüberschrift, eine Erfolgsmeldung.
+       Ein Fehler bleibt im Rot von wp-admin und wird nicht Karotte. */
+    --mmm-ad-brand:   #5C9E2E;
+    --mmm-ad-brand-d: #3F6F1E;
+
+    /* Zwei Radien, nicht drei: klein für Felder und Knopf, groß für Karten. */
+    --mmm-ad-r:       4px;
+    --mmm-ad-r-lg:    6px;
 }
 
-/* === Collapsible Month Styling ========================================== */
-
-.mixmymeals-month summary {
-    cursor: pointer;
-    padding: 8px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #2c3338;
-    background: #f2f4f7;
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    list-style: none;
-    user-select: none;
-    transition: background 0.2s ease;
-}
-
-.mixmymeals-month summary:hover {
-    background: #e8ecf1;
-}
-
-.mixmymeals-month summary::-webkit-details-marker {
-    display: none;
-}
-
-.mixmymeals-month summary::after {
-    content: "▾";
-    font-size: 12px;
-    color: #666;
-    transition: transform 0.25s ease;
-}
-
-.mixmymeals-month[open] summary::after {
-    transform: rotate(180deg);
-}
-
-/* === Compact Calendar Grid ============================================== */
+/* ==========================================================================
+   2. Mahlzeiten je Tag — die Tageskarten im Essensplan
+   ========================================================================== */
 
 /* === Day Card ============================================================ */
 
@@ -60,7 +76,7 @@
     margin: 0 0 4px;
     font-size: 12px;
     font-weight: 600;
-    color: #333;
+    color: var(--mmm-ad-ink);
 }
 
 /* === Meals within a Day ================================================== */
@@ -69,20 +85,20 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
-    background: #fafafa;
-    border: 1px solid #e2e2e2;
-    border-radius: 4px;
+    background: var(--mmm-ad-bg);
+    border: 1px solid var(--mmm-ad-line-2);
+    border-radius: var(--mmm-ad-r);
     padding: 6px;
 }
 
 .mixmymeals-meal:hover {
-    background: #f3f8fc;
+    background: var(--mmm-ad-link-bg);
 }
 
 .mixmymeals-meal label {
     font-size: 11px;
     font-weight: 600;
-    color: #444;
+    color: var(--mmm-ad-ink-2);
 }
 
 /* === Recipe Selector ===================================================== */
@@ -91,15 +107,15 @@
     width: 100%;
     font-size: 12px;
     padding: 4px 6px;
-    border-radius: 3px;
-    border: 1px solid #ccd0d4;
-    background: #fff;
+    border-radius: var(--mmm-ad-r);
+    border: 1px solid var(--mmm-ad-line);
+    background: var(--mmm-ad-surface);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .mixmymeals-meal select:focus {
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
+    border-color: var(--mmm-ad-link);
+    box-shadow: 0 0 0 1px var(--mmm-ad-link);
     outline: none;
 }
 
@@ -107,7 +123,7 @@
 
 .mixmymeals-portions label {
     font-size: 11px;
-    color: #666;
+    color: var(--mmm-ad-ink-2);
     flex-shrink: 0;
 }
 
@@ -116,15 +132,15 @@
     text-align: center;
     font-size: 12px;
     padding: 4px 6px;
-    border: 1px solid #ccd0d4;
-    border-radius: 3px;
-    background: #fff;
+    border: 1px solid var(--mmm-ad-line);
+    border-radius: var(--mmm-ad-r);
+    background: var(--mmm-ad-surface);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .mixmymeals-portions input[type="number"]:focus {
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
+    border-color: var(--mmm-ad-link);
+    box-shadow: 0 0 0 1px var(--mmm-ad-link);
     outline: none;
 }
 
@@ -168,7 +184,7 @@
     margin-top: 1em;
     font-size: 14px;
     font-weight: 600;
-    border-bottom: 1px solid #ccd0d4;
+    border-bottom: 1px solid var(--mmm-ad-line);
     padding-bottom: 4px;
 }
 
@@ -186,22 +202,22 @@
 /* Info-Text unter der Tabelle */
 .mixmymeals-meta-table + p.description {
     font-size: 13px;
-    color: #555;
+    color: var(--mmm-ad-ink-2);
     margin-top: 5px;
 }
 
 /* Alternierende Zeilenfarben */
 .mixmymeals-meta-table tbody tr:nth-child(odd) {
-    background-color: #f9f9f9;
+    background-color: var(--mmm-ad-bg);
 }
 
 /* Hover-Effekt */
 .mixmymeals-meta-table tbody tr:hover {
-    background-color: #fffbea;
+    background-color: var(--mmm-ad-notice);
 }
 
 /* ==========================================================================
-   MixMyMeals – Recipe Steps Meta Box (WP Admin Style)
+   3. Rezeptschritte — die große Box auf dem Rezeptbildschirm
    ========================================================================== */
 
 .mixmymeals-recipe-meta {
@@ -214,7 +230,7 @@
     display: inline-block;
     margin-bottom: 4px;
     font-weight: 600;
-    color: #1d2327;
+    color: var(--mmm-ad-ink);
 }
 
 .mixmymeals-servings-field input[type="number"] {
@@ -225,9 +241,9 @@
 /* === Step Container ===================================================== */
 
 .mixmymeals-step-row {
-    background: #fff;
-    border: 1px solid #ccd0d4;
-    border-radius: 6px;
+    background: var(--mmm-ad-surface);
+    border: 1px solid var(--mmm-ad-line);
+    border-radius: var(--mmm-ad-r-lg);
     padding: 12px 14px;
     margin-bottom: 14px;
     box-shadow: 0 1px 1px rgba(0,0,0,0.04);
@@ -237,7 +253,7 @@
     margin: 0 0 10px;
     font-size: 14px;
     font-weight: 600;
-    color: #1d2327;
+    color: var(--mmm-ad-ink);
 }
 
 /* === Inputs ============================================================= */
@@ -245,7 +261,7 @@
 .mixmymeals-step-row label {
     font-size: 12px;
     font-weight: 600;
-    color: #2c3338;
+    color: var(--mmm-ad-ink);
 }
 
 .mixmymeals-step-row input[type="text"],
@@ -260,9 +276,9 @@
 .mixmymeals-step-ingredients-wrapper {
     margin-top: 10px;
     padding: 10px;
-    background: #f6f7f7;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: var(--mmm-ad-bg);
+    border: 1px solid var(--mmm-ad-line-2);
+    border-radius: var(--mmm-ad-r);
 }
 
 .mixmymeals-step-ingredients {
@@ -292,7 +308,7 @@
     gap: 4px;
     flex: 0 0 auto;
     white-space: nowrap;
-    color: #50575e;
+    color: var(--mmm-ad-ink-2);
 }
 
 .mixmymeals-ingredient-optional input {
@@ -327,9 +343,9 @@
 .mixmymeals-step-image img {
     display: block;
     margin-bottom: 6px;
-    border: 1px solid #ccd0d4;
-    border-radius: 4px;
-    background: #fff;
+    border: 1px solid var(--mmm-ad-line);
+    border-radius: var(--mmm-ad-r);
+    background: var(--mmm-ad-surface);
 }
 
 /* === Step Actions ======================================================= */
@@ -339,12 +355,12 @@
 }
 
 .mixmymeals-delete-step {
-    color: #b32d2e;
+    color: var(--mmm-ad-danger);
     text-decoration: none;
 }
 
 .mixmymeals-delete-step:hover {
-    color: #8a2424;
+    color: var(--mmm-ad-danger-d);
     text-decoration: underline;
 }
 
@@ -352,7 +368,7 @@
 
 .mixmymeals-step-row hr {
     border: none;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--mmm-ad-line-2);
     margin-top: 12px;
 }
 
@@ -378,11 +394,11 @@
 }
 
 .mixmymeals-step-placeholder {
-    border: 2px dashed #2271b1;
-    background: #f0f6fc;
+    border: 2px dashed var(--mmm-ad-link);
+    background: var(--mmm-ad-link-bg);
     height: 80px;
     margin-bottom: 14px;
-    border-radius: 6px;
+    border-radius: var(--mmm-ad-r-lg);
 }
 
 .mixmymeals-meta-table input[type="text"] {
@@ -393,21 +409,21 @@
 /* === Diet Type Meta Box ================================================= */
 
 #mmm_diet_type {
-    border-radius: 3px;
-    border: 1px solid #ccd0d4;
+    border-radius: var(--mmm-ad-r);
+    border: 1px solid var(--mmm-ad-line);
     padding: 4px 6px;
     font-size: 13px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 #mmm_diet_type:focus {
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
+    border-color: var(--mmm-ad-link);
+    box-shadow: 0 0 0 1px var(--mmm-ad-link);
     outline: none;
 }
 
 /* ==========================================================================
-   MixMyMeals – Subscription Mails Overview (Sending Rules)
+   4. Versandregeln — die Abo-Tabelle
    ========================================================================== */
 
 #mmm-schedule-table {
@@ -416,7 +432,7 @@
 
 #mmm-schedule-table thead th {
     font-weight: 600;
-    color: #1d2327;
+    color: var(--mmm-ad-ink);
 }
 
 #mmm-schedule-table td,
@@ -437,9 +453,9 @@
 .mmm-schedule-row select,
 .mmm-schedule-row input[type="time"] {
     font-size: 13px;
-    border-radius: 3px;
-    border: 1px solid #ccd0d4;
-    background: #fff;
+    border-radius: var(--mmm-ad-r);
+    border: 1px solid var(--mmm-ad-line);
+    background: var(--mmm-ad-surface);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -454,18 +470,18 @@
 
 .mmm-schedule-row select:focus,
 .mmm-schedule-row input[type="time"]:focus {
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
+    border-color: var(--mmm-ad-link);
+    box-shadow: 0 0 0 1px var(--mmm-ad-link);
     outline: none;
 }
 
 /* Zebra striping + hover, matching the meta tables. */
 #mmm-schedule-table tbody tr:nth-child(odd) {
-    background: #f9f9f9;
+    background: var(--mmm-ad-bg);
 }
 
 #mmm-schedule-table tbody tr:hover {
-    background: #fffbea;
+    background: var(--mmm-ad-notice);
 }
 
 /* Row action buttons. */
@@ -476,12 +492,12 @@
 
 .mmm-schedule-remove {
     line-height: 1;
-    color: #b32d2e;
+    color: var(--mmm-ad-danger);
 }
 
 .mmm-schedule-remove:hover {
-    color: #8a2424;
-    border-color: #b32d2e;
+    color: var(--mmm-ad-danger-d);
+    border-color: var(--mmm-ad-danger);
 }
 
 /* "Add row" + test-recipient controls below the table. */
@@ -521,9 +537,9 @@
     #mmm-schedule-table .mmm-schedule-row {
         margin-bottom: 12px;
         padding: 6px;
-        border: 1px solid #ccd0d4;
-        border-radius: 6px;
-        background: #fff;
+        border: 1px solid var(--mmm-ad-line);
+        border-radius: var(--mmm-ad-r-lg);
+        background: var(--mmm-ad-surface);
     }
 
     #mmm-schedule-table .mmm-schedule-row td:last-child {
@@ -538,7 +554,9 @@
 }
 
 
-/* === MixMyMeals Settings Page ============================================ */
+/* ==========================================================================
+   5. Einstellungen — Gruppenüberschriften, Felder, Autorenbox
+   ========================================================================== */
 
 /* Group headings between form-table rows (rows tagged .mmm-settings-group).
    The row is broken out of the table grid so the heading spans full width. */
@@ -558,8 +576,8 @@
 #mixmymeals_settings .mmm-settings-group-title {
     margin: 28px 0 0;
     padding: 0 0 8px;
-    border-bottom: 2px solid #5C9E2E;
-    color: #1d2327;
+    border-bottom: 2px solid var(--mmm-ad-brand);
+    color: var(--mmm-ad-ink);
     font-size: 14px;
     font-weight: 600;
     text-transform: uppercase;
@@ -574,7 +592,7 @@
 #mixmymeals_settings .mmm-settings-group-desc {
     margin: 8px 0 0;
     max-width: 60em;
-    color: #646970;
+    color: var(--mmm-ad-ink-2);
 }
 
 /* Give the value column a little more room and align labels to the top. */
@@ -592,9 +610,9 @@
     width: 52px;
     height: 34px;
     padding: 2px;
-    border: 1px solid #8c8f94;
-    border-radius: 6px;
-    background: #fff;
+    border: 1px solid var(--mmm-ad-grey);
+    border-radius: var(--mmm-ad-r-lg);
+    background: var(--mmm-ad-surface);
     cursor: pointer;
     vertical-align: middle;
 }
@@ -604,9 +622,9 @@
     display: inline-block;
     min-width: 12em;
     padding: 4px 8px;
-    border-radius: 4px;
-    background: #f0f0f1;
-    color: #1d2327;
+    border-radius: var(--mmm-ad-r);
+    background: var(--mmm-ad-bg-2);
+    color: var(--mmm-ad-ink);
     vertical-align: middle;
 }
 
@@ -616,108 +634,7 @@
 
 #mixmymeals_settings .mmm-file-field .mmm-clear-file-button {
     margin-left: 6px;
-    color: #b32d2e;
-    vertical-align: middle;
-}
-
-/* Meal-type checkbox group: wrap into a neat inline set. */
-#mixmymeals_settings .mmm-checkbox-set {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 18px;
-    margin: 0;
-}
-
-#mixmymeals_settings .mmm-checkbox-set label {
-    margin: 0;
-    white-space: nowrap;
-}
-
-/* Access-token status lines already carry inline colors; give them room. */
-#mixmymeals_settings #instagram_access_token {
-    max-width: 30em;
-}
-
-
-/* === MixMyMeals Settings Page ============================================ */
-
-/* Group headings between form-table rows (rows tagged .mmm-settings-group).
-   The row is broken out of the table grid so the heading spans full width. */
-#mixmymeals_settings .mmm-settings-group {
-    display: block;
-}
-
-#mixmymeals_settings .mmm-settings-group th {
-    display: none;
-}
-
-#mixmymeals_settings .mmm-settings-group td {
-    display: block;
-    padding: 0;
-}
-
-#mixmymeals_settings .mmm-settings-group-title {
-    margin: 28px 0 0;
-    padding: 0 0 8px;
-    border-bottom: 2px solid #5C9E2E;
-    color: #1d2327;
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-}
-
-/* First group in a section needs no big top gap. */
-#mixmymeals_settings .form-table tr:first-child .mmm-settings-group-title {
-    margin-top: 4px;
-}
-
-#mixmymeals_settings .mmm-settings-group-desc {
-    margin: 8px 0 0;
-    max-width: 60em;
-    color: #646970;
-}
-
-/* Give the value column a little more room and align labels to the top. */
-#mixmymeals_settings .form-table th {
-    padding-top: 18px;
-    vertical-align: top;
-}
-
-#mixmymeals_settings .form-table td {
-    padding-top: 12px;
-}
-
-/* Color pickers: tidy square swatches. */
-#mixmymeals_settings input[type="color"] {
-    width: 52px;
-    height: 34px;
-    padding: 2px;
-    border: 1px solid #8c8f94;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    vertical-align: middle;
-}
-
-/* Font/logo file picker rows. */
-#mixmymeals_settings .mmm-file-field .mmm-file-name {
-    display: inline-block;
-    min-width: 12em;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: #f0f0f1;
-    color: #1d2327;
-    vertical-align: middle;
-}
-
-#mixmymeals_settings .mmm-file-field .button {
-    vertical-align: middle;
-}
-
-#mixmymeals_settings .mmm-file-field .mmm-clear-file-button {
-    margin-left: 6px;
-    color: #b32d2e;
+    color: var(--mmm-ad-danger);
     vertical-align: middle;
 }
 
@@ -748,7 +665,7 @@
     object-fit: cover;
     display: block;
     margin: 0 0 8px;
-    border: 1px solid #dcdcde;
+    border: 1px solid var(--mmm-ad-line-2);
 }
 
 .mmm-author-image-field p {
@@ -756,12 +673,12 @@
 }
 
 .mmm-author-image-field .mmm-author-image-remove {
-    color: #b32d2e;
+    color: var(--mmm-ad-danger);
     text-decoration: none;
 }
 
 /* ==========================================================
-   Products on the ingredient screen.
+   6. Produkte — die Karten auf dem Zutatenbildschirm
 
    The markup is a table, but nothing here is tabular: there is
    no thead, no column means the same thing twice, and every
@@ -800,7 +717,7 @@
    flex items differ in height, so a background per cell leaves
    steps along the bottom of the row. */
 tr.mmm-products--alt {
-    background: #f6f7f7;
+    background: var(--mmm-ad-bg);
 }
 
 /* --- Labelled field, used in both rows --- */
@@ -816,7 +733,7 @@ tr.mmm-products--alt {
     margin-bottom: 2px;
     font-size: 11px;
     line-height: 1.3;
-    color: #646970;
+    color: var(--mmm-ad-ink-2);
 }
 
 .mmm-products__field > input {
@@ -830,7 +747,7 @@ tr.mmm-products--alt {
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 12px 16px;
-    border-top: 1px solid #dcdcde;
+    border-top: 1px solid var(--mmm-ad-line-2);
     padding: 14px 10px 0;
 }
 
@@ -933,7 +850,7 @@ tbody > tr:first-child.mmm-products__head {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: #787c82;
+    color: var(--mmm-ad-ink-2);
 }
 
 /*
@@ -976,6 +893,15 @@ tbody > tr:first-child.mmm-products__head {
     width: 100%;
 }
 
+/* ==========================================================================
+   7. Nutzung — „in N Rezepten benutzt“
+
+   Dieselbe Liste auf drei Bildschirmen: bei den Einheiten und den Produkten
+   einer Zutat und bei den Küchengeräten eines Rezepts. Ein Markup, ein Stil —
+   die Frage davor ist jedes Mal dieselbe: was geht kaputt, wenn ich das hier
+   wegnehme.
+   ========================================================================== */
+
 /* Welche Rezepte eine Einheit benutzen. Stand hier lange als blanke Zahl —
    die beantwortete „darf ich löschen?" mit ja oder nein, aber nicht die Frage
    dahinter: welche Rezepte ihre Mengen plötzlich als Gramm lesen würden.
@@ -1002,7 +928,7 @@ tbody > tr:first-child.mmm-products__head {
 .mmm-usage__times,
 .mmm-usage__status,
 .mmm-usage__none {
-    color: #646970;
+    color: var(--mmm-ad-ink-2);
 }
 
 .mmm-usage__none {
@@ -1022,7 +948,7 @@ tbody > tr:first-child.mmm-products__head {
 }
 
 .mmm-plan-meals__new {
-    background: #f6f7f7;
+    background: var(--mmm-ad-bg);
 }
 
 .mmm-plan-meals__new .description {
@@ -1054,7 +980,7 @@ tbody > tr:first-child.mmm-products__head {
 }
 
 .mmm-equipment__count {
-    color: #646970;
+    color: var(--mmm-ad-ink-2);
 }
 
 .mmm-equipment__title {
@@ -1062,12 +988,12 @@ tbody > tr:first-child.mmm-products__head {
 }
 
 .mmm-equipment__new {
-    background: #f6f7f7;
+    background: var(--mmm-ad-bg);
 }
 
 .mmm-equipment__new .mmm-equipment__pick {
     font-size: 16px;
-    color: #787c82;
+    color: var(--mmm-ad-ink-2);
 }
 
 .mmm-equipment__new .description {
@@ -1077,10 +1003,74 @@ tbody > tr:first-child.mmm-products__head {
 .mmm-equipment__status {
     min-height: 1.4em;
     margin: 6px 0 0;
-    color: #3F6F1E;
+    color: var(--mmm-ad-brand-d);
     font-size: 12px;
 }
 
 .mmm-equipment__status.is-error {
-    color: #d2622c;
+    color: var(--mmm-ad-danger);
+}
+
+
+/* ==========================================================
+   Import-Bildschirm (Rezepte und Zutaten)
+
+   Stand bis hierher als <style>-Block in der Importer-Klasse.
+   Zwei Orte für Admin-CSS sind zwei Orte, an denen dieselbe
+   Karte unterschiedlich aussehen kann; dieses Stylesheet wird
+   ohnehin auf jedem Admin-Bildschirm geladen.
+   ========================================================== */
+
+.mmm-card {
+    background: var(--mmm-ad-surface);
+    border: 1px solid var(--mmm-ad-line);
+    border-radius: var(--mmm-ad-r);
+    padding: 20px 24px;
+    margin-top: 20px;
+    max-width: none;
+}
+.mmm-card > h2 {
+    margin: 0 0 16px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--mmm-ad-bg-2);
+    font-size: 14px;
+    font-weight: 600;
+}
+.mmm-textarea-wrap {
+    position: relative;
+}
+.mmm-textarea-wrap textarea {
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+    border: 1px solid var(--mmm-ad-line-2);
+    padding: 8px;
+    box-sizing: border-box;
+    resize: vertical;
+    line-height: 1.5;
+}
+.mmm-textarea-wrap textarea[readonly] {
+    background: var(--mmm-ad-bg);
+    color: var(--mmm-ad-ink);
+    padding-right: 74px;
+}
+.mmm-copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    font-size: 11px !important;
+    line-height: 20px !important;
+    height: 24px !important;
+    padding: 0 8px !important;
+    min-height: unset !important;
+}
+.mmm-import-form .form-table td textarea {
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.mmm-card p {
+    margin-top: 0;
 }

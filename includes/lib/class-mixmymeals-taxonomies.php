@@ -32,6 +32,7 @@ class Mixmymeals_Taxonomies {
 		add_action( 'init', array( $this, 'register_meal_plan_category_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_meal_plan_tag_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_author_taxonomy' ) );
+		add_action( 'admin_menu', array( $this, 'add_author_submenu' ) );
 
 		// Diäten leben in ihrer eigenen Klasse, weil dort auch die Regeln
 		// stehen, nach denen sie sich zu Rezepten verdichten.
@@ -74,38 +75,71 @@ class Mixmymeals_Taxonomies {
 			'menu_name'                  => __( 'Authors', 'mixmymeals' ),
 		);
 
-		$slug = trim( (string) get_option( 'mixmymeals_author_slug' ) );
-
-		if ( '' === $slug ) {
-			$slug = _x( 'authors', 'author archive URL slug', 'mixmymeals' );
-		}
-
+		/*
+		 * Das öffentliche Autorenarchiv ist abgeschaltet: `public` bleibt true,
+		 * damit die Begriffe in wp-admin erscheinen, aber `publicly_queryable`,
+		 * `query_var` und `rewrite` nehmen ihnen die Frontend-Adresse. Die
+		 * Option `mixmymeals_author_slug` wird hier deshalb gar nicht gelesen;
+		 * sie bleibt bestehen und ist der erste Griff, wenn das Archiv wieder
+		 * angehen soll (siehe CLAUDE.md, Abschnitt Autorenbox). Vorher stand
+		 * der Slug als berechnete, aber nirgends benutzte Variable da.
+		 *
+		 * `show_in_menu` ist false, weil die Taxonomie an *zwei* Beitragstypen
+		 * hängt und WordPress sie dann unter beiden Menüs auflistet: dieselbe
+		 * Begriffsliste einmal unter Rezepte und einmal unter Essenspläne, mit
+		 * demselben Inhalt und zwei Wegen dorthin. Der eine Eintrag, den es
+		 * geben soll, wird in add_author_submenu() von Hand gesetzt.
+		 */
 		$args = array(
 			'labels'             => $labels,
-			//'public'             => true,
-			//'publicly_queryable' => true,
+			'public'             => true,
+			'publicly_queryable' => false,
+			'query_var'          => false,
+			'rewrite'            => false,
 			'show_ui'            => true,
+			'show_in_menu'       => false,
 			'show_admin_column'  => true,
 			'hierarchical'       => false,
 			'show_in_rest'       => true,
-			//'query_var'          => true,
-            'public'                     => true,  // Bleibt im Admin-Bereich sichtbar
-            'publicly_queryable'         => false, // DEAKTIVIERT die Frontend-Archiv-URLs
-            'query_var'                  => false, // Verhindert URL-Abfragen
-            'rewrite'                    => false, // Schaltet URL-Rewrites für die Taxonomie ab
-            /*
-			'rewrite'            => array(
-				'slug'       => $slug,
-				'with_front' => false,
-				'feeds'      => false,
-			),
-            */
 		);
 
 		register_taxonomy(
 			Mixmymeals_Author::TAXONOMY,
 			array( 'mmm_recipe', 'mmm_meal_plan' ),
 			$args
+		);
+	}
+
+	/**
+	 * Puts Authors in the menu exactly once, under Recipes.
+	 *
+	 * The taxonomy belongs to recipes and to meal plans, so WordPress would
+	 * list it under both — one list of people, reachable two ways, which reads
+	 * as two different lists until you open them. Recipes is the one that gets
+	 * it: that is where guest contributions are written.
+	 *
+	 * The screen itself is unchanged; this only adds the link. Its
+	 * `post_type=mmm_recipe` is what keeps the Recipes menu highlighted while
+	 * the screen is open.
+	 *
+	 * @return void
+	 */
+	public function add_author_submenu(): void {
+
+		$taxonomy = get_taxonomy( Mixmymeals_Author::TAXONOMY );
+
+		if ( ! $taxonomy ) {
+			return;
+		}
+
+		add_submenu_page(
+			'edit.php?post_type=mmm_recipe',
+			$taxonomy->labels->name,
+			$taxonomy->labels->menu_name,
+			$taxonomy->cap->manage_terms,
+			'edit-tags.php?taxonomy=' . Mixmymeals_Author::TAXONOMY . '&post_type=mmm_recipe',
+			'',
+			20
 		);
 	}
 
@@ -277,7 +311,15 @@ class Mixmymeals_Taxonomies {
 			'update_item'       => __( 'Update Category', 'mixmymeals' ),
 			'add_new_item'      => __( 'Add New Category', 'mixmymeals' ),
 			'new_item_name'     => __( 'New Category Name', 'mixmymeals' ),
-			'menu_name'         => __( 'Categories', 'mixmymeals' ),
+			/*
+			 * Nicht „Kategorien“ wie überall sonst: seit die Küchengeräte im
+			 * Rezeptmenü hängen, stünde der Eintrag dort neben den
+			 * Rezeptkategorien, und zwei gleich benannte Punkte in einem Menü
+			 * sind keine Benennung mehr. Der Menüname trägt den Unterschied,
+			 * die übrigen Beschriftungen bleiben, wo sie unmissverständlich
+			 * sind — auf dem Bearbeitungsbildschirm der Taxonomie selbst.
+			 */
+			'menu_name'         => __( 'Equipment categories', 'mixmymeals' ),
 		);
 
 		$args = array(

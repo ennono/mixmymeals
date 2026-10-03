@@ -420,6 +420,14 @@ class Mixmymeals_Post_Types {
 			'hierarchical'        => false,
 			'show_in_rest'        => true,  // Important for loading Gutenberg which prevents issues with dropping recipe steps on saving without title.
 			'supports'            => array( 'title', 'editor', 'thumbnail', 'excerpt', 'comments' ),
+
+			/*
+			 * 30, 31, 32 und 33 — Rezepte, Zutaten, Essenspläne, MixMyMeals.
+			 * Rezepte und Zutaten standen beide auf 30 und haben einander aus
+			 * dem Platz gedrängt; welche oben landete, entschied die
+			 * Registrierungsreihenfolge. Der Bereich hinter Kommentare (25)
+			 * und vor dem Trenner (59) ist im Kern frei.
+			 */
 			'menu_position'       => 30,
 			'menu_icon'           => 'dashicons-clipboard',
 		);
@@ -530,7 +538,7 @@ class Mixmymeals_Post_Types {
 			'hierarchical'        => false,
 			'show_in_rest'        => true,
 			'supports'            => array( 'title', 'editor' ),
-			'menu_position'       => 30,
+			'menu_position'       => 31,
 			'menu_icon'           => 'dashicons-carrot',
 		);
 
@@ -551,16 +559,17 @@ class Mixmymeals_Post_Types {
 		);
 
 		$args = array(
-			'labels'       => $labels,
-			'public'       => true,
-			'show_ui'      => true,
-			'show_in_menu' => true,
-			'show_in_rest' => true,
-			'menu_icon'    => 'dashicons-calendar-alt',
-			'supports'     => array( 'title', 'editor', 'excerpt', 'thumbnail' ),
-			'has_archive'  => true,
-			'hierarchical' => false,
-			'rewrite'      => array(
+			'labels'        => $labels,
+			'public'        => true,
+			'show_ui'       => true,
+			'show_in_menu'  => true,
+			'show_in_rest'  => true,
+			'menu_position' => 32,
+			'menu_icon'     => 'dashicons-calendar-alt',
+			'supports'      => array( 'title', 'editor', 'excerpt', 'thumbnail' ),
+			'has_archive'   => true,
+			'hierarchical'  => false,
+			'rewrite'       => array(
 				'slug' => get_option( 'mixmymeals_meal_plan_slug' ),
 				'with_front' => false,
 				'feeds'      => false,
@@ -782,7 +791,16 @@ class Mixmymeals_Post_Types {
 			'publicly_queryable'  => true,
 			'exclude_from_search' => false,
 			'show_ui'             => true,
-			'show_in_menu'        => true,
+
+			/*
+			 * Unter Rezepte statt als eigener Hauptpunkt. Geräte sind ein
+			 * Detail des Kochens — eine Liste von rund zwanzig Einträgen, die
+			 * ein Redakteur selten anfasst, stand neben den drei Dingen, mit
+			 * denen er täglich arbeitet, und machte die Seitenleiste um ein
+			 * Viertel länger. Vom Rezept aus sind sie ohnehin erreichbar: die
+			 * Box „Benötigte Ausstattung“ legt neue Geräte selbst an.
+			 */
+			'show_in_menu'        => 'edit.php?post_type=mmm_recipe',
 			'show_in_nav_menus'   => true,
 			'show_in_admin_bar'   => false,
 			'show_in_rest'        => true,

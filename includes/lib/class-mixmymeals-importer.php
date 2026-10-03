@@ -18,67 +18,21 @@ class Mmm_Importer_UI {
 
 	private static bool $assets_printed = false;
 
+	/**
+	 * Prints the one script this screen needs.
+	 *
+	 * The styles used to sit beside it in an inline <style> block. They live in
+	 * assets/css/admin.css now — admin CSS in two places is how the two end up
+	 * disagreeing, and that stylesheet is loaded on every admin screen anyway.
+	 *
+	 * @return void
+	 */
 	public static function print_assets(): void {
 		if ( self::$assets_printed ) {
 			return;
 		}
 		self::$assets_printed = true;
 		?>
-		<style>
-			.mmm-card {
-				background: #fff;
-				border: 1px solid #c3c4c7;
-				border-radius: 3px;
-				padding: 20px 24px;
-				margin-top: 20px;
-				max-width: none;
-			}
-			.mmm-card > h2 {
-				margin: 0 0 16px;
-				padding: 0 0 12px;
-				border-bottom: 1px solid #f0f0f1;
-				font-size: 14px;
-				font-weight: 600;
-			}
-			.mmm-textarea-wrap {
-				position: relative;
-			}
-			.mmm-textarea-wrap textarea {
-				width: 100%;
-				font-family: monospace;
-				font-size: 12px;
-				border: 1px solid #ddd;
-				padding: 8px;
-				box-sizing: border-box;
-				resize: vertical;
-				line-height: 1.5;
-			}
-			.mmm-textarea-wrap textarea[readonly] {
-				background: #f6f7f7;
-				color: #1d2327;
-				padding-right: 74px;
-			}
-			.mmm-copy-btn {
-				position: absolute;
-				top: 6px;
-				right: 6px;
-				z-index: 1;
-				font-size: 11px !important;
-				line-height: 20px !important;
-				height: 24px !important;
-				padding: 0 8px !important;
-				min-height: unset !important;
-			}
-			.mmm-import-form .form-table td textarea {
-				width: 100%;
-				font-family: monospace;
-				font-size: 12px;
-				line-height: 1.5;
-			}
-			.mmm-card p {
-				margin-top: 0;
-			}
-		</style>
 		<script>
 			document.addEventListener( 'DOMContentLoaded', function () {
 				document.querySelectorAll( '.mmm-copy-btn' ).forEach( function ( btn ) {
@@ -127,6 +81,120 @@ class Mmm_Importer_UI {
 			. esc_textarea( $value ) . '</textarea>';
 		echo '</div>';
 	}
+
+	/**
+	 * The import screen's sections, in the order they were registered.
+	 *
+	 * @var array<string, array{label: string, callback: callable}>
+	 */
+	private static array $tabs = array();
+
+	/**
+	 * The page slug. Both importers used to have one of their own, hanging in
+	 * two different menus under the same word "Import".
+	 */
+	public const PAGE_SLUG = 'mixmymeals_import';
+
+	/**
+	 * Registers one section of the import screen.
+	 *
+	 * Each importer calls this for itself, so the screen knows nothing about
+	 * what can be imported and a third kind would not have to be added here.
+	 *
+	 * @param string   $slug     Tab slug, used in the URL.
+	 * @param string   $label    Tab label.
+	 * @param callable $callback Prints the section's body.
+	 * @return void
+	 */
+	public static function add_tab( string $slug, string $label, callable $callback ): void {
+		self::$tabs[ $slug ] = array(
+			'label'    => $label,
+			'callback' => $callback,
+		);
+	}
+
+	/**
+	 * Hangs the one import page under the MixMyMeals menu.
+	 *
+	 * Attached once per request from Mixmymeals::add_importer(), after both
+	 * importers have registered their section — the screen is drawn from
+	 * what they registered, so it has to come second.
+	 *
+	 * @return void
+	 */
+	public static function register_menu(): void {
+		add_submenu_page(
+			'mixmymeals_settings',
+			__( 'Import', 'mixmymeals' ),
+			__( 'Import', 'mixmymeals' ),
+			'manage_options',
+			self::PAGE_SLUG,
+			array( __CLASS__, 'render_page' ),
+			20
+		);
+	}
+
+	/**
+	 * Which section is open.
+	 *
+	 * Falls back to the first registered one, so a stale bookmark or a typed
+	 * `tab` lands on a working screen rather than on an empty page.
+	 *
+	 * @return string
+	 */
+	private static function current_tab(): string {
+
+		$slugs = array_keys( self::$tabs );
+
+		if ( ! $slugs ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab switch.
+		$wanted = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+
+		return in_array( $wanted, $slugs, true ) ? $wanted : $slugs[0];
+	}
+
+	/**
+	 * Draws the import screen: one heading, one tab row, one section.
+	 *
+	 * @return void
+	 */
+	public static function render_page(): void {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'No permission.', 'mixmymeals' ) );
+		}
+
+		$current = self::current_tab();
+
+		if ( '' === $current ) {
+			return;
+		}
+
+		self::print_assets();
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'MixMyMeals — Import', 'mixmymeals' ) . '</h1>';
+
+		echo '<nav class="nav-tab-wrapper">';
+
+		foreach ( self::$tabs as $slug => $tab ) {
+			printf(
+				'<a href="%1$s" class="nav-tab%2$s">%3$s</a>',
+				esc_url( add_query_arg( array( 'page' => self::PAGE_SLUG, 'tab' => $slug ), admin_url( 'admin.php' ) ) ),
+				$slug === $current ? ' nav-tab-active' : '',
+				esc_html( $tab['label'] )
+			);
+		}
+
+		echo '</nav>';
+
+		call_user_func( self::$tabs[ $current ]['callback'] );
+
+		echo '</div>';
+	}
 }
 
 /**
@@ -135,36 +203,30 @@ class Mmm_Importer_UI {
 class Mixmymeals_Ingredient_Importer {
 
 	public function __construct() {
-		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		Mmm_Importer_UI::add_tab(
+			'ingredients',
+			__( 'Ingredients', 'mixmymeals' ),
+			array( $this, 'render_section' )
+		);
 		add_action( 'admin_post_mixmymeals_import_ingredients', array( $this, 'handle_import' ) );
 	}
 
-	public function register_menu(): void {
-		add_submenu_page(
-			'edit.php?post_type=mmm_ingredient',
-			__( 'Ingredient Import', 'mixmymeals' ),
-			__( 'Import', 'mixmymeals' ),
-			'manage_options',
-			'mixmymeals_import_ingredients',
-			array( $this, 'render_import_page' )
-		);
-	}
-
-	public function render_import_page(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'No permission.', 'mixmymeals' ) );
-		}
-
-		Mmm_Importer_UI::print_assets();
+	/**
+	 * The ingredient section of the shared import screen.
+	 *
+	 * Heading, tab row and permission check belong to Mmm_Importer_UI now —
+	 * this prints the body only. It used to be a page of its own, hanging in
+	 * the Ingredients menu beside a second one called "Import" under Recipes.
+	 *
+	 * @return void
+	 */
+	public function render_section(): void {
 
 		$result = get_transient( 'mmm_ingredient_import_result_' . get_current_user_id() );
 		if ( $result ) {
 			delete_transient( 'mmm_ingredient_import_result_' . get_current_user_id() );
 		}
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'MixMyMeals — Import Ingredients', 'mixmymeals' ); ?></h1>
-
 			<?php
 			if ( $result ) :
 				$msg = sprintf(
@@ -212,7 +274,6 @@ class Mixmymeals_Ingredient_Importer {
 			<p><?php esc_html_e( 'Copy this prompt and give it to the AI. It contains all existing ingredients and a complete example. The AI will fill in all missing fields. Re-import the result.', 'mixmymeals' ); ?></p>
 			<?php Mmm_Importer_UI::copyable_textarea( 'mmm-completion-prompt', $this->get_completion_prompt(), 22 ); ?>
 			<?php Mmm_Importer_UI::card_close(); ?>
-		</div>
 		<?php
 	}
 
@@ -450,7 +511,11 @@ class Mixmymeals_Ingredient_Importer {
 class Mixmymeals_Recipe_Importer {
 
 	public function __construct() {
-		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		Mmm_Importer_UI::add_tab(
+			'recipes',
+			__( 'Recipes', 'mixmymeals' ),
+			array( $this, 'render_section' )
+		);
 		add_action( 'admin_post_mixmymeals_import_recipes', array( $this, 'handle_import' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 	}
@@ -478,32 +543,18 @@ class Mixmymeals_Recipe_Importer {
 		);
 	}
 
-	public function register_menu(): void {
-		add_submenu_page(
-			'edit.php?post_type=mmm_recipe',
-			__( 'Recipe Import', 'mixmymeals' ),
-			__( 'Import', 'mixmymeals' ),
-			'manage_options',
-			'mixmymeals_import_recipes',
-			array( $this, 'render_import_page' )
-		);
-	}
-
-	public function render_import_page(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'No permission.', 'mixmymeals' ) );
-		}
-
-		Mmm_Importer_UI::print_assets();
+	/**
+	 * The recipe section of the shared import screen.
+	 *
+	 * @return void
+	 */
+	public function render_section(): void {
 
 		$result = get_transient( 'mmm_recipe_import_result_' . get_current_user_id() );
 		if ( $result ) {
 			delete_transient( 'mmm_recipe_import_result_' . get_current_user_id() );
 		}
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'MixMyMeals — Import Recipes', 'mixmymeals' ); ?></h1>
-
 			<div class="notice notice-warning inline">
 				<p><?php esc_html_e( 'Copyright notice: Only import recipes for which you hold the rights or that are explicitly licensed for reuse. Importing third-party recipes without permission may constitute a copyright infringement.', 'mixmymeals' ); ?></p>
 			</div>
@@ -555,8 +606,6 @@ class Mixmymeals_Recipe_Importer {
 			<p><?php esc_html_e( 'This URL returns all reference data as JSON.', 'mixmymeals' ); ?></p>
 			<?php Mmm_Importer_UI::copyable_textarea( 'mmm-reference-url', $this->get_reference_url(), 1 ); ?>
 			<?php Mmm_Importer_UI::card_close(); ?>
-
-		</div>
 		<?php
 	}
 

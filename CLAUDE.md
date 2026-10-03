@@ -517,6 +517,20 @@ The chips live in the theme (`mmm_print_active_filter_chips()`), in the hero whe
 
 Grid items take their content as their minimum size, so the 300px thumbnails pushed their `1fr` rows to 91.5px against a 140px box and hung out of the card; `min-height: 0` on the tiles is what holds the row height. Recipes are untouched throughout.
 
+### The admin area
+
+**One menu per subject, and one menu for the plugin itself.** `mmm_recipe` (30), `mmm_ingredient` (31) and `mmm_meal_plan` (32) are the content types an editor opens daily and stay top level; the first two shared position 30 for years, so which came first was decided by registration order. `mmm_equipment` hangs under Recipes (`show_in_menu => 'edit.php?post_type=mmm_recipe'`) — twenty rows nobody edits weekly, and the recipe's own box creates them anyway. `mixmymeals_settings` is a top-level menu at 33 carrying Settings, Import, Meal Photos and Subscriptions.
+
+**`Mixmymeals_Settings::settings_url( $tab )` is the only place that knows where the settings screen lives.** It moved out of `options-general.php` into that menu, and three links in two plugins kept pointing at the old file — the add-on's among them, which is why the helper is public. The tab row builds its links from it too; it used to call `add_query_arg()` with no URL, which appends to `$_SERVER['REQUEST_URI']` and therefore worked by accident wherever the screen happened to be.
+
+**A taxonomy on two post types appears under both menus.** `mmm_author` belongs to recipes and plans, so "Authors" was listed twice — one list of people, two ways in. It carries `show_in_menu => false` and `Mixmymeals_Taxonomies::add_author_submenu()` puts it under Recipes once. Equipment categories keep a distinct `menu_name` for the same reason: since the post type sits under Recipes, a second item called "Categories" would otherwise stand beside the recipe categories.
+
+**Import is one screen with a section per type.** `Mmm_Importer_UI::add_tab()` takes a slug, a label and a callback; each importer registers its own from its constructor, and `Mixmymeals::add_importer()` instantiates recipes first because that fixes the tab order. Heading, tab row and the permission check belong to the screen, the sections print their body only.
+
+**Settings tabs are subjects, not leftovers.** The Visitors tab answers one question — what a guest may do and what they are told before doing it — and collects what used to sit in three places (visitor plans and the four notices under General, photo approval under Subscriptions). Cleanup moved to General because it prunes mail logs and subscriptions as well as plans. Moving a field between tabs is safe: `register_setting()` uses one option group and the option name is `mixmymeals_<id>` whatever the tab.
+
+**`assets/css/admin.css` is the only stylesheet this plugin loads in wp-admin**, on every screen, so selectors hang off its own classes. Section 1 holds the tokens — the WordPress admin palette, because a box here should look like the box next to it. Note the two class prefixes: the obvious unification onto `mmm-` is *not* available, because five of the seventeen short names are already taken on the frontend (`mmm-day`, `mmm-step-image`, `mmm-step-ingredients`, `mmm-recipe-meta`, `mmm-ingredient-optional`). Unifying means a prefix of its own (`mmm-admin-`) and 159 call sites across CSS, PHP, `admin.js` and `admin.min.js`.
+
 ### Settings
 
 Settings are registered via `Mixmymeals_Settings` using the WordPress Settings API. All option names are prefixed `mixmymeals_`. Notable options: `mixmymeals_public_mode` (allow guest plan creation), `mixmymeals_published_meal_plans_per_hour_limit`, `mixmymeals_save_meal_plans_published_by_visitors_as_draft`, `mixmymeals_placeholder_image_id`.

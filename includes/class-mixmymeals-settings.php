@@ -157,7 +157,7 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-general'] = array(
 			'title'       => __( 'General Settings', 'mixmymeals' ),
-			'description' => __( 'Currency, placeholder image, meal slug, visitor plans, privacy and input notices. Slugs and archive texts for recipes, ingredients, equipment and plans live on their own tabs.',
+			'description' => __( 'Currency, placeholder image, the two slugs that belong to no tab of their own, scheduled cleanup and what happens on uninstall. Everything about recipes, ingredients, equipment, plans and visitors has its own tab.',
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
@@ -215,64 +215,56 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
-					'id'    => 'general_group_visitor',
+					'id'    => 'general_group_cleanup',
 					'type'  => 'heading',
-					'label' => __( 'Visitor Plans', 'mixmymeals' ),
+					'label' => __( 'Cleanup', 'mixmymeals' ),
 				),
 				array(
-					'id'          => 'public_mode',
-					'label'       => __( 'Public Mode', 'mixmymeals' ),
-					'description' => __( 'Allow every visitor to publish plans.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'public_mode_callback'
-					),
-				),
-				array(
-					'id'          => 'published_meal_plans_per_hour_limit',
-					'label'       => __( 'Meal Plans per Hour', 'mixmymeals' ),
-					'description' => __( 'How many plans should a visitor be allowed to publish per hour?', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'published_meal_plans_per_hour_limit_callback'
-					),
-				),
-				array(
-					'id'          => 'save_meal_plans_published_by_visitors_as_draft',
-					'label'       => __( 'Set visitor plans to draft', 'mixmymeals' ),
-					'description' => __( 'Save visitor plans as drafts.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'save_meal_plans_published_by_visitors_as_draft_callback'
-					),
-				),
-				array(
-					'id'          => 'page_id_to_redirect_after_plan_created',
-					'label'       => __( 'Success Page', 'mixmymeals' ),
-					'description' => __( 'Where to send visitors after their new plan has been published. The plan\'s ID is appended as ?mmm_plan=, so the page can link to it. Leave unset to open the plan itself.',
+					'id'          => 'enable_cleanup',
+					'label'       => __( 'Enable Cleanup', 'mixmymeals' ),
+					'description' => __( 'Automatically delete orphaned meals and old meal plans without a category once per day.',
 						'mixmymeals' ),
 					'default'     => '',
-					'placeholder' => __( '— The new plan —', 'mixmymeals' ),
+					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'page_id_to_redirect_after_plan_created_callback'
+						'enable_cleanup_callback'
 					),
 				),
 				array(
-					'id'          => 'page_id_to_redirect_if_new_plan_is_draft',
-					'label'       => __( 'Alternative Redirect', 'mixmymeals' ),
-					'description' => __( 'Where to send visitors after their new plan has been saved as a draft.', 'mixmymeals' ),
+					'id'          => 'cleanup_min_age_days',
+					'label'       => __( 'Cleanup Minimum Age', 'mixmymeals' ),
+					'description' => __( 'Only delete items older than this many days.',
+						'mixmymeals' ),
+					'default'     => 30,
+					'placeholder' => '30',
+					'callback'    => array(
+						$this,
+						'cleanup_min_age_days_callback'
+					),
+				),
+				array(
+					'id'          => 'cleanup_report_enabled',
+					'label'       => __( 'Cleanup Report', 'mixmymeals' ),
+					'description' => __( 'E-mail a summary after each cleanup run, including deletions made by the mail log, the Instagram image cleanup and the subscription retention (only when something was deleted).',
+						'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'page_id_to_redirect_if_new_plan_is_draft_callback'
+						'cleanup_report_enabled_callback'
+					),
+				),
+				array(
+					'id'          => 'cleanup_report_recipient',
+					'label'       => __( 'Report Recipient', 'mixmymeals' ),
+					'description' => __( 'Address the cleanup report is sent to. Leave empty to use the site admin e-mail.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => get_option( 'admin_email' ),
+					'callback'    => array(
+						$this,
+						'cleanup_report_recipient_callback'
 					),
 				),
 				array(
@@ -287,43 +279,6 @@ class Mixmymeals_Settings {
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'checkbox_callback' ),
-				),
-				array(
-					'id'    => 'general_group_notices',
-					'type'  => 'heading',
-					'label' => __( 'Visitor Input Notices', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'notice_rating',
-					'label'       => __( 'Rating / review notice', 'mixmymeals' ),
-					'description' => __( 'Shown on the rating and review form on recipe pages (e.g. a note that reviews are moderated). Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-				array(
-					'id'          => 'notice_photo',
-					'label'       => __( 'Photo upload notice', 'mixmymeals' ),
-					'description' => __( 'Shown on the meal-photo upload form (e.g. that you grant usage rights and photos are reviewed). Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-				array(
-					'id'          => 'notice_subscribe',
-					'label'       => __( 'Subscription notice', 'mixmymeals' ),
-					'description' => __( 'Shown on the meal-plan subscription form, below the consent checkbox. Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-				array(
-					'id'          => 'notice_plan',
-					'label'       => __( 'Plan creation notice', 'mixmymeals' ),
-					'description' => __( 'Shown next to the “Create meal plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 			),
 		);
@@ -680,58 +635,136 @@ class Mixmymeals_Settings {
 						'plan_thumbs_max_callback'
 					),
 				),
+			),
+		);
+
+		/*
+		 * Alles, was ein Besucher darf und was ihm dabei gesagt wird.
+		 *
+		 * Vorher lag das an drei Stellen: die Besucherpläne unter Allgemein,
+		 * die Freigabe der Fotos unter Abos (obwohl Fotos an Rezepten hängen
+		 * und nicht am Abo) und die vier Hinweistexte wieder unter Allgemein.
+		 * Wer entscheiden wollte, was Gäste auf der Seite tun können, musste
+		 * das aus drei Tabs zusammensuchen. Es ist eine Frage, also ein Tab.
+		 */
+		$settings['mixmymeals-visitors'] = array(
+			'title'       => __( 'Visitors', 'mixmymeals' ),
+			'description' => __( 'What visitors may do without an account — build plans, upload photos, rate — and the notice each of them reads before doing it.',
+				'mixmymeals' ),
+			'fields'      => array(
 				array(
-					'id'    => 'mealplans_group_cleanup',
+					'id'    => 'visitors_group_plans',
 					'type'  => 'heading',
-					'label' => __( 'Cleanup', 'mixmymeals' ),
+					'label' => __( 'Visitor Plans', 'mixmymeals' ),
 				),
 				array(
-					'id'          => 'enable_cleanup',
-					'label'       => __( 'Enable Cleanup', 'mixmymeals' ),
-					'description' => __( 'Automatically delete orphaned meals and old meal plans without a category once per day.',
-						'mixmymeals' ),
+					'id'          => 'public_mode',
+					'label'       => __( 'Public Mode', 'mixmymeals' ),
+					'description' => __( 'Allow every visitor to publish plans.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'enable_cleanup_callback'
+						'public_mode_callback'
 					),
 				),
 				array(
-					'id'          => 'cleanup_min_age_days',
-					'label'       => __( 'Cleanup Minimum Age', 'mixmymeals' ),
-					'description' => __( 'Only delete items older than this many days.',
-						'mixmymeals' ),
-					'default'     => 30,
-					'placeholder' => '30',
-					'callback'    => array(
-						$this,
-						'cleanup_min_age_days_callback'
-					),
-				),
-				array(
-					'id'          => 'cleanup_report_enabled',
-					'label'       => __( 'Cleanup Report', 'mixmymeals' ),
-					'description' => __( 'E-mail a summary after each cleanup run, including deletions made by the mail log, the Instagram image cleanup and the subscription retention (only when something was deleted).',
-						'mixmymeals' ),
+					'id'          => 'published_meal_plans_per_hour_limit',
+					'label'       => __( 'Meal Plans per Hour', 'mixmymeals' ),
+					'description' => __( 'How many plans should a visitor be allowed to publish per hour?', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'cleanup_report_enabled_callback'
+						'published_meal_plans_per_hour_limit_callback'
 					),
 				),
 				array(
-					'id'          => 'cleanup_report_recipient',
-					'label'       => __( 'Report Recipient', 'mixmymeals' ),
-					'description' => __( 'Address the cleanup report is sent to. Leave empty to use the site admin e-mail.',
-						'mixmymeals' ),
+					'id'          => 'save_meal_plans_published_by_visitors_as_draft',
+					'label'       => __( 'Set visitor plans to draft', 'mixmymeals' ),
+					'description' => __( 'Save visitor plans as drafts.', 'mixmymeals' ),
 					'default'     => '',
-					'placeholder' => get_option( 'admin_email' ),
+					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'cleanup_report_recipient_callback'
+						'save_meal_plans_published_by_visitors_as_draft_callback'
 					),
+				),
+				array(
+					'id'          => 'page_id_to_redirect_after_plan_created',
+					'label'       => __( 'Success Page', 'mixmymeals' ),
+					'description' => __( 'Where to send visitors after their new plan has been published. The plan\'s ID is appended as ?mmm_plan=, so the page can link to it. Leave unset to open the plan itself.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => __( '— The new plan —', 'mixmymeals' ),
+					'callback'    => array(
+						$this,
+						'page_id_to_redirect_after_plan_created_callback'
+					),
+				),
+				array(
+					'id'          => 'page_id_to_redirect_if_new_plan_is_draft',
+					'label'       => __( 'Alternative Redirect', 'mixmymeals' ),
+					'description' => __( 'Where to send visitors after their new plan has been saved as a draft.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'page_id_to_redirect_if_new_plan_is_draft_callback'
+					),
+				),
+				array(
+					'id'    => 'visitors_group_photos',
+					'type'  => 'heading',
+					'label' => __( 'Meal Photos', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'photos_auto_approve',
+					'label'       => __( 'Auto-Approve Meal Photos', 'mixmymeals' ),
+					'description' => __(
+						'Publish uploaded meal photos immediately, without an admin approving them first.',
+						'mixmymeals'
+					),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'photos_auto_approve_callback' ),
+				),
+				array(
+					'id'    => 'visitors_group_notices',
+					'type'  => 'heading',
+					'label' => __( 'Visitor Input Notices', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'notice_rating',
+					'label'       => __( 'Rating / review notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the rating and review form on recipe pages (e.g. a note that reviews are moderated). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'          => 'notice_photo',
+					'label'       => __( 'Photo upload notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the meal-photo upload form (e.g. that you grant usage rights and photos are reviewed). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'          => 'notice_subscribe',
+					'label'       => __( 'Subscription notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the meal-plan subscription form, below the consent checkbox. Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'          => 'notice_plan',
+					'label'       => __( 'Plan creation notice', 'mixmymeals' ),
+					'description' => __( 'Shown next to the “Create meal plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 			),
 		);
@@ -813,7 +846,7 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-subscriptions'] = array(
 			'title'       => __( 'Subscriptions', 'mixmymeals' ),
-			'description' => __( 'Let visitors subscribe to a meal plan and receive day e-mails (double opt-in).',
+			'description' => __( 'Let visitors subscribe to a meal plan and receive day e-mails (double opt-in). Whether their meal photos go live unseen is decided on the Visitors tab.',
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
@@ -906,22 +939,6 @@ class Mixmymeals_Settings {
 					'default'     => 0,
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_upload_page_callback' ),
-				),
-				array(
-					'id'    => 'subs_group_photos',
-					'type'  => 'heading',
-					'label' => __( 'Meal Photos', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'photos_auto_approve',
-					'label'       => __( 'Auto-Approve Meal Photos', 'mixmymeals' ),
-					'description' => __(
-						'Publish uploaded meal photos immediately, without an admin approving them first.',
-						'mixmymeals'
-					),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'photos_auto_approve_callback' ),
 				),
 				array(
 					'id'    => 'subs_group_lifecycle',
@@ -1074,6 +1091,22 @@ class Mixmymeals_Settings {
 						$args['icon_url'],
 						$args['position']
 					);
+
+					/*
+					 * WordPress legt zu jedem Hauptpunkt selbst einen ersten
+					 * Unterpunkt an und gibt ihm den Menütitel — hier also
+					 * „MixMyMeals › MixMyMeals“. Derselbe Aufruf mit demselben
+					 * Slug überschreibt dessen Beschriftung, und darunter
+					 * hängen sich Import, Fotos und Abos ein.
+					 */
+					add_submenu_page(
+						$args['menu_slug'],
+						$args['page_title'],
+						__( 'Settings', 'mixmymeals' ),
+						$args['capability'],
+						$args['menu_slug'],
+						$args['function']
+					);
 					break;
 				default:
 					return;
@@ -1093,16 +1126,34 @@ class Mixmymeals_Settings {
 		return apply_filters(
 			$this->base . 'menu_settings',
 			array(
-				'location'    => 'options',
-				// Possible settings: options, menu, submenu.
-				'parent_slug' => 'options-general.php',
+
+				/*
+				 * Eigener Hauptpunkt statt Einstellungen → MixMyMeals.
+				 *
+				 * Die Einstellungen lagen als einziger Teil dieses Plugins
+				 * ausserhalb seiner eigenen Menüs, während daneben vier
+				 * Hauptpunkte standen. Wer eine Option suchte, suchte sie
+				 * zuerst dort, wo die Inhalte sind — und fand sie nicht. Jetzt
+				 * trägt dieser Punkt alles, was zu keinem Beitragstyp gehört:
+				 * Einstellungen, Import, Fotos, Abos.
+				 *
+				 * Der Slug bleibt `mixmymeals_settings`, damit der
+				 * `page`-Parameter derselbe ist wie bisher; nur die Datei
+				 * davor wechselt von options-general.php zu admin.php.
+				 *
+				 * Position 33: die Inhaltsmenüs stehen auf 30, 31 und 32, und
+				 * dieser Punkt schliesst die Gruppe ab. Mögliche Werte für
+				 * `location`: options, menu, submenu.
+				 */
+				'location'    => 'menu',
+				'parent_slug' => '',
 				'page_title'  => __( 'MixMyMeals', 'mixmymeals' ),
 				'menu_title'  => __( 'MixMyMeals', 'mixmymeals' ),
 				'capability'  => 'manage_options',
 				'menu_slug'   => $this->parent->_token . '_settings',
 				'function'    => array( $this, 'settings_page' ),
-				'icon_url'    => '',
-				'position'    => null,
+				'icon_url'    => 'dashicons-admin-settings',
+				'position'    => 33,
 			)
 		);
 		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
@@ -1128,6 +1179,29 @@ class Mixmymeals_Settings {
 	}
 
 	/**
+	 * The admin URL of the settings screen, optionally of one tab.
+	 *
+	 * The one place that knows where this screen lives. It moved out of
+	 * Settings → MixMyMeals into the plugin's own menu, and three links in two
+	 * plugins kept pointing at options-general.php afterwards — the add-on's
+	 * among them, which is exactly why this is public and not a private
+	 * detail.
+	 *
+	 * @param string $tab Optional tab key, e.g. 'mixmymeals-recipes'.
+	 * @return string
+	 */
+	public static function settings_url( string $tab = '' ): string {
+
+		$args = array( 'page' => 'mixmymeals_settings' );
+
+		if ( '' !== $tab ) {
+			$args['tab'] = $tab;
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
+	}
+
+	/**
 	 * Add settings link to plugin list table
 	 *
 	 * @param   array $links  Existing links.
@@ -1135,10 +1209,8 @@ class Mixmymeals_Settings {
 	 * @return array        Modified links.
 	 */
 	public function add_settings_link( array $links ): array {
-		$settings_link = '<a href="options-general.php?page='
-		                 . $this->parent->_token . '_settings">'
-		                 . esc_html__( 'Settings', 'mixmymeals' ) . '</a>';
-		$links[] = $settings_link;
+		$links[] = '<a href="' . esc_url( self::settings_url() ) . '">'
+		           . esc_html__( 'Settings', 'mixmymeals' ) . '</a>';
 
 		return $links;
 	}
@@ -1324,21 +1396,21 @@ class Mixmymeals_Settings {
 					$class .= ' nav-tab-active';
 				}
 
-				// Set tab link.
-				$settings_nonce
-					            = wp_create_nonce( 'mixmymeals_settings_nonce_action' );
+				/*
+				 * Die Adresse wird gebaut, nicht aus der laufenden Anfrage
+				 * fortgeschrieben. add_query_arg() ohne URL hängt an
+				 * $_SERVER['REQUEST_URI'] an — das ging gut, solange diese
+				 * Seite nur unter einer Adresse erreichbar war, und war der
+				 * Grund, warum beim Umzug von options-general.php nach
+				 * admin.php niemandem auffiel, dass hier überhaupt eine
+				 * Adresse entsteht. settings_url() ist dieselbe Quelle, aus
+				 * der auch das Add-on und der Plugin-Link schoepfen.
+				 */
+				$settings_nonce = wp_create_nonce( 'mixmymeals_settings_nonce_action' );
 				$tab_link       = add_query_arg(
-					array(
-						'tab'            => $section,
-						'settings_nonce' => $settings_nonce,
-					)
+					array( 'settings_nonce' => $settings_nonce ),
+					self::settings_url( $section )
 				);
-				if ( isset( $_GET['settings-updated'] ) ) { //phpcs:ignore
-					$tab_link = remove_query_arg(
-						'settings-updated',
-						$tab_link
-					);
-				}
 
 				// Output tab.
 				$html .= '<a href="' . $tab_link . '" class="'
