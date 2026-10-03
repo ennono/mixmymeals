@@ -288,15 +288,39 @@
 }
 
 /* Single ingredient row */
+/* Eine Zutatenzeile hat zwei Ebenen, nicht eine.
+
+   Oben die Felder, die jede Zeile hat — Zutat, Menge, Einheit, Paket, die
+   beiden Knoepfe. Darunter, nur wo es Pakete gibt, die Ausschlussliste ueber
+   die volle Breite.
+
+   Vorher lief alles in einer Flexzeile. Die Liste bekam darin den Rest des
+   Platzes, also fast keinen: sie brach nach zwei Woertern um
+   („Kommt hier / nicht in Frage:“), riss die Zeile auf drei Textzeilen
+   auseinander und schob das Produkt-Select so weit zusammen, dass es seine
+   Option abschnitt. */
 .mixmymeals-step-ingredient {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
 }
 
 .mixmymeals-step-ingredient select.widefat {
-    flex: 1;
+    /* Waechst, aber nicht ins Unermessliche: ohne Deckel nimmt der Zutatenname
+       allen Platz und die Felder dahinter stehen bei jeder Zeile woanders. */
+    flex: 1 1 200px;
     min-width: 180px;
+    max-width: 320px;
+}
+
+.mixmymeals-step-ingredient .ingredient-product-select {
+    /* Reicht fuer „Provamel Natur ungesuesst, bio“, ohne die Zeile zu
+       sprengen. Vorher war es das Feld, das als erstes zusammengedrueckt
+       wurde, obwohl in ihm der laengste Text steht. */
+    flex: 1 1 200px;
+    min-width: 180px;
+    max-width: 300px;
 }
 
 /* The optional flag. The row is a flex container, so the label needs to hold
@@ -321,12 +345,68 @@
 }
 
 .mixmymeals-step-ingredient .ingredient-unit-select {
-    width: 130px;
+    /* Feste 130px schnitten „Becher (150 g)“ nach „Becher (150“ ab — und das
+       Gewicht in der Klammer ist der halbe Sinn der Angabe. Waechst mit dem
+       Inhalt, mit Deckel, damit die Zeile nicht an der laengsten Einheit
+       haengt. */
+    width: auto;
+    min-width: 130px;
+    max-width: 190px;
 }
 
 /* Buttons */
 .mixmymeals-step-ingredient .button {
     flex-shrink: 0;
+}
+
+/* ---- Welche Pakete fuer dieses Gericht nicht in Frage kommen ----
+
+   Eigene Zeile unter den Feldern (flex-basis 100%), eingerueckt, damit sie als
+   Nachsatz zur Zeile darueber lesbar ist und nicht als neue Zutat. Leer
+   erzeugt sie keinen Abstand — Zutaten ohne Pakete sollen aussehen wie vorher. */
+.mixmymeals-ingredient-excludes {
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    padding-left: 2px;
+}
+
+.mixmymeals-ingredient-excludes:empty {
+    display: none;
+}
+
+/* Trennt die Zutaten voneinander. Ohne das klebte die Ausschlussliste einer
+   Zeile direkt an der naechsten Zutat und sah aus, als gehoere sie zu dieser. */
+.mixmymeals-step-ingredient + .mixmymeals-step-ingredient {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--mmm-ad-bg-2);
+}
+
+.mixmymeals-ingredient-excludes__label {
+    color: var(--mmm-ad-ink-2);
+    font-size: 12px;
+    /* Die Beschriftung gehoert zur Liste und darf nicht mitten im Satz
+       umbrechen; die Pakete dahinter duerfen es sehr wohl. */
+    white-space: nowrap;
+}
+
+.mixmymeals-ingredient-excludes label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    /* Ein Paketname wie „Soebbeke Natur ungesuesst, bio“ darf umbrechen — aber
+       nie zwischen Kaestchen und erstem Wort, sonst steht das Kaestchen allein
+       am Zeilenende. Darum das Kaestchen selbst ohne Umbruch davor. */
+    max-width: 100%;
+}
+
+.mixmymeals-ingredient-excludes input {
+    margin: 0;
+    flex: 0 0 auto;
 }
 
 /* Add Ingredient Button */
