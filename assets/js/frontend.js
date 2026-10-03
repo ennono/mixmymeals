@@ -659,7 +659,9 @@ jQuery(function ($) {
             const key = parseInt($day.attr('data-week-day'), 10);
             const sum = sums[key] || 0;
             const has = (counts[key] || 0) > 0;
-            const share = has ? Math.max(8, max > 0 ? Math.round((sum / max) * 100) : 8) : 0;
+            // 14% is the smallest stub that still reads as a bar rather
+            // than as an underline under the track.
+            const share = has ? Math.max(14, max > 0 ? Math.round((sum / max) * 100) : 14) : 0;
 
             $day.find('.mmm-plan-week__bar').css('height', share + '%');
             $day.toggleClass('is-filled', has);
