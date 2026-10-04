@@ -5176,3 +5176,47 @@ msgstr ""
 #, php-format
 msgid "%s per 100 g"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Group"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Strength"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "schema.org diet URL"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Defined by the plugin"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The name, group, strength and schema.org URL of this diet are fixed by the plugin. Moving it in the tree only adds to what it implies."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The parent says what this diet implies: a dish that suits a diet automatically suits all of its parents. Example: Vegan below Vegetarian."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Diets that answer the same question form a group, and a dish holds only one answer per group: vegan and vegetarian share one (animal ingredients), gluten-free and lactose-free each have their own. Leave empty to join the parent's group, or to start a group of its own when there is no parent. Fill it in only to put this diet in a different group than its parent — for example \"honey-free\" beside \"vegan\"."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Decides which diet a badge shows when a dish holds several of the same group: the higher number wins. Leave empty to go by depth in the tree — a child is always stronger than its parent."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Optional. Search engines read it from the recipe's structured data (suitableForDiet)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Currently: %s."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Currently: %d."
+msgstr ""

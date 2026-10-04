@@ -1109,20 +1109,51 @@ class Mixmymeals_Diet {
 
 		wp_nonce_field( 'mmm_diet_term', 'mmm_diet_term_nonce' );
 
-		echo '<div class="form-field"><label for="mmm_diet_axis">' . esc_html__( 'Question it answers', 'mixmymeals' ) . '</label>';
+		echo '<div class="form-field"><label for="mmm_diet_axis">' . esc_html__( 'Group', 'mixmymeals' ) . '</label>';
 		echo '<input type="text" name="mmm_diet_axis" id="mmm_diet_axis" list="mmm_diet_axes" value="">';
 		self::render_axes_datalist();
-		echo '<p>' . esc_html__( 'A dish holds one answer per question: vegetarian and vegan answer the same one, gluten-free another. Leave empty to take the parent\'s, or to start a question of its own.', 'mixmymeals' ) . '</p></div>';
+		echo '<p>' . esc_html( self::axis_help() ) . '</p></div>';
 
 		echo '<div class="form-field"><label for="mmm_diet_rank">' . esc_html__( 'Strength', 'mixmymeals' ) . '</label>';
 		echo '<input type="number" name="mmm_diet_rank" id="mmm_diet_rank" value="" min="0" step="1">';
-		echo '<p>' . esc_html__( 'Which wins when a dish holds several of the same question. Leave empty to go by depth: a child is stronger than its parent.', 'mixmymeals' ) . '</p></div>';
+		echo '<p>' . esc_html( self::rank_help() ) . '</p></div>';
 
 		echo '<div class="form-field"><label for="mmm_diet_schema">' . esc_html__( 'schema.org diet URL', 'mixmymeals' ) . '</label>';
 		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="" placeholder="https://schema.org/…">';
-		echo '<p>' . esc_html__( 'Optional. Printed as suitableForDiet on recipes.', 'mixmymeals' ) . '</p></div>';
+		echo '<p>' . esc_html( self::schema_help() ) . '</p></div>';
 
-		echo '<p class="description">' . esc_html__( 'Choose a parent to say what this diet implies: everything below a diet suits its parents too.', 'mixmymeals' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'The parent says what this diet implies: a dish that suits a diet automatically suits all of its parents. Example: Vegan below Vegetarian.', 'mixmymeals' ) . '</p>';
+	}
+
+	/**
+	 * What the "Question it answers" field means, for both term forms.
+	 *
+	 * One sentence in one place: the add and the edit form used to risk
+	 * wording the same field twice, and a translation then has to be kept in
+	 * step with itself.
+	 *
+	 * @return string
+	 */
+	private static function axis_help(): string {
+		return __( 'Diets that answer the same question form a group, and a dish holds only one answer per group: vegan and vegetarian share one (animal ingredients), gluten-free and lactose-free each have their own. Leave empty to join the parent\'s group, or to start a group of its own when there is no parent. Fill it in only to put this diet in a different group than its parent — for example "honey-free" beside "vegan".', 'mixmymeals' );
+	}
+
+	/**
+	 * What the strength field means, for both term forms.
+	 *
+	 * @return string
+	 */
+	private static function rank_help(): string {
+		return __( 'Decides which diet a badge shows when a dish holds several of the same group: the higher number wins. Leave empty to go by depth in the tree — a child is always stronger than its parent.', 'mixmymeals' );
+	}
+
+	/**
+	 * What the schema.org field is for, for both term forms.
+	 *
+	 * @return string
+	 */
+	private static function schema_help(): string {
+		return __( 'Optional. Search engines read it from the recipe\'s structured data (suitableForDiet).', 'mixmymeals' );
 	}
 
 	/**
@@ -1137,7 +1168,7 @@ class Mixmymeals_Diet {
 
 		if ( isset( self::builtin_types()[ $term->slug ] ) ) {
 			echo '<tr class="form-field"><th scope="row">' . esc_html__( 'Defined by the plugin', 'mixmymeals' ) . '</th><td>';
-			echo '<p class="description">' . esc_html__( 'The name, question, strength and schema.org URL of this diet are fixed by the plugin. Moving it in the tree only adds to what it implies.', 'mixmymeals' ) . '</p></td></tr>';
+			echo '<p class="description">' . esc_html__( 'The name, group, strength and schema.org URL of this diet are fixed by the plugin. Moving it in the tree only adds to what it implies.', 'mixmymeals' ) . '</p></td></tr>';
 			return;
 		}
 
@@ -1146,19 +1177,20 @@ class Mixmymeals_Diet {
 		$schema = (string) get_term_meta( $term->term_id, self::META_SCHEMA, true );
 		$now    = self::types()[ $term->slug ] ?? array();
 
-		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_axis">' . esc_html__( 'Question it answers', 'mixmymeals' ) . '</label></th><td>';
+		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_axis">' . esc_html__( 'Group', 'mixmymeals' ) . '</label></th><td>';
 		echo '<input type="text" name="mmm_diet_axis" id="mmm_diet_axis" list="mmm_diet_axes" value="' . esc_attr( $axis ) . '">';
 		self::render_axes_datalist();
 		/* translators: %s: the question the diet currently answers. */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Currently: %s. Empty takes the parent\'s.', 'mixmymeals' ), (string) ( $now['axis'] ?? '' ) ) ) . '</p></td></tr>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Currently: %s.', 'mixmymeals' ), (string) ( $now['axis'] ?? '' ) ) . ' ' . self::axis_help() ) . '</p></td></tr>';
 
 		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_rank">' . esc_html__( 'Strength', 'mixmymeals' ) . '</label></th><td>';
 		echo '<input type="number" name="mmm_diet_rank" id="mmm_diet_rank" value="' . esc_attr( $rank ) . '" min="0" step="1">';
 		/* translators: %d: the strength currently in force. */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Currently: %d. Empty goes by depth in the tree.', 'mixmymeals' ), (int) ( $now['rank'] ?? 0 ) ) ) . '</p></td></tr>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Currently: %d.', 'mixmymeals' ), (int) ( $now['rank'] ?? 0 ) ) . ' ' . self::rank_help() ) . '</p></td></tr>';
 
 		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_schema">' . esc_html__( 'schema.org diet URL', 'mixmymeals' ) . '</label></th><td>';
-		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="' . esc_attr( $schema ) . '" placeholder="https://schema.org/…"></td></tr>';
+		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="' . esc_attr( $schema ) . '" placeholder="https://schema.org/…">';
+		echo '<p class="description">' . esc_html( self::schema_help() ) . '</p></td></tr>';
 	}
 
 	/**

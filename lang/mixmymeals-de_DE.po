@@ -6010,3 +6010,47 @@ msgstr "%s pro 100 g"
 #~ "Pinterest veröffentlicht, werden das erzeugte Bild und der Seitenlink an "
 #~ "Meta/Pinterest übermittelt. Das betrifft nur die eigenen Inhalte der "
 #~ "Website, keine Besucherdaten."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Group"
+msgstr "Gruppe"
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Strength"
+msgstr "Stärke"
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "schema.org diet URL"
+msgstr "schema.org-Diät-URL"
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Defined by the plugin"
+msgstr "Vom Plugin festgelegt"
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The name, group, strength and schema.org URL of this diet are fixed by the plugin. Moving it in the tree only adds to what it implies."
+msgstr "Name, Gruppe, Stärke und schema.org-URL dieser Ernährungsform legt das Plugin fest. Sie im Baum zu verschieben fügt dem, was sie impliziert, nur etwas hinzu."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The parent says what this diet implies: a dish that suits a diet automatically suits all of its parents. Example: Vegan below Vegetarian."
+msgstr "Das übergeordnete Element legt fest, was diese Ernährungsform impliziert: Ein Gericht, das zu einer Ernährungsform passt, passt automatisch auch zu allen ihren übergeordneten. Beispiel: Vegan unter Vegetarisch."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Diets that answer the same question form a group, and a dish holds only one answer per group: vegan and vegetarian share one (animal ingredients), gluten-free and lactose-free each have their own. Leave empty to join the parent's group, or to start a group of its own when there is no parent. Fill it in only to put this diet in a different group than its parent — for example \"honey-free\" beside \"vegan\"."
+msgstr "Ernährungsformen, die dieselbe Frage beantworten, bilden eine Gruppe, und ein Gericht hat pro Gruppe nur eine Antwort: Vegan und vegetarisch teilen sich eine (tierische Zutaten), glutenfrei und laktosefrei haben jeweils eine eigene. Leer lassen, um die Gruppe des übergeordneten Elements zu übernehmen – oder eine eigene zu beginnen, wenn es keines gibt. Nur ausfüllen, um diese Ernährungsform in eine andere Gruppe als das übergeordnete Element zu legen, z. B. „honigfrei“ neben „vegan“."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Decides which diet a badge shows when a dish holds several of the same group: the higher number wins. Leave empty to go by depth in the tree — a child is always stronger than its parent."
+msgstr "Entscheidet, welche Ernährungsform die Pille zeigt, wenn ein Gericht mehrere aus derselben Gruppe trägt: Die höhere Zahl gewinnt. Leer lassen, um nach Tiefe im Baum zu gehen – ein Kind ist immer stärker als sein übergeordnetes Element."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Optional. Search engines read it from the recipe's structured data (suitableForDiet)."
+msgstr "Optional. Suchmaschinen lesen sie aus den strukturierten Daten des Rezepts (suitableForDiet)."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Currently: %s."
+msgstr "Aktuell: %s."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Currently: %d."
+msgstr "Aktuell: %d."
