@@ -556,11 +556,14 @@ class Mixmymeals_Diet {
 	 * reason about would sit on the ingredient and reach nothing, and writing
 	 * one through the API would look like it had worked.
 	 *
-	 * @param int      $post_id Ingredient or product ID.
-	 * @param string[] $slugs   Diet slugs.
+	 * @param int      $post_id      Ingredient or product ID.
+	 * @param string[] $slugs        Diet slugs.
+	 * @param bool     $keep_legacy  Leave the pre-taxonomy meta row in place.
+	 *                               Only the migration does, because that row
+	 *                               is its way back.
 	 * @return void
 	 */
-	public static function set_for_post( int $post_id, array $slugs ): void {
+	public static function set_for_post( int $post_id, array $slugs, bool $keep_legacy = false ): void {
 
 		if ( $post_id <= 0 ) {
 			return;
@@ -569,6 +572,31 @@ class Mixmymeals_Diet {
 		$known = array_values( array_unique( array_filter( array_map( 'strval', $slugs ), array( __CLASS__, 'is_known' ) ) ) );
 
 		wp_set_object_terms( $post_id, $known, self::TAXONOMY, false );
+
+		/*
+		 * Die alte Meta-Zeile verschwindet mit dem Schreiben — und das ist der
+		 * Kern einer Sache, die lange falsch war: for_post() fällt auf das Meta
+		 * zurück, sobald keine Terme da sind. Eine Einstufung zu löschen war
+		 * deshalb unmöglich. Man nahm die Terme weg, und beim nächsten Lesen
+		 * stand wieder „vegan“ da, aus einer Zeile, die niemand mehr sah. Auf
+		 * stopfnicht.de trugen vier Zutaten dadurch eine Vegan-Pille, deren
+		 * Referenzprodukt Fleisch ist.
+		 *
+		 * Auch bei einer nicht leeren Liste: wer die Terme setzt, hat die
+		 * Aussage gemacht; die Meta-Zeile daneben kann ihr danach nur noch
+		 * widersprechen.
+		 *
+		 * $keep_legacy ist der eine Ausstieg, und er gehört der Migration.
+		 * Sie kopiert Meta → Terme und lässt die Zeile absichtlich stehen, weil
+		 * sie der einzige Weg zurück ist. Würde sie hier mitlöschen, zerstörte
+		 * der Umzug genau das, was ihn umkehrbar macht.
+		 */
+		if ( ! $keep_legacy ) {
+			delete_post_meta(
+				$post_id,
+				'mmm_product' === get_post_type( $post_id ) ? self::LEGACY_META_PRODUCT : self::LEGACY_META_INGREDIENT
+			);
+		}
 
 		// The per-request memo would otherwise keep answering with what this
 		// post said before the write.

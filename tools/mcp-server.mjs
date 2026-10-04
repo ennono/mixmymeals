@@ -531,7 +531,7 @@ const TOOLS = [
       properties: {
         title:        { type: "string" },
         status:       { type: "string", default: "publish", description: "publish | draft" },
-        diet_type:    { type: "string", description: "vegan | vegetarian | (leer)" },
+        diet_type:    { type: "string", description: "vegan | vegetarian | (leer). Leer loescht die Einstufung ganz — Terme und die alte Meta-Zeile. Ein fehlender Schluessel aendert nichts." },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         default_unit: { type: "string" },
@@ -563,7 +563,7 @@ const TOOLS = [
       properties: {
         id:           { type: "number" },
         title:        { type: "string" },
-        diet_type:    { type: "string", description: "vegan | vegetarian | (leer)" },
+        diet_type:    { type: "string", description: "vegan | vegetarian | (leer). Leer loescht die Einstufung ganz — Terme und die alte Meta-Zeile. Ein fehlender Schluessel aendert nichts." },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         default_unit: { type: "string" },
@@ -720,7 +720,7 @@ const TOOLS = [
         price:          { type: ["number", "null"], description: "Preis einer Packung. Wirkt nur zusammen mit package_weight und nur, wenn das Produkt die Referenz ist. null löscht ihn." },
         source:         { type: "string" },
         nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
-        diet_type:      { type: "string", enum: ["vegan", "vegetarian", ""], description: "Einstufung dieses Artikels. Leer setzt sie zurück, dann gilt die der Zutat." },
+        diet_type:      { type: "string", enum: ["vegan", "vegetarian", ""], description: "Einstufung dieses Artikels. Leer loescht sie ganz — Terme und die alte Meta-Zeile —, dann gilt die der Zutat. Ein fehlender Schluessel aendert nichts." },
         is_reference:   { type: "boolean", description: "true macht es zur Referenz, false hebt die Referenz der Zutat auf." },
       },
     },
@@ -812,7 +812,7 @@ const TOOLS = [
         items: {
           type: "array",
           maxItems: 500,
-          description: "Je Eintrag { id, diets }. diets ersetzt den Bestand.",
+          description: "Je Eintrag { id, diets }. diets ersetzt den Bestand; ein leeres Array loescht die Einstufung ganz, samt der alten Meta-Angabe aus der Zeit vor der Taxonomie. Nur die Migration laesst diese Zeile stehen.",
           items: {
             type: "object",
             required: ["id", "diets"],

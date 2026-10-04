@@ -932,9 +932,17 @@ class Mixmymeals_Rest_Api {
 			'product_count'           => count( Mixmymeals_Product::for_ingredient( $post_id ) ),
 			'own_nutrition'           => $ing->get_nutrition_with_product( 0 ),
 			'own_price_per_100g'      => $ing->get_own_price_per_100g(),
-			'own_diet_type'           => in_array( get_post_meta( $post_id, '_mmm_diet_type', true ), array( 'vegan', 'vegetarian' ), true )
-				? (string) get_post_meta( $post_id, '_mmm_diet_type', true )
-				: '',
+			/*
+			 * Was die Zutat selbst sagt, im Gegensatz zu `diet_type`, das über
+			 * das Referenzprodukt auflöst. Gelesen über die Taxonomie, nicht
+			 * mehr aus `_mmm_diet_type`: seit der Umstellung auf Terme stand
+			 * hier bei jeder migrierten Zutat '' — die Einstufung lag im Term,
+			 * das Feld las die alte Zeile. Es behauptete damit ausgerechnet
+			 * das Gegenteil dessen, wofür es da ist. Der Rueckfall auf das Meta
+			 * steckt in Mixmymeals_Diet::for_post() und gilt weiter für alles,
+			 * was nie angefasst wurde.
+			 */
+			'own_diet_type'           => Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $post_id ), 'diet' ),
 		);
 	}
 
@@ -3446,7 +3454,12 @@ class Mixmymeals_Rest_Api {
 				}
 
 				if ( ! $dry_run ) {
-					Mixmymeals_Diet::set_for_post( $post_id, array( $value ) );
+					/*
+					 * true = die alte Meta-Zeile bleibt stehen. Sie ist der
+					 * Rueckweg dieses Umzugs; set_for_post() raeumt sie sonst
+					 * ueberall sonst mit weg.
+					 */
+					Mixmymeals_Diet::set_for_post( $post_id, array( $value ), true );
 				}
 
 				$done[] = array( 'id' => $post_id, 'type' => $post_type, 'diet' => $value );

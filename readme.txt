@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.46.0
+Stable tag: 3.46.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.46.1 =
+
+Fixed:
+* A diet classification could not be removed. Diets moved from a single meta
+  field to terms, and the reader falls back to that old field whenever a post
+  has no terms — so taking the terms away brought the old value straight back,
+  out of a row nobody could see any more. Clearing one was impossible, whether
+  through the bulk endpoint with an empty list or through the update route
+  with `diet_type: ""`. On stopfnicht.de four ingredients carried a vegan
+  badge although their reference product is meat.
+* Writing a classification now clears that old row. Non-empty writes too: once
+  the terms state it, the field beside them can only disagree. The migration
+  is the one exception and keeps it, because it is the way back.
+* `own_diet_type` read the old field directly, so after a migration it
+  reported "" for every ingredient whose classification sat in a term — the
+  opposite of what the field is for. It reads the taxonomy now.
 
 = 3.46.0 =
 

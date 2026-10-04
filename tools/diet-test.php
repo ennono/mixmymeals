@@ -682,6 +682,71 @@ t( 'Diaet loeschen macht die Zeit zum Pfad', '/unter-30-minuten/',
 
 delete_transient( 'mmm_archive_time_counts' );
 
+echo "\n=== 18. Eine Einstufung laesst sich loeschen ===\n";
+
+/*
+ * Der Fehler, den dieser Abschnitt festnagelt: for_post() faellt auf die alte
+ * Meta-Zeile zurueck, sobald keine Terme da sind. Wer die Terme wegnahm, bekam
+ * beim naechsten Lesen wieder "vegan" aus einer Zeile, die niemand mehr sah.
+ * Loeschen war damit unmoeglich. Auf stopfnicht.de trugen vier Zutaten deshalb
+ * eine Vegan-Pille, deren Referenzprodukt Fleisch ist.
+ *
+ * Die Pruefung muss den Memo-Cache umgehen: for_post() merkt sich die Antwort
+ * je Request, und ein Test laeuft in einem einzigen. Gelesen wird darum der
+ * Rohzustand — Terme und Meta — und das ist ohnehin die haertere Aussage.
+ */
+$del_meta = static fn( int $id ): string => (string) get_post_meta( $id, Mixmymeals_Diet::LEGACY_META_INGREDIENT, true );
+$del_terms = static function ( int $id ): array {
+	$t = wp_get_object_terms( $id, Mixmymeals_Diet::TAXONOMY, array( 'fields' => 'slugs' ) );
+	return ( $t && ! is_wp_error( $t ) ) ? sorted( $t ) : array();
+};
+
+// Eine Zutat, wie sie nach Jahren ohne Migration dasteht: Meta, keine Terme.
+$legacy_ing = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Alt-Einstufung', 'post_status' => 'publish' ) ) );
+update_post_meta( $legacy_ing, Mixmymeals_Diet::LEGACY_META_INGREDIENT, 'vegan' );
+
+t( 'Ausgangslage: Meta traegt die Einstufung', 'vegan', $del_meta( $legacy_ing ) );
+t( 'und for_post faellt darauf zurueck', 'vegan', implode( ',', Mixmymeals_Diet::for_post( $legacy_ing ) ) );
+
+// Leer schreiben — der Weg, den diets/bulk und diet_type: "" beide nehmen.
+Mixmymeals_Diet::set_for_post( $legacy_ing, array() );
+
+t( 'nach dem Leerschreiben: keine Terme', '', implode( ',', $del_terms( $legacy_ing ) ) );
+t( 'und die alte Zeile ist weg', '', $del_meta( $legacy_ing ) );
+t( 'kein Rueckfall mehr', '', implode( ',', Mixmymeals_Diet::for_post( $legacy_ing ) ) );
+
+// Auch eine nicht leere Aussage raeumt die Zeile ab: zwei Quellen koennen
+// einander danach nur noch widersprechen.
+update_post_meta( $legacy_ing, Mixmymeals_Diet::LEGACY_META_INGREDIENT, 'vegan' );
+Mixmymeals_Diet::set_for_post( $legacy_ing, array( 'vegetarian' ) );
+t( 'eine neue Einstufung raeumt die alte Zeile ebenfalls ab', '', $del_meta( $legacy_ing ) );
+t( 'und die Terme sagen das Neue', 'vegetarian', implode( ',', $del_terms( $legacy_ing ) ) );
+
+// Der eine Ausstieg: die Migration braucht die Zeile als Rueckweg.
+$mig_ing = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Migrationsfall', 'post_status' => 'publish' ) ) );
+update_post_meta( $mig_ing, Mixmymeals_Diet::LEGACY_META_INGREDIENT, 'vegan' );
+Mixmymeals_Diet::set_for_post( $mig_ing, array( 'vegan' ), true );
+t( 'die Migration laesst die Zeile stehen', 'vegan', $del_meta( $mig_ing ) );
+t( 'und schreibt den Term daneben', 'vegan', implode( ',', $del_terms( $mig_ing ) ) );
+
+// Dasselbe am Produkt, das seine eigene Meta-Zeile hat.
+$del_ing  = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Traeger', 'post_status' => 'publish' ) ) );
+$del_prod = trash( wp_insert_post( array( 'post_type' => 'mmm_product', 'post_title' => 'ZZ Paket', 'post_status' => 'publish', 'post_parent' => $del_ing ) ) );
+update_post_meta( $del_prod, Mixmymeals_Diet::LEGACY_META_PRODUCT, 'vegan' );
+
+t( 'Produkt: Rueckfall auf die eigene Zeile', 'vegan', implode( ',', Mixmymeals_Diet::for_post( $del_prod ) ) );
+Mixmymeals_Diet::set_for_post( $del_prod, array() );
+t( 'Produkt: Zeile weg', '', (string) get_post_meta( $del_prod, Mixmymeals_Diet::LEGACY_META_PRODUCT, true ) );
+t( 'Produkt: kein Rueckfall mehr', '', implode( ',', Mixmymeals_Diet::for_post( $del_prod ) ) );
+
+// Und die Folge, um die es eigentlich geht: das Rezept behauptet nichts mehr.
+$del_recipe = trash( wp_insert_post( array( 'post_type' => 'mmm_recipe', 'post_title' => 'ZZ Gericht ohne Einstufung', 'post_status' => 'publish' ) ) );
+( new Mixmymeals_Recipe( $del_recipe ) )->set_steps( array(
+	array( 'title' => 'S', 'description' => '', 'ingredients' => array( array( 'id' => $legacy_ing, 'amount' => 100 ) ) ),
+) );
+Mixmymeals_Diet::set_for_post( $legacy_ing, array() );
+t( 'das Rezept traegt keine Pille mehr', '', ( new Mixmymeals_Recipe( $del_recipe ) )->get_diet_type() );
+
 echo "\n=== Ergebnis ===\n";
 printf( "  %d bestanden, %d fehlgeschlagen\n", $GLOBALS['PASS'], $GLOBALS['FAIL'] );
 
