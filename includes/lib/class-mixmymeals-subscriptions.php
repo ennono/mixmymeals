@@ -1822,10 +1822,15 @@ class Mixmymeals_Subscriptions {
 			// so it is indented rather than listed as an equal.
 			$indent = 'sugar' === $key ? 'padding-left:16px;' : '';
 
+			// Energy is the day's headline: set in the accent colour, it does
+			// what day_summary_html did above the meals, so a template showing
+			// the table needs no second line repeating its figures.
+			$lead = 'calories' === $key ? 'font-weight:700;color:#3F6F1E;' : '';
+
 			$rows .= '<tr>'
-				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;">'
+				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;' . $lead . '">'
 				. esc_html( $label ) . '</td>'
-				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
+				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;' . $lead . '">'
 				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $value ) ) . '</td>'
 				. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;">'
 				. esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ) . '</td>'

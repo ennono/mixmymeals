@@ -120,6 +120,11 @@ Fixed:
   text beside it. They are now a 64 px square, cropped where the mail client
   supports it.
 
+Changed:
+* The nutrition table in subscription mails sets the energy row in bold and
+  the accent colour, so it can stand in for the separate day-total line
+  above the meals instead of repeating it.
+
 = 3.46.2 =
 
 Fixed:
