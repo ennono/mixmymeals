@@ -2596,6 +2596,8 @@ class Mixmymeals_Recipe {
 		// changes a recipe's answer never touches the recipe.
 		add_action( 'set_object_terms', array( __CLASS__, 'index_on_terms_set' ), 10, 6 );
 		add_action( 'delete_term', array( __CLASS__, 'index_on_term_deleted' ), 10, 3 );
+		// A diet moved in the tree implies something else than before.
+		add_action( 'edited_term', array( __CLASS__, 'index_on_term_deleted' ), 10, 3 );
 
 		// An ingredient or product leaving, changing status or being rehung.
 		// The relations are read before the row disappears; the recount runs on
@@ -2753,7 +2755,8 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
-	 * A diet term was deleted: every recipe's answer may have changed.
+	 * A diet term was deleted or edited (renamed, moved in the tree): every
+	 * recipe's answer may have changed.
 	 *
 	 * @param int    $term     Term ID.
 	 * @param int    $tt_id    Term taxonomy ID.

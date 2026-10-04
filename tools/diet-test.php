@@ -747,53 +747,82 @@ $del_recipe = trash( wp_insert_post( array( 'post_type' => 'mmm_recipe', 'post_t
 Mixmymeals_Diet::set_for_post( $legacy_ing, array() );
 t( 'das Rezept traegt keine Pille mehr', '', ( new Mixmymeals_Recipe( $del_recipe ) )->get_diet_type() );
 
-echo "\n=== 19. Nur bekannte Diaeten lassen sich anlegen ===\n";
+echo "\n=== 19. Ernaehrungsformen sind per Term erweiterbar ===\n";
 
 /*
- * Der Fehler, den dieser Abschnitt festnagelt: der Taxonomie-Bildschirm unter
- * Zutaten -> Ernaehrungsformen nahm jeden getippten Begriff an. Ein Term wie
- * "Pescetarian" entstand, aber types() kennt ihn nicht, is_known() sagt nein,
- * und set_for_post() wirft ihn bei jedem Schreiben wieder raus — der Begriff
- * lag folgenlos in der Liste. Die Sperre sitzt auf pre_insert_term, demselben
- * Hook, den auch der Admin-Bildschirm ausloest.
+ * Frueher wies pre_insert_term jeden Begriff ab, den types() nicht kannte. Jetzt
+ * ist die Taxonomie das Verzeichnis: die Hierarchie ist die Regel (ein Kind
+ * impliziert seine Vorfahren), Frage und Staerke stehen als Term-Meta. Der Fehler,
+ * den dieser Abschnitt weiterhin festnagelt: ein Term darf nichts bewirken, was
+ * seine Stellung im Baum nicht sagt.
  */
 $mmm_cleanup_terms = array();
+$mk = function ( string $name, string $slug, int $parent = 0 ) use ( &$mmm_cleanup_terms ) {
+	$r = wp_insert_term( $name, Mixmymeals_Diet::TAXONOMY, array( 'slug' => $slug, 'parent' => $parent ) );
+	if ( is_wp_error( $r ) ) { return 0; }
+	$mmm_cleanup_terms[] = (int) $r['term_id'];
+	return (int) $r['term_id'];
+};
 
-$unknown = wp_insert_term( 'ZZ Pescetarian', Mixmymeals_Diet::TAXONOMY );
-t( 'ein unbekannter Begriff wird abgewiesen', true, is_wp_error( $unknown ) );
-t( 'mit dem erwarteten Fehlercode', 'mmm_diet_unknown', is_wp_error( $unknown ) ? $unknown->get_error_code() : '' );
-
-$known = wp_insert_term( 'Vegan', Mixmymeals_Diet::TAXONOMY, array( 'slug' => 'vegan' ) );
-t( 'ein bekannter Slug wird nicht von der Sperre abgewiesen', true, ! is_wp_error( $known ) || 'mmm_diet_unknown' !== $known->get_error_code() );
-
-// Eine ueber den Filter hinzugefuegte Form muss dieselbe Behandlung bekommen
-// wie die vier eingebauten: ensure_terms() legt sie an, reject_unknown_term()
-// laesst sie durch, Diet::label() kennt ihren Namen.
-add_filter(
-	'mixmymeals_diet_types',
-	function ( array $types ): array {
-		$types['zz_pescetarian'] = array(
-			'label'   => 'ZZ Pescetarian',
-			'axis'    => 'diet',
-			'implies' => array(),
-			'rank'    => 5,
-			'schema'  => 'https://schema.org/PescatarianDiet',
-		);
-		return $types;
-	}
-);
 Mixmymeals_Diet::ensure_terms();
+$veg = term_exists( 'vegetarian', Mixmymeals_Diet::TAXONOMY );
+$vgn = term_exists( 'vegan', Mixmymeals_Diet::TAXONOMY );
+t( 'Vegan haengt unter Vegetarisch', (int) $veg['term_id'], (int) get_term( (int) $vgn['term_id'], Mixmymeals_Diet::TAXONOMY )->parent );
 
-$zz_term = term_exists( 'zz_pescetarian', Mixmymeals_Diet::TAXONOMY );
-if ( $zz_term ) { $mmm_cleanup_terms[] = (int) $zz_term['term_id']; }
+// Ein frei angelegter Term wird erkannt, ohne Code und ohne Filter.
+$pesc = $mk( 'ZZ Pescetarian', 'zz_pescetarian' );
+t( 'ein frei angelegter Term wird angenommen', true, $pesc > 0 );
+t( 'is_known() kennt ihn', true, Mixmymeals_Diet::is_known( 'zz_pescetarian' ) );
+t( 'Diet::label() nennt ihn beim Namen', 'ZZ Pescetarian', Mixmymeals_Diet::label( 'zz_pescetarian' ) );
+t( 'ohne Beziehungen impliziert er nichts', array(), Mixmymeals_Diet::types()['zz_pescetarian']['implies'] );
+t( 'und beantwortet eine eigene Frage', 'zz_pescetarian', Mixmymeals_Diet::types()['zz_pescetarian']['axis'] );
 
-t( 'ensure_terms() legt die gefilterte Form an', true, (bool) $zz_term );
-t( 'is_known() kennt sie', true, Mixmymeals_Diet::is_known( 'zz_pescetarian' ) );
-t( 'Diet::label() nennt sie beim Namen', 'ZZ Pescetarian', Mixmymeals_Diet::label( 'zz_pescetarian' ) );
+// Die Hierarchie: Vegetarisch unter Pescetarisch -> vegan impliziert beides.
+wp_update_term( (int) $veg['term_id'], Mixmymeals_Diet::TAXONOMY, array( 'parent' => $pesc ) );
+$types = Mixmymeals_Diet::types();
+t( 'Vegetarisch impliziert nun Pescetarisch', true, in_array( 'zz_pescetarian', $types['vegetarian']['implies'], true ) );
+t( 'Vegan impliziert transitiv beides', array( 'vegetarian', 'zz_pescetarian' ), (function () use ( $types ) { $i = $types['vegan']['implies']; sort( $i ); return $i; })() );
+t( 'expand() folgt dem Baum', true, in_array( 'zz_pescetarian', Mixmymeals_Diet::expand( array( 'vegan' ) ), true ) );
+t( 'die Wurzel uebernimmt die Achse der Eingebauten darunter', 'diet', $types['zz_pescetarian']['axis'] );
+t( 'Rang: Vegetarisch schlaegt Pescetarisch', true, $types['vegetarian']['rank'] > $types['zz_pescetarian']['rank'] );
+t( 'strongest() nennt das Staerkste', 'vegan', Mixmymeals_Diet::strongest( array( 'zz_pescetarian', 'vegan', 'vegetarian' ) ) );
 
-$zz_ing = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Pescetarisch', 'post_status' => 'publish' ) ) );
-Mixmymeals_Diet::set_for_post( $zz_ing, array( 'zz_pescetarian' ) );
-t( 'eine Zutat kann sie fuehren', 'zz_pescetarian', ( new Mixmymeals_Ingredient( $zz_ing ) )->get_diet_type() );
+// Ein Kind eines frei angelegten Terms erbt die Achse und ist staerker.
+$raw = $mk( 'ZZ Raw Vegan', 'zz_raw_vegan', (int) $vgn['term_id'] );
+$types = Mixmymeals_Diet::types();
+t( 'ein Kind erbt die Achse', 'diet', $types['zz_raw_vegan']['axis'] );
+t( 'und impliziert alle Vorfahren', 3, count( $types['zz_raw_vegan']['implies'] ) );
+t( 'und ist staerker als sein Elternteil', true, $types['zz_raw_vegan']['rank'] > $types['vegan']['rank'] );
+
+// Term-Meta: Frage, Staerke und Schema-URL.
+$side = $mk( 'ZZ Side', 'zz_side' );
+update_term_meta( $side, Mixmymeals_Diet::META_AXIS, 'zz_other' );
+update_term_meta( $side, Mixmymeals_Diet::META_RANK, 77 );
+update_term_meta( $side, Mixmymeals_Diet::META_SCHEMA, 'https://schema.org/KosherDiet' );
+$types = Mixmymeals_Diet::types();
+t( 'Term-Meta: Frage', 'zz_other', $types['zz_side']['axis'] );
+t( 'Term-Meta: Staerke', 77, $types['zz_side']['rank'] );
+t( 'Term-Meta: schema.org', 'https://schema.org/KosherDiet', Mixmymeals_Diet::schema_url( 'zz_side' ) );
+
+// Eingebaute bleiben von Umbenennung unberuehrt.
+wp_update_term( (int) $vgn['term_id'], Mixmymeals_Diet::TAXONOMY, array( 'name' => 'ZZ Umbenannt' ) );
+t( 'eine eingebaute Diaet behaelt ihr Etikett', Mixmymeals_Diet::label( 'vegan' ), __( 'Vegan', 'mixmymeals' ) );
+wp_update_term( (int) $vgn['term_id'], Mixmymeals_Diet::TAXONOMY, array( 'name' => 'Vegan' ) );
+
+// Eine Zutat mit dem Kindterm gilt im Rezept auch als vegetarisch.
+$zz_ing = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Roh', 'post_status' => 'publish' ) ) );
+Mixmymeals_Diet::set_for_post( $zz_ing, array( 'zz_raw_vegan' ) );
+t( 'eine Zutat kann den Term fuehren', array( 'zz_raw_vegan' ), Mixmymeals_Diet::for_post( $zz_ing ) );
+t( 'combine() kennt die Implikation', true, in_array( 'vegetarian', Mixmymeals_Diet::combine( array( array( 'zz_raw_vegan' ) ) ), true ) );
+
+// Zyklus ueber den Filter darf nichts aufhaengen.
+add_filter( 'mixmymeals_diet_types', function ( array $t ): array {
+	$t['zz_a'] = array( 'label' => 'A', 'implies' => array( 'zz_b' ) );
+	$t['zz_b'] = array( 'label' => 'B', 'implies' => array( 'zz_a' ) );
+	return $t;
+} );
+Mixmymeals_Diet::reset_types();
+t( 'ein Zyklus ueber den Filter terminiert', true, is_array( Mixmymeals_Diet::types() ) );
 
 // Keine eigene Label-Map mehr: die Stelle, die bei einer neuen Diaet sonst
 // stumm bliebe, obwohl get_diet_type() sie laengst liefert.

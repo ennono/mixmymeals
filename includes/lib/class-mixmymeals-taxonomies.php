@@ -38,10 +38,10 @@ class Mixmymeals_Taxonomies {
 		// stehen, nach denen sie sich zu Rezepten verdichten.
 		add_action( 'init', array( 'Mixmymeals_Diet', 'register_taxonomy' ) );
 		add_action( 'admin_init', array( 'Mixmymeals_Diet', 'ensure_terms' ) );
-		// Weist einen Begriff ab, den das Plugin nie auswerten würde —
-		// sonst sieht das Anlegen auf dem Taxonomie-Bildschirm aus, als
-		// hätte es funktioniert, und der Begriff liegt folgenlos herum.
-		add_filter( 'pre_insert_term', array( 'Mixmymeals_Diet', 'reject_unknown_term' ), 10, 3 );
+		// Die Begriffe sind das Verzeichnis: Eltern-Kind-Beziehung, Frage und
+		// Stärke stehen am Term, nicht mehr in einer festen Liste. Deshalb
+		// gibt es keine Sperre für unbekannte Begriffe mehr.
+		Mixmymeals_Diet::register_term_admin();
 	}
 
 	/**

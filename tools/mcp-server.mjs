@@ -804,7 +804,7 @@ const TOOLS = [
 
   {
     name: "mmm_set_diets",
-    description: "Ernaehrungsformen fuer viele Zutaten und Produkte in einem Aufruf setzen. Gegenstueck zur Audit-Gruppe ingredients_without_diet und aus demselben Grund gebaut wie mmm_set_keeping: die Einzelrouten antworten mit der kompletten Serialisierung, eine Bibliothek von 372 Zutaten kostet so 372 Aufrufe zu je rund 500 Token. Hier sind es id und ok je Eintrag plus eine getrennte Fehlerliste. diets ERSETZT immer alles, was an dem Post steht; ein leeres Array loescht. Bekannte Werte: vegan, vegetarian, gluten_free, lactose_free — vegan impliziert vegetarian, das muss man nicht zusaetzlich setzen. Unbekannte Werte weist der ganze Aufruf zurueck, bevor irgendetwas geschrieben wird; fehlende oder falsche IDs dagegen landen einzeln in errors (not_found, wrong_type, missing_id) und der Rest laeuft durch. WICHTIG fuer die Pillen: eine Zutat, zu der weder sie selbst noch eines ihrer Produkte etwas sagt, nimmt dem ganzen Rezept die Aussage — genau diese Zutaten listet das Audit. Verwendet /mixmymeals/v1/diets/bulk.",
+    description: "Ernaehrungsformen fuer viele Zutaten und Produkte in einem Aufruf setzen. Gegenstueck zur Audit-Gruppe ingredients_without_diet und aus demselben Grund gebaut wie mmm_set_keeping: die Einzelrouten antworten mit der kompletten Serialisierung, eine Bibliothek von 372 Zutaten kostet so 372 Aufrufe zu je rund 500 Token. Hier sind es id und ok je Eintrag plus eine getrennte Fehlerliste. diets ERSETZT immer alles, was an dem Post steht; ein leeres Array loescht. Bekannt ist jeder Term der Taxonomie mmm_diet (eingebaut: vegan, vegetarian, gluten_free, lactose_free). Ein Kindterm impliziert seine Eltern (vegan unter vegetarian), das muss man nicht zusaetzlich setzen. Unbekannte Werte weist der ganze Aufruf zurueck, bevor irgendetwas geschrieben wird; fehlende oder falsche IDs dagegen landen einzeln in errors (not_found, wrong_type, missing_id) und der Rest laeuft durch. WICHTIG fuer die Pillen: eine Zutat, zu der weder sie selbst noch eines ihrer Produkte etwas sagt, nimmt dem ganzen Rezept die Aussage — genau diese Zutaten listet das Audit. Verwendet /mixmymeals/v1/diets/bulk.",
     inputSchema: {
       type: "object",
       required: ["items"],
@@ -818,7 +818,7 @@ const TOOLS = [
             required: ["id", "diets"],
             properties: {
               id: { type: "number", description: "Post-ID einer mmm_ingredient oder eines mmm_product" },
-              diets: { type: "array", items: { type: "string", enum: ["vegan", "vegetarian", "gluten_free", "lactose_free"] }, description: "Leeres Array loescht alle Angaben." },
+              diets: { type: "array", items: { type: "string" }, description: "Term-Slugs der Taxonomie mmm_diet (eingebaut: vegan, vegetarian, gluten_free, lactose_free; weitere legt man als Term an). Leeres Array loescht alle Angaben." },
             },
           },
         },

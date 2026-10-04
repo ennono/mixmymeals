@@ -21,14 +21,23 @@ if ( ! defined( 'ABSPATH' ) ) {
  * value, so an ingredient could be vegan or gluten-free but never both. No
  * amount of vocabulary fixes that; a multi-valued store does.
  *
- * **The terms carry no meaning of their own.** A term says "this ingredient is
- * X"; it cannot say how X reaches a recipe, and diets do not agree on that:
- * vegan and vegetarian form a chain, gluten-free is an axis beside it, and a
- * diet like pescetarian would break the chain altogether. types() therefore
- * keeps the rule per known slug, and a term nobody registered is inert — it
- * sits on the ingredient and reaches no recipe. That is deliberate: this
- * classification decides whether a public "vegan" label appears, and an
- * invented term must not be able to produce one.
+ * **The taxonomy is hierarchical, and the hierarchy is the rule.** A child
+ * term implies every ancestor: "Vegan" under "Vegetarian" under
+ * "Pescetarian" means a vegan dish suits a vegetarian and a pescetarian, and
+ * nothing else needs saying. What a bare term cannot hold — which question it
+ * answers (axis), how strong it is (rank), its schema.org URL — lives in term
+ * meta and is inherited down the tree where it makes sense (axis). types()
+ * assembles all of it, so a diet is added by adding a term, with no code.
+ *
+ * The four diets the plugin ships stay defined in code and win over their
+ * terms: they carry the wording and the schema URLs the translations and the
+ * structured data rely on, and renaming "Vegan" on the taxonomy screen must
+ * not be able to change what a public label means. Their terms can still be
+ * moved in the tree, which only ever adds implications.
+ *
+ * A term with no relations implies nothing and answers a question of its own
+ * (its axis defaults to its own slug), so an invented term cannot produce or
+ * displace a "vegan" label; it can only say what its place in the tree says.
  */
 class Mixmymeals_Diet {
 
@@ -54,6 +63,34 @@ class Mixmymeals_Diet {
 	const LEGACY_META_PRODUCT = '_mmm_product_diet_type';
 
 	/**
+	 * Term meta: which question the diet answers. Empty = inherit from parent.
+	 *
+	 * @var string
+	 */
+	const META_AXIS = '_mmm_diet_axis';
+
+	/**
+	 * Term meta: strength within the axis. Empty = by depth in the tree.
+	 *
+	 * @var string
+	 */
+	const META_RANK = '_mmm_diet_rank';
+
+	/**
+	 * Term meta: schema.org RestrictedDiet URL.
+	 *
+	 * @var string
+	 */
+	const META_SCHEMA = '_mmm_diet_schema';
+
+	/**
+	 * Option gating the one-off move of the built-in diets into their tree.
+	 *
+	 * @var string
+	 */
+	const HIERARCHY_OPTION = 'mixmymeals_diet_hierarchy_version';
+
+	/**
 	 * The diets this plugin knows how to reason about.
 	 *
 	 * Each entry carries what a term cannot:
@@ -70,19 +107,20 @@ class Mixmymeals_Diet {
 	 * one it is composed from the label and the site's pattern, which is the
 	 * normal case and what the setting governs.
 	 *
-	 * Filterable, so an add-on can teach the plugin a diet without touching
-	 * this file. Registering the term alone is not enough and is not meant to
-	 * be — see the class comment.
+	 * These are the diets that ship with the plugin; types() adds the terms
+	 * an editor created and runs the filter. 'parent' names the diet this one
+	 * sits under in the tree and is what ensure_terms() seeds.
 	 *
-	 * @return array<string,array{label:string,axis:string,implies:string[],rank:int,schema:string,suitability?:string}>
+	 * @return array<string,array{label:string,axis:string,implies:string[],rank:int,schema:string,parent?:string,suitability?:string}>
 	 */
-	public static function types(): array {
+	private static function builtin_types(): array {
 
 		$types = array(
 			'vegan'        => array(
 				'label'   => __( 'Vegan', 'mixmymeals' ),
 				'axis'    => 'diet',
 				'implies' => array( 'vegetarian' ),
+				'parent'  => 'vegetarian',
 				'rank'    => 20,
 				'schema'  => 'https://schema.org/VeganDiet',
 			),
@@ -109,12 +147,286 @@ class Mixmymeals_Diet {
 			),
 		);
 
+		return $types;
+	}
+
+	/**
+	 * The diets this plugin knows how to reason about.
+	 *
+	 * Built-ins, then every term of the taxonomy (see terms_as_types()), then
+	 * the filter, then normalised: implications made transitive and ranks made
+	 * to agree with them. Memoised for the request; the term and term-meta
+	 * hooks reset it, reset_types() does so by hand.
+	 *
+	 * @return array<string,array{label:string,axis:string,implies:string[],rank:int,schema:string,parent?:string,suitability?:string}>
+	 */
+	public static function types(): array {
+
+		$memo = self::types_memo();
+
+		if ( null !== $memo ) {
+			return $memo;
+		}
+
+		$types = self::builtin_types();
+
+		// Before init the taxonomy does not exist; answer from code alone and
+		// do not remember it, or the terms would stay invisible all request.
+		$ready = taxonomy_exists( self::TAXONOMY );
+
+		if ( $ready ) {
+			$types = self::terms_as_types( $types );
+		}
+
 		/**
 		 * Filters the diets the plugin knows how to reason about.
 		 *
+		 * Terms are the normal way in; this remains for definitions that should
+		 * not depend on the database. An entry may name a 'parent' slug.
+		 *
 		 * @param array $types Slug => definition.
 		 */
-		return (array) apply_filters( 'mixmymeals_diet_types', $types );
+		$types = self::normalise( (array) apply_filters( 'mixmymeals_diet_types', $types ) );
+
+		if ( $ready ) {
+			self::types_memo( $types );
+		}
+
+		return $types;
+	}
+
+	/**
+	 * Forgets the assembled definitions.
+	 *
+	 * @return void
+	 */
+	public static function reset_types(): void {
+		self::types_memo( null, true );
+	}
+
+	/**
+	 * Per-request holder of types().
+	 *
+	 * @param array|null $value Value to store.
+	 * @param bool       $clear Drop what is held.
+	 * @return array|null
+	 */
+	private static function types_memo( ?array $value = null, bool $clear = false ): ?array {
+
+		static $memo = null;
+
+		if ( $clear ) {
+			$memo = null;
+		} elseif ( null !== $value ) {
+			$memo = $value;
+		}
+
+		return $memo;
+	}
+
+	/**
+	 * Lays the terms over the built-ins.
+	 *
+	 * A built-in slug keeps its own label, axis, rank and schema — the tree
+	 * only adds implications to it. Any other term becomes a definition:
+	 * label from the name, axis from its meta or the nearest ancestor that has
+	 * one (else a question of its own), rank from its meta or its depth, and
+	 * 'implies' from its ancestors.
+	 *
+	 * @param array $types Built-in definitions.
+	 * @return array
+	 */
+	private static function terms_as_types( array $types ): array {
+
+		$terms = get_terms(
+			array(
+				'taxonomy'   => self::TAXONOMY,
+				'hide_empty' => false,
+			)
+		);
+
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return $types;
+		}
+
+		$by_id = array();
+
+		foreach ( $terms as $term ) {
+			$by_id[ (int) $term->term_id ] = $term;
+		}
+
+		// Slugs from the root down to the term's parent, nearest last.
+		$chain = static function ( WP_Term $term ) use ( $by_id ): array {
+
+			$out  = array();
+			$seen = array( (int) $term->term_id => true );
+			$cur  = $term;
+
+			while ( $cur->parent && isset( $by_id[ (int) $cur->parent ] ) && ! isset( $seen[ (int) $cur->parent ] ) ) {
+				$cur                        = $by_id[ (int) $cur->parent ];
+				$seen[ (int) $cur->term_id ] = true;
+				array_unshift( $out, $cur->slug );
+			}
+
+			return $out;
+		};
+
+		$ancestry = array();
+
+		foreach ( $by_id as $id => $term ) {
+			$ancestry[ $term->slug ] = $chain( $term );
+		}
+
+		$builtin = self::builtin_types();
+
+		foreach ( $by_id as $term ) {
+
+			$slug      = $term->slug;
+			$ancestors = $ancestry[ $slug ];
+
+			if ( isset( $types[ $slug ] ) ) {
+				$types[ $slug ]['implies'] = array_values( array_unique( array_merge( (array) $types[ $slug ]['implies'], array_reverse( $ancestors ) ) ) );
+				continue;
+			}
+
+			$axis = (string) get_term_meta( $term->term_id, self::META_AXIS, true );
+
+			if ( '' === $axis ) {
+				// Nearest ancestor first: its term meta, or the axis a built-in of that slug has.
+				foreach ( array_reverse( $ancestors ) as $up ) {
+					$up_term = null;
+					foreach ( $by_id as $candidate ) {
+						if ( $candidate->slug === $up ) {
+							$up_term = $candidate;
+							break;
+						}
+					}
+					$found = isset( $types[ $up ] ) ? (string) $types[ $up ]['axis'] : '';
+					if ( '' === $found && $up_term ) {
+						$found = (string) get_term_meta( $up_term->term_id, self::META_AXIS, true );
+					}
+					if ( '' !== $found ) {
+						$axis = $found;
+						break;
+					}
+				}
+			}
+
+			$rank_meta = get_term_meta( $term->term_id, self::META_RANK, true );
+
+			/*
+			 * A root nobody gave an axis, with a shipped diet somewhere beneath
+			 * it, answers that diet's question: "Pescetarian" above "Vegetarian"
+			 * is plainly the same axis, and making the editor type "diet" to say
+			 * so would be a field that exists to be forgotten.
+			 */
+			if ( '' === $axis ) {
+				foreach ( $ancestry as $below => $above ) {
+					if ( isset( $builtin[ $below ] ) && in_array( $slug, $above, true ) ) {
+						$axis = (string) $builtin[ $below ]['axis'];
+						break;
+					}
+				}
+			}
+
+			$types[ $slug ] = array(
+				'label'   => $term->name,
+				'axis'    => '' !== $axis ? sanitize_key( $axis ) : $slug,
+				'implies' => array_reverse( $ancestors ),
+				'parent'  => $ancestors ? end( $ancestors ) : '',
+				'rank'    => '' !== (string) $rank_meta ? (int) $rank_meta : ( count( $ancestors ) + 1 ) * 10,
+				'schema'  => esc_url_raw( (string) get_term_meta( $term->term_id, self::META_SCHEMA, true ) ),
+			);
+		}
+
+		return $types;
+	}
+
+	/**
+	 * Makes a set of definitions consistent.
+	 *
+	 * Implications are closed transitively and stripped of unknown slugs and of
+	 * the diet itself, because expand() looks only one level deep. Rank is then
+	 * lifted so that a diet always outranks what it implies on its own axis —
+	 * whatever numbers an editor typed, "vegan" must never lose to the
+	 * "vegetarian" it contains, or strongest() would name the weaker claim.
+	 *
+	 * @param array $types Definitions.
+	 * @return array
+	 */
+	private static function normalise( array $types ): array {
+
+		foreach ( $types as $slug => &$type ) {
+
+			$type = array_merge(
+				array(
+					'label'   => (string) $slug,
+					'axis'    => (string) $slug,
+					'implies' => array(),
+					'rank'    => 10,
+					'schema'  => '',
+				),
+				(array) $type
+			);
+
+			if ( ! empty( $type['parent'] ) ) {
+				$type['implies'][] = (string) $type['parent'];
+			}
+		}
+		unset( $type );
+
+		$closed = array();
+
+		foreach ( array_keys( $types ) as $slug ) {
+
+			$seen  = array();
+			$queue = (array) $types[ $slug ]['implies'];
+
+			while ( $queue ) {
+
+				$next = (string) array_shift( $queue );
+
+				if ( $next === $slug || isset( $seen[ $next ] ) || ! isset( $types[ $next ] ) ) {
+					continue;
+				}
+
+				$seen[ $next ] = true;
+
+				foreach ( (array) $types[ $next ]['implies'] as $more ) {
+					$queue[] = $more;
+				}
+			}
+
+			$closed[ $slug ] = array_keys( $seen );
+		}
+
+		foreach ( $closed as $slug => $implies ) {
+			$types[ $slug ]['implies'] = $implies;
+		}
+
+		// Fewest implications first: what a diet implies is settled before it.
+		$order = array_keys( $types );
+		usort(
+			$order,
+			static function ( $a, $b ) use ( $closed ) {
+				return count( $closed[ $a ] ) <=> count( $closed[ $b ] );
+			}
+		);
+
+		foreach ( $order as $slug ) {
+
+			$rank = (int) $types[ $slug ]['rank'];
+
+			foreach ( $closed[ $slug ] as $implied ) {
+				if ( $types[ $implied ]['axis'] === $types[ $slug ]['axis'] ) {
+					$rank = max( $rank, (int) $types[ $implied ]['rank'] + 1 );
+				}
+			}
+
+			$types[ $slug ]['rank'] = $rank;
+		}
+
+		return $types;
 	}
 
 	/**
@@ -637,7 +949,7 @@ class Mixmymeals_Diet {
 				'public'            => false,
 				'show_ui'           => true,
 				'show_admin_column' => true,
-				'hierarchical'      => false,
+				'hierarchical'      => true,
 				'show_in_rest'      => true,
 				'rewrite'           => false,
 				'query_var'         => false,
@@ -646,12 +958,18 @@ class Mixmymeals_Diet {
 	}
 
 	/**
-	 * Creates the terms for the known diets if they are missing.
+	 * Creates the terms for the shipped diets if they are missing, parents first.
 	 *
 	 * Runs on admin_init rather than on every request: assigning a diet needs
 	 * the term to exist, and an editor should not have to type "vegan" to get
-	 * the one the plugin reasons about. Terms an add-on adds through the
-	 * filter are created the same way.
+	 * the one the plugin reasons about. Only what code defines is created here
+	 * (built-ins and filter additions); terms an editor made already exist.
+	 *
+	 * "Vegan" is seeded as a child of "Vegetarian", which is what the
+	 * built-in implication says anyway — the tree shows the editor what the
+	 * rule is. Existing installs get that once, and only for a term still
+	 * sitting at the root: someone who has already arranged the tree is left
+	 * alone.
 	 *
 	 * @return void
 	 */
@@ -661,62 +979,250 @@ class Mixmymeals_Diet {
 			return;
 		}
 
-		foreach ( self::types() as $slug => $type ) {
+		$types   = self::types();
+		$builtin = self::builtin_types();
+		$once    = (int) get_option( self::HIERARCHY_OPTION, 0 ) < 1;
 
-			if ( term_exists( $slug, self::TAXONOMY ) ) {
-				continue;
+		$guard  = array();
+		$ensure = static function ( string $slug ) use ( &$ensure, &$guard, $types, $once ): int {
+
+			if ( isset( $guard[ $slug ] ) || ! isset( $types[ $slug ] ) ) {
+				$existing = term_exists( $slug, self::TAXONOMY );
+				return $existing ? (int) $existing['term_id'] : 0;
 			}
 
-			wp_insert_term( $type['label'], self::TAXONOMY, array( 'slug' => $slug ) );
+			$guard[ $slug ] = true;
+
+			$parent_slug = (string) ( $types[ $slug ]['parent'] ?? '' );
+			$parent_id   = '' !== $parent_slug ? $ensure( $parent_slug ) : 0;
+			$existing    = term_exists( $slug, self::TAXONOMY );
+
+			if ( $existing ) {
+
+				$id = (int) $existing['term_id'];
+
+				if ( $once && $parent_id && 0 === (int) get_term( $id, self::TAXONOMY )->parent ) {
+					wp_update_term( $id, self::TAXONOMY, array( 'parent' => $parent_id ) );
+				}
+
+				return $id;
+			}
+
+			$made = wp_insert_term(
+				$types[ $slug ]['label'],
+				self::TAXONOMY,
+				array(
+					'slug'   => $slug,
+					'parent' => $parent_id,
+				)
+			);
+
+			return is_wp_error( $made ) ? 0 : (int) $made['term_id'];
+		};
+
+		foreach ( array_keys( $types ) as $slug ) {
+			// Terms that already exist and are not defined in code are skipped inside.
+			if ( isset( $builtin[ $slug ] ) || ! term_exists( $slug, self::TAXONOMY ) ) {
+				$ensure( (string) $slug );
+			}
+		}
+
+		if ( $once ) {
+			update_option( self::HIERARCHY_OPTION, 1 );
+		}
+
+		self::reset_types();
+	}
+
+	/*
+	---------------------------------------------------------------------
+	 * Term screen
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Hooks the term form and the cache resets. Once per request.
+	 *
+	 * @return void
+	 */
+	public static function register_term_admin(): void {
+
+		static $done = false;
+
+		if ( $done ) {
+			return;
+		}
+
+		$done = true;
+
+		add_action( self::TAXONOMY . '_add_form_fields', array( __CLASS__, 'render_add_fields' ) );
+		add_action( self::TAXONOMY . '_edit_form_fields', array( __CLASS__, 'render_edit_fields' ) );
+		add_action( 'created_' . self::TAXONOMY, array( __CLASS__, 'save_term_fields' ) );
+		add_action( 'edited_' . self::TAXONOMY, array( __CLASS__, 'save_term_fields' ) );
+
+		// A rename, a move in the tree or a meta write changes what every
+		// ingredient implies; the assembled definitions are stale until then.
+		foreach ( array( 'created_term', 'edited_term', 'delete_term' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'on_term_changed' ), 5, 3 );
+		}
+		foreach ( array( 'added_term_meta', 'updated_term_meta', 'deleted_term_meta' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'on_term_meta_changed' ), 10, 3 );
 		}
 	}
 
 	/**
-	 * Refuses a term this plugin would never act on.
+	 * A term of this taxonomy was created, edited or deleted.
 	 *
-	 * The taxonomy screen under Ingredients → Diets looked like an ordinary
-	 * "Add New" form, and typing "Pescetarian" there created a term that
-	 * stuck — but types() never heard of it, is_known() says no, and
-	 * set_for_post() strips it on every write. The term sat in the list
-	 * forever, assignable to nothing, producing no badge, no filter, no
-	 * schema. That is the same silent-ignore shape storage_type and the
-	 * diet classification itself were fixed against; a screen that accepts
-	 * what the plugin then discards is worse than one with no screen at
-	 * all.
-	 *
-	 * Hooked on `pre_insert_term`, which fires for every path that creates a
-	 * term — this screen, the REST terms endpoint, an import — not only the
-	 * one this comment describes. ensure_terms() passes because it always
-	 * supplies the known slug as `args['slug']`; a definition added through
-	 * the mixmymeals_diet_types filter is created the same way and is known
-	 * by the time it runs.
-	 *
-	 * @param string|WP_Error $term     The term name about to be inserted.
-	 * @param string          $taxonomy Taxonomy of the term.
-	 * @param array           $args     Arguments passed to wp_insert_term().
-	 * @return string|WP_Error
+	 * @param int    $term_id  Term ID.
+	 * @param int    $tt_id    Term taxonomy ID.
+	 * @param string $taxonomy Taxonomy.
+	 * @return void
 	 */
-	public static function reject_unknown_term( $term, string $taxonomy, array $args ) {
+	public static function on_term_changed( $term_id, $tt_id = 0, $taxonomy = '' ): void {
 
-		if ( self::TAXONOMY !== $taxonomy || is_wp_error( $term ) ) {
-			return $term;
+		if ( self::TAXONOMY === $taxonomy ) {
+			self::reset_types();
+		}
+	}
+
+	/**
+	 * A term meta row was written; reset when it is one of ours.
+	 *
+	 * @param int    $meta_id  Meta ID.
+	 * @param int    $term_id  Term ID.
+	 * @param string $meta_key Meta key.
+	 * @return void
+	 */
+	public static function on_term_meta_changed( $meta_id, $term_id, $meta_key ): void {
+
+		if ( in_array( $meta_key, array( self::META_AXIS, self::META_RANK, self::META_SCHEMA ), true ) ) {
+			self::reset_types();
+			Mixmymeals_Recipe::mark_all_indexes_dirty();
+		}
+	}
+
+	/**
+	 * Fields on "Add New Diet".
+	 *
+	 * @return void
+	 */
+	public static function render_add_fields(): void {
+
+		wp_nonce_field( 'mmm_diet_term', 'mmm_diet_term_nonce' );
+
+		echo '<div class="form-field"><label for="mmm_diet_axis">' . esc_html__( 'Question it answers', 'mixmymeals' ) . '</label>';
+		echo '<input type="text" name="mmm_diet_axis" id="mmm_diet_axis" list="mmm_diet_axes" value="">';
+		self::render_axes_datalist();
+		echo '<p>' . esc_html__( 'A dish holds one answer per question: vegetarian and vegan answer the same one, gluten-free another. Leave empty to take the parent\'s, or to start a question of its own.', 'mixmymeals' ) . '</p></div>';
+
+		echo '<div class="form-field"><label for="mmm_diet_rank">' . esc_html__( 'Strength', 'mixmymeals' ) . '</label>';
+		echo '<input type="number" name="mmm_diet_rank" id="mmm_diet_rank" value="" min="0" step="1">';
+		echo '<p>' . esc_html__( 'Which wins when a dish holds several of the same question. Leave empty to go by depth: a child is stronger than its parent.', 'mixmymeals' ) . '</p></div>';
+
+		echo '<div class="form-field"><label for="mmm_diet_schema">' . esc_html__( 'schema.org diet URL', 'mixmymeals' ) . '</label>';
+		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="" placeholder="https://schema.org/…">';
+		echo '<p>' . esc_html__( 'Optional. Printed as suitableForDiet on recipes.', 'mixmymeals' ) . '</p></div>';
+
+		echo '<p class="description">' . esc_html__( 'Choose a parent to say what this diet implies: everything below a diet suits its parents too.', 'mixmymeals' ) . '</p>';
+	}
+
+	/**
+	 * Fields on "Edit Diet".
+	 *
+	 * @param WP_Term $term Term being edited.
+	 * @return void
+	 */
+	public static function render_edit_fields( $term ): void {
+
+		wp_nonce_field( 'mmm_diet_term', 'mmm_diet_term_nonce' );
+
+		if ( isset( self::builtin_types()[ $term->slug ] ) ) {
+			echo '<tr class="form-field"><th scope="row">' . esc_html__( 'Defined by the plugin', 'mixmymeals' ) . '</th><td>';
+			echo '<p class="description">' . esc_html__( 'The name, question, strength and schema.org URL of this diet are fixed by the plugin. Moving it in the tree only adds to what it implies.', 'mixmymeals' ) . '</p></td></tr>';
+			return;
 		}
 
-		$slug = '' !== (string) ( $args['slug'] ?? '' )
-			? sanitize_title( (string) $args['slug'] )
-			: sanitize_title( (string) $term );
+		$axis   = (string) get_term_meta( $term->term_id, self::META_AXIS, true );
+		$rank   = (string) get_term_meta( $term->term_id, self::META_RANK, true );
+		$schema = (string) get_term_meta( $term->term_id, self::META_SCHEMA, true );
+		$now    = self::types()[ $term->slug ] ?? array();
 
-		if ( self::is_known( $slug ) ) {
-			return $term;
+		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_axis">' . esc_html__( 'Question it answers', 'mixmymeals' ) . '</label></th><td>';
+		echo '<input type="text" name="mmm_diet_axis" id="mmm_diet_axis" list="mmm_diet_axes" value="' . esc_attr( $axis ) . '">';
+		self::render_axes_datalist();
+		/* translators: %s: the question the diet currently answers. */
+		echo '<p class="description">' . esc_html( sprintf( __( 'Currently: %s. Empty takes the parent\'s.', 'mixmymeals' ), (string) ( $now['axis'] ?? '' ) ) ) . '</p></td></tr>';
+
+		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_rank">' . esc_html__( 'Strength', 'mixmymeals' ) . '</label></th><td>';
+		echo '<input type="number" name="mmm_diet_rank" id="mmm_diet_rank" value="' . esc_attr( $rank ) . '" min="0" step="1">';
+		/* translators: %d: the strength currently in force. */
+		echo '<p class="description">' . esc_html( sprintf( __( 'Currently: %d. Empty goes by depth in the tree.', 'mixmymeals' ), (int) ( $now['rank'] ?? 0 ) ) ) . '</p></td></tr>';
+
+		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_schema">' . esc_html__( 'schema.org diet URL', 'mixmymeals' ) . '</label></th><td>';
+		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="' . esc_attr( $schema ) . '" placeholder="https://schema.org/…"></td></tr>';
+	}
+
+	/**
+	 * The axes in use, as suggestions for the axis field.
+	 *
+	 * @return void
+	 */
+	private static function render_axes_datalist(): void {
+
+		echo '<datalist id="mmm_diet_axes">';
+
+		foreach ( array_unique( wp_list_pluck( self::types(), 'axis' ) ) as $axis ) {
+			echo '<option value="' . esc_attr( (string) $axis ) . '">';
 		}
 
-		return new WP_Error(
-			'mmm_diet_unknown',
-			sprintf(
-				/* translators: %s: comma-separated list of the diets the plugin knows about. */
-				__( 'MixMyMeals only acts on these diets: %s. A new one can be added through the mixmymeals_diet_types filter, which is the only way it gets a badge, a filter and a place in schema.org data — creating the term here would not.', 'mixmymeals' ),
-				implode( ', ', wp_list_pluck( self::types(), 'label' ) )
-			)
-		);
+		echo '</datalist>';
+	}
+
+	/**
+	 * Stores the three fields. Built-ins are never touched.
+	 *
+	 * @param int $term_id Term ID.
+	 * @return void
+	 */
+	public static function save_term_fields( $term_id ): void {
+
+		if ( ! isset( $_POST['mmm_diet_term_nonce'] )
+			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['mmm_diet_term_nonce'] ) ), 'mmm_diet_term' )
+			|| ! current_user_can( 'manage_categories' ) ) {
+			return;
+		}
+
+		$term = get_term( (int) $term_id, self::TAXONOMY );
+
+		if ( ! $term instanceof WP_Term || isset( self::builtin_types()[ $term->slug ] ) ) {
+			return;
+		}
+
+		$axis   = isset( $_POST['mmm_diet_axis'] ) ? sanitize_key( wp_unslash( $_POST['mmm_diet_axis'] ) ) : '';
+		$rank   = isset( $_POST['mmm_diet_rank'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['mmm_diet_rank'] ) ) ) : '';
+		$schema = isset( $_POST['mmm_diet_schema'] ) ? esc_url_raw( wp_unslash( $_POST['mmm_diet_schema'] ) ) : '';
+
+		self::write_term_meta( (int) $term_id, self::META_AXIS, $axis );
+		self::write_term_meta( (int) $term_id, self::META_RANK, is_numeric( $rank ) ? (string) max( 0, (int) $rank ) : '' );
+		self::write_term_meta( (int) $term_id, self::META_SCHEMA, $schema );
+	}
+
+	/**
+	 * Writes a term meta value, or removes the row for an empty one.
+	 *
+	 * An empty value is "inherit", not a value: storing it would make the
+	 * difference between a field never filled in and one cleared invisible.
+	 *
+	 * @param int    $term_id Term ID.
+	 * @param string $key     Meta key.
+	 * @param string $value   Value.
+	 * @return void
+	 */
+	private static function write_term_meta( int $term_id, string $key, string $value ): void {
+
+		if ( '' === $value ) {
+			delete_term_meta( $term_id, $key );
+		} else {
+			update_term_meta( $term_id, $key, $value );
+		}
 	}
 }
