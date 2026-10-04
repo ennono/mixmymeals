@@ -2317,10 +2317,16 @@ class Mixmymeals_Subscriptions {
 			$thumb_id  = (int) $meal->get_recipe_id();
 			$thumb_url = $thumb_id ? (string) get_the_post_thumbnail_url( $thumb_id, 'thumbnail' ) : '';
 
+			// A fixed square, not width plus height:auto: the latter takes the
+			// file's own ratio, and a site whose thumbnail size does not crop
+			// handed the mail a strip far taller than the text beside it.
+			// object-fit crops where the client supports it; where it does not,
+			// the 'thumbnail' size is a square crop on a default install.
+
 			if ( '' !== $thumb_url ) {
 				$row = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>'
 					. '<td style="vertical-align:top;width:64px;padding-right:12px;">'
-					. '<a href="' . esc_url( $link ) . '"><img src="' . esc_url( $thumb_url ) . '" alt="" width="64" style="width:64px;height:auto;border-radius:8px;display:block;border:0;"></a>'
+					. '<a href="' . esc_url( $link ) . '"><img src="' . esc_url( $thumb_url ) . '" alt="" width="64" height="64" style="width:64px;height:64px;object-fit:cover;border-radius:8px;display:block;border:0;"></a>'
 					. '</td>'
 					. '<td style="vertical-align:top;">' . $content . '</td>'
 					. '</tr></table>';

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.46.2
+Stable tag: 3.46.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,15 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.46.3 =
+
+Fixed:
+* The recipe pictures in the subscription mails' meal list took the shape of
+  their file: only the width was fixed, so on a site whose thumbnail size does
+  not crop, a portrait photo came out as a narrow strip far taller than the
+  text beside it. They are now a 64 px square, cropped where the mail client
+  supports it.
 
 = 3.46.2 =
 
