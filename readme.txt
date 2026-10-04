@@ -124,6 +124,11 @@ Changed:
 * The nutrition table in subscription mails sets the energy row in bold and
   the accent colour, so it can stand in for the separate day-total line
   above the meals instead of repeating it.
+* Font sizes in subscription mails follow one scale: the reference-intake
+  footnote under the nutrition table is 12 px instead of full body size, the
+  packet name under a shopping-list item 14 px instead of 13, and the
+  shopping list's category headings are h3 rather than a second h2 under
+  the template's own.
 
 = 3.46.2 =
 

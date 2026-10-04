@@ -1851,7 +1851,7 @@ class Mixmymeals_Subscriptions {
 			. '</tr>'
 			. $rows
 			. '</table>'
-			. '<p style="margin:0 0 8px;line-height:1.4;">'
+			. '<p style="margin:0 0 8px;line-height:1.4;color:#6B665B;font-size:12px;">'
 			. esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() )
 			. '</p>';
 	}
@@ -2431,7 +2431,9 @@ class Mixmymeals_Subscriptions {
 		$out = '';
 		foreach ( $list as $cat_name => $ings ) {
 
-			$out .= '<h2 style="font-size:16px;color:#3F6F1E;margin:16px 0 6px;">' . esc_html( (string) $cat_name ) . '</h2>';
+			// h3: the list sits under a template's own h2 ("Zutaten"), and
+			// the categories are a level below it, not beside it.
+			$out .= '<h3 style="font-size:16px;line-height:1.3;color:#3F6F1E;margin:16px 0 6px;">' . esc_html( (string) $cat_name ) . '</h3>';
 			$out .= '<ul style="list-style-type:none;padding:0;margin:0;">';
 
 			foreach ( (array) $ings as $ing_id => $data ) {
@@ -2459,7 +2461,7 @@ class Mixmymeals_Subscriptions {
 					. ( '' !== $amount ? ' <span style="color:#6B665B;">' . esc_html( $amount ) . '</span>' : '' )
 					. $optional_label
 					. ( '' !== $reference_label
-						? '<br><span style="color:#6B665B;font-size:13px;">' . esc_html( $reference_label ) . '</span>'
+						? '<br><span style="color:#6B665B;font-size:14px;">' . esc_html( $reference_label ) . '</span>'
 						: '' )
 					. '</li>';
 			}
