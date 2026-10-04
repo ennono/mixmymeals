@@ -9045,12 +9045,13 @@ class Mixmymeals_Shortcodes {
 		$cats     = $ingredient->get_categories();
 		$calories = isset( $nutri['calories_100'] ) ? (float) $nutri['calories_100'] : 0.0;
 
-		$diet_label = '';
-		if ( 'vegan' === $diet ) {
-			$diet_label = __( 'Vegan', 'mixmymeals' );
-		} elseif ( 'vegetarian' === $diet ) {
-			$diet_label = __( 'Vegetarian', 'mixmymeals' );
-		}
+		/*
+		 * Über Diet::label(), nicht über eine eigene Zuordnung: eine Form, die
+		 * nur über den Filter mixmymeals_diet_types dazukommt, hätte hier sonst
+		 * keinen Namen und bliebe als Chip stumm, obwohl get_diet_type() sie
+		 * liefert.
+		 */
+		$diet_label = Mixmymeals_Diet::label( $diet );
 
 		ob_start();
 		?>
@@ -9765,11 +9766,13 @@ class Mixmymeals_Shortcodes {
 								 * from "how much fat", and it is the one
 								 * somebody scans for. Nobody should have to
 								 * read past seven numbers to find it.
+								 *
+								 * The labels come from Diet::label() below,
+								 * not from a map of their own — a diet added
+								 * through the mixmymeals_diet_types filter
+								 * would otherwise show no name here, although
+								 * this row already knows to print it.
 								 */
-								$mmm_diet_labels = array(
-									'vegan'      => __( 'Vegan', 'mixmymeals' ),
-									'vegetarian' => __( 'Vegetarian', 'mixmymeals' ),
-								);
 								?>
 								<tr class="mmm-product-impact__diet-row">
 									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php esc_html_e( 'Diet', 'mixmymeals' ); ?></td>
@@ -9786,7 +9789,7 @@ class Mixmymeals_Shortcodes {
 											 * it — and "vegan" is a label
 											 * people act on.
 											 */
-											echo esc_html( $mmm_diet_labels[ $mmm_row['diet'] ] ?? '—' );
+											echo esc_html( '' !== $mmm_row['diet'] ? Mixmymeals_Diet::label( $mmm_row['diet'] ) : '—' );
 											?>
 										</td>
 									<?php endforeach; ?>

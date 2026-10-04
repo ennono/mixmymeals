@@ -747,6 +747,61 @@ $del_recipe = trash( wp_insert_post( array( 'post_type' => 'mmm_recipe', 'post_t
 Mixmymeals_Diet::set_for_post( $legacy_ing, array() );
 t( 'das Rezept traegt keine Pille mehr', '', ( new Mixmymeals_Recipe( $del_recipe ) )->get_diet_type() );
 
+echo "\n=== 19. Nur bekannte Diaeten lassen sich anlegen ===\n";
+
+/*
+ * Der Fehler, den dieser Abschnitt festnagelt: der Taxonomie-Bildschirm unter
+ * Zutaten -> Ernaehrungsformen nahm jeden getippten Begriff an. Ein Term wie
+ * "Pescetarian" entstand, aber types() kennt ihn nicht, is_known() sagt nein,
+ * und set_for_post() wirft ihn bei jedem Schreiben wieder raus — der Begriff
+ * lag folgenlos in der Liste. Die Sperre sitzt auf pre_insert_term, demselben
+ * Hook, den auch der Admin-Bildschirm ausloest.
+ */
+$mmm_cleanup_terms = array();
+
+$unknown = wp_insert_term( 'ZZ Pescetarian', Mixmymeals_Diet::TAXONOMY );
+t( 'ein unbekannter Begriff wird abgewiesen', true, is_wp_error( $unknown ) );
+t( 'mit dem erwarteten Fehlercode', 'mmm_diet_unknown', is_wp_error( $unknown ) ? $unknown->get_error_code() : '' );
+
+$known = wp_insert_term( 'Vegan', Mixmymeals_Diet::TAXONOMY, array( 'slug' => 'vegan' ) );
+t( 'ein bekannter Slug wird nicht von der Sperre abgewiesen', true, ! is_wp_error( $known ) || 'mmm_diet_unknown' !== $known->get_error_code() );
+
+// Eine ueber den Filter hinzugefuegte Form muss dieselbe Behandlung bekommen
+// wie die vier eingebauten: ensure_terms() legt sie an, reject_unknown_term()
+// laesst sie durch, Diet::label() kennt ihren Namen.
+add_filter(
+	'mixmymeals_diet_types',
+	function ( array $types ): array {
+		$types['zz_pescetarian'] = array(
+			'label'   => 'ZZ Pescetarian',
+			'axis'    => 'diet',
+			'implies' => array(),
+			'rank'    => 5,
+			'schema'  => 'https://schema.org/PescatarianDiet',
+		);
+		return $types;
+	}
+);
+Mixmymeals_Diet::ensure_terms();
+
+$zz_term = term_exists( 'zz_pescetarian', Mixmymeals_Diet::TAXONOMY );
+if ( $zz_term ) { $mmm_cleanup_terms[] = (int) $zz_term['term_id']; }
+
+t( 'ensure_terms() legt die gefilterte Form an', true, (bool) $zz_term );
+t( 'is_known() kennt sie', true, Mixmymeals_Diet::is_known( 'zz_pescetarian' ) );
+t( 'Diet::label() nennt sie beim Namen', 'ZZ Pescetarian', Mixmymeals_Diet::label( 'zz_pescetarian' ) );
+
+$zz_ing = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Pescetarisch', 'post_status' => 'publish' ) ) );
+Mixmymeals_Diet::set_for_post( $zz_ing, array( 'zz_pescetarian' ) );
+t( 'eine Zutat kann sie fuehren', 'zz_pescetarian', ( new Mixmymeals_Ingredient( $zz_ing ) )->get_diet_type() );
+
+// Keine eigene Label-Map mehr: die Stelle, die bei einer neuen Diaet sonst
+// stumm bliebe, obwohl get_diet_type() sie laengst liefert.
+$mmm_shortcodes_src = file_get_contents( dirname( __DIR__ ) . '/includes/lib/class-mixmymeals-shortcodes.php' );
+t( 'kein eigenes $mmm_diet_labels mehr im Code', false, false !== strpos( (string) $mmm_shortcodes_src, '$mmm_diet_labels' ) );
+
+foreach ( $mmm_cleanup_terms as $mmm_tid ) { wp_delete_term( $mmm_tid, Mixmymeals_Diet::TAXONOMY ); }
+
 echo "\n=== Ergebnis ===\n";
 printf( "  %d bestanden, %d fehlgeschlagen\n", $GLOBALS['PASS'], $GLOBALS['FAIL'] );
 

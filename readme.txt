@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.46.1
+Stable tag: 3.46.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.46.2 =
+
+Fixed:
+* Two places built their own small map of diet labels instead of asking
+  Mixmymeals_Diet::label() — the ingredient hero chip and the diet row of the
+  product comparison. A diet added through the mixmymeals_diet_types filter
+  resolved correctly everywhere else and simply had no name in these two
+  spots.
+* The taxonomy screen under Ingredients → Diets accepted any term typed
+  into it, including ones the plugin has never heard of. They sat in the list
+  producing no badge, no filter and no place in schema.org data — creating
+  one looked like it had worked and quietly did nothing. Creating an unknown
+  term is refused now, with a message pointing at the filter, which is the
+  real way to add one.
 
 = 3.46.1 =
 

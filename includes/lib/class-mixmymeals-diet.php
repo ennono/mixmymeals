@@ -670,4 +670,53 @@ class Mixmymeals_Diet {
 			wp_insert_term( $type['label'], self::TAXONOMY, array( 'slug' => $slug ) );
 		}
 	}
+
+	/**
+	 * Refuses a term this plugin would never act on.
+	 *
+	 * The taxonomy screen under Ingredients → Diets looked like an ordinary
+	 * "Add New" form, and typing "Pescetarian" there created a term that
+	 * stuck — but types() never heard of it, is_known() says no, and
+	 * set_for_post() strips it on every write. The term sat in the list
+	 * forever, assignable to nothing, producing no badge, no filter, no
+	 * schema. That is the same silent-ignore shape storage_type and the
+	 * diet classification itself were fixed against; a screen that accepts
+	 * what the plugin then discards is worse than one with no screen at
+	 * all.
+	 *
+	 * Hooked on `pre_insert_term`, which fires for every path that creates a
+	 * term — this screen, the REST terms endpoint, an import — not only the
+	 * one this comment describes. ensure_terms() passes because it always
+	 * supplies the known slug as `args['slug']`; a definition added through
+	 * the mixmymeals_diet_types filter is created the same way and is known
+	 * by the time it runs.
+	 *
+	 * @param string|WP_Error $term     The term name about to be inserted.
+	 * @param string          $taxonomy Taxonomy of the term.
+	 * @param array           $args     Arguments passed to wp_insert_term().
+	 * @return string|WP_Error
+	 */
+	public static function reject_unknown_term( $term, string $taxonomy, array $args ) {
+
+		if ( self::TAXONOMY !== $taxonomy || is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		$slug = '' !== (string) ( $args['slug'] ?? '' )
+			? sanitize_title( (string) $args['slug'] )
+			: sanitize_title( (string) $term );
+
+		if ( self::is_known( $slug ) ) {
+			return $term;
+		}
+
+		return new WP_Error(
+			'mmm_diet_unknown',
+			sprintf(
+				/* translators: %s: comma-separated list of the diets the plugin knows about. */
+				__( 'MixMyMeals only acts on these diets: %s. A new one can be added through the mixmymeals_diet_types filter, which is the only way it gets a badge, a filter and a place in schema.org data — creating the term here would not.', 'mixmymeals' ),
+				implode( ', ', wp_list_pluck( self::types(), 'label' ) )
+			)
+		);
+	}
 }

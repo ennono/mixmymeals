@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MixMyMeals\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mixmymeals\n"
-"POT-Creation-Date: 2026-10-03T18:27:31+00:00\n"
+"POT-Creation-Date: 2026-10-04T14:12:42+00:00\n"
 "PO-Revision-Date: 2026-06-16 16:40+0000\n"
 "Last-Translator: \n"
 "Language-Team: Deutsch\n"
@@ -1738,14 +1738,10 @@ msgstr[0] "%d abgeschlossenes Abo nach Ablauf der Aufbewahrungsfrist gelöscht"
 msgstr[1] "%d abgeschlossene Abos nach Ablauf der Aufbewahrungsfrist gelöscht"
 
 #: includes/lib/class-mixmymeals-diet.php:83
-#: includes/lib/class-mixmymeals-shortcodes.php:9050
-#: includes/lib/class-mixmymeals-shortcodes.php:9770
 msgid "Vegan"
 msgstr "Vegan"
 
 #: includes/lib/class-mixmymeals-diet.php:90
-#: includes/lib/class-mixmymeals-shortcodes.php:9052
-#: includes/lib/class-mixmymeals-shortcodes.php:9771
 msgid "Vegetarian"
 msgstr "Vegetarisch"
 
@@ -1757,44 +1753,57 @@ msgstr "Glutenfrei"
 msgid "Lactose-free"
 msgstr "Laktosefrei"
 
-#: includes/lib/class-mixmymeals-diet.php:593
+#: includes/lib/class-mixmymeals-diet.php:621
 msgctxt "taxonomy general name"
 msgid "Diets"
 msgstr "Ernährungsformen"
 
-#: includes/lib/class-mixmymeals-diet.php:594
+#: includes/lib/class-mixmymeals-diet.php:622
 msgctxt "taxonomy singular name"
 msgid "Diet"
 msgstr "Ernährung"
 
-#: includes/lib/class-mixmymeals-diet.php:595
+#: includes/lib/class-mixmymeals-diet.php:623
 msgid "All Diets"
 msgstr "Alle Ernährungsformen"
 
-#: includes/lib/class-mixmymeals-diet.php:596
+#: includes/lib/class-mixmymeals-diet.php:624
 msgid "Edit Diet"
 msgstr "Ernährungsform bearbeiten"
 
-#: includes/lib/class-mixmymeals-diet.php:597
+#: includes/lib/class-mixmymeals-diet.php:625
 msgid "Update Diet"
 msgstr "Ernährungsform aktualisieren"
 
-#: includes/lib/class-mixmymeals-diet.php:598
+#: includes/lib/class-mixmymeals-diet.php:626
 msgid "Add New Diet"
 msgstr "Neue Ernährungsform"
 
-#: includes/lib/class-mixmymeals-diet.php:599
+#: includes/lib/class-mixmymeals-diet.php:627
 msgid "New Diet Name"
 msgstr "Name der neuen Ernährungsform"
 
-#: includes/lib/class-mixmymeals-diet.php:600
+#: includes/lib/class-mixmymeals-diet.php:628
 msgid "Search Diets"
 msgstr "Ernährungsformen suchen"
 
-#: includes/lib/class-mixmymeals-diet.php:601
+#: includes/lib/class-mixmymeals-diet.php:629
 #: includes/lib/class-mixmymeals-shortcodes.php:5674
 msgid "Diets"
 msgstr "Ernährungsformen"
+
+#. translators: %s: comma-separated list of the diets the plugin knows about.
+#: includes/lib/class-mixmymeals-diet.php:717
+#, php-format
+msgid ""
+"MixMyMeals only acts on these diets: %s. A new one can be added through the "
+"mixmymeals_diet_types filter, which is the only way it gets a badge, a "
+"filter and a place in schema.org data — creating the term here would not."
+msgstr ""
+"MixMyMeals wertet nur diese Ernährungsformen aus: %s. Eine neue lässt sich über "
+"den Filter mixmymeals_diet_types hinzufügen — nur so bekommt sie eine Pille, "
+"einen Filter und einen Platz in den schema.org-Daten; hier angelegt bliebe "
+"sie wirkungslos."
 
 #: includes/lib/class-mixmymeals-importer.php:79
 msgid "Copy"
@@ -2193,7 +2202,7 @@ msgid "Meal"
 msgstr "Mahlzeit"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:261
-#: includes/lib/class-mixmymeals-shortcodes.php:9619
+#: includes/lib/class-mixmymeals-shortcodes.php:9620
 msgid "Per serving"
 msgstr "Pro Portion"
 
@@ -2232,8 +2241,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php:3382
 #: includes/lib/class-mixmymeals-shortcodes.php:6799
 #: includes/lib/class-mixmymeals-shortcodes.php:6809
-#: includes/lib/class-mixmymeals-shortcodes.php:9193
-#: includes/lib/class-mixmymeals-shortcodes.php:9283
+#: includes/lib/class-mixmymeals-shortcodes.php:9194
+#: includes/lib/class-mixmymeals-shortcodes.php:9284
 msgid "Nutrition"
 msgstr "Nährwerte"
 
@@ -2379,8 +2388,8 @@ msgstr "%s g"
 #: includes/lib/class-mixmymeals-meal.php:462
 #: includes/lib/class-mixmymeals-post-meta.php:2051
 #: includes/lib/class-mixmymeals-shortcodes.php:865
-#: includes/lib/class-mixmymeals-shortcodes.php:9914
-#: includes/lib/class-mixmymeals-shortcodes.php:10151
+#: includes/lib/class-mixmymeals-shortcodes.php:9917
+#: includes/lib/class-mixmymeals-shortcodes.php:10154
 msgid "Other"
 msgstr "Sonstiges"
 
@@ -2755,7 +2764,7 @@ msgstr "pro Portion"
 #: includes/lib/class-mixmymeals-post-meta.php:1739
 #: includes/lib/class-mixmymeals-shortcodes.php:2070
 #: includes/lib/class-mixmymeals-shortcodes.php:3389
-#: includes/lib/class-mixmymeals-shortcodes.php:9194
+#: includes/lib/class-mixmymeals-shortcodes.php:9195
 msgid "per 100 g"
 msgstr "pro 100 g"
 
@@ -2910,7 +2919,7 @@ msgstr "Preis je Packung (%s)"
 
 #: includes/lib/class-mixmymeals-post-meta.php:2736
 #: includes/lib/class-mixmymeals-shortcodes.php:8246
-#: includes/lib/class-mixmymeals-shortcodes.php:9775
+#: includes/lib/class-mixmymeals-shortcodes.php:9778
 msgid "Diet"
 msgstr "Ernährung"
 
@@ -3613,9 +3622,9 @@ msgid "Days"
 msgstr "Tage"
 
 #: includes/lib/class-mixmymeals-post-types.php:1171
-#: includes/lib/class-mixmymeals-taxonomies.php:259
-#: includes/lib/class-mixmymeals-taxonomies.php:307
-#: includes/lib/class-mixmymeals-taxonomies.php:359
+#: includes/lib/class-mixmymeals-taxonomies.php:263
+#: includes/lib/class-mixmymeals-taxonomies.php:311
+#: includes/lib/class-mixmymeals-taxonomies.php:363
 msgid "All Categories"
 msgstr "Alle Kategorien"
 
@@ -3942,12 +3951,12 @@ msgstr "Rezept nicht gefunden."
 msgid "Expected a recipe, a meal or a meal plan."
 msgstr "Erwartet wurde ein Rezept, eine Mahlzeit oder ein Essensplan."
 
-#: includes/lib/class-mixmymeals-rest-api.php:2333
-#: includes/lib/class-mixmymeals-rest-api.php:2600
+#: includes/lib/class-mixmymeals-rest-api.php:2341
+#: includes/lib/class-mixmymeals-rest-api.php:2608
 msgid "Unit not found."
 msgstr "Einheit nicht gefunden."
 
-#: includes/lib/class-mixmymeals-rest-api.php:2368
+#: includes/lib/class-mixmymeals-rest-api.php:2376
 msgid ""
 "Deleting this unit leaves those recipe lines with an amount and no unit, and "
 "an amount without a unit is read as grams. \"1.5 tins\" would become 1.5 g."
@@ -3957,7 +3966,7 @@ msgstr ""
 "\"1,5 Dosen\" würden 1,5 g."
 
 #. translators: %d: number of recipes using this unit.
-#: includes/lib/class-mixmymeals-rest-api.php:2615
+#: includes/lib/class-mixmymeals-rest-api.php:2623
 #, php-format
 msgid ""
 "Unit is still used by %d recipe(s). Those lines would be read as grams "
@@ -3966,12 +3975,12 @@ msgstr ""
 "Die Einheit wird noch von %d Rezept(en) verwendet. Deren Mengen würden "
 "danach als Gramm gelesen. Mit force=true trotzdem löschen."
 
-#: includes/lib/class-mixmymeals-rest-api.php:2626
+#: includes/lib/class-mixmymeals-rest-api.php:2634
 msgid "Could not delete the unit."
 msgstr "Die Einheit konnte nicht gelöscht werden."
 
 #. translators: 1: the unknown value, 2: the list of known ones.
-#: includes/lib/class-mixmymeals-rest-api.php:3507
+#: includes/lib/class-mixmymeals-rest-api.php:3520
 #, php-format
 msgid "Unknown diet \"%1$s\". Known: %2$s"
 msgstr "Unbekannte Ernährungsform „%1$s“. Bekannt: %2$s"
@@ -4909,7 +4918,7 @@ msgstr "Alle"
 msgid "Under %d min"
 msgstr "Unter %d Min."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9359
+#: includes/lib/class-mixmymeals-shortcodes.php:9360
 msgid ""
 "Values per 100 g as stated by the manufacturer. Listed for orientation, not "
 "as a recommendation."
@@ -4918,32 +4927,32 @@ msgstr ""
 "Empfehlung."
 
 #. translators: %s: name of the product the other columns are compared against.
-#: includes/lib/class-mixmymeals-shortcodes.php:9364
+#: includes/lib/class-mixmymeals-shortcodes.php:9365
 #, php-format
 msgid "The other columns state the difference to %s."
 msgstr "Die übrigen Spalten zeigen die Abweichung zu %s."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9493
+#: includes/lib/class-mixmymeals-shortcodes.php:9494
 msgid "Used for the nutrition figures"
 msgstr "Für die Nährwerte verwendet"
 
 #. translators: %s: a package weight in grams.
-#: includes/lib/class-mixmymeals-shortcodes.php:9509
+#: includes/lib/class-mixmymeals-shortcodes.php:9510
 #, php-format
 msgid "%s g package"
 msgstr "%s g Packung"
 
 #. translators: %s: where the figures were taken from.
-#: includes/lib/class-mixmymeals-shortcodes.php:9526
+#: includes/lib/class-mixmymeals-shortcodes.php:9527
 #, php-format
 msgid "Source: %s"
 msgstr "Quelle: %s"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9572
+#: includes/lib/class-mixmymeals-shortcodes.php:9573
 msgid "Per day and person"
 msgstr "Je Tag und Person"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9573
+#: includes/lib/class-mixmymeals-shortcodes.php:9574
 msgid ""
 "Nutrition per day and person over the whole plan, depending on which product "
 "is used for this ingredient."
@@ -4951,7 +4960,7 @@ msgstr ""
 "Nährwerte pro Tag und Person über den ganzen Plan – je nachdem, welches "
 "Produkt für diese Zutat verwendet wird."
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9620
+#: includes/lib/class-mixmymeals-shortcodes.php:9621
 msgid ""
 "Nutrition of one serving of this dish, depending on which product is used "
 "for this ingredient."
@@ -4960,29 +4969,29 @@ msgstr ""
 "diese Zutat verwendet wird."
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:9677
+#: includes/lib/class-mixmymeals-shortcodes.php:9678
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] "in %s Mahlzeit"
 msgstr[1] "in %s Mahlzeiten"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9750
+#: includes/lib/class-mixmymeals-shortcodes.php:9751
 msgid "as calculated now"
 msgstr "wie aktuell gerechnet"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9751
+#: includes/lib/class-mixmymeals-shortcodes.php:9752
 msgid "difference"
 msgstr "Unterschied"
 
 #. translators: the word after a number of recipes.
-#: includes/lib/class-mixmymeals-shortcodes.php:9994
+#: includes/lib/class-mixmymeals-shortcodes.php:9997
 msgid "recipe"
 msgid_plural "recipes"
 msgstr[0] "Rezept"
 msgstr[1] "Rezepte"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10080
+#: includes/lib/class-mixmymeals-shortcodes.php:10083
 msgid ""
 "Links marked with * are affiliate links. If you buy through them we may earn "
 "a commission. The price stays the same for you."
@@ -5410,245 +5419,245 @@ msgstr "Bestätigungs-E-Mail erneut gesendet."
 msgid "Nothing to do for this subscription."
 msgstr "Für dieses Abo ist nichts zu tun."
 
-#: includes/lib/class-mixmymeals-taxonomies.php:61
+#: includes/lib/class-mixmymeals-taxonomies.php:65
 msgctxt "taxonomy general name"
 msgid "Authors"
 msgstr "Autoren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:62
+#: includes/lib/class-mixmymeals-taxonomies.php:66
 msgctxt "taxonomy singular name"
 msgid "Author"
 msgstr "Autor"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:63
+#: includes/lib/class-mixmymeals-taxonomies.php:67
 msgid "Search Authors"
 msgstr "Autoren durchsuchen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:64
+#: includes/lib/class-mixmymeals-taxonomies.php:68
 msgid "Frequent Authors"
 msgstr "Häufige Autoren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:65
+#: includes/lib/class-mixmymeals-taxonomies.php:69
 msgid "All Authors"
 msgstr "Alle Autoren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:66
+#: includes/lib/class-mixmymeals-taxonomies.php:70
 msgid "Edit Author"
 msgstr "Autor bearbeiten"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:67
+#: includes/lib/class-mixmymeals-taxonomies.php:71
 msgid "Update Author"
 msgstr "Autor aktualisieren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:68
+#: includes/lib/class-mixmymeals-taxonomies.php:72
 msgid "Add New Author"
 msgstr "Neuen Autor hinzufügen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:69
+#: includes/lib/class-mixmymeals-taxonomies.php:73
 msgid "New Author Name"
 msgstr "Name des neuen Autors"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:70
+#: includes/lib/class-mixmymeals-taxonomies.php:74
 msgid "Separate authors with commas"
 msgstr "Autoren mit Kommas trennen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:71
+#: includes/lib/class-mixmymeals-taxonomies.php:75
 msgid "Add or remove authors"
 msgstr "Autoren hinzufügen oder entfernen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:72
-#: includes/lib/class-mixmymeals-taxonomies.php:218
-#: includes/lib/class-mixmymeals-taxonomies.php:420
+#: includes/lib/class-mixmymeals-taxonomies.php:76
+#: includes/lib/class-mixmymeals-taxonomies.php:222
+#: includes/lib/class-mixmymeals-taxonomies.php:424
 msgid "Choose from the most used"
 msgstr "Aus den meistverwendeten auswählen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:73
+#: includes/lib/class-mixmymeals-taxonomies.php:77
 msgid "No authors found."
 msgstr "Keine Autoren gefunden."
 
-#: includes/lib/class-mixmymeals-taxonomies.php:74
+#: includes/lib/class-mixmymeals-taxonomies.php:78
 msgid "← Back to authors"
 msgstr "← Zurück zu den Autoren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:75
+#: includes/lib/class-mixmymeals-taxonomies.php:79
 msgid "Authors"
 msgstr "Autoren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:152
+#: includes/lib/class-mixmymeals-taxonomies.php:156
 msgctxt "taxonomy general name"
 msgid "Recipe Categories"
 msgstr "Kategorien"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:153
+#: includes/lib/class-mixmymeals-taxonomies.php:157
 msgctxt "taxonomy singular name"
 msgid "Recipe Category"
 msgstr "Kategorie"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:154
+#: includes/lib/class-mixmymeals-taxonomies.php:158
 msgid "Search Recipe Categories"
 msgstr "Kategorien durchsuchen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:155
+#: includes/lib/class-mixmymeals-taxonomies.php:159
 msgid "All Recipe Categories"
 msgstr "Alle Kategorien"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:156
+#: includes/lib/class-mixmymeals-taxonomies.php:160
 msgid "Parent Recipe Category"
 msgstr "Übergeordnete Kategorie"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:157
+#: includes/lib/class-mixmymeals-taxonomies.php:161
 msgid "Parent Recipe Category:"
 msgstr "Übergeordnete Kategorie:"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:158
+#: includes/lib/class-mixmymeals-taxonomies.php:162
 msgid "Edit Recipe Category"
 msgstr "Kategorie bearbeiten"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:159
+#: includes/lib/class-mixmymeals-taxonomies.php:163
 msgid "Update Recipe Category"
 msgstr "Kategorie aktualisieren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:160
+#: includes/lib/class-mixmymeals-taxonomies.php:164
 msgid "Add New Recipe Category"
 msgstr "Neue Kategorie hinzufügen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:161
+#: includes/lib/class-mixmymeals-taxonomies.php:165
 msgid "New Recipe Category Name"
 msgstr "Neuer Kategorienname"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:162
+#: includes/lib/class-mixmymeals-taxonomies.php:166
 msgid "Recipe Categories"
 msgstr "Kategorien"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:193
-#: includes/lib/class-mixmymeals-taxonomies.php:395
+#: includes/lib/class-mixmymeals-taxonomies.php:197
+#: includes/lib/class-mixmymeals-taxonomies.php:399
 msgctxt "taxonomy general name"
 msgid "Tags"
 msgstr "Tags"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:198
-#: includes/lib/class-mixmymeals-taxonomies.php:400
+#: includes/lib/class-mixmymeals-taxonomies.php:202
+#: includes/lib/class-mixmymeals-taxonomies.php:404
 msgctxt "taxonomy singular name"
 msgid "Tag"
 msgstr "Tag"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:203
-#: includes/lib/class-mixmymeals-taxonomies.php:405
+#: includes/lib/class-mixmymeals-taxonomies.php:207
+#: includes/lib/class-mixmymeals-taxonomies.php:409
 msgid "Search Tags"
 msgstr "Tags durchsuchen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:204
-#: includes/lib/class-mixmymeals-taxonomies.php:406
+#: includes/lib/class-mixmymeals-taxonomies.php:208
+#: includes/lib/class-mixmymeals-taxonomies.php:410
 msgid "Popular Tags"
 msgstr "Beliebte Tags"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:205
-#: includes/lib/class-mixmymeals-taxonomies.php:407
+#: includes/lib/class-mixmymeals-taxonomies.php:209
+#: includes/lib/class-mixmymeals-taxonomies.php:411
 msgid "All Tags"
 msgstr "Alle Tags"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:206
-#: includes/lib/class-mixmymeals-taxonomies.php:408
+#: includes/lib/class-mixmymeals-taxonomies.php:210
+#: includes/lib/class-mixmymeals-taxonomies.php:412
 msgid "Edit Tag"
 msgstr "Tag bearbeiten"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:207
-#: includes/lib/class-mixmymeals-taxonomies.php:409
+#: includes/lib/class-mixmymeals-taxonomies.php:211
+#: includes/lib/class-mixmymeals-taxonomies.php:413
 msgid "Update Tag"
 msgstr "Tag aktualisieren"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:208
-#: includes/lib/class-mixmymeals-taxonomies.php:410
+#: includes/lib/class-mixmymeals-taxonomies.php:212
+#: includes/lib/class-mixmymeals-taxonomies.php:414
 msgid "Add New Tag"
 msgstr "Neuen Tag hinzufügen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:209
-#: includes/lib/class-mixmymeals-taxonomies.php:411
+#: includes/lib/class-mixmymeals-taxonomies.php:213
+#: includes/lib/class-mixmymeals-taxonomies.php:415
 msgid "New Meal Tag"
 msgstr "Neuer Mahlzeiten-Tag"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:210
-#: includes/lib/class-mixmymeals-taxonomies.php:412
+#: includes/lib/class-mixmymeals-taxonomies.php:214
+#: includes/lib/class-mixmymeals-taxonomies.php:416
 msgid "Separate tags with commas"
 msgstr "Tags durch Kommas trennen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:214
-#: includes/lib/class-mixmymeals-taxonomies.php:416
+#: includes/lib/class-mixmymeals-taxonomies.php:218
+#: includes/lib/class-mixmymeals-taxonomies.php:420
 msgid "Add or remove tags"
 msgstr "Tags hinzufügen oder entfernen"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:222
-#: includes/lib/class-mixmymeals-taxonomies.php:424
+#: includes/lib/class-mixmymeals-taxonomies.php:226
+#: includes/lib/class-mixmymeals-taxonomies.php:428
 msgid "Tags"
 msgstr "Tags"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:232
-#: includes/lib/class-mixmymeals-taxonomies.php:434
+#: includes/lib/class-mixmymeals-taxonomies.php:236
+#: includes/lib/class-mixmymeals-taxonomies.php:438
 msgid "recipe-by-tag"
 msgstr "rezepte-nach-tag"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:248
-#: includes/lib/class-mixmymeals-taxonomies.php:296
-#: includes/lib/class-mixmymeals-taxonomies.php:348
+#: includes/lib/class-mixmymeals-taxonomies.php:252
+#: includes/lib/class-mixmymeals-taxonomies.php:300
+#: includes/lib/class-mixmymeals-taxonomies.php:352
 msgctxt "taxonomy general name"
 msgid "Categories"
 msgstr "Kategorien"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:253
-#: includes/lib/class-mixmymeals-taxonomies.php:301
-#: includes/lib/class-mixmymeals-taxonomies.php:353
+#: includes/lib/class-mixmymeals-taxonomies.php:257
+#: includes/lib/class-mixmymeals-taxonomies.php:305
+#: includes/lib/class-mixmymeals-taxonomies.php:357
 msgctxt "taxonomy singular name"
 msgid "Category"
 msgstr "Kategorie"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:258
-#: includes/lib/class-mixmymeals-taxonomies.php:306
-#: includes/lib/class-mixmymeals-taxonomies.php:358
-msgid "Search Categories"
-msgstr "Kategorien durchsuchen"
-
-#: includes/lib/class-mixmymeals-taxonomies.php:260
-#: includes/lib/class-mixmymeals-taxonomies.php:308
-#: includes/lib/class-mixmymeals-taxonomies.php:360
-msgid "Parent Category"
-msgstr "Übergeordnete Kategorie"
-
-#: includes/lib/class-mixmymeals-taxonomies.php:261
-#: includes/lib/class-mixmymeals-taxonomies.php:309
-#: includes/lib/class-mixmymeals-taxonomies.php:361
-msgid "Parent Category:"
-msgstr "Übergeordnete Kategorie:"
-
 #: includes/lib/class-mixmymeals-taxonomies.php:262
 #: includes/lib/class-mixmymeals-taxonomies.php:310
 #: includes/lib/class-mixmymeals-taxonomies.php:362
-msgid "Edit Category"
-msgstr "Kategorie bearbeiten"
-
-#: includes/lib/class-mixmymeals-taxonomies.php:263
-#: includes/lib/class-mixmymeals-taxonomies.php:311
-#: includes/lib/class-mixmymeals-taxonomies.php:363
-msgid "Update Category"
-msgstr "Kategorie aktualisieren"
+msgid "Search Categories"
+msgstr "Kategorien durchsuchen"
 
 #: includes/lib/class-mixmymeals-taxonomies.php:264
 #: includes/lib/class-mixmymeals-taxonomies.php:312
 #: includes/lib/class-mixmymeals-taxonomies.php:364
-msgid "Add New Category"
-msgstr "Neue Kategorie hinzufügen"
+msgid "Parent Category"
+msgstr "Übergeordnete Kategorie"
 
 #: includes/lib/class-mixmymeals-taxonomies.php:265
 #: includes/lib/class-mixmymeals-taxonomies.php:313
 #: includes/lib/class-mixmymeals-taxonomies.php:365
+msgid "Parent Category:"
+msgstr "Übergeordnete Kategorie:"
+
+#: includes/lib/class-mixmymeals-taxonomies.php:266
+#: includes/lib/class-mixmymeals-taxonomies.php:314
+#: includes/lib/class-mixmymeals-taxonomies.php:366
+msgid "Edit Category"
+msgstr "Kategorie bearbeiten"
+
+#: includes/lib/class-mixmymeals-taxonomies.php:267
+#: includes/lib/class-mixmymeals-taxonomies.php:315
+#: includes/lib/class-mixmymeals-taxonomies.php:367
+msgid "Update Category"
+msgstr "Kategorie aktualisieren"
+
+#: includes/lib/class-mixmymeals-taxonomies.php:268
+#: includes/lib/class-mixmymeals-taxonomies.php:316
+#: includes/lib/class-mixmymeals-taxonomies.php:368
+msgid "Add New Category"
+msgstr "Neue Kategorie hinzufügen"
+
+#: includes/lib/class-mixmymeals-taxonomies.php:269
+#: includes/lib/class-mixmymeals-taxonomies.php:317
+#: includes/lib/class-mixmymeals-taxonomies.php:369
 msgid "New Category Name"
 msgstr "Neuer Kategoriename"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:266
-#: includes/lib/class-mixmymeals-taxonomies.php:366
+#: includes/lib/class-mixmymeals-taxonomies.php:270
+#: includes/lib/class-mixmymeals-taxonomies.php:370
 msgid "Categories"
 msgstr "Kategorien"
 
-#: includes/lib/class-mixmymeals-taxonomies.php:322
+#: includes/lib/class-mixmymeals-taxonomies.php:326
 msgid "Equipment categories"
 msgstr "Geräte-Kategorien"
 
