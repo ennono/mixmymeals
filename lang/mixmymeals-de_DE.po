@@ -6054,3 +6054,27 @@ msgstr "Aktuell: %s."
 #: includes/lib/class-mixmymeals-diet.php
 msgid "Currently: %d."
 msgstr "Aktuell: %d."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The form has expired. Reload the page and try again."
+msgstr "Das Formular ist abgelaufen. Lade die Seite neu und versuche es erneut."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "You are not allowed to change diets."
+msgstr "Du darfst Ernährungsformen nicht ändern."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Group: use only lowercase letters, digits, hyphens and underscores, e.g. \"diet\" or \"free_from\". Leave it empty to take the parent's group."
+msgstr "Gruppe: Nur Kleinbuchstaben, Ziffern, Bindestriche und Unterstriche verwenden, z. B. „diet“ oder „free_from“. Leer lassen, um die Gruppe des übergeordneten Elements zu übernehmen."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Strength: enter a whole number of 0 or more, or leave it empty."
+msgstr "Stärke: Eine ganze Zahl ab 0 eingeben oder das Feld leer lassen."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "schema.org diet URL: this is not a valid web address (https://schema.org/…)."
+msgstr "schema.org-Diät-URL: Das ist keine gültige Webadresse (https://schema.org/…)."
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The diet was not saved"
+msgstr "Die Ernährungsform wurde nicht gespeichert"

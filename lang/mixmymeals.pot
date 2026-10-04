@@ -5220,3 +5220,27 @@ msgstr ""
 #: includes/lib/class-mixmymeals-diet.php
 msgid "Currently: %d."
 msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The form has expired. Reload the page and try again."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "You are not allowed to change diets."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Group: use only lowercase letters, digits, hyphens and underscores, e.g. \"diet\" or \"free_from\". Leave it empty to take the parent's group."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Strength: enter a whole number of 0 or more, or leave it empty."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "schema.org diet URL: this is not a valid web address (https://schema.org/…)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "The diet was not saved"
+msgstr ""

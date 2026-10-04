@@ -1056,6 +1056,8 @@ class Mixmymeals_Diet {
 
 		add_action( self::TAXONOMY . '_add_form_fields', array( __CLASS__, 'render_add_fields' ) );
 		add_action( self::TAXONOMY . '_edit_form_fields', array( __CLASS__, 'render_edit_fields' ) );
+		add_filter( 'pre_insert_term', array( __CLASS__, 'validate_new_term' ), 10, 2 );
+		add_action( 'edit_terms', array( __CLASS__, 'validate_edited_term' ), 10, 2 );
 		add_action( 'created_' . self::TAXONOMY, array( __CLASS__, 'save_term_fields' ) );
 		add_action( 'edited_' . self::TAXONOMY, array( __CLASS__, 'save_term_fields' ) );
 
@@ -1210,6 +1212,108 @@ class Mixmymeals_Diet {
 	}
 
 	/**
+	 * Reads the three fields off the request and says what is wrong with them.
+	 *
+	 * Returns null when the request carries none of our form (REST, import, the
+	 * code's own ensure_terms()) — those paths set meta directly or not at all.
+	 * Before this, a bad value was quietly dropped by the sanitisers and the
+	 * term appeared to have been saved with the fields the editor typed; an
+	 * error that names the field is the only honest answer.
+	 *
+	 * @return array{axis:string,rank:string,schema:string}|WP_Error|null
+	 */
+	private static function read_term_fields() {
+
+		if ( ! isset( $_POST['mmm_diet_term_nonce'] ) ) {
+			return null;
+		}
+
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['mmm_diet_term_nonce'] ) ), 'mmm_diet_term' ) ) {
+			return new WP_Error( 'mmm_diet_nonce', __( 'The form has expired. Reload the page and try again.', 'mixmymeals' ) );
+		}
+
+		if ( ! current_user_can( 'manage_categories' ) ) {
+			return new WP_Error( 'mmm_diet_cap', __( 'You are not allowed to change diets.', 'mixmymeals' ) );
+		}
+
+		$axis   = isset( $_POST['mmm_diet_axis'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['mmm_diet_axis'] ) ) ) : '';
+		$rank   = isset( $_POST['mmm_diet_rank'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['mmm_diet_rank'] ) ) ) : '';
+		$schema = isset( $_POST['mmm_diet_schema'] ) ? trim( esc_url_raw( wp_unslash( $_POST['mmm_diet_schema'] ) ) ) : '';
+		$raw    = isset( $_POST['mmm_diet_schema'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['mmm_diet_schema'] ) ) ) : '';
+
+		if ( '' !== $axis && ! preg_match( '/^[a-z0-9_-]+$/', $axis ) ) {
+			return new WP_Error(
+				'mmm_diet_axis',
+				__( 'Group: use only lowercase letters, digits, hyphens and underscores, e.g. "diet" or "free_from". Leave it empty to take the parent\'s group.', 'mixmymeals' )
+			);
+		}
+
+		if ( '' !== $rank && ! preg_match( '/^\d+$/', $rank ) ) {
+			return new WP_Error( 'mmm_diet_rank', __( 'Strength: enter a whole number of 0 or more, or leave it empty.', 'mixmymeals' ) );
+		}
+
+		// esc_url_raw() empties what it rejects, so compare with what was typed.
+		if ( '' !== $raw && '' === $schema ) {
+			return new WP_Error( 'mmm_diet_schema', __( 'schema.org diet URL: this is not a valid web address (https://schema.org/…).', 'mixmymeals' ) );
+		}
+
+		return array(
+			'axis'   => $axis,
+			'rank'   => $rank,
+			'schema' => $schema,
+		);
+	}
+
+	/**
+	 * Refuses a new term whose fields are invalid, so the form shows why.
+	 *
+	 * @param string|WP_Error $term     Term name.
+	 * @param string          $taxonomy Taxonomy.
+	 * @return string|WP_Error
+	 */
+	public static function validate_new_term( $term, $taxonomy ) {
+
+		if ( self::TAXONOMY !== $taxonomy || is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		$fields = self::read_term_fields();
+
+		return is_wp_error( $fields ) ? $fields : $term;
+	}
+
+	/**
+	 * Stops an edit whose fields are invalid, before the term is changed.
+	 *
+	 * wp_update_term() has no filter that can return an error, but this action
+	 * runs before anything is written, so ending the request here leaves the
+	 * term as it was.
+	 *
+	 * @param int    $term_id  Term ID.
+	 * @param string $taxonomy Taxonomy.
+	 * @return void
+	 */
+	public static function validate_edited_term( $term_id, $taxonomy ): void {
+
+		if ( self::TAXONOMY !== $taxonomy ) {
+			return;
+		}
+
+		$fields = self::read_term_fields();
+
+		if ( is_wp_error( $fields ) ) {
+			wp_die(
+				esc_html( $fields->get_error_message() ),
+				esc_html__( 'The diet was not saved', 'mixmymeals' ),
+				array(
+					'response'  => 400,
+					'back_link' => true,
+				)
+			);
+		}
+	}
+
+	/**
 	 * Stores the three fields. Built-ins are never touched.
 	 *
 	 * @param int $term_id Term ID.
@@ -1217,9 +1321,10 @@ class Mixmymeals_Diet {
 	 */
 	public static function save_term_fields( $term_id ): void {
 
-		if ( ! isset( $_POST['mmm_diet_term_nonce'] )
-			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['mmm_diet_term_nonce'] ) ), 'mmm_diet_term' )
-			|| ! current_user_can( 'manage_categories' ) ) {
+		// Validated before the term was written; a failure never gets here.
+		$fields = self::read_term_fields();
+
+		if ( ! is_array( $fields ) ) {
 			return;
 		}
 
@@ -1229,13 +1334,9 @@ class Mixmymeals_Diet {
 			return;
 		}
 
-		$axis   = isset( $_POST['mmm_diet_axis'] ) ? sanitize_key( wp_unslash( $_POST['mmm_diet_axis'] ) ) : '';
-		$rank   = isset( $_POST['mmm_diet_rank'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['mmm_diet_rank'] ) ) ) : '';
-		$schema = isset( $_POST['mmm_diet_schema'] ) ? esc_url_raw( wp_unslash( $_POST['mmm_diet_schema'] ) ) : '';
-
-		self::write_term_meta( (int) $term_id, self::META_AXIS, $axis );
-		self::write_term_meta( (int) $term_id, self::META_RANK, is_numeric( $rank ) ? (string) max( 0, (int) $rank ) : '' );
-		self::write_term_meta( (int) $term_id, self::META_SCHEMA, $schema );
+		self::write_term_meta( (int) $term_id, self::META_AXIS, $fields['axis'] );
+		self::write_term_meta( (int) $term_id, self::META_RANK, $fields['rank'] );
+		self::write_term_meta( (int) $term_id, self::META_SCHEMA, $fields['schema'] );
 	}
 
 	/**
