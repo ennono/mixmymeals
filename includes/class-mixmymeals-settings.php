@@ -47,6 +47,73 @@ class Mixmymeals_Settings {
 	public $settings = array();
 
 	/**
+	 * Tab keys that no longer exist, mapped to the tab their fields went to.
+	 *
+	 * A bookmark or a link from an older add-on still carries the old key.
+	 * Without this it opened a settings screen with no fields at all, since
+	 * register_settings() registers only the tab it is asked for.
+	 *
+	 * @var array<string, string>
+	 */
+	const TAB_ALIASES = array(
+		'mixmymeals-equipment' => 'mixmymeals-recipes',
+	);
+
+	/**
+	 * The order of the entries in each of the plugin's menus, top to bottom.
+	 *
+	 * Nothing else decides it. WordPress files the entries in the order they
+	 * happen to be registered: core adds a post type's own items and its
+	 * taxonomies before `admin_menu` runs, a post type hung under another
+	 * menu arrives early in that hook, plugin pages after it. That is how
+	 * Subscriptions came to stand above Settings in the MixMyMeals menu —
+	 * and since a top-level item links to its *first* entry, clicking
+	 * "MixMyMeals" opened the subscription list instead of the settings.
+	 *
+	 * Per menu: the screens you work in first (list, add new), then what
+	 * sorts them (categories, tags, diets), then the smaller things that
+	 * belong to the subject. In the plugin's own menu, Settings first because
+	 * the menu is named after it, then the two screens that look after
+	 * visitors, then Import, which is opened rarely.
+	 *
+	 * Slugs are compared with `&amp;` decoded, because core registers the
+	 * taxonomy entries encoded and add_submenu_page() takes them as given.
+	 * An entry not listed here — another plugin's, say — keeps its place
+	 * relative to the other unlisted ones, below the listed.
+	 *
+	 * @var array<string, string[]>
+	 */
+	const SUBMENU_ORDER = array(
+		'edit.php?post_type=mmm_recipe'    => array(
+			'edit.php?post_type=mmm_recipe',
+			'post-new.php?post_type=mmm_recipe',
+			'edit-tags.php?taxonomy=mmm_recipe_category&post_type=mmm_recipe',
+			'edit-tags.php?taxonomy=mmm_recipe_tag&post_type=mmm_recipe',
+			'edit-tags.php?taxonomy=mmm_author&post_type=mmm_recipe',
+			'edit.php?post_type=mmm_equipment',
+			'edit-tags.php?taxonomy=mmm_equipment_category&post_type=mmm_equipment',
+		),
+		'edit.php?post_type=mmm_ingredient' => array(
+			'edit.php?post_type=mmm_ingredient',
+			'post-new.php?post_type=mmm_ingredient',
+			'edit-tags.php?taxonomy=mmm_ingredient_category&post_type=mmm_ingredient',
+			'edit-tags.php?taxonomy=mmm_diet&post_type=mmm_ingredient',
+		),
+		'edit.php?post_type=mmm_meal_plan' => array(
+			'edit.php?post_type=mmm_meal_plan',
+			'post-new.php?post_type=mmm_meal_plan',
+			'edit-tags.php?taxonomy=mmm_meal_plan_category&post_type=mmm_meal_plan',
+			'edit-tags.php?taxonomy=mmm_meal_plan_tag&post_type=mmm_meal_plan',
+		),
+		'mixmymeals_settings'              => array(
+			'mixmymeals_settings',
+			'mixmymeals_photos',
+			'edit.php?post_type=mmm_subscription',
+			'mixmymeals_import',
+		),
+	);
+
+	/**
 	 * Constructor function.
 	 *
 	 * @param   object $parent  Parent object.
@@ -80,6 +147,11 @@ class Mixmymeals_Settings {
 
 		// Add settings page to menu.
 		add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
+
+		// Put every entry of the plugin's menus where SUBMENU_ORDER says,
+		// after everything (post types, taxonomies, other plugins) has added
+		// its own.
+		add_action( 'admin_menu', array( $this, 'order_submenus' ), PHP_INT_MAX );
 
 		// Add settings link to plugins page.
 		add_filter(
@@ -155,9 +227,30 @@ class Mixmymeals_Settings {
 	 */
 	private function settings_fields(): array {
 
+		/*
+		 * Die Reiter folgen dem Menü, und ihre Reihenfolge ist die
+		 * Reihenfolge dieser Zuweisungen.
+		 *
+		 * Zuerst Allgemein, dann je ein Reiter für Rezepte, Zutaten und
+		 * Essenspläne — dieselben drei Namen, dieselbe Reihenfolge wie die
+		 * Hauptpunkte in der Seitenleiste, und was im Menü unter einem von
+		 * ihnen hängt, wird auch in dessen Reiter eingestellt: Küchengeräte
+		 * und Autoren unter Rezepte, Mahlzeiten unter Essenspläne. Danach die
+		 * Chip-Texte, die von allen dreien handeln, dann was Besucher
+		 * betrifft (Besucher, Abos), zuletzt der Versand (E-Mail). Add-ons
+		 * hängen sich über den Filter am Ende an.
+		 *
+		 * Vorher gab es einen eigenen Reiter Küchengeräte mit drei Feldern,
+		 * obwohl die Geräte im Menü unter Rezepte stehen, und unter Allgemein
+		 * die Slugs für Mahlzeiten und Autoren — Felder, die laut eigener
+		 * Beschreibung „zu keinem Reiter gehörten“. Sie gehören zu dem
+		 * Menüpunkt, unter dem man ihre Inhalte findet. Eine Option bleibt
+		 * dabei, wo sie war: register_setting() nutzt eine Gruppe, und der
+		 * Name ist `mixmymeals_<id>`, egal in welchem Reiter das Feld steht.
+		 */
 		$settings['mixmymeals-general'] = array(
-			'title'       => __( 'General Settings', 'mixmymeals' ),
-			'description' => __( 'Currency, placeholder image, the two slugs that belong to no tab of their own, scheduled cleanup and what happens on uninstall. Everything about recipes, ingredients, equipment, plans and visitors has its own tab.',
+			'title'       => __( 'General', 'mixmymeals' ),
+			'description' => __( 'Currency, placeholder image, scheduled cleanup and what happens on uninstall. Recipes, ingredients, meal plans, visitors and e-mail each have their own tab.',
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
@@ -183,35 +276,6 @@ class Mixmymeals_Settings {
 					'callback'    => array(
 						$this,
 						'placeholder_image_id_callback'
-					),
-				),
-				array(
-					'id'    => 'general_group_slugs',
-					'type'  => 'heading',
-					'label' => __( 'Slugs & Permalinks', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'meal_slug',
-					'label'       => __( 'Meal Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for meals in the URL.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'slug_callback'
-					),
-				),
-				array(
-					'id'          => 'author_slug',
-					'label'       => __( 'Author Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for author archives in the URL. Must not be "author" — WordPress uses that for its own user archives.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'slug_callback'
 					),
 				),
 				array(
@@ -285,7 +349,7 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-recipes'] = array(
 			'title'       => __( 'Recipes', 'mixmymeals' ),
-			'description' => __( 'Recipe URL slugs, archive display and the recipe disclaimer.',
+			'description' => __( 'Everything listed under Recipes in the menu: recipe addresses and archive, the cooking steps, authors and equipment.',
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
@@ -312,6 +376,30 @@ class Mixmymeals_Settings {
 						'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
+				array(
+					'id'          => 'author_slug',
+					'label'       => __( 'Author Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for author archives in the URL. Must not be "author" — WordPress uses that for its own user archives. Authors currently have no public pages, so this takes effect only once they do.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
+				array(
+					'id'          => 'equipment_slug',
+					'label'       => __( 'Equipment Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for equipment in the URL. Changing it flushes the permalinks.',
+						'mixmymeals' ),
+					'default'     => 'equipment',
+					'placeholder' => 'equipment',
 					'callback'    => array(
 						$this,
 						'slug_callback'
@@ -375,6 +463,31 @@ class Mixmymeals_Settings {
 						'recipe_steps_notice_callback'
 					),
 				),
+				array(
+					'id'    => 'recipes_group_equipment',
+					'type'  => 'heading',
+					'label' => __( 'Equipment', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'all_equipment_description',
+					'label'       => __( 'Equipment Archive Description', 'mixmymeals' ),
+					'description' => __( 'This description will be used by the corresponding shortcode.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'archive_description_callback'
+					),
+				),
+				array(
+					'id'          => 'affiliate_disclosure',
+					'label'       => __( 'Affiliate disclosure', 'mixmymeals' ),
+					'description' => __( 'Shown below the shop links on equipment pages. Affiliate links must be labelled as advertising; leave empty to use the built-in wording.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
 			),
 		);
 
@@ -419,63 +532,9 @@ class Mixmymeals_Settings {
 			),
 		);
 
-		$settings['mixmymeals-equipment'] = array(
-			'title'       => __( 'Equipment', 'mixmymeals' ),
-			'description' => __( 'Equipment URL slug, archive display and affiliate links.', 'mixmymeals' ),
-			'fields'      => array(
-				array(
-					'id'    => 'equipment_group_slugs',
-					'type'  => 'heading',
-					'label' => __( 'URL Slugs', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'equipment_slug',
-					'label'       => __( 'Equipment Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for equipment in the URL. Changing it flushes the permalinks.',
-						'mixmymeals' ),
-					'default'     => 'equipment',
-					'placeholder' => 'equipment',
-					'callback'    => array(
-						$this,
-						'slug_callback'
-					),
-				),
-				array(
-					'id'    => 'equipment_group_archive',
-					'type'  => 'heading',
-					'label' => __( 'Archive', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'all_equipment_description',
-					'label'       => __( 'Equipment Archive Description', 'mixmymeals' ),
-					'description' => __( 'This description will be used by the corresponding shortcode.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'archive_description_callback'
-					),
-				),
-				array(
-					'id'    => 'equipment_group_affiliate',
-					'type'  => 'heading',
-					'label' => __( 'Affiliate links', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'affiliate_disclosure',
-					'label'       => __( 'Affiliate disclosure', 'mixmymeals' ),
-					'description' => __( 'Shown below the shop links on equipment pages. Affiliate links must be labelled as advertising; leave empty to use the built-in wording.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-			),
-		);
-
 		$settings['mixmymeals-meal-plans'] = array(
 			'title'       => __( 'Meal Plans', 'mixmymeals' ),
-			'description' => __( 'Setup meal plans.',
+			'description' => __( 'Plan and meal addresses, the planner visitors build their own plans in, and what a plan page shows.',
 				'mixmymeals' ),
 			'fields'      => array(
 				array(
@@ -499,6 +558,18 @@ class Mixmymeals_Settings {
 					'id'          => 'meal_plan_category_slug',
 					'label'       => __( 'Meal Plan Category Slug', 'mixmymeals' ),
 					'description' => __( 'Set the prefix for meal plan categories in the URL.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'slug_callback'
+					),
+				),
+				array(
+					'id'          => 'meal_slug',
+					'label'       => __( 'Meal Slug', 'mixmymeals' ),
+					'description' => __( 'Set the prefix for meals in the URL.',
 						'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
@@ -638,6 +709,8 @@ class Mixmymeals_Settings {
 			),
 		);
 
+		$settings['mixmymeals-chips'] = $this->chip_text_fields();
+
 		/*
 		 * Alles, was ein Besucher darf und was ihm dabei gesagt wird.
 		 *
@@ -765,81 +838,6 @@ class Mixmymeals_Settings {
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-			),
-		);
-
-		$settings['mixmymeals-email'] = array(
-			'title'       => __( 'E-Mail', 'mixmymeals' ),
-			'description' => __( 'Sender identity and privacy options for e-mails sent by the plugin.',
-				'mixmymeals' ),
-			'fields'      => array(
-				array(
-					'id'    => 'email_group_sender',
-					'type'  => 'heading',
-					'label' => __( 'Sender Identity', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'mail_from_name',
-					'label'       => __( 'Sender Name', 'mixmymeals' ),
-					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => get_bloginfo( 'name' ),
-					'callback'    => array( $this, 'text_callback' ),
-				),
-				array(
-					'id'          => 'mail_from_email',
-					'label'       => __( 'Sender Address', 'mixmymeals' ),
-					'description' => __( 'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => 'no-reply@example.com',
-					'callback'    => array(
-						$this,
-						'mail_from_email_callback'
-					),
-				),
-				array(
-					'id'    => 'email_group_content',
-					'type'  => 'heading',
-					'label' => __( 'Content & Privacy', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'mail_footer',
-					'label'       => __( 'E-Mail Footer', 'mixmymeals' ),
-					'description' => __( 'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'archive_description_callback'
-					),
-				),
-				array(
-					'id'          => 'mail_suppression_list',
-					'label'       => __( 'Suppression List', 'mixmymeals' ),
-					'description' => __( 'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'mail_suppression_list_callback'
-					),
-				),
-				array(
-					'id'          => 'mail_log_enabled',
-					'label'       => __( 'Send Log', 'mixmymeals' ),
-					'description' => __( 'Keep a log of sent e-mails (recipient, subject, status — no message content).',
-						'mixmymeals' ),
-					'default'     => 'on',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'mail_log_enabled_callback'
-					),
 				),
 			),
 		);
@@ -988,8 +986,81 @@ class Mixmymeals_Settings {
 			),
 		);
 
+		$settings['mixmymeals-email'] = array(
+			'title'       => __( 'E-Mail', 'mixmymeals' ),
+			'description' => __( 'Sender identity and privacy options for e-mails sent by the plugin.',
+				'mixmymeals' ),
+			'fields'      => array(
+				array(
+					'id'    => 'email_group_sender',
+					'type'  => 'heading',
+					'label' => __( 'Sender Identity', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'mail_from_name',
+					'label'       => __( 'Sender Name', 'mixmymeals' ),
+					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => get_bloginfo( 'name' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'mail_from_email',
+					'label'       => __( 'Sender Address', 'mixmymeals' ),
+					'description' => __( 'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => 'no-reply@example.com',
+					'callback'    => array(
+						$this,
+						'mail_from_email_callback'
+					),
+				),
+				array(
+					'id'    => 'email_group_content',
+					'type'  => 'heading',
+					'label' => __( 'Content & Privacy', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'mail_footer',
+					'label'       => __( 'E-Mail Footer', 'mixmymeals' ),
+					'description' => __( 'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'archive_description_callback'
+					),
+				),
+				array(
+					'id'          => 'mail_suppression_list',
+					'label'       => __( 'Suppression List', 'mixmymeals' ),
+					'description' => __( 'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'mail_suppression_list_callback'
+					),
+				),
+				array(
+					'id'          => 'mail_log_enabled',
+					'label'       => __( 'Send Log', 'mixmymeals' ),
+					'description' => __( 'Keep a log of sent e-mails (recipient, subject, status — no message content).',
+						'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'mail_log_enabled_callback'
+					),
+				),
+			),
+		);
 
-		$settings['mixmymeals-chips'] = $this->chip_text_fields();
 
 		// _token is 'mixmymeals', so the hook is mixmymeals_settings_fields —
 		// the sniff simply cannot resolve the property.
@@ -1002,7 +1073,7 @@ class Mixmymeals_Settings {
 	}
 
 	/**
-	 * The "Chips" tab: one field per chip wording.
+	 * The "Chip texts" tab: one field per chip wording.
 	 *
 	 * Built from Mixmymeals_Shortcodes::chip_texts() rather than written out
 	 * here, because the chips themselves are rendered there and the two would
@@ -1050,7 +1121,10 @@ class Mixmymeals_Settings {
 		}
 
 		return array(
-			'title'       => __( 'Chips', 'mixmymeals' ),
+			// Der Reiter heisst nach dem, was man darin ändert: Texte. „Chips“
+			// allein ist ein Wort aus dem Code und sagt einem Redakteur nicht,
+			// dass hier „4 Portionen“ zu „für 4 Personen“ wird.
+			'title'       => __( 'Chip texts', 'mixmymeals' ),
 			'description' => __( 'The wording of the small labels on recipes, meals, plans and archive cards. Leave a field empty for the wording of the site language. Placeholders in curly braces are filled in; a pattern that drops the value the chip exists to state is ignored.', 'mixmymeals' ),
 			'fields'      => $fields,
 		);
@@ -1116,6 +1190,67 @@ class Mixmymeals_Settings {
 	}
 
 	/**
+	 * Sorts the entries of the plugin's menus by SUBMENU_ORDER.
+	 *
+	 * Runs last on `admin_menu`, when every entry exists. A sort rather than
+	 * `$position` on each add_submenu_page(): half of these entries are not
+	 * added by a call this plugin makes — core adds the post type and
+	 * taxonomy items itself — so positions could only ever order the other
+	 * half, and the list would still depend on who registered first.
+	 *
+	 * @return void
+	 */
+	public function order_submenus(): void {
+
+		global $submenu;
+
+		foreach ( self::SUBMENU_ORDER as $parent => $order ) {
+
+			if ( empty( $submenu[ $parent ] ) || ! is_array( $submenu[ $parent ] ) ) {
+				continue;
+			}
+
+			$rank  = array_flip( $order );
+			$items = array();
+
+			foreach ( array_values( $submenu[ $parent ] ) as $index => $item ) {
+				$slug    = str_replace( '&amp;', '&', (string) ( $item[2] ?? '' ) );
+				$items[] = array( $rank[ $slug ] ?? count( $order ), $index, $item );
+			}
+
+			// The original index breaks ties, so unlisted entries stay in
+			// the order they arrived in.
+			usort( $items, static fn( $a, $b ) => array( $a[0], $a[1] ) <=> array( $b[0], $b[1] ) );
+
+			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- reordering the menu is the point.
+			$submenu[ $parent ] = array_column( $items, 2 );
+		}
+	}
+
+	/**
+	 * The tab a request asks for, resolved.
+	 *
+	 * An old key becomes the tab its fields moved to, and a key nobody knows
+	 * becomes the first tab — the same screen a request without `tab` gets —
+	 * instead of a form with nothing in it. register_settings() and the page
+	 * both ask this, so the fields registered and the tab shown as active
+	 * cannot disagree.
+	 *
+	 * @param string $requested The raw `tab` parameter, '' for none.
+	 * @return string
+	 */
+	public function resolve_tab( string $requested ): string {
+
+		$requested = self::TAB_ALIASES[ $requested ] ?? $requested;
+
+		if ( '' !== $requested && isset( $this->settings[ $requested ] ) ) {
+			return $requested;
+		}
+
+		return (string) array_key_first( (array) $this->settings );
+	}
+
+	/**
 	 * Prepare default settings page arguments
 	 *
 	 * @return mixed|void
@@ -1141,9 +1276,13 @@ class Mixmymeals_Settings {
 				 * `page`-Parameter derselbe ist wie bisher; nur die Datei
 				 * davor wechselt von options-general.php zu admin.php.
 				 *
-				 * Position 33: die Inhaltsmenüs stehen auf 30, 31 und 32, und
-				 * dieser Punkt schliesst die Gruppe ab. Mögliche Werte für
-				 * `location`: options, menu, submenu.
+				 * Position 35: die Inhaltsmenüs stehen auf 30, 31 und 32,
+				 * das Social-Add-on mit dem, was aus ihnen veröffentlicht
+				 * wird, auf 33 — erst schreiben, dann verbreiten, dann
+				 * einstellen. Dieser Punkt schliesst die Gruppe ab; 34 bleibt
+				 * frei, damit ein weiteres Add-on dazwischen passt, ohne dass
+				 * WordPress es per Kollisionsausgleich irgendwohin schiebt.
+				 * Mögliche Werte für `location`: options, menu, submenu.
 				 */
 				'location'    => 'menu',
 				'parent_slug' => '',
@@ -1153,7 +1292,7 @@ class Mixmymeals_Settings {
 				'menu_slug'   => $this->parent->_token . '_settings',
 				'function'    => array( $this, 'settings_page' ),
 				'icon_url'    => 'dashicons-admin-settings',
-				'position'    => 33,
+				'position'    => 35,
 			)
 		);
 		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
@@ -1235,9 +1374,11 @@ class Mixmymeals_Settings {
 			}
 			//phpcs:enable
 
+			$current_section = $this->resolve_tab( $current_section );
+
 			foreach ( $this->settings as $section => $data ) {
 
-				if ( $current_section && $current_section !== $section ) {
+				if ( $current_section !== $section ) {
 					continue;
 				}
 
@@ -1295,10 +1436,6 @@ class Mixmymeals_Settings {
 							'prefix' => $this->base,
 						)
 					);
-				}
-
-				if ( ! $current_section ) {
-					break;
 				}
 			}
 		}
@@ -1364,35 +1501,27 @@ class Mixmymeals_Settings {
 		}
 		//phpcs:enable
 
+		/*
+		 * Der markierte Reiter ist der, dessen Felder angezeigt werden.
+		 * Vorher hing die Markierung an einer Nonce im Link: ein Link ohne
+		 * sie — der Unterpunkt „Einstellungen“ des Social-Add-ons, jedes
+		 * Lesezeichen — zeigte die Pinterest-Felder unter einem markierten
+		 * „Allgemein“. Eine Nonce schützt hier ohnehin nichts: einen Reiter
+		 * auszuwählen ändert keine Daten, und die Felder wurden schon immer
+		 * ohne sie gewählt.
+		 */
+		$tab = $this->resolve_tab( $tab );
+
 		// Show page tabs.
 		if ( is_array( $this->settings ) && 1 < count( $this->settings ) ) {
 
 			$html .= '<h2 class="nav-tab-wrapper">' . "\n";
 
-			// Nonce check to meet WP Plugin Check requirements...
-			if ( isset( $_GET['tab'] ) && isset( $_GET['settings_nonce'] )
-			     && wp_verify_nonce(
-				     sanitize_key( wp_unslash( $_GET['settings_nonce'] ) ),
-				     'mixmymeals_settings_nonce_action'
-			     )
-			) {
-				$current_tab
-					= sanitize_text_field( wp_unslash( $_GET['tab'] ) );
-			}
-
-			$c = 0;
 			foreach ( $this->settings as $section => $data ) {
 
 				// Set tab class:
 				$class = 'nav-tab';
-				if ( ! isset( $current_tab ) ) {
-					if ( 0 === $c ) {
-						$class .= ' nav-tab-active';
-					}
-				} elseif ( isset( $current_tab )
-				           && $section == $current_tab
-				) {
-
+				if ( $section === $tab ) {
 					$class .= ' nav-tab-active';
 				}
 
@@ -1406,19 +1535,12 @@ class Mixmymeals_Settings {
 				 * Adresse entsteht. settings_url() ist dieselbe Quelle, aus
 				 * der auch das Add-on und der Plugin-Link schoepfen.
 				 */
-				$settings_nonce = wp_create_nonce( 'mixmymeals_settings_nonce_action' );
-				$tab_link       = add_query_arg(
-					array( 'settings_nonce' => $settings_nonce ),
-					self::settings_url( $section )
-				);
+				$tab_link = self::settings_url( $section );
 
 				// Output tab.
-				$html .= '<a href="' . $tab_link . '" class="'
+				$html .= '<a href="' . esc_url( $tab_link ) . '" class="'
 				         . esc_attr( $class ) . '">'
 				         . esc_html( $data['title'] ) . '</a>' . "\n";
-
-				++$c;
-
 			}
 
 			$html .= '</h2>' . "\n";
@@ -1442,9 +1564,8 @@ class Mixmymeals_Settings {
 		$html .= '</p>' . "\n";
 		$html .= '</form>' . "\n";
 
-		// Mailer test box + send log: only on the E-Mail tab (first tab is default).
-		$active_tab = '' !== $tab ? $tab : (string) array_key_first( $this->settings );
-		if ( 'mixmymeals-email' === $active_tab ) {
+		// Mailer test box + send log: only on the E-Mail tab.
+		if ( 'mixmymeals-email' === $tab ) {
 			$html .= $this->render_test_email_box();
 			$html .= $this->render_mail_log();
 		}

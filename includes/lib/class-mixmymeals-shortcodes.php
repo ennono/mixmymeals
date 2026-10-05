@@ -5666,17 +5666,24 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * The groups the settings screen prints as headings, in order.
 	 *
+	 * The order is the order of the admin menu: first the chips of a recipe
+	 * page — its figures, then diet, shelf life and the disclosure, which sit
+	 * in the same row — then ingredients and equipment, then plans, and the
+	 * cards last because they shorten what the pages above already say.
+	 * The servings and time chips are the ones a site rewords first, and
+	 * they used to sit fourth, below three groups most sites never touch.
+	 *
 	 * @return array<string, string>
 	 */
 	public static function chip_text_groups(): array {
 
 		return array(
+			'stats'      => __( 'Recipes and meals', 'mixmymeals' ),
 			'diet'       => __( 'Diets', 'mixmymeals' ),
 			'keeping'    => __( 'Shelf life and storage', 'mixmymeals' ),
 			'disclosure' => __( 'Disclosure', 'mixmymeals' ),
-			'stats'      => __( 'Recipes and meals', 'mixmymeals' ),
-			'plan'       => __( 'Meal plans', 'mixmymeals' ),
 			'ingredient' => __( 'Ingredients and equipment', 'mixmymeals' ),
+			'plan'       => __( 'Meal plans', 'mixmymeals' ),
 			'archive'    => __( 'Cards and archives', 'mixmymeals' ),
 		);
 	}

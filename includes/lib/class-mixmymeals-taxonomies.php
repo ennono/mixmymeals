@@ -32,7 +32,8 @@ class Mixmymeals_Taxonomies {
 		add_action( 'init', array( $this, 'register_meal_plan_category_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_meal_plan_tag_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_author_taxonomy' ) );
-		add_action( 'admin_menu', array( $this, 'add_author_submenu' ) );
+		add_action( 'admin_menu', array( $this, 'add_submenus' ) );
+		add_filter( 'parent_file', array( $this, 'highlight_equipment_category_parent_menu' ) );
 
 		// Diäten leben in ihrer eigenen Klasse, weil dort auch die Regeln
 		// stehen, nach denen sie sich zu Rezepten verdichten.
@@ -92,7 +93,7 @@ class Mixmymeals_Taxonomies {
 		 * hängt und WordPress sie dann unter beiden Menüs auflistet: dieselbe
 		 * Begriffsliste einmal unter Rezepte und einmal unter Essenspläne, mit
 		 * demselben Inhalt und zwei Wegen dorthin. Der eine Eintrag, den es
-		 * geben soll, wird in add_author_submenu() von Hand gesetzt.
+		 * geben soll, wird in add_submenus() von Hand gesetzt.
 		 */
 		$args = array(
 			'labels'             => $labels,
@@ -115,36 +116,75 @@ class Mixmymeals_Taxonomies {
 	}
 
 	/**
-	 * Puts Authors in the menu exactly once, under Recipes.
+	 * Puts Authors and the equipment categories under Recipes, once each.
 	 *
-	 * The taxonomy belongs to recipes and to meal plans, so WordPress would
-	 * list it under both — one list of people, reachable two ways, which reads
-	 * as two different lists until you open them. Recipes is the one that gets
-	 * it: that is where guest contributions are written.
-	 *
-	 * The screen itself is unchanged; this only adds the link. Its
+	 * Authors: the taxonomy belongs to recipes and to meal plans, so WordPress
+	 * would list it under both — one list of people, reachable two ways, which
+	 * reads as two different lists until you open them. Recipes is the one
+	 * that gets it: that is where guest contributions are written. Its
 	 * `post_type=mmm_recipe` is what keeps the Recipes menu highlighted while
 	 * the screen is open.
 	 *
+	 * Equipment categories: WordPress lists a taxonomy only under a post type
+	 * that is a top-level menu of its own. Since equipment hangs under
+	 * Recipes, its categories had no entry anywhere — the menu name chosen to
+	 * tell them apart from the recipe categories named an item that did not
+	 * exist. The screen keeps `post_type=mmm_equipment`, so its list counts
+	 * equipment; highlight_equipment_category_parent_menu() lights Recipes.
+	 *
+	 * The slugs carry `&amp;` like core's own taxonomy entries, because the
+	 * menu marks the open entry by comparing its slug with the encoded
+	 * `$submenu_file` core sets on the term screens — with a bare `&` the
+	 * Authors entry was never marked as the one open. Where each entry
+	 * stands is decided in Mixmymeals_Settings::SUBMENU_ORDER, not here.
+	 *
 	 * @return void
 	 */
-	public function add_author_submenu(): void {
+	public function add_submenus(): void {
 
-		$taxonomy = get_taxonomy( Mixmymeals_Author::TAXONOMY );
+		$entries = array(
+			Mixmymeals_Author::TAXONOMY => 'mmm_recipe',
+			'mmm_equipment_category'    => 'mmm_equipment',
+		);
 
-		if ( ! $taxonomy ) {
-			return;
+		foreach ( $entries as $name => $post_type ) {
+
+			$taxonomy = get_taxonomy( $name );
+
+			if ( ! $taxonomy ) {
+				continue;
+			}
+
+			add_submenu_page(
+				'edit.php?post_type=mmm_recipe',
+				$taxonomy->labels->name,
+				$taxonomy->labels->menu_name,
+				$taxonomy->cap->manage_terms,
+				'edit-tags.php?taxonomy=' . $name . '&amp;post_type=' . $post_type
+			);
+		}
+	}
+
+	/**
+	 * Keeps Recipes lit while the equipment categories are open.
+	 *
+	 * Core points those screens at `edit.php?post_type=mmm_equipment`, which
+	 * is an entry under Recipes, not a menu — so without this the sidebar
+	 * shows no menu open at all. Same reason as
+	 * Mixmymeals_Post_Types::highlight_meal_parent_menu().
+	 *
+	 * @param string $parent_file The menu item slug core picked.
+	 * @return string
+	 */
+	public function highlight_equipment_category_parent_menu( $parent_file ) {
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( $screen && 'mmm_equipment_category' === $screen->taxonomy ) {
+			return 'edit.php?post_type=mmm_recipe';
 		}
 
-		add_submenu_page(
-			'edit.php?post_type=mmm_recipe',
-			$taxonomy->labels->name,
-			$taxonomy->labels->menu_name,
-			$taxonomy->cap->manage_terms,
-			'edit-tags.php?taxonomy=' . Mixmymeals_Author::TAXONOMY . '&post_type=mmm_recipe',
-			'',
-			20
-		);
+		return $parent_file;
 	}
 
 	/**
@@ -326,10 +366,14 @@ class Mixmymeals_Taxonomies {
 			'menu_name'         => __( 'Equipment categories', 'mixmymeals' ),
 		);
 
+		// show_in_menu false: WordPress would not list it anyway (see
+		// add_submenus()), and saying so keeps a future core change from
+		// adding a second entry beside the one set by hand.
 		$args = array(
 			'labels'            => $labels,
 			'public'            => false,
 			'show_ui'           => true,
+			'show_in_menu'      => false,
 			'show_admin_column' => true,
 			'hierarchical'      => false,
 			'show_in_rest'      => true,

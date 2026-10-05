@@ -331,7 +331,11 @@ class Mixmymeals_Post_Types {
 			'new_item'              => __( 'New Recipe', 'mixmymeals' ),
 			'edit_item'             => __( 'Edit Recipe', 'mixmymeals' ),
 			'view_item'             => __( 'View Recipe', 'mixmymeals' ),
-			'all_items'             => __( 'Recipes', 'mixmymeals' ),
+			// „Alle Rezepte“, nicht „Rezepte“: der erste Unterpunkt wiederholte
+			// den Menünamen direkt darüber, und neben „Küchengeräte“ und
+			// „Autoren“ las er sich wie ein weiterer Teilbereich statt wie
+			// die Liste selbst. Zutaten und Essenspläne ebenso.
+			'all_items'             => __( 'All Recipes', 'mixmymeals' ),
 			'search_items'          => __( 'Search Recipes', 'mixmymeals' ),
 			'parent_item_colon'     => __( 'Parent Recipes:', 'mixmymeals' ),
 			'not_found'             => __( 'No recipes found.', 'mixmymeals' ),
@@ -468,7 +472,7 @@ class Mixmymeals_Post_Types {
 			'new_item'              => __( 'New Ingredient', 'mixmymeals' ),
 			'edit_item'             => __( 'Edit Ingredient', 'mixmymeals' ),
 			'view_item'             => __( 'View Ingredient', 'mixmymeals' ),
-			'all_items'             => __( 'Ingredients', 'mixmymeals' ),
+			'all_items'             => __( 'All Ingredients', 'mixmymeals' ),
 			'search_items'          => __( 'Search Ingredients', 'mixmymeals' ),
 			'parent_item_colon'     => __(
 				'Parent Ingredients:',
@@ -555,7 +559,7 @@ class Mixmymeals_Post_Types {
 			'add_new_item'  => __( 'Add New Meal Plan', 'mixmymeals' ),
 			'edit_item'     => __( 'Edit Meal Plan', 'mixmymeals' ),
 			'view_item'     => __( 'View Meal Plan', 'mixmymeals' ),
-			'all_items'     => __( 'Meal Plans', 'mixmymeals' ),
+			'all_items'     => __( 'All Meal Plans', 'mixmymeals' ),
 		);
 
 		$args = array(

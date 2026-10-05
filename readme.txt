@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.47.0
+Stable tag: 3.48.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,42 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.48.0 =
+
+Changed:
+* Admin menu: the entries inside each MixMyMeals menu now stand in a fixed
+  order instead of the order they happened to be registered in. Recipes: All
+  Recipes, Add New, Categories, Tags, Authors, Equipment, Equipment
+  categories. MixMyMeals: Settings, Meal Photos, Subscriptions, Import. The
+  first entry of each content menu reads "All Recipes" (etc.) instead of
+  repeating the menu name.
+* The Social Media menu of the add-on moved from above Recipes to between
+  Meal Plans and MixMyMeals (requires MixMyMeals Social 2.0.3); the MixMyMeals
+  menu moved from position 33 to 35.
+* Settings tabs follow the menu: General, Recipes, Ingredients, Meal Plans,
+  Chip texts, Visitors, Subscriptions, E-Mail. The Equipment tab is gone — its
+  fields are under Recipes, where equipment sits in the menu, and so is the
+  author slug; the meal slug moved to Meal Plans. General keeps currency,
+  placeholder image, cleanup and uninstall. No option was renamed, so every
+  stored value stays. Old links to the Equipment tab open Recipes.
+* The chip texts start with the recipe chips (servings, time, energy, price)
+  rather than with diets.
+
+Fixed:
+* Clicking "MixMyMeals" in the sidebar opened the subscription list instead
+  of the settings, because Subscriptions was the menu's first entry.
+* Equipment categories had no menu entry at all since equipment moved under
+  Recipes. They are listed there now and keep Recipes highlighted.
+* The Authors entry was never highlighted while its screen was open.
+* A settings tab opened without the tab row's own link — the add-on's
+  "Settings" entry, a bookmark — showed its fields under a highlighted
+  "General" tab.
+* An ingredient's own nutrition and price could not be chosen again once a
+  product had been made its reference. Each product carries a radio in one
+  group, and a picked radio cannot be unticked in the browser; the box now
+  offers "Use the ingredient's own nutrition and price" as an option of the
+  same group. Saving always understood it — only the form never sent it.
 
 = 3.47.0 =
 

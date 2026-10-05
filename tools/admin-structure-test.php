@@ -1,7 +1,8 @@
 <?php
 /**
- * Prüft die Aufräumarbeiten am Adminbereich: das Menü, die eine Import-Seite
- * und die Adressen der Einstellungs-Reiter.
+ * Prüft die Aufräumarbeiten am Adminbereich: das Menü und die Reihenfolge
+ * seiner Einträge, die eine Import-Seite, die Reiter der Einstellungen und
+ * ihre Adressen.
  *
  * Läuft gegen eine echte Installation, weil genau das geprüft wird — was
  * WordPress aus den Registrierungen macht. Legt nichts an und löscht nichts.
@@ -23,7 +24,6 @@ if ( $u ) {
 	wp_set_current_user( $u[0]->ID ); }
 
 do_action( 'init' );
-do_action( 'admin_menu' );
 
 /*
  * Mixmymeals::$admin wird nur unter is_admin() gesetzt, und das ist unter
@@ -31,6 +31,31 @@ do_action( 'admin_menu' );
  * Callback auf null — ein Artefakt dieses Harness, kein Fehler im Plugin.
  */
 Mixmymeals::instance()->admin = new Mixmymeals_Admin_API();
+
+/*
+ * Das echte Menü, nicht ein nachgebautes: wp-admin/menu.php legt die
+ * Beitragstypen und Taxonomien an, feuert admin_menu und sortiert danach —
+ * genau das, wovon die Reihenfolge abhängt. Es braucht dafür nur die
+ * Globals, die admin.php sonst setzt.
+ */
+global $menu, $submenu, $_wp_menu_nopriv, $_wp_submenu_nopriv, $_registered_pages, $_parent_pages, $admin_page_hooks, $_wp_real_parent_file, $pagenow, $self; // phpcs:ignore
+$pagenow = 'index.php'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$self    = 'index.php'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+set_current_screen( 'dashboard' );
+require ABSPATH . 'wp-admin/menu.php';
+
+/**
+ * Die Slugs eines Untermenüs, `&amp;` aufgelöst.
+ *
+ * @param string $parent_slug Slug des Hauptpunkts.
+ * @return string[]
+ */
+$subs_of = static function ( string $parent_slug ) use ( &$submenu ): array {
+	return array_map(
+		static fn( $item ) => str_replace( '&amp;', '&', (string) $item[2] ),
+		array_values( (array) ( $submenu[ $parent_slug ] ?? array() ) )
+	);
+};
 
 $fails = 0;
 $pass  = 0;
@@ -127,5 +152,142 @@ foreach ( array(
 ) as $field => $want ) {
 	$check( ( $ids[ $field ][0] ?? '' ) === $want, "Einstellungen: $field liegt in $want" );
 }
+
+// --- Reihenfolge der Hauptpunkte ---
+$tops = array_values( array_map( static fn( $item ) => (string) $item[2], $menu ) );
+$at   = static fn( string $slug ) => array_search( $slug, $tops, true );
+
+$check( $at( 'edit.php?post_type=mmm_recipe' ) < $at( 'edit.php?post_type=mmm_ingredient' ), 'Reihenfolge: Rezepte vor Zutaten' );
+$check( $at( 'edit.php?post_type=mmm_ingredient' ) < $at( 'edit.php?post_type=mmm_meal_plan' ), 'Reihenfolge: Zutaten vor Essensplaenen' );
+$check( $at( 'edit.php?post_type=mmm_meal_plan' ) < $at( 'mixmymeals_settings' ), 'Reihenfolge: MixMyMeals nach den Inhalten' );
+$check( $at( 'mixmymeals_settings' ) < $at( 'themes.php' ), 'Reihenfolge: MixMyMeals vor Design' );
+
+if ( false !== $at( 'mixmymeals-social' ) ) {
+	$check(
+		$at( 'edit.php?post_type=mmm_meal_plan' ) < $at( 'mixmymeals-social' ) && $at( 'mixmymeals-social' ) < $at( 'mixmymeals_settings' ),
+		'Reihenfolge: Social Media zwischen Essensplaenen und MixMyMeals'
+	);
+	$check( $at( 'edit.php?post_type=mmm_recipe' ) - $at( 'edit-comments.php' ) === 1, 'Reihenfolge: nichts zwischen Kommentaren und Rezepten' );
+} else {
+	echo "--   Social-Add-on nicht aktiv, seine Position ungeprueft\n";
+}
+
+// --- Reihenfolge in den Untermenues ---
+$check(
+	$subs_of( 'edit.php?post_type=mmm_recipe' ) === array(
+		'edit.php?post_type=mmm_recipe',
+		'post-new.php?post_type=mmm_recipe',
+		'edit-tags.php?taxonomy=mmm_recipe_category&post_type=mmm_recipe',
+		'edit-tags.php?taxonomy=mmm_recipe_tag&post_type=mmm_recipe',
+		'edit-tags.php?taxonomy=mmm_author&post_type=mmm_recipe',
+		'edit.php?post_type=mmm_equipment',
+		'edit-tags.php?taxonomy=mmm_equipment_category&post_type=mmm_equipment',
+	),
+	'Untermenue Rezepte: Liste, Neu, Kategorien, Tags, Autoren, Geraete, Geraetekategorien (' . implode( ' | ', $subs_of( 'edit.php?post_type=mmm_recipe' ) ) . ')'
+);
+$check(
+	$subs_of( 'edit.php?post_type=mmm_ingredient' ) === array(
+		'edit.php?post_type=mmm_ingredient',
+		'post-new.php?post_type=mmm_ingredient',
+		'edit-tags.php?taxonomy=mmm_ingredient_category&post_type=mmm_ingredient',
+		'edit-tags.php?taxonomy=mmm_diet&post_type=mmm_ingredient',
+	),
+	'Untermenue Zutaten: Liste, Neu, Kategorien, Ernaehrungsformen'
+);
+$check(
+	$subs_of( 'edit.php?post_type=mmm_meal_plan' ) === array(
+		'edit.php?post_type=mmm_meal_plan',
+		'post-new.php?post_type=mmm_meal_plan',
+		'edit-tags.php?taxonomy=mmm_meal_plan_category&post_type=mmm_meal_plan',
+		'edit-tags.php?taxonomy=mmm_meal_plan_tag&post_type=mmm_meal_plan',
+	),
+	'Untermenue Essensplaene: Liste, Neu, Kategorien, Tags'
+);
+$check(
+	$subs_of( 'mixmymeals_settings' ) === array(
+		'mixmymeals_settings',
+		'mixmymeals_photos',
+		'edit.php?post_type=mmm_subscription',
+		'mixmymeals_import',
+	),
+	'Untermenue MixMyMeals: Einstellungen, Fotos, Abos, Import (' . implode( ' | ', $subs_of( 'mixmymeals_settings' ) ) . ')'
+);
+
+/*
+ * Der Hauptpunkt verlinkt auf seinen ersten Unterpunkt. Stand dort Abos,
+ * öffnete ein Klick auf „MixMyMeals“ die Abo-Liste.
+ */
+$check( 'mixmymeals_settings' === ( $subs_of( 'mixmymeals_settings' )[0] ?? '' ), 'MixMyMeals oeffnet die Einstellungen' );
+
+$check( false === get_taxonomy( 'mmm_equipment_category' )->show_in_menu, 'Geraetekategorien: nur der eine Eintrag von Hand' );
+
+// Die Taxonomie-Eintraege tragen &amp; wie die von core, sonst markiert das
+// Menue den offenen Eintrag nicht.
+foreach ( (array) $submenu['edit.php?post_type=mmm_recipe'] as $item ) {
+	if ( 0 === strpos( (string) $item[2], 'edit-tags.php' ) ) {
+		$check( false !== strpos( (string) $item[2], '&amp;' ), 'Untermenue-Slug kodiert: ' . $item[2] );
+	}
+}
+
+// Auf dem Bildschirm der Geraetekategorien bleibt Rezepte offen.
+$GLOBALS['current_screen']           = WP_Screen::get( 'edit-mmm_equipment_category' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$GLOBALS['current_screen']->taxonomy = 'mmm_equipment_category';
+$check( 'edit.php?post_type=mmm_recipe' === apply_filters( 'parent_file', 'edit.php?post_type=mmm_equipment' ), 'Geraetekategorien: Rezepte bleibt markiert' );
+set_current_screen( 'dashboard' );
+
+// --- Reiter: Reihenfolge und Zuordnung ---
+$host_tabs = array(
+	'mixmymeals-general',
+	'mixmymeals-recipes',
+	'mixmymeals-ingredients',
+	'mixmymeals-meal-plans',
+	'mixmymeals-chips',
+	'mixmymeals-visitors',
+	'mixmymeals-subscriptions',
+	'mixmymeals-email',
+);
+$check( array_slice( $tabs, 0, count( $host_tabs ) ) === $host_tabs, 'Reiter: Reihenfolge des Hosts (' . implode( ', ', $tabs ) . ')' );
+$check( ! in_array( 'mixmymeals-equipment', $tabs, true ), 'Reiter: Kuechengeraete stehen unter Rezepte, kein eigener Reiter' );
+
+foreach ( array(
+	'author_slug'          => 'mixmymeals-recipes',
+	'equipment_slug'       => 'mixmymeals-recipes',
+	'affiliate_disclosure' => 'mixmymeals-recipes',
+	'meal_slug'            => 'mixmymeals-meal-plans',
+	'currency'             => 'mixmymeals-general',
+) as $field => $want ) {
+	$check( ( $ids[ $field ][0] ?? '' ) === $want, "Einstellungen: $field liegt in $want" );
+}
+
+$slug_in_general = array_filter(
+	$settings->settings['mixmymeals-general']['fields'],
+	static fn( $f ) => 'slug_callback' === ( $f['callback'][1] ?? '' )
+);
+$check( ! $slug_in_general, 'Einstellungen: unter Allgemein steht kein Slug mehr' );
+
+// --- Reiter: Aufloesung ---
+$check( 'mixmymeals-recipes' === $settings->resolve_tab( 'mixmymeals-equipment' ), 'Reiter: alter Schluessel Kuechengeraete fuehrt zu Rezepte' );
+$check( 'mixmymeals-general' === $settings->resolve_tab( 'gibt-es-nicht' ), 'Reiter: unbekannter Schluessel fuehrt zum ersten Reiter' );
+$check( 'mixmymeals-general' === $settings->resolve_tab( '' ), 'Reiter: ohne Schluessel der erste' );
+$check( 'mixmymeals-chips' === $settings->resolve_tab( 'mixmymeals-chips' ), 'Reiter: bekannter Schluessel bleibt' );
+
+/*
+ * Ein Link ohne Nonce — so wie der Unterpunkt „Einstellungen“ des Add-ons —
+ * markiert den Reiter, den er öffnet, und rendert dessen Felder.
+ */
+$_GET['tab']                     = 'mixmymeals-equipment'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- test harness.
+$GLOBALS['wp_settings_sections'] = array(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$GLOBALS['wp_settings_fields']   = array(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$settings->register_settings();
+ob_start();
+$settings->settings_page();
+$old_tab_html = ob_get_clean();
+unset( $_GET['tab'] );
+
+$check( (bool) preg_match( '/tab=mixmymeals-recipes"[^>]*class="nav-tab nav-tab-active"/', $old_tab_html ), 'Reiter: alter Link markiert Rezepte' );
+$check( 1 === substr_count( $old_tab_html, 'nav-tab-active' ), 'Reiter: genau einer markiert' );
+$check( false !== strpos( $old_tab_html, 'mixmymeals_affiliate_disclosure' ), 'Reiter: und zeigt die Kuechengeraete-Felder' );
+$check( false !== strpos( $old_tab_html, 'name="tab" value="mixmymeals-recipes"' ), 'Reiter: Speichern bleibt im aufgeloesten Reiter' );
+$check( false === strpos( $old_tab_html, 'settings_nonce' ), 'Reiter: Links ohne Nonce' );
 
 echo "\n$pass bestanden, $fails fehlgeschlagen\n";
