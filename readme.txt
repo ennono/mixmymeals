@@ -114,6 +114,15 @@ privacy text under Settings → Privacy after installation.
 = 3.47.0 =
 
 Changed:
+* Subscription mails: a meal's servings and energy share one quiet line under
+  its title ("3 servings · ~531 kcal/serving") instead of the servings
+  sitting beside the title in full-size text.
+* Subscription mails: the energy row of the nutrition table is no longer set
+  apart in bold and colour; it reads like the other rows.
+* Subscription mails: the small block headings — meal types, ingredient
+  categories, the title of a nutrition table — are 14px bold capitals in the
+  accent colour with a rule below. Grey 12px capitals could hardly be told
+  from the text under them.
 * Subscription mails: the day's meals are grouped by meal type, in the order
   breakfast, lunch, dinner, snack, other, each group under a small heading.
   The type no longer repeats in every row. A day whose meals are all untyped

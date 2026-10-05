@@ -25,6 +25,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Mixmymeals_Subscriptions {
 
+	/**
+	 * Look of the small headings inside a mail's blocks — the meal types, the
+	 * ingredient categories, the title of a nutrition table. One string, so
+	 * they cannot drift apart. In the accent colour, bold and ruled below:
+	 * grey 12px capitals were all but indistinguishable from the 14px grey
+	 * text they head.
+	 */
+	private const SECTION_HEADING_STYLE = 'padding:0 0 4px;border-bottom:1px solid #ECE6D9;color:#3F6F1E;font-size:14px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;';
+
 	const POST_TYPE = 'mmm_subscription';
 	const CRON_HOOK = 'mmm_subscription_dispatch';
 	const CRON_INTERVAL = 'mmm_fifteen_minutes';
@@ -1822,15 +1831,10 @@ class Mixmymeals_Subscriptions {
 			// so it is indented rather than listed as an equal.
 			$indent = 'sugar' === $key ? 'padding-left:16px;' : '';
 
-			// Energy is the day's headline: set in the accent colour, it does
-			// what day_summary_html did above the meals, so a template showing
-			// the table needs no second line repeating its figures.
-			$lead = 'calories' === $key ? 'font-weight:700;color:#3F6F1E;' : '';
-
 			$rows .= '<tr>'
-				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;' . $lead . '">'
+				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;">'
 				. esc_html( $label ) . '</td>'
-				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;' . $lead . '">'
+				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
 				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $value ) ) . '</td>'
 				. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;">'
 				. esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ) . '</td>'
@@ -1843,10 +1847,10 @@ class Mixmymeals_Subscriptions {
 
 		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
 			. '<tr>'
-			. '<th align="left" style="padding:0 0 4px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;">'
+			. '<th align="left" style="' . self::SECTION_HEADING_STYLE . '">'
 			. esc_html__( 'Per person, this day', 'mixmymeals' ) . '</th>'
-			. '<th></th>'
-			. '<th align="right" style="padding:0 0 4px 12px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;white-space:nowrap;">'
+			. '<th style="border-bottom:1px solid #ECE6D9;"></th>'
+			. '<th align="right" style="' . self::SECTION_HEADING_STYLE . 'padding-left:12px;white-space:nowrap;">'
 			. esc_html__( 'of RI', 'mixmymeals' ) . '</th>'
 			. '</tr>'
 			. $rows
@@ -1920,7 +1924,7 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
-			. '<tr><th align="left" colspan="2" style="padding:0 0 4px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;">'
+			. '<tr><th align="left" colspan="2" style="' . self::SECTION_HEADING_STYLE . '">'
 			. esc_html__( 'Per serving, by dish', 'mixmymeals' )
 			. '</th></tr>'
 			. $rows
@@ -2316,9 +2320,14 @@ class Mixmymeals_Subscriptions {
 				}
 			}
 
+			// Servings and energy are facts of the same weight, so they share one
+			// quiet line under the title instead of one sitting beside it.
+			if ( '' !== $cal_line ) {
+				$meta[] = $cal_line;
+			}
+
 			$content = '<a href="' . esc_url( $link ) . '" style="font-weight:700;color:#3F6F1E;text-decoration:none;">' . esc_html( $title ) . '</a>'
-				. ' <span style="color:#6B665B;">· ' . esc_html( implode( ' · ', $meta ) ) . '</span>'
-				. ( '' !== $cal_line ? '<br><span style="color:#9A9485;font-size:14px;">' . esc_html( $cal_line ) . '</span>' : '' )
+				. '<br><span style="color:#9A9485;font-size:14px;">' . esc_html( implode( ' · ', $meta ) ) . '</span>'
 				. '<br><a href="' . esc_url( $link ) . '" style="display:inline-block;margin-top:4px;color:#5C9E2E;font-weight:700;text-decoration:none;">'
 				. esc_html__( 'Cook now', 'mixmymeals' ) . ' →</a>';
 
@@ -2370,10 +2379,10 @@ class Mixmymeals_Subscriptions {
 		$list_html = '';
 		foreach ( $items as $type => $rows ) {
 			if ( 'other' !== $type || count( $items ) > 1 ) {
-				$list_html .= '<h3 style="margin:16px 0 8px;color:#6B665B;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;line-height:1.3;text-transform:uppercase;">'
+				$list_html .= '<h3 style="margin:16px 0 4px;font-family:Helvetica,Arial,sans-serif;line-height:1.3;' . self::SECTION_HEADING_STYLE . '">'
 					. esc_html( $types[ $type ] ) . '</h3>';
 			}
-			$list_html .= '<ul style="list-style-type:none;padding:0;margin:0 0 8px;">' . implode( '', $rows ) . '</ul>';
+			$list_html .= '<ul style="list-style-type:none;padding:0;margin:10px 0 8px;">' . implode( '', $rows ) . '</ul>';
 		}
 
 		return array(
@@ -2487,7 +2496,7 @@ class Mixmymeals_Subscriptions {
 			}
 
 			$out .= '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-collapse:collapse;">'
-				. '<tr><th colspan="2" align="left" style="padding:0 0 4px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;">'
+				. '<tr><th colspan="2" align="left" style="' . self::SECTION_HEADING_STYLE . '">'
 				. esc_html( (string) $cat_name ) . '</th></tr>'
 				. $rows
 				. '</table>';
