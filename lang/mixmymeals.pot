@@ -5244,3 +5244,11 @@ msgstr ""
 #: includes/lib/class-mixmymeals-diet.php
 msgid "The diet was not saved"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "of RI"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "The figures are estimates and may vary."
+msgstr ""

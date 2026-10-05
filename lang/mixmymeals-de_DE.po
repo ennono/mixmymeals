@@ -6078,3 +6078,11 @@ msgstr "schema.org-Diät-URL: Das ist keine gültige Webadresse (https://schema.
 #: includes/lib/class-mixmymeals-diet.php
 msgid "The diet was not saved"
 msgstr "Die Ernährungsform wurde nicht gespeichert"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "of RI"
+msgstr "der RM"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "The figures are estimates and may vary."
+msgstr "Die Nährwerte sind geschätzt und können abweichen."

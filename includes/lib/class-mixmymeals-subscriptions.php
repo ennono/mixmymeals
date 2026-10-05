@@ -1847,12 +1847,16 @@ class Mixmymeals_Subscriptions {
 			. esc_html__( 'Per person, this day', 'mixmymeals' ) . '</th>'
 			. '<th></th>'
 			. '<th align="right" style="padding:0 0 4px 12px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;white-space:nowrap;">'
-			. esc_html__( 'of RI*', 'mixmymeals' ) . '</th>'
+			. esc_html__( 'of RI', 'mixmymeals' ) . '</th>'
 			. '</tr>'
 			. $rows
 			. '</table>'
 			. '<p style="margin:0 0 8px;line-height:1.4;color:#6B665B;font-size:12px;">'
-			. esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() )
+			. esc_html(
+				Mixmymeals_Meal_Plan::reference_intake_note()
+				. ' '
+				. __( 'The figures are estimates and may vary.', 'mixmymeals' )
+			)
 			. '</p>';
 	}
 
@@ -2264,9 +2268,11 @@ class Mixmymeals_Subscriptions {
 	 */
 	private function render_meal_list( Mixmymeals_Meal_Plan $plan, int $day ): array {
 
-		$types    = Mixmymeals_Meal::get_plaintext_meal_type_map();
+		$types = Mixmymeals_Meal::get_plaintext_meal_type_map();
 
-		$items      = array();
+		// Rows per meal type, in the order of the type map (breakfast first).
+		// A heading names the type, so the row itself leaves it out.
+		$items      = array_fill_keys( array_keys( $types ), array() );
 		$total_cal  = 0.0;
 		$total_cost = 0.0;
 
@@ -2281,13 +2287,10 @@ class Mixmymeals_Subscriptions {
 			$title    = get_the_title( $meal_post->ID );
 			$link     = get_permalink( $meal_post->ID );
 			$type     = $meal->get_type();
-			$type_lbl = $types[ $type ] ?? '';
+			$type     = isset( $types[ $type ] ) ? $type : 'other';
 			$servings = max( 1, (int) $meal->get_servings() );
 
-			$meta = array();
-			if ( $type_lbl ) {
-				$meta[] = $type_lbl;
-			}
+			$meta   = array();
 			$meta[] = sprintf( /* translators: %d: number of servings. */ _n( '%d serving', '%d servings', $servings, 'mixmymeals' ), $servings );
 
 			// Per-person calories and cost (one serving) from the linked recipe.
@@ -2339,8 +2342,10 @@ class Mixmymeals_Subscriptions {
 				$row = $content;
 			}
 
-			$items[] = '<li style="margin:0 0 14px;">' . $row . '</li>';
+			$items[ $type ][] = '<li style="margin:0 0 14px;">' . $row . '</li>';
 		}
+
+		$items = array_filter( $items );
 
 		if ( empty( $items ) ) {
 			return array(
@@ -2360,8 +2365,19 @@ class Mixmymeals_Subscriptions {
 		 */
 		$summary_html = '';
 
+		// One block per type. A day whose meals are all untyped gets no
+		// heading: "Other" over everything names nothing.
+		$list_html = '';
+		foreach ( $items as $type => $rows ) {
+			if ( 'other' !== $type || count( $items ) > 1 ) {
+				$list_html .= '<h3 style="margin:16px 0 8px;color:#6B665B;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;line-height:1.3;text-transform:uppercase;">'
+					. esc_html( $types[ $type ] ) . '</h3>';
+			}
+			$list_html .= '<ul style="list-style-type:none;padding:0;margin:0 0 8px;">' . implode( '', $rows ) . '</ul>';
+		}
+
 		return array(
-			'list_html'    => '<ul style="list-style-type:none;padding:0;margin:0 0 16px;">' . implode( '', $items ) . '</ul>',
+			'list_html'    => $list_html,
 			'summary_html' => $summary_html,
 			'day_kcal'     => $total_cal > 0 ? number_format_i18n( round( $total_cal ) ) : '',
 			'day_cost'     => $total_cost > 0 ? number_format_i18n( $total_cost, 2 ) : '',
@@ -2428,13 +2444,12 @@ class Mixmymeals_Subscriptions {
 			return '<p>' . esc_html( $empty_text ) . '</p>';
 		}
 
+		// Laid out like the nutrition table: a small uppercase header per
+		// category, then one line per ingredient, name left and amount right.
 		$out = '';
 		foreach ( $list as $cat_name => $ings ) {
 
-			// h3: the list sits under a template's own h2 ("Zutaten"), and
-			// the categories are a level below it, not beside it.
-			$out .= '<h3 style="font-size:16px;line-height:1.3;color:#3F6F1E;margin:16px 0 6px;">' . esc_html( (string) $cat_name ) . '</h3>';
-			$out .= '<ul style="list-style-type:none;padding:0;margin:0;">';
+			$rows = '';
 
 			foreach ( (array) $ings as $ing_id => $data ) {
 
@@ -2443,8 +2458,7 @@ class Mixmymeals_Subscriptions {
 					continue;
 				}
 
-				$ing_name = get_the_title( (int) $ing_id );
-				$amount   = Mixmymeals_Shortcodes::build_needed_amount_string(
+				$amount = Mixmymeals_Shortcodes::build_needed_amount_string(
 					$data['units'] ?? array(),
 					(float) ( $data['total_weight'] ?? 0 )
 				);
@@ -2456,17 +2470,27 @@ class Mixmymeals_Subscriptions {
 				// The packet the figures assume, where the plan agrees on one.
 				$reference_label = (string) ( $data['product'] ?? '' );
 
-				$out .= '<li style="padding:4px 0;border-bottom:1px solid #ECE6D9;">'
-					. '<strong style="font-weight:600;">' . esc_html( $ing_name ) . '</strong>'
-					. ( '' !== $amount ? ' <span style="color:#6B665B;">' . esc_html( $amount ) . '</span>' : '' )
-					. $optional_label
+				$rows .= '<tr>'
+					. '<td style="padding:4px 0;color:#2C2A24;font-size:14px;">'
+					. esc_html( get_the_title( (int) $ing_id ) ) . $optional_label
 					. ( '' !== $reference_label
-						? '<br><span style="color:#6B665B;font-size:14px;">' . esc_html( $reference_label ) . '</span>'
+						? '<br><span style="color:#8A8478;font-size:12px;">' . esc_html( $reference_label ) . '</span>'
 						: '' )
-					. '</li>';
+					. '</td>'
+					. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;vertical-align:top;">'
+					. esc_html( $amount ) . '</td>'
+					. '</tr>';
 			}
 
-			$out .= '</ul>';
+			if ( '' === $rows ) {
+				continue;
+			}
+
+			$out .= '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-collapse:collapse;">'
+				. '<tr><th colspan="2" align="left" style="padding:0 0 4px;color:#6B665B;font-size:12px;font-weight:600;text-transform:uppercase;">'
+				. esc_html( (string) $cat_name ) . '</th></tr>'
+				. $rows
+				. '</table>';
 		}
 
 		return $out;

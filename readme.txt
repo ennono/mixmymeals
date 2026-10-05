@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.46.3
+Stable tag: 3.47.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.47.0 =
+
+Changed:
+* Subscription mails: the day's meals are grouped by meal type, in the order
+  breakfast, lunch, dinner, snack, other, each group under a small heading.
+  The type no longer repeats in every row. A day whose meals are all untyped
+  gets no heading.
+* Subscription mails: the shopping list and the day's ingredients are laid
+  out like the nutrition table — a small uppercase header per category, then
+  name on the left and amount on the right — instead of a bulleted list with
+  rules between the lines.
+* Subscription mails: the nutrition table carries one note instead of a
+  footnote plus a separate "figures are estimates" line in the template. The
+  asterisk is gone from the note and from the "of RI" column header. The
+  plan page and the PDF keep theirs.
 
 = 3.46.3 =
 
