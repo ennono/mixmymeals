@@ -637,8 +637,26 @@ class Mixmymeals_Mailer {
 				'site_name' => wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES ),
 				'site_url'  => home_url( '/' ),
 				'year'      => gmdate( 'Y' ),
+
+				// The footer option, ready for a layout's {{ footer_html }}.
+				// A layout cannot get it any other way: send_template() sets
+				// append_footer to false for layouted mails, and transactional
+				// mails (every subscription mail) never get it appended either.
+				'footer_html' => self::footer_html(),
 			)
 		);
+	}
+
+	/**
+	 * The configured footer as ready-to-embed HTML, or '' when none is set.
+	 *
+	 * @return string
+	 */
+	private static function footer_html(): string {
+
+		$footer = trim( (string) get_option( self::OPTION_FOOTER, '' ) );
+
+		return '' === $footer ? '' : wp_kses_post( wpautop( $footer ) );
 	}
 
 	/**

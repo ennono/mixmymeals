@@ -9,7 +9,7 @@
 	Platzhalter:
 		content            der gerenderte Inhalt des Trigger-Templates
 		site_name / site_url / year
-		footer_note        optionale Fußnote
+		footer_html        Fußzeile aus Einstellungen → E-Mail (Impressum, Verantwortlicher …)
 		unsubscribe_html   fertiger Abmelde-Link (vom Mailer erzeugt)
 -->
 <!DOCTYPE html>
@@ -69,7 +69,7 @@
 			</div>
 			<div class="mmm-mail-footer" style="padding:20px 32px;border-top:1px solid #ECE6D9;font-size:12px;line-height:1.5;color:#9A9485;text-align:center;">
 				<p>&copy; {{ year }} <a href="{{ site_url }}">{{ site_name }}</a></p>
-				<p>{{ footer_note }}</p>
+				{{ footer_html }}
 				{{ unsubscribe_html }}
 			</div>
 		</div>

@@ -113,6 +113,15 @@ privacy text under Settings → Privacy after installation.
 
 = 3.47.0 =
 
+Fixed:
+* The e-mail footer set under Settings → E-Mail never appeared in
+  subscription mails. A mail built on a layout is sent without the automatic
+  footer (the layout is meant to carry its own), and the layout had nothing to
+  carry it with: its footer_note placeholder was never filled by anything.
+  The footer is now available to every layout as {{ footer_html }}, and the
+  plugin's fallback layout prints it. A theme layout has to include the
+  placeholder too; the MixMyMeals child theme does.
+
 Changed:
 * Subscription mails: a meal's servings and energy share one quiet line under
   its title ("3 servings · ~531 kcal/serving") instead of the servings
