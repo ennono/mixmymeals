@@ -2523,6 +2523,22 @@ class Mixmymeals_Post_Meta {
 			. esc_html__( 'A product is one specific article of this ingredient. Its nutrition replaces the ingredient\'s — value by value; anything it does not state stays with the ingredient. Its price replaces the ingredient\'s once both price and package weight are filled in.', 'mixmymeals' )
 			. '</p>';
 
+		/*
+		 * The explicit way back to "no product decides". Each product row
+		 * below carries its own radio in the same mmm_products_reference
+		 * group — native HTML radios, which cannot be unchecked by clicking
+		 * them again. Once a site had picked a reference product there was no
+		 * control that submitted 0, so the ingredient's own values became
+		 * unreachable the moment any product was marked reference. The save
+		 * side has always understood an absent or zero value as "ingredient's
+		 * own" (Mixmymeals_Product::set_reference_id( $post_id, 0 )); only
+		 * the form never offered it.
+		 */
+		echo '<p class="mmm-products__own"><label><input type="radio" name="mmm_products_reference" value="0" '
+			. checked( 0, $reference, false ) . '> '
+			. esc_html__( "Use the ingredient's own nutrition and price", 'mixmymeals' )
+			. '</label></p>';
+
 		echo '<table class="widefat mmm-products"><tbody>';
 
 		/*

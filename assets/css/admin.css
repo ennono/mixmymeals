@@ -780,6 +780,28 @@
    alternating class is set in PHP, per product.
    ========================================================== */
 
+/* The way back to "no product decides", sitting above the table it answers
+   for. A radio, same as each product's own, in the same group — ticking it
+   is what a native radio group cannot do on its own once something else was
+   picked. A box rather than a bare line so it reads as an option on a par
+   with the table, not as a stray sentence above it. */
+.mmm-products__own {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    background: var(--mmm-ad-bg);
+    border: 1px solid var(--mmm-ad-line-2);
+    border-radius: var(--mmm-ad-r);
+}
+
+.mmm-products__own label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .mmm-products,
 .mmm-products > tbody,
 .mmm-products__detail {
