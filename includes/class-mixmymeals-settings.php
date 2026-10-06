@@ -56,7 +56,10 @@ class Mixmymeals_Settings {
 	 * @var array<string, string>
 	 */
 	const TAB_ALIASES = array(
-		'mixmymeals-equipment' => 'mixmymeals-recipes',
+		'mixmymeals-equipment'     => 'mixmymeals-recipes',
+		'mixmymeals-visitors'      => 'mixmymeals-meal-plans',
+		'mixmymeals-subscriptions' => 'mixmymeals-email',
+		'mixmymeals-chips'         => 'mixmymeals-language',
 	);
 
 	/**
@@ -72,9 +75,9 @@ class Mixmymeals_Settings {
 	 *
 	 * Per menu: the screens you work in first (list, add new), then what
 	 * sorts them (categories, tags, diets), then the smaller things that
-	 * belong to the subject. In the plugin's own menu, Settings first because
-	 * the menu is named after it, then the two screens that look after
-	 * visitors, then Import, which is opened rarely.
+	 * belong to the subject — meal photos under meal plans, where their
+	 * approval setting lives too. In the plugin's own menu, Settings first
+	 * because the menu is named after it, then Subscriptions.
 	 *
 	 * Slugs are compared with `&amp;` decoded, because core registers the
 	 * taxonomy entries encoded and add_submenu_page() takes them as given.
@@ -104,12 +107,11 @@ class Mixmymeals_Settings {
 			'post-new.php?post_type=mmm_meal_plan',
 			'edit-tags.php?taxonomy=mmm_meal_plan_category&post_type=mmm_meal_plan',
 			'edit-tags.php?taxonomy=mmm_meal_plan_tag&post_type=mmm_meal_plan',
+			'mixmymeals_photos',
 		),
 		'mixmymeals_settings'              => array(
 			'mixmymeals_settings',
-			'mixmymeals_photos',
 			'edit.php?post_type=mmm_subscription',
-			'mixmymeals_import',
 		),
 	);
 
@@ -464,6 +466,19 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'    => 'recipes_group_ratings',
+					'type'  => 'heading',
+					'label' => __( 'Ratings', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'notice_rating',
+					'label'       => __( 'Rating / review notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the rating and review form on recipe pages (e.g. a note that reviews are moderated). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
 					'id'    => 'recipes_group_equipment',
 					'type'  => 'heading',
 					'label' => __( 'Equipment', 'mixmymeals' ),
@@ -706,29 +721,10 @@ class Mixmymeals_Settings {
 						'plan_thumbs_max_callback'
 					),
 				),
-			),
-		);
-
-		$settings['mixmymeals-chips'] = $this->chip_text_fields();
-
-		/*
-		 * Alles, was ein Besucher darf und was ihm dabei gesagt wird.
-		 *
-		 * Vorher lag das an drei Stellen: die Besucherpläne unter Allgemein,
-		 * die Freigabe der Fotos unter Abos (obwohl Fotos an Rezepten hängen
-		 * und nicht am Abo) und die vier Hinweistexte wieder unter Allgemein.
-		 * Wer entscheiden wollte, was Gäste auf der Seite tun können, musste
-		 * das aus drei Tabs zusammensuchen. Es ist eine Frage, also ein Tab.
-		 */
-		$settings['mixmymeals-visitors'] = array(
-			'title'       => __( 'Visitors', 'mixmymeals' ),
-			'description' => __( 'What visitors may do without an account — build plans, upload photos, rate — and the notice each of them reads before doing it.',
-				'mixmymeals' ),
-			'fields'      => array(
 				array(
-					'id'    => 'visitors_group_plans',
+					'id'    => 'mealplans_group_visitor_plans',
 					'type'  => 'heading',
-					'label' => __( 'Visitor Plans', 'mixmymeals' ),
+					'label' => __( 'Plans built by visitors', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'public_mode',
@@ -787,9 +783,17 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
-					'id'    => 'visitors_group_photos',
+					'id'          => 'notice_plan',
+					'label'       => __( 'Plan creation notice', 'mixmymeals' ),
+					'description' => __( 'Shown next to the “Create meal plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'    => 'mealplans_group_photos',
 					'type'  => 'heading',
-					'label' => __( 'Meal Photos', 'mixmymeals' ),
+					'label' => __( 'Meal photos', 'mixmymeals' ),
 				),
 				array(
 					'id'          => 'photos_auto_approve',
@@ -803,19 +807,6 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'photos_auto_approve_callback' ),
 				),
 				array(
-					'id'    => 'visitors_group_notices',
-					'type'  => 'heading',
-					'label' => __( 'Visitor Input Notices', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'notice_rating',
-					'label'       => __( 'Rating / review notice', 'mixmymeals' ),
-					'description' => __( 'Shown on the rating and review form on recipe pages (e.g. a note that reviews are moderated). Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-				array(
 					'id'          => 'notice_photo',
 					'label'       => __( 'Photo upload notice', 'mixmymeals' ),
 					'description' => __( 'Shown on the meal-photo upload form (e.g. that you grant usage rights and photos are reviewed). Leave empty to hide.', 'mixmymeals' ),
@@ -823,30 +814,49 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
-				array(
-					'id'          => 'notice_subscribe',
-					'label'       => __( 'Subscription notice', 'mixmymeals' ),
-					'description' => __( 'Shown on the meal-plan subscription form, below the consent checkbox. Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
-				array(
-					'id'          => 'notice_plan',
-					'label'       => __( 'Plan creation notice', 'mixmymeals' ),
-					'description' => __( 'Shown next to the “Create meal plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
-				),
 			),
 		);
 
-		$settings['mixmymeals-subscriptions'] = array(
-			'title'       => __( 'Subscriptions', 'mixmymeals' ),
-			'description' => __( 'Let visitors subscribe to a meal plan and receive day e-mails (double opt-in). Whether their meal photos go live unseen is decided on the Visitors tab.',
+		/*
+		 * E-Mail und Abos in einem Reiter: Ein Abo ist nichts anderes als eine Folge
+		 * von Mails, und der Absender, die Fußzeile und die Aufbewahrung gelten
+		 * für genau diese Mails. Getrennt musste man für eine Frage — was
+		 * bekommt ein Abonnent, und wie lange bleiben seine Daten — zwei Reiter
+		 * öffnen. Der Schlüssel bleibt mixmymeals-email, weil der Testmail-Kasten
+		 * und das Sendeprotokoll daran hängen; mixmymeals-subscriptions leitet
+		 * TAB_ALIASES hierher um.
+		 */
+		$settings['mixmymeals-email'] = array(
+			'title'       => __( 'E-Mail & Subscriptions', 'mixmymeals' ),
+			'description' => __( 'Who the plugin\'s e-mails come from, the meal-plan subscriptions they deliver (double opt-in) and how long their data is kept.',
 				'mixmymeals' ),
 			'fields'      => array(
+				array(
+					'id'    => 'email_group_sender',
+					'type'  => 'heading',
+					'label' => __( 'Sender Identity', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'mail_from_name',
+					'label'       => __( 'Sender Name', 'mixmymeals' ),
+					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => get_bloginfo( 'name' ),
+					'callback'    => array( $this, 'text_callback' ),
+				),
+				array(
+					'id'          => 'mail_from_email',
+					'label'       => __( 'Sender Address', 'mixmymeals' ),
+					'description' => __( 'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => 'no-reply@example.com',
+					'callback'    => array(
+						$this,
+						'mail_from_email_callback'
+					),
+				),
 				array(
 					'id'    => 'subs_group_activation',
 					'type'  => 'heading',
@@ -868,6 +878,14 @@ class Mixmymeals_Settings {
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_schedule_callback' ),
+				),
+				array(
+					'id'          => 'notice_subscribe',
+					'label'       => __( 'Subscription notice', 'mixmymeals' ),
+					'description' => __( 'Shown on the meal-plan subscription form, below the consent checkbox. Leave empty to hide.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 				array(
 					'id'    => 'subs_group_pages',
@@ -939,9 +957,58 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'subscription_upload_page_callback' ),
 				),
 				array(
-					'id'    => 'subs_group_lifecycle',
+					'id'    => 'subs_group_content',
 					'type'  => 'heading',
-					'label' => __( 'Lifecycle & Privacy', 'mixmymeals' ),
+					'label' => __( 'E-Mail Content', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'mail_footer',
+					'label'       => __( 'E-Mail Footer', 'mixmymeals' ),
+					'description' => __( 'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'archive_description_callback'
+					),
+				),
+				array(
+					'id'          => 'subscription_append_text',
+					'label'       => __( 'Appended Text Block', 'mixmymeals' ),
+					'description' => __( 'HTML or plain text. Each sending rule whose “Append” box is ticked adds this block to the end of its e-mail.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'subscription_append_text_callback' ),
+				),
+				array(
+					'id'    => 'email_group_privacy',
+					'type'  => 'heading',
+					'label' => __( 'Privacy & retention', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'mail_suppression_list',
+					'label'       => __( 'Suppression List', 'mixmymeals' ),
+					'description' => __( 'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
+						'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'mail_suppression_list_callback'
+					),
+				),
+				array(
+					'id'          => 'mail_log_enabled',
+					'label'       => __( 'Send Log', 'mixmymeals' ),
+					'description' => __( 'Keep a log of sent e-mails (recipient, subject, status — no message content).',
+						'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'mail_log_enabled_callback'
+					),
 				),
 				array(
 					'id'          => 'subscription_pending_hours',
@@ -970,96 +1037,10 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_log_ip_callback' ),
 				),
-				array(
-					'id'    => 'subs_group_content',
-					'type'  => 'heading',
-					'label' => __( 'E-Mail Content', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'subscription_append_text',
-					'label'       => __( 'Appended Text Block', 'mixmymeals' ),
-					'description' => __( 'HTML or plain text. Each sending rule whose “Append” box is ticked adds this block to the end of its e-mail.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array( $this, 'subscription_append_text_callback' ),
-				),
 			),
 		);
 
-		$settings['mixmymeals-email'] = array(
-			'title'       => __( 'E-Mail', 'mixmymeals' ),
-			'description' => __( 'Sender identity and privacy options for e-mails sent by the plugin.',
-				'mixmymeals' ),
-			'fields'      => array(
-				array(
-					'id'    => 'email_group_sender',
-					'type'  => 'heading',
-					'label' => __( 'Sender Identity', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'mail_from_name',
-					'label'       => __( 'Sender Name', 'mixmymeals' ),
-					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => get_bloginfo( 'name' ),
-					'callback'    => array( $this, 'text_callback' ),
-				),
-				array(
-					'id'          => 'mail_from_email',
-					'label'       => __( 'Sender Address', 'mixmymeals' ),
-					'description' => __( 'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => 'no-reply@example.com',
-					'callback'    => array(
-						$this,
-						'mail_from_email_callback'
-					),
-				),
-				array(
-					'id'    => 'email_group_content',
-					'type'  => 'heading',
-					'label' => __( 'Content & Privacy', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'mail_footer',
-					'label'       => __( 'E-Mail Footer', 'mixmymeals' ),
-					'description' => __( 'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'archive_description_callback'
-					),
-				),
-				array(
-					'id'          => 'mail_suppression_list',
-					'label'       => __( 'Suppression List', 'mixmymeals' ),
-					'description' => __( 'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
-						'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'mail_suppression_list_callback'
-					),
-				),
-				array(
-					'id'          => 'mail_log_enabled',
-					'label'       => __( 'Send Log', 'mixmymeals' ),
-					'description' => __( 'Keep a log of sent e-mails (recipient, subject, status — no message content).',
-						'mixmymeals' ),
-					'default'     => 'on',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'mail_log_enabled_callback'
-					),
-				),
-			),
-		);
+		$settings['mixmymeals-language'] = $this->chip_text_fields();
 
 
 		// _token is 'mixmymeals', so the hook is mixmymeals_settings_fields —
@@ -1087,7 +1068,22 @@ class Mixmymeals_Settings {
 	 */
 	private function chip_text_fields(): array {
 
-		$fields = array();
+		/*
+		 * Der Reiter heisst „Sprache“ und die Chips sind eine Sektion darin:
+		 * Es geht hier um Wortlaut, nicht um eine Funktion, und die Chips sind
+		 * nur der erste Satz an Texten, den eine Seite anders sagen will. Die
+		 * Sektion ist eine Ebene über den Gruppen (level 2), damit
+		 * „Rezepte und Mahlzeiten“ usw. als ihre Unterpunkte lesbar bleiben.
+		 */
+		$fields = array(
+			array(
+				'id'          => Mixmymeals_Shortcodes::CHIP_TEXT_FIELD_PREFIX . 'section',
+				'type'        => 'heading',
+				'level'       => 2,
+				'label'       => __( 'Chips', 'mixmymeals' ),
+				'description' => __( 'The small labels on recipes, meals, plans and archive cards. Leave a field empty for the wording of the site language. Placeholders in curly braces are filled in; a pattern that drops the value the chip exists to state is ignored.', 'mixmymeals' ),
+			),
+		);
 
 		foreach ( Mixmymeals_Shortcodes::chip_text_groups() as $group => $heading ) {
 
@@ -1121,11 +1117,8 @@ class Mixmymeals_Settings {
 		}
 
 		return array(
-			// Der Reiter heisst nach dem, was man darin ändert: Texte. „Chips“
-			// allein ist ein Wort aus dem Code und sagt einem Redakteur nicht,
-			// dass hier „4 Portionen“ zu „für 4 Personen“ wird.
-			'title'       => __( 'Chip texts', 'mixmymeals' ),
-			'description' => __( 'The wording of the small labels on recipes, meals, plans and archive cards. Leave a field empty for the wording of the site language. Placeholders in curly braces are filled in; a pattern that drops the value the chip exists to state is ignored.', 'mixmymeals' ),
+			'title'       => __( 'Language', 'mixmymeals' ),
+			'description' => __( 'How the site words things. Each text here replaces the wording that comes with the site language.', 'mixmymeals' ),
 			'fields'      => $fields,
 		);
 	}
@@ -1171,7 +1164,7 @@ class Mixmymeals_Settings {
 					 * Unterpunkt an und gibt ihm den Menütitel — hier also
 					 * „MixMyMeals › MixMyMeals“. Derselbe Aufruf mit demselben
 					 * Slug überschreibt dessen Beschriftung, und darunter
-					 * hängen sich Import, Fotos und Abos ein.
+					 * hängen sich die Abos ein.
 					 */
 					add_submenu_page(
 						$args['menu_slug'],
@@ -1454,9 +1447,15 @@ class Mixmymeals_Settings {
 
 		$field = $args['field'] ?? array();
 
-		echo '<h3 class="mmm-settings-group-title">'
-			. esc_html( (string) ( $field['label'] ?? '' ) )
-			. '</h3>';
+		/*
+		 * Zwei Ebenen: level 2 ist eine Sektion, die eigene Gruppen trägt
+		 * („Chips“ im Reiter Sprache), alles andere eine Gruppe.
+		 */
+		$is_section = 2 === (int) ( $field['level'] ?? 3 );
+
+		echo $is_section
+			? '<h2 class="mmm-settings-section-title">' . esc_html( (string) ( $field['label'] ?? '' ) ) . '</h2>'
+			: '<h3 class="mmm-settings-group-title">' . esc_html( (string) ( $field['label'] ?? '' ) ) . '</h3>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in both branches.
 
 		if ( ! empty( $field['description'] ) ) {
 			echo '<p class="mmm-settings-group-desc">'

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 3.48.0
+ * Version: 3.49.0
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data and PDF export.
  * Author: Timo Fricke
@@ -51,7 +51,6 @@ require_once 'includes/lib/class-mixmymeals-cleanup.php';
 require_once 'includes/lib/class-mixmymeals-mail-log.php';
 require_once 'includes/lib/class-mixmymeals-mailer.php';
 require_once 'includes/lib/class-mixmymeals-subscriptions.php';
-require_once 'includes/lib/class-mixmymeals-importer.php';
 require_once 'includes/lib/class-mixmymeals-ratings.php';
 require_once 'includes/lib/class-mixmymeals-photos.php';
 require_once 'includes/lib/class-mixmymeals-yoast.php';
@@ -86,7 +85,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '3.48.0' );
+	$instance = Mixmymeals::instance( __FILE__, '3.49.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
@@ -138,7 +137,6 @@ mixmymeals()->add_rest_api();
 mixmymeals()->add_cleanup();
 mixmymeals()->add_mail_log();
 mixmymeals()->add_subscriptions();
-mixmymeals()->add_importer();
 mixmymeals()->add_ratings();
 mixmymeals()->add_photos();
 mixmymeals()->add_privacy();

@@ -15,7 +15,6 @@
      6. Produkte            die Karten auf dem Zutatenbildschirm
      7. Nutzung             „in N Rezepten benutzt“, geteilt von Einheiten,
                             Produkten und Küchengeräten
-     8. Import              der Bildschirm unter MixMyMeals → Import
 
    ZWEI KLASSENPRÄFIXE, und das ist kein Versehen. Neueres heißt `mmm-`,
    Älteres `mixmymeals-`. Der naheliegende Umbau — alles auf `mmm-` — geht
@@ -669,6 +668,17 @@
     margin-top: 4px;
 }
 
+/* A section one level above the groups („Chips“ on the Language tab):
+   larger and without the rule, so the groups under it read as its parts
+   rather than as its siblings. */
+#mixmymeals_settings .mmm-settings-section-title {
+    margin: 12px 0 0;
+    padding: 0;
+    color: var(--mmm-ad-ink);
+    font-size: 18px;
+    font-weight: 600;
+}
+
 #mixmymeals_settings .mmm-settings-group-desc {
     margin: 8px 0 0;
     max-width: 60em;
@@ -1111,68 +1121,4 @@ tbody > tr:first-child.mmm-products__head {
 
 .mmm-equipment__status.is-error {
     color: var(--mmm-ad-danger);
-}
-
-
-/* ==========================================================
-   Import-Bildschirm (Rezepte und Zutaten)
-
-   Stand bis hierher als <style>-Block in der Importer-Klasse.
-   Zwei Orte für Admin-CSS sind zwei Orte, an denen dieselbe
-   Karte unterschiedlich aussehen kann; dieses Stylesheet wird
-   ohnehin auf jedem Admin-Bildschirm geladen.
-   ========================================================== */
-
-.mmm-card {
-    background: var(--mmm-ad-surface);
-    border: 1px solid var(--mmm-ad-line);
-    border-radius: var(--mmm-ad-r);
-    padding: 20px 24px;
-    margin-top: 20px;
-    max-width: none;
-}
-.mmm-card > h2 {
-    margin: 0 0 16px;
-    padding: 0 0 12px;
-    border-bottom: 1px solid var(--mmm-ad-bg-2);
-    font-size: 14px;
-    font-weight: 600;
-}
-.mmm-textarea-wrap {
-    position: relative;
-}
-.mmm-textarea-wrap textarea {
-    width: 100%;
-    font-family: monospace;
-    font-size: 12px;
-    border: 1px solid var(--mmm-ad-line-2);
-    padding: 8px;
-    box-sizing: border-box;
-    resize: vertical;
-    line-height: 1.5;
-}
-.mmm-textarea-wrap textarea[readonly] {
-    background: var(--mmm-ad-bg);
-    color: var(--mmm-ad-ink);
-    padding-right: 74px;
-}
-.mmm-copy-btn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    z-index: 1;
-    font-size: 11px !important;
-    line-height: 20px !important;
-    height: 24px !important;
-    padding: 0 8px !important;
-    min-height: unset !important;
-}
-.mmm-import-form .form-table td textarea {
-    width: 100%;
-    font-family: monospace;
-    font-size: 12px;
-    line-height: 1.5;
-}
-.mmm-card p {
-    margin-top: 0;
 }

@@ -68,27 +68,10 @@ $check = static function ( bool $ok, string $label ) use ( &$fails, &$pass ) {
 	echo "FAIL $label\n";
 };
 
-// --- Importseite ---
-ob_start();
-Mmm_Importer_UI::render_page();
-$import = ob_get_clean();
-
-$check( false !== strpos( $import, 'nav-tab-wrapper' ), 'Import: Reiterleiste vorhanden' );
-$check( substr_count( $import, 'nav-tab' ) >= 3, 'Import: zwei Reiter' );
-$check( false !== strpos( $import, 'tab=recipes' ), 'Import: Reiter Rezepte' );
-$check( false !== strpos( $import, 'tab=ingredients' ), 'Import: Reiter Zutaten' );
-$check( false !== strpos( $import, 'mixmymeals_import_recipes' ), 'Import: Rezept-Formular ist der Vorgabereiter' );
-$check( false === strpos( $import, 'mixmymeals_import_ingredients' ), 'Import: der andere Reiter rendert nicht mit' );
-$check( 1 === substr_count( $import, '<h1>' ), 'Import: genau eine Ueberschrift' );
-$check( substr_count( $import, '<div' ) === substr_count( $import, '</div>' ), 'Import: div-Bilanz (' . substr_count( $import, '<div' ) . ' auf / ' . substr_count( $import, '</div>' ) . ' zu)' );
-
-// Zweiter Reiter
-$_GET['tab'] = 'ingredients'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- test harness.
-ob_start();
-Mmm_Importer_UI::render_page();
-$import2 = ob_get_clean();
-$check( false !== strpos( $import2, 'mixmymeals_import_ingredients' ), 'Import: Zutaten-Reiter rendert sein Formular' );
-unset( $_GET['tab'] );
+// --- Der Import ist ausgebaut ---
+$check( ! class_exists( 'Mmm_Importer_UI' ), 'Import: die Klasse ist weg' );
+$check( ! has_action( 'admin_post_mixmymeals_import_recipes' ), 'Import: kein Formular-Handler mehr' );
+$check( ! isset( rest_get_server()->get_routes()['/mixmymeals/v1/import-reference'] ), 'Import: keine REST-Route mehr' );
 
 // --- Einstellungsseite ---
 $settings = Mixmymeals::instance()->settings;
@@ -97,14 +80,14 @@ ob_start();
 $settings->settings_page();
 $settings_html = ob_get_clean();
 
-$check( false !== strpos( $settings_html, 'Besucher' ), 'Einstellungen: Tab Besucher' );
-$check( false !== strpos( $settings_html, 'mixmymeals-visitors' ), 'Einstellungen: dessen Schluessel' );
+$check( false !== strpos( $settings_html, 'Sprache' ), 'Einstellungen: Tab Sprache' );
+$check( false === strpos( $settings_html, 'tab=mixmymeals-visitors' ), 'Einstellungen: kein Besucher-Tab mehr' );
 $check( false !== strpos( $settings_html, 'admin.php?page=mixmymeals_settings' ) || false !== strpos( $settings_html, 'page=mixmymeals_settings' ), 'Einstellungen: Reiterlinks' );
 $check( false === strpos( $settings_html, 'options-general.php?page=mixmymeals' ), 'Einstellungen: keine alte URL mehr' );
 
 // --- Der Helfer ---
 $check( false !== strpos( Mixmymeals_Settings::settings_url(), 'admin.php' ), 'settings_url() zeigt auf admin.php' );
-$check( false !== strpos( Mixmymeals_Settings::settings_url( 'mixmymeals-chips' ), 'tab=mixmymeals-chips' ), 'settings_url() nimmt einen Tab' );
+$check( false !== strpos( Mixmymeals_Settings::settings_url( 'mixmymeals-language' ), 'tab=mixmymeals-language' ), 'settings_url() nimmt einen Tab' );
 
 // --- Das Menue ---
 $equipment = get_post_type_object( 'mmm_equipment' );
@@ -130,7 +113,9 @@ $check( $eq_cat->labels->menu_name !== $rc_cat->labels->menu_name, 'Menue: zwei 
 
 // --- Die Einstellungen ---
 $tabs = array_keys( $settings->settings );
-$check( in_array( 'mixmymeals-visitors', $tabs, true ), 'Einstellungen: der Besucher-Tab existiert' );
+foreach ( array( 'mixmymeals-visitors', 'mixmymeals-subscriptions', 'mixmymeals-chips' ) as $gone ) {
+	$check( ! in_array( $gone, $tabs, true ), "Einstellungen: $gone gibt es nicht mehr" );
+}
 
 $ids = array();
 foreach ( $settings->settings as $key => $tab ) {
@@ -145,10 +130,16 @@ $doppelt = array_filter( $ids, static fn( $v ) => count( $v ) > 1 );
 $check( ! $doppelt, 'Einstellungen: kein Feld steht in zwei Tabs' . ( $doppelt ? ' (' . implode( ',', array_keys( $doppelt ) ) . ')' : '' ) );
 
 foreach ( array(
-	'public_mode'         => 'mixmymeals-visitors',
-	'notice_rating'       => 'mixmymeals-visitors',
-	'photos_auto_approve' => 'mixmymeals-visitors',
-	'enable_cleanup'      => 'mixmymeals-general',
+	'public_mode'           => 'mixmymeals-meal-plans',
+	'notice_plan'           => 'mixmymeals-meal-plans',
+	'photos_auto_approve'   => 'mixmymeals-meal-plans',
+	'notice_photo'          => 'mixmymeals-meal-plans',
+	'notice_rating'         => 'mixmymeals-recipes',
+	'notice_subscribe'      => 'mixmymeals-email',
+	'subscriptions_enabled' => 'mixmymeals-email',
+	'mail_from_name'        => 'mixmymeals-email',
+	'chip_text_servings'    => 'mixmymeals-language',
+	'enable_cleanup'        => 'mixmymeals-general',
 ) as $field => $want ) {
 	$check( ( $ids[ $field ][0] ?? '' ) === $want, "Einstellungen: $field liegt in $want" );
 }
@@ -200,17 +191,16 @@ $check(
 		'post-new.php?post_type=mmm_meal_plan',
 		'edit-tags.php?taxonomy=mmm_meal_plan_category&post_type=mmm_meal_plan',
 		'edit-tags.php?taxonomy=mmm_meal_plan_tag&post_type=mmm_meal_plan',
+		'mixmymeals_photos',
 	),
-	'Untermenue Essensplaene: Liste, Neu, Kategorien, Tags'
+	'Untermenue Essensplaene: Liste, Neu, Kategorien, Tags, Fotos (' . implode( ' | ', $subs_of( 'edit.php?post_type=mmm_meal_plan' ) ) . ')'
 );
 $check(
 	$subs_of( 'mixmymeals_settings' ) === array(
 		'mixmymeals_settings',
-		'mixmymeals_photos',
 		'edit.php?post_type=mmm_subscription',
-		'mixmymeals_import',
 	),
-	'Untermenue MixMyMeals: Einstellungen, Fotos, Abos, Import (' . implode( ' | ', $subs_of( 'mixmymeals_settings' ) ) . ')'
+	'Untermenue MixMyMeals: Einstellungen, Abos (' . implode( ' | ', $subs_of( 'mixmymeals_settings' ) ) . ')'
 );
 
 /*
@@ -241,10 +231,8 @@ $host_tabs = array(
 	'mixmymeals-recipes',
 	'mixmymeals-ingredients',
 	'mixmymeals-meal-plans',
-	'mixmymeals-chips',
-	'mixmymeals-visitors',
-	'mixmymeals-subscriptions',
 	'mixmymeals-email',
+	'mixmymeals-language',
 );
 $check( array_slice( $tabs, 0, count( $host_tabs ) ) === $host_tabs, 'Reiter: Reihenfolge des Hosts (' . implode( ', ', $tabs ) . ')' );
 $check( ! in_array( 'mixmymeals-equipment', $tabs, true ), 'Reiter: Kuechengeraete stehen unter Rezepte, kein eigener Reiter' );
@@ -269,7 +257,17 @@ $check( ! $slug_in_general, 'Einstellungen: unter Allgemein steht kein Slug mehr
 $check( 'mixmymeals-recipes' === $settings->resolve_tab( 'mixmymeals-equipment' ), 'Reiter: alter Schluessel Kuechengeraete fuehrt zu Rezepte' );
 $check( 'mixmymeals-general' === $settings->resolve_tab( 'gibt-es-nicht' ), 'Reiter: unbekannter Schluessel fuehrt zum ersten Reiter' );
 $check( 'mixmymeals-general' === $settings->resolve_tab( '' ), 'Reiter: ohne Schluessel der erste' );
-$check( 'mixmymeals-chips' === $settings->resolve_tab( 'mixmymeals-chips' ), 'Reiter: bekannter Schluessel bleibt' );
+$check( 'mixmymeals-language' === $settings->resolve_tab( 'mixmymeals-language' ), 'Reiter: bekannter Schluessel bleibt' );
+$check( 'mixmymeals-meal-plans' === $settings->resolve_tab( 'mixmymeals-visitors' ), 'Reiter: Besucher fuehrt zu Essensplaene' );
+$check( 'mixmymeals-email' === $settings->resolve_tab( 'mixmymeals-subscriptions' ), 'Reiter: Abos fuehrt zu E-Mail & Abos' );
+$check( 'mixmymeals-language' === $settings->resolve_tab( 'mixmymeals-chips' ), 'Reiter: Chips fuehrt zu Sprache' );
+
+// Chips sind eine Sektion im Reiter Sprache, eine Ebene ueber ihren Gruppen.
+$lang_first = $settings->settings['mixmymeals-language']['fields'][0] ?? array();
+$check( 'heading' === ( $lang_first['type'] ?? '' ) && 2 === ( $lang_first['level'] ?? 0 ), 'Sprache: beginnt mit der Sektion Chips' );
+
+// Die Fotoseite leitet auf sich selbst unter Essensplaene zurueck.
+$check( false !== strpos( Mixmymeals_Photos::admin_page_url(), 'post_type=mmm_meal_plan&page=mixmymeals_photos' ), 'Fotos: Ruecksprung unter Essensplaene' );
 
 /*
  * Ein Link ohne Nonce — so wie der Unterpunkt „Einstellungen“ des Add-ons —

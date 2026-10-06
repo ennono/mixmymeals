@@ -939,7 +939,7 @@ class Mixmymeals_Recipe {
 
 		foreach ( $steps as $step ) {
 
-			// HTML zentral säubern, damit REST/Importer/Admin denselben
+			// HTML zentral säubern, damit REST und Admin denselben
 			// Schutz erhalten: Titel ohne Markup, Beschreibung nur mit
 			// erlaubtem Post-HTML (kein <script> etc.).
 			$title = sanitize_text_field( $step['title'] ?? '' );

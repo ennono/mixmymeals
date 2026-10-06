@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * drip mail, or from a logged-in user. The uploader is recorded per photo
  * (subscription ID or user ID plus a display name).
  *
- * Moderation happens on a dedicated "Meal Photos" submenu under Recipes.
+ * Moderation happens on a dedicated "Meal Photos" submenu under Meal Plans.
  */
 class Mixmymeals_Photos {
 
@@ -45,6 +45,19 @@ class Mixmymeals_Photos {
 	const OPT_AUTO_APPROVE = 'mixmymeals_photos_auto_approve';
 
 	const ADMIN_SLUG = 'mixmymeals_photos';
+
+	/**
+	 * The admin URL of the moderation screen.
+	 *
+	 * One place, because the screen has moved twice — from Recipes to the
+	 * MixMyMeals menu to Meal Plans — and both redirects back to it still
+	 * pointed at the Recipes menu after the first move.
+	 *
+	 * @return string
+	 */
+	public static function admin_page_url(): string {
+		return admin_url( 'edit.php?post_type=mmm_meal_plan&page=' . self::ADMIN_SLUG );
+	}
 
 	/**
 	 * Constructor: wires up the moderation page and its actions.
@@ -295,13 +308,14 @@ class Mixmymeals_Photos {
 		}
 
 		/*
-		 * Unter MixMyMeals statt unter Rezepte. Die Seite moderiert, was
-		 * Besucher hochgeladen haben — das ist Betrieb, nicht Redaktion, und
-		 * hört an keinem einzelnen Rezept auf. Im Rezeptmenü stand sie
-		 * zwischen Kategorien und Import, wo niemand sie suchte.
+		 * Unter Essenspläne. Die Fotos hängen zwar an Rezepten, kommen aber
+		 * meist über den Link in den Abo-Mails eines Plans, und ihre Freigabe
+		 * steht im Reiter Essenspläne — die Moderation steht damit neben
+		 * ihrer Einstellung. Vorher hing sie unter Rezepte, danach im Menü
+		 * MixMyMeals.
 		 */
 		add_submenu_page(
-			'mixmymeals_settings',
+			'edit.php?post_type=mmm_meal_plan',
 			__( 'Meal Photos', 'mixmymeals' ),
 			$label,
 			'edit_others_posts',
@@ -364,7 +378,7 @@ class Mixmymeals_Photos {
 		}
 
 		wp_safe_redirect(
-			admin_url( 'edit.php?post_type=' . self::RECIPE_POST_TYPE . '&page=' . self::ADMIN_SLUG )
+			self::admin_page_url()
 		);
 		exit;
 	}
@@ -433,7 +447,7 @@ class Mixmymeals_Photos {
 					'uploaded' => $uploaded,
 					'recipe'   => $recipe_id,
 				),
-				admin_url( 'edit.php?post_type=' . self::RECIPE_POST_TYPE . '&page=' . self::ADMIN_SLUG )
+				self::admin_page_url()
 			)
 		);
 		exit;

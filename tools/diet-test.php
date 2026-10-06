@@ -359,12 +359,15 @@ t( 'nach dem Zuruecksetzen wieder Standard', 'Vegan tauglich',
 $mmm      = Mixmymeals::instance( dirname( __DIR__ ) . '/mixmymeals.php', '0' );
 $settings = $mmm->settings instanceof Mixmymeals_Settings ? $mmm->settings : Mixmymeals_Settings::instance( $mmm );
 $settings->init_settings();
-$tab       = $settings->settings['mixmymeals-chips'] ?? array( 'fields' => array() );
+$tab       = $settings->settings['mixmymeals-language'] ?? array( 'fields' => array() );
 $field_ids = array_column( $tab['fields'], 'id' );
 $inputs    = array_filter( $tab['fields'], fn( $f ) => empty( $f['type'] ) );
 t( 'jeder Text hat ein Feld', (string) count( Mixmymeals_Shortcodes::chip_texts() ), (string) count( $inputs ) );
+// Die Sektion "Chips" (level 2) steht ueber den Gruppen und zaehlt nicht mit.
 t( 'je Gruppe eine Ueberschrift', (string) count( Mixmymeals_Shortcodes::chip_text_groups() ),
-   (string) count( array_filter( $tab['fields'], fn( $f ) => 'heading' === ( $f['type'] ?? '' ) ) ) );
+   (string) count( array_filter( $tab['fields'], fn( $f ) => 'heading' === ( $f['type'] ?? '' ) && 2 !== ( $f['level'] ?? 3 ) ) ) );
+t( 'darueber genau eine Sektion', '1',
+   (string) count( array_filter( $tab['fields'], fn( $f ) => 2 === ( $f['level'] ?? 3 ) ) ) );
 t( 'Feld-Id folgt dem Schluessel', '1',
    (string) (int) in_array( 'chip_text_diet_capable', $field_ids, true ) );
 $field = array_values( array_filter( $tab['fields'], fn( $f ) => ( $f['id'] ?? '' ) === 'chip_text_servings' ) )[0];

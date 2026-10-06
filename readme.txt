@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.48.0
+Stable tag: 3.49.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,29 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.49.0 =
+
+Changed:
+* Settings tabs reworked: General, Recipes, Ingredients, Meal Plans,
+  E-Mail & Subscriptions, Language. The Visitors tab is gone — plans built by
+  visitors, photo approval and the plan and photo notices are under Meal
+  Plans, the rating notice under Recipes, the subscribe notice with the
+  subscriptions. E-Mail and Subscriptions are one tab, with a new "Privacy &
+  retention" group. "Chip texts" is now "Language", with Chips as its first
+  section. No option was renamed; old links to removed tabs open their new
+  place.
+* Meal Photos moved from the MixMyMeals menu to Meal Plans. The MixMyMeals
+  menu now holds Settings and Subscriptions only.
+
+Removed:
+* The JSON import for recipes and ingredients: its screen and menu entry, the
+  /import-reference REST route and its styles. Content arrives through the
+  REST API and the MCP server.
+
+Fixed:
+* Approving or rejecting a meal photo returned to a page under Recipes that no
+  longer existed.
 
 = 3.48.0 =
 

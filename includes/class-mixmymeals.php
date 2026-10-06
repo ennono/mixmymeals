@@ -265,30 +265,6 @@ class Mixmymeals {
 	}
 
 	/**
-	 * Instantiates the JSON importer classes and the one screen they share.
-	 *
-	 * Recipes and ingredients used to have an import page each, hanging in
-	 * their own menus and both labelled "Import". They are two sections of one
-	 * screen now; each importer registers its own, and the AI reference REST
-	 * route comes along with the recipe one.
-	 *
-	 * @return void
-	 */
-	public function add_importer(): void {
-
-		/*
-		 * Rezepte zuerst: beide Importer melden im Konstruktor ihren Abschnitt
-		 * an, und die Reihenfolge der Reiter ist die Reihenfolge dieser zwei
-		 * Zeilen. Rezepte sind das, was öfter importiert wird.
-		 */
-		new Mixmymeals_Recipe_Importer();
-		new Mixmymeals_Ingredient_Importer();
-
-		// Erst danach die Seite, die aus den angemeldeten Abschnitten besteht.
-		add_action( 'admin_menu', array( 'Mmm_Importer_UI', 'register_menu' ) );
-	}
-
-	/**
 	 * Instantiates the recipe ratings class (comment-based star ratings for
 	 * logged-in users plus the per-recipe aggregate and display shortcode).
 	 *
