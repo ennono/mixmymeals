@@ -87,11 +87,17 @@ $check( false === strpos( $settings_html, 'options-general.php?page=mixmymeals' 
 
 // --- Datenschutz-Reiter: Text statt Formular ---
 $_GET['tab'] = 'mixmymeals-privacy'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- test harness.
+// Fields are registered per tab, so register this tab's afresh — as a
+// request to it would — instead of rendering the first tab's.
+$GLOBALS['wp_settings_sections'] = array(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$GLOBALS['wp_settings_fields']   = array(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$settings->register_settings();
 ob_start();
 $settings->settings_page();
 $privacy_html = ob_get_clean();
 unset( $_GET['tab'] );
-$check( false === strpos( $privacy_html, 'action="options.php"' ), 'Datenschutz-Reiter: kein Formular, nichts zu speichern' );
+$check( false !== strpos( $privacy_html, 'mixmymeals_disable_wp_emoji' ), 'Datenschutz-Reiter: die Emoji-Option ist da' );
+$check( strpos( $privacy_html, 'mixmymeals_disable_wp_emoji' ) < strpos( $privacy_html, 'mmm-privacy-preview' ), 'Datenschutz-Reiter: Option oben, Vorschau darunter' );
 $check( false !== strpos( $privacy_html, 'mmm-privacy-preview' ) && false !== strpos( $privacy_html, '[mmm_privacy_policy]' ), 'Datenschutz-Reiter: Vorschau und Shortcode-Hinweis' );
 
 // --- Der Helfer ---
@@ -144,6 +150,7 @@ foreach ( array(
 	'plan_subscribe_mode'   => 'mixmymeals-meal-plans',
 	'plan_subscribe_notice' => 'mixmymeals-meal-plans',
 	'plan_subscribe_notice_checkbox' => 'mixmymeals-meal-plans',
+	'disable_wp_emoji'      => 'mixmymeals-privacy',
 	'photos_auto_approve'   => 'mixmymeals-meal-plans',
 	'notice_photo'          => 'mixmymeals-meal-plans',
 	'notice_rating'         => 'mixmymeals-recipes',

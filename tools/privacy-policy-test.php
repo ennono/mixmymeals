@@ -56,6 +56,7 @@ $keys  = array(
 	'mixmymeals_published_meal_plans_per_hour_limit',
 	'mixmymeals_save_meal_plans_published_by_visitors_as_draft',
 	'mixmymeals_enable_cleanup',
+	'mixmymeals_disable_wp_emoji',
 );
 $saved = array();
 foreach ( $keys as $k ) {
@@ -153,6 +154,22 @@ mmm_ppt_assert( str_contains( $with, 'ZZ add-on &lt;b&gt;line&lt;/b&gt;' ), 'Add
 if ( class_exists( 'Mixmymeals_Pinterest' ) ) {
 	mmm_ppt_assert( $has( 'Pin images' ), 'das Social-Add-on trägt seine Pinnwand-Bilder bei' );
 }
+
+echo "-- 3b. WordPress-Emoji abschaltbar\n";
+
+update_option( 'mixmymeals_disable_wp_emoji', '' );
+Mixmymeals_Privacy::maybe_disable_emoji();
+mmm_ppt_assert( false !== has_action( 'wp_head', 'print_emoji_detection_script' ), 'Option aus: das Emoji-Skript bleibt (Standard)' );
+
+update_option( 'mixmymeals_disable_wp_emoji', 'on' );
+Mixmymeals_Privacy::maybe_disable_emoji();
+mmm_ppt_assert(
+	false === has_action( 'wp_head', 'print_emoji_detection_script' )
+	&& false === has_action( 'wp_enqueue_scripts', 'wp_enqueue_emoji_styles' )
+	&& false === has_filter( 'wp_mail', 'wp_staticize_emoji_for_email' ),
+	'Option an: Skript, Styles und die s.w.org-Bilder in Mails sind ausgehängt'
+);
+mmm_ppt_assert( ! in_array( 'wpemoji', (array) apply_filters( 'tiny_mce_plugins', array( 'wpemoji', 'lists' ) ), true ), 'auch das Emoji-Plugin des klassischen Editors' );
 
 echo "-- 4. Aufräumen\n";
 

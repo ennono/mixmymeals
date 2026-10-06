@@ -22,10 +22,69 @@ class Mixmymeals_Privacy {
 
 	const SUBSCRIPTION_POST_TYPE = 'mmm_subscription';
 
+	/**
+	 * Option: stop WordPress loading its emoji script and images from s.w.org.
+	 */
+	const OPT_DISABLE_EMOJI = 'mixmymeals_disable_wp_emoji';
+
 	public function __construct() {
 		add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_exporters' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_erasers' ) );
 		add_action( 'admin_init', array( $this, 'add_privacy_policy_content' ) );
+
+		// Front-end hooks exist by init; wp-admin's own (admin-filters.php)
+		// are only added after it, so the admin side waits for admin_init.
+		add_action( 'init', array( __CLASS__, 'maybe_disable_emoji' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_disable_emoji' ) );
+	}
+
+	/**
+	 * Whether WordPress's emoji support is switched off (Privacy Policy tab).
+	 *
+	 * @return bool
+	 */
+	public static function emoji_disabled(): bool {
+		return 'on' === (string) get_option( self::OPT_DISABLE_EMOJI, '' );
+	}
+
+	/**
+	 * Unhooks WordPress's emoji support when the option says so.
+	 *
+	 * Core prints a detection script on every page; where the browser lacks
+	 * an emoji, it replaces it with an image from s.w.org — a server of the
+	 * WordPress Foundation in the USA, which then receives the visitor's IP
+	 * address. It is the one third-party request the site makes, and the only
+	 * reason a privacy policy for it needs a section on embedded content.
+	 * Browsers have drawn emoji themselves for years, so nothing visible is
+	 * lost. Mails are covered too: wp_staticize_emoji_for_email() turns an
+	 * emoji in any wp_mail() into an <img> on s.w.org, which the recipient's
+	 * mail client would load.
+	 *
+	 * @return void
+	 */
+	public static function maybe_disable_emoji(): void {
+
+		if ( ! self::emoji_disabled() ) {
+			return;
+		}
+
+		remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+		remove_action( 'embed_head', 'print_emoji_detection_script' );
+		remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+		remove_action( 'wp_enqueue_scripts', 'wp_enqueue_emoji_styles' );
+		remove_action( 'enqueue_embed_scripts', 'wp_enqueue_emoji_styles' );
+		remove_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
+		remove_action( 'wp_print_styles', 'print_emoji_styles' );
+		remove_action( 'admin_print_styles', 'print_emoji_styles' );
+		remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
+		remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
+		remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
+
+		// The classic editor's emoji plugin loads the same images.
+		add_filter(
+			'tiny_mce_plugins',
+			static fn( $plugins ) => is_array( $plugins ) ? array_values( array_diff( $plugins, array( 'wpemoji' ) ) ) : $plugins
+		);
 	}
 
 	/* ---------------------------------------------------------------------

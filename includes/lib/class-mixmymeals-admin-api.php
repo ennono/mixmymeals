@@ -244,6 +244,7 @@ class Mixmymeals_Admin_API {
 			case 'photos_auto_approve':
 			case 'public_mode':
 			case 'plan_subscribe_notice_checkbox':
+			case 'disable_wp_emoji':
 			case 'show_recipe_steps':
 			case 'delete_data_on_uninstall':
 				$checked = '';

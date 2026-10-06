@@ -1089,7 +1089,16 @@ class Mixmymeals_Settings {
 		$settings['mixmymeals-privacy'] = array(
 			'title'       => __( 'Privacy Policy', 'mixmymeals' ),
 			'description' => __( 'A suggestion for the MixMyMeals section of your privacy policy, generated from the settings in the other tabs. It changes by itself when they do — check your published policy after changing a retention period or switching a feature on or off.', 'mixmymeals' ),
-			'fields'      => array(),
+			'fields'      => array(
+				array(
+					'id'          => 'disable_wp_emoji',
+					'label'       => __( 'WordPress emoji', 'mixmymeals' ),
+					'description' => __( 'Do not load WordPress\'s emoji script and emoji images from s.w.org (WordPress Foundation, USA). Browsers show emoji themselves; switched off, the site makes no request to a third party for them and the privacy policy needs no section on it.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'public_mode_callback' ),
+				),
+			),
 		);
 
 		$settings['mixmymeals-language'] = $this->chip_text_fields();
@@ -1597,27 +1606,27 @@ class Mixmymeals_Settings {
 			$html .= '</h2>' . "\n";
 		}
 
-		// The privacy tab has nothing to save: no form, no Save button.
+		$html .= '<form method="post" action="options.php" enctype="multipart/form-data">'
+		         . "\n";
+
+		// Get settings fields.
+		ob_start();
+		settings_fields( $this->parent->_token . '_settings' );
+		do_settings_sections( $this->parent->_token . '_settings' );
+		$html .= ob_get_clean();
+
+		$html .= '<p class="submit">' . "\n";
+		$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab )
+		         . '" />' . "\n";
+		$html .= '<input name="Submit" type="submit" class="button-primary" value="'
+		         . esc_attr__( 'Save Settings', 'mixmymeals' ) . '" />'
+		         . "\n";
+		$html .= '</p>' . "\n";
+		$html .= '</form>' . "\n";
+
+		// The generated policy text sits under the tab's own setting.
 		if ( 'mixmymeals-privacy' === $tab ) {
 			$html .= $this->render_privacy_policy_tab();
-		} else {
-			$html .= '<form method="post" action="options.php" enctype="multipart/form-data">'
-			         . "\n";
-
-			// Get settings fields.
-			ob_start();
-			settings_fields( $this->parent->_token . '_settings' );
-			do_settings_sections( $this->parent->_token . '_settings' );
-			$html .= ob_get_clean();
-
-			$html .= '<p class="submit">' . "\n";
-			$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab )
-			         . '" />' . "\n";
-			$html .= '<input name="Submit" type="submit" class="button-primary" value="'
-			         . esc_attr__( 'Save Settings', 'mixmymeals' ) . '" />'
-			         . "\n";
-			$html .= '</p>' . "\n";
-			$html .= '</form>' . "\n";
 		}
 
 		// Mailer test box + send log: only on the E-Mail tab.
@@ -1634,22 +1643,20 @@ class Mixmymeals_Settings {
 	}
 
 	/**
-	 * The "Privacy Policy" tab: the generated section as it reads, the same
-	 * markup to copy into a policy page, and the shortcode that embeds it
-	 * live instead. Read-only by design — the text describes what the other
-	 * tabs configure, so the place to change it is there.
+	 * The "Privacy Policy" tab below its one setting (WordPress emoji): the
+	 * generated section as it reads, the same markup to copy into a policy
+	 * page, and the shortcode that embeds it live instead. The text itself is
+	 * read-only — it describes what the other tabs configure, so the place to
+	 * change it is there.
 	 *
 	 * @return string
 	 */
 	private function render_privacy_policy_tab(): string {
 
-		$section = $this->settings['mixmymeals-privacy'];
-		$policy  = class_exists( 'Mixmymeals_Privacy' ) ? Mixmymeals_Privacy::policy_section_html( 'h2' ) : '';
+		$policy = class_exists( 'Mixmymeals_Privacy' ) ? Mixmymeals_Privacy::policy_section_html( 'h2' ) : '';
 
-		$html  = '<h2>' . esc_html( $section['title'] ) . '</h2>';
-		$html .= '<p class="description">' . esc_html( $section['description'] ) . '</p>';
-
-		$html .= '<h3>' . esc_html__( 'Embed it', 'mixmymeals' ) . '</h3>';
+		// Title and description come with the settings section above.
+		$html  = '<h3>' . esc_html__( 'Embed it', 'mixmymeals' ) . '</h3>';
 		$html .= '<p>' . wp_kses_post(
 			sprintf(
 				/* translators: 1: shortcode, 2: shortcode with attribute. */
