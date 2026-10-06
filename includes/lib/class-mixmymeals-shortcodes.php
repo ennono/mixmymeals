@@ -290,6 +290,10 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_meal_plan_subscribe',
 			[ $this, 'mmm_meal_plan_subscribe_callback' ] );
 
+		// The MixMyMeals section of the privacy policy (text in Mixmymeals_Privacy):
+		add_shortcode( 'mmm_privacy_policy',
+			[ $this, 'mmm_privacy_policy_callback' ] );
+
 
 
 
@@ -306,6 +310,9 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_create_meal_plan_from_cart',
 			[ $this, 'mmm_create_meal_plan_from_cart_callback' ] );
+
+		add_shortcode( 'mmm_share_planner',
+			[ $this, 'mmm_share_planner_callback' ] );
 
 		// Latest Plan (for homepage e.g.):
 
@@ -425,6 +432,32 @@ class Mixmymeals_Shortcodes {
 		return class_exists( 'Mixmymeals_Subscriptions' )
 			? Mixmymeals_Subscriptions::render_form( $atts )
 			: '';
+	}
+
+	/**
+	 * Shortcode [mmm_privacy_policy]: the MixMyMeals section of the privacy
+	 * policy, generated from this site's settings — so the published policy
+	 * follows a changed retention period or a switched-on option without
+	 * anyone having to remember to edit it. Delegates to
+	 * Mixmymeals_Privacy::policy_section_html().
+	 *
+	 * Attribute `heading`: h2 (default), h3, h4 or none — the policy page
+	 * decides how deep the section sits.
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_privacy_policy_callback( $atts = [] ): string {
+
+		$atts = shortcode_atts( [ 'heading' => 'h2' ], $atts, 'mmm_privacy_policy' );
+
+		if ( ! class_exists( 'Mixmymeals_Privacy' ) ) {
+			return '';
+		}
+
+		$heading = 'none' === $atts['heading'] ? '' : sanitize_key( $atts['heading'] );
+
+		return '<div class="mmm-privacy-policy">' . Mixmymeals_Privacy::policy_section_html( $heading ) . '</div>';
 	}
 
 	/**
@@ -4075,27 +4108,44 @@ class Mixmymeals_Shortcodes {
 
             </div>
 
-			<?php
-			/*
-			 * Sharing without publishing. A finished plan becomes a post on
-			 * the site; this is the other case — "look what I have for the
-			 * week" as a message, with nothing created and no account asked
-			 * for. Hidden while the planner is empty, because an empty
-			 * planner is nothing to send.
-			 */
-			?>
-            <div class="mmm-plan-share"<?php echo empty( $items ) ? ' hidden' : ''; ?>>
-                <button type="button" class="mmm-plan-share__button">
-					<?php esc_html_e( 'Share planner', 'mixmymeals' ); ?>
-                </button>
-                <span class="mmm-plan-share__message" role="status" aria-live="polite"></span>
-            </div>
-
         </div>
 
 		<?php
 
 		return ob_get_clean();
+	}
+
+
+	/**
+	 * Shortcode [mmm_share_planner].
+	 * Renders the "share what's in the planner right now" button, standalone so
+	 * the theme can place it in the same row as Save Plan and Clear Plan. It
+	 * used to be the last thing mmm_meal_plan_builder_callback() printed, which
+	 * put it inside the builder's own box instead of beside the other two
+	 * actions.
+	 *
+	 * Sharing without publishing. A finished plan becomes a post on the site;
+	 * this is the other case — "look what I have for the week" as a message,
+	 * with nothing created and no account asked for. Hidden while the planner
+	 * is empty, because an empty planner is nothing to send.
+	 *
+	 * @return string
+	 */
+	public function mmm_share_planner_callback(): string {
+
+		$items = ( new Mixmymeals_Cart() )->get_items();
+
+		ob_start();
+		?>
+        <div class="mmm-plan-share"<?php echo empty( $items ) ? ' hidden' : ''; ?>>
+            <button type="button" class="mmm-plan-share__button">
+				<?php esc_html_e( 'Share planner', 'mixmymeals' ); ?>
+            </button>
+            <span class="mmm-plan-share__message" role="status" aria-live="polite"></span>
+        </div>
+		<?php
+
+		return (string) ob_get_clean();
 	}
 
 
@@ -4131,7 +4181,7 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_create_meal_plan_from_cart_callback( $atts ): string {
 		$atts = shortcode_atts( [
-			'text'       => __( 'Create Meal Plan', 'mixmymeals' ),
+			'text'       => __( 'Save Plan', 'mixmymeals' ),
 			'guest_text' => __( 'Please log in to create a meal plan.',
 				'mixmymeals' ),
 		], $atts, 'mmm_create_meal_plan' );
@@ -4142,6 +4192,7 @@ class Mixmymeals_Shortcodes {
 		               === 'on';
 
 		if ( $public_mode || is_user_logged_in() ) {
+			self::render_plan_subscribe_offer();
 			?>
             <a href="#"
                class="mmm-create-meal-plan-link"><?php echo esc_html( $atts['text'] ); ?></a>
@@ -4155,6 +4206,81 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * Whether the planner offers a subscription when saving, and how — the
+	 * one decision both the renderer and mmm_create_meal_plan_ajax_callback()
+	 * ask, so the field a visitor sees and the rule the server enforces can
+	 * never disagree (a `required` the server checks but the page does not
+	 * show would make the plan unsaveable).
+	 *
+	 * Off when subscriptions themselves are off or have no send rule
+	 * (save_offer_mode_effective()), and off for a guest whose plan will be
+	 * saved as a draft: create_pending() only accepts a published plan, so
+	 * the address would be asked for and then go nowhere.
+	 *
+	 * @return string One of the Mixmymeals_Subscriptions::SAVE_OFFER_* values.
+	 */
+	private static function plan_subscribe_offer_mode(): string {
+
+		if ( ! class_exists( 'Mixmymeals_Subscriptions' ) ) {
+			return 'off';
+		}
+
+		$will_draft = ! is_user_logged_in()
+			&& 'on' === (string) get_option( 'mixmymeals_save_meal_plans_published_by_visitors_as_draft', '' );
+
+		return $will_draft
+			? Mixmymeals_Subscriptions::SAVE_OFFER_OFF
+			: Mixmymeals_Subscriptions::save_offer_mode_effective();
+	}
+
+	/**
+	 * The "subscribe while saving" offer: an e-mail field that stands in the
+	 * action row beside Save Plan whenever the offer is on — always visible,
+	 * no checkbox or radio in front of it, since entering the address is the
+	 * whole point and a step before that step only hid it.
+	 *
+	 * Below the row sits the site's notice (Mixmymeals_Subscriptions::
+	 * save_offer_notice()), either as a checkbox that has to be ticked or as
+	 * plain text, per setting. In `required` mode the field is `required`
+	 * and the Save button stays disabled until it holds an address (and the
+	 * box is ticked, where there is one); in `optional` mode an empty field
+	 * simply means no subscription.
+	 *
+	 * @return void
+	 */
+	private static function render_plan_subscribe_offer(): void {
+
+		$mode = self::plan_subscribe_offer_mode();
+
+		if ( Mixmymeals_Subscriptions::SAVE_OFFER_OFF === $mode ) {
+			return;
+		}
+
+		$required    = Mixmymeals_Subscriptions::SAVE_OFFER_REQUIRED === $mode;
+		$placeholder = $required
+			? __( 'Your e-mail', 'mixmymeals' )
+			: __( 'Your e-mail (optional)', 'mixmymeals' );
+		$notice      = Mixmymeals_Subscriptions::save_offer_notice();
+		?>
+        <div class="mmm-plan-subscribe" data-subscribe-mode="<?php echo esc_attr( $mode ); ?>">
+            <input type="email"
+                   class="mmm-plan-subscribe-email"
+                   autocomplete="email"
+                   placeholder="<?php echo esc_attr( $placeholder ); ?>"
+                   aria-label="<?php echo esc_attr( $placeholder ); ?>"<?php echo $required ? ' required' : ''; ?>>
+			<?php if ( Mixmymeals_Subscriptions::save_offer_notice_is_checkbox() ) : ?>
+                <label class="mmm-plan-subscribe__notice mmm-plan-subscribe__consent">
+                    <input type="checkbox" class="mmm-plan-subscribe-agree">
+                    <span><?php echo wp_kses_post( $notice ); ?></span>
+                </label>
+			<?php else : ?>
+                <p class="mmm-plan-subscribe__notice"><?php echo wp_kses_post( $notice ); ?></p>
+			<?php endif; ?>
+        </div>
+		<?php
 	}
 
 	/**
@@ -4188,6 +4314,62 @@ class Mixmymeals_Shortcodes {
 				],
 				403
 			);
+		}
+
+		/*
+		 * The subscribe-while-saving offer, checked before anything is
+		 * created or counted against the visitor's hourly quota — a plan that
+		 * cannot be saved without an address must not be half-saved, and a
+		 * typo in the address must not cost a plan from the limit. The mode
+		 * is recomputed here rather than trusted from the client: the
+		 * setting may have changed since the page loaded.
+		 */
+		$sub_mode  = self::plan_subscribe_offer_mode();
+		$sub_email = '';
+		$sub_agree = false;
+
+		if ( Mixmymeals_Subscriptions::SAVE_OFFER_OFF !== $sub_mode ) {
+
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per field below.
+			$subscribe_post = isset( $_POST['subscribe'] ) && is_array( $_POST['subscribe'] ) ? wp_unslash( $_POST['subscribe'] ) : array();
+			$sub_email      = isset( $subscribe_post['email'] ) ? sanitize_email( trim( (string) $subscribe_post['email'] ) ) : '';
+			$sub_raw_email  = isset( $subscribe_post['email'] ) ? trim( (string) $subscribe_post['email'] ) : '';
+
+			// A plain notice asks for no tick: entering the address is the act.
+			$sub_agree = ! Mixmymeals_Subscriptions::save_offer_notice_is_checkbox()
+				|| ( isset( $subscribe_post['agree'] ) && '1' === sanitize_text_field( (string) $subscribe_post['agree'] ) );
+
+			$sub_required = Mixmymeals_Subscriptions::SAVE_OFFER_REQUIRED === $sub_mode;
+
+			if ( '' === $sub_raw_email && $sub_required ) {
+				wp_send_json_error(
+					[
+						'code'    => 'subscribe_email_required',
+						'message' => __( 'Please enter your e-mail address to save the plan.', 'mixmymeals' ),
+					],
+					400
+				);
+			}
+
+			if ( '' !== $sub_raw_email && ( '' === $sub_email || ! is_email( $sub_email ) ) ) {
+				wp_send_json_error(
+					[
+						'code'    => 'subscribe_email_invalid',
+						'message' => __( 'Please enter a valid e-mail address.', 'mixmymeals' ),
+					],
+					400
+				);
+			}
+
+			if ( '' !== $sub_email && ! $sub_agree ) {
+				wp_send_json_error(
+					[
+						'code'    => 'subscribe_consent_required',
+						'message' => __( 'Please confirm your consent to continue.', 'mixmymeals' ),
+					],
+					400
+				);
+			}
 		}
 
 		// Quota to limit meal plan posting per IP for non-logged-in visitors:
@@ -4405,13 +4587,28 @@ class Mixmymeals_Shortcodes {
 		// Plan created successfully — empty the cart so it doesn't carry over.
 		( new Mixmymeals_Cart() )->clear();
 
+		/*
+		 * The offer, redeemed — with what was validated above. Only a
+		 * published plan can be subscribed to; plan_subscribe_offer_mode()
+		 * already keeps a guest draft from being offered the field at all.
+		 */
+		$subscribed = false;
+
+		if ( '' !== $sub_email && $sub_agree && 'publish' === $post_status ) {
+			$sub_id     = Mixmymeals_Subscriptions::create_pending( $meal_plan_id, $sub_email, '' );
+			$subscribed = ! is_wp_error( $sub_id );
+		}
+
 		// Respond:
 		wp_send_json_success( [
 			'code'         => 'created',
-			'message'      => __( 'Meal Plan created!', 'mixmymeals' ),
+			'message'      => $subscribed
+				? __( 'Meal Plan created! Please check your inbox to confirm the subscription.', 'mixmymeals' )
+				: __( 'Meal Plan created!', 'mixmymeals' ),
 			'meal_plan_id' => $meal_plan_id,
 			'redirect_url' => $redirect_url,
 			'post_status'  => $post_status,
+			'subscribed'   => $subscribed,
 		] );
 	}
 

@@ -785,10 +785,48 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'notice_plan',
 					'label'       => __( 'Plan creation notice', 'mixmymeals' ),
-					'description' => __( 'Shown next to the “Create meal plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
+					'description' => __( 'Shown next to the “Save Plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+				),
+				array(
+					'id'    => 'mealplans_group_subscribe_on_save',
+					'type'  => 'heading',
+					'label' => __( 'Subscribe while saving', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'plan_subscribe_mode',
+					'label'       => __( 'Subscription when saving', 'mixmymeals' ),
+					'description' => __( 'Puts an e-mail field beside the Save Plan button. “Possible”: the plan saves with or without an address. “Required”: the plan only saves with one — note that consent made a condition of saving can count as not freely given under GDPR Art. 7(4). Double opt-in applies either way. Has no effect while subscriptions are off or have no sending rule (E-Mail & Subscriptions tab).', 'mixmymeals' ),
+					'default'     => Mixmymeals_Subscriptions::SAVE_OFFER_OFF,
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'plan_subscribe_mode_callback'
+					),
+				),
+				array(
+					'id'          => 'plan_subscribe_notice',
+					'label'       => __( 'Notice text', 'mixmymeals' ),
+					'description' => __( 'Shown under the e-mail field. Links are allowed (<a href="…">). Leave empty for the standard consent sentence, which links the privacy page set in the E-Mail & Subscriptions tab.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => wp_strip_all_tags( Mixmymeals_Subscriptions::consent_text() ),
+					'callback'    => array(
+						$this,
+						'archive_description_callback'
+					),
+				),
+				array(
+					'id'          => 'plan_subscribe_notice_checkbox',
+					'label'       => __( 'Notice as checkbox', 'mixmymeals' ),
+					'description' => __( 'Show the notice as a checkbox that must be ticked whenever an address is entered. Unticked, it is a plain note and entering the address is consent enough.', 'mixmymeals' ),
+					'default'     => 'on',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'public_mode_callback'
+					),
 				),
 				array(
 					'id'    => 'mealplans_group_photos',
@@ -1038,6 +1076,20 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'subscription_log_ip_callback' ),
 				),
 			),
+		);
+
+		/*
+		 * Kein Formular, nur Text: der Vorschlag für den MixMyMeals-Abschnitt
+		 * der Datenschutzerklärung, erzeugt aus den Einstellungen der anderen
+		 * Reiter (Mixmymeals_Privacy::policy_section_html()). Er ersetzt die
+		 * von Hand gepflegte datenschutzerklaerung-mixmymeals.txt, die bei
+		 * jeder geänderten Frist hinterherlief. Steht hinter E-Mail & Abos,
+		 * weil er überwiegend beschreibt, was dort eingestellt ist.
+		 */
+		$settings['mixmymeals-privacy'] = array(
+			'title'       => __( 'Privacy Policy', 'mixmymeals' ),
+			'description' => __( 'A suggestion for the MixMyMeals section of your privacy policy, generated from the settings in the other tabs. It changes by itself when they do — check your published policy after changing a retention period or switching a feature on or off.', 'mixmymeals' ),
+			'fields'      => array(),
 		);
 
 		$settings['mixmymeals-language'] = $this->chip_text_fields();
@@ -1545,23 +1597,28 @@ class Mixmymeals_Settings {
 			$html .= '</h2>' . "\n";
 		}
 
-		$html .= '<form method="post" action="options.php" enctype="multipart/form-data">'
-		         . "\n";
+		// The privacy tab has nothing to save: no form, no Save button.
+		if ( 'mixmymeals-privacy' === $tab ) {
+			$html .= $this->render_privacy_policy_tab();
+		} else {
+			$html .= '<form method="post" action="options.php" enctype="multipart/form-data">'
+			         . "\n";
 
-		// Get settings fields.
-		ob_start();
-		settings_fields( $this->parent->_token . '_settings' );
-		do_settings_sections( $this->parent->_token . '_settings' );
-		$html .= ob_get_clean();
+			// Get settings fields.
+			ob_start();
+			settings_fields( $this->parent->_token . '_settings' );
+			do_settings_sections( $this->parent->_token . '_settings' );
+			$html .= ob_get_clean();
 
-		$html .= '<p class="submit">' . "\n";
-		$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab )
-		         . '" />' . "\n";
-		$html .= '<input name="Submit" type="submit" class="button-primary" value="'
-		         . esc_attr__( 'Save Settings', 'mixmymeals' ) . '" />'
-		         . "\n";
-		$html .= '</p>' . "\n";
-		$html .= '</form>' . "\n";
+			$html .= '<p class="submit">' . "\n";
+			$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab )
+			         . '" />' . "\n";
+			$html .= '<input name="Submit" type="submit" class="button-primary" value="'
+			         . esc_attr__( 'Save Settings', 'mixmymeals' ) . '" />'
+			         . "\n";
+			$html .= '</p>' . "\n";
+			$html .= '</form>' . "\n";
+		}
 
 		// Mailer test box + send log: only on the E-Mail tab.
 		if ( 'mixmymeals-email' === $tab ) {
@@ -1574,6 +1631,44 @@ class Mixmymeals_Settings {
 		$html .= '</div>' . "\n";
 
 		echo $html; //phpcs:ignore
+	}
+
+	/**
+	 * The "Privacy Policy" tab: the generated section as it reads, the same
+	 * markup to copy into a policy page, and the shortcode that embeds it
+	 * live instead. Read-only by design — the text describes what the other
+	 * tabs configure, so the place to change it is there.
+	 *
+	 * @return string
+	 */
+	private function render_privacy_policy_tab(): string {
+
+		$section = $this->settings['mixmymeals-privacy'];
+		$policy  = class_exists( 'Mixmymeals_Privacy' ) ? Mixmymeals_Privacy::policy_section_html( 'h2' ) : '';
+
+		$html  = '<h2>' . esc_html( $section['title'] ) . '</h2>';
+		$html .= '<p class="description">' . esc_html( $section['description'] ) . '</p>';
+
+		$html .= '<h3>' . esc_html__( 'Embed it', 'mixmymeals' ) . '</h3>';
+		$html .= '<p>' . wp_kses_post(
+			sprintf(
+				/* translators: 1: shortcode, 2: shortcode with attribute. */
+				__( 'Put %1$s on your privacy policy page where the section belongs; it always shows the current text. %2$s leaves out the heading (or use h3/h4).', 'mixmymeals' ),
+				'<code>[mmm_privacy_policy]</code>',
+				'<code>[mmm_privacy_policy heading="none"]</code>'
+			)
+		) . '</p>';
+
+		$html .= '<h3>' . esc_html__( 'Preview', 'mixmymeals' ) . '</h3>';
+		$html .= '<div class="mmm-privacy-preview">' . $policy . '</div>';
+
+		$html .= '<h3>' . esc_html__( 'Copy as HTML', 'mixmymeals' ) . '</h3>';
+		$html .= '<p class="description">' . esc_html__( 'For a policy page that is not edited in WordPress, or to freeze the current wording. A copy does not follow later changes — the shortcode does.', 'mixmymeals' ) . '</p>';
+		$html .= '<textarea class="large-text code" rows="12" readonly onclick="this.select()">' . esc_textarea( $policy ) . '</textarea>';
+
+		$html .= '<p class="description">' . esc_html__( 'This is an inventory of what the plugin does on this site, not legal advice.', 'mixmymeals' ) . '</p>';
+
+		return $html;
 	}
 
 	/**
@@ -2051,6 +2146,21 @@ class Mixmymeals_Settings {
 
 	public function page_id_to_redirect_if_new_plan_is_draft_callback( mixed $input ): int {
 		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes the subscribe-while-saving mode setting.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string One of Mixmymeals_Subscriptions::save_offer_modes().
+	 */
+	public function plan_subscribe_mode_callback( mixed $input ): string {
+
+		$mode = sanitize_key( (string) $input );
+
+		return isset( Mixmymeals_Subscriptions::save_offer_modes()[ $mode ] )
+			? $mode
+			: Mixmymeals_Subscriptions::SAVE_OFFER_OFF;
 	}
 
 	/**

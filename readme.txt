@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.49.0
+Stable tag: 3.50.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,30 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.50.0 =
+
+Changed:
+* The planner's footer is one row: Save Plan, Share planner, Clear Plan — in
+  that order. The button that used to say "Create Meal Plan" now says "Save
+  Plan".
+* Visitors can subscribe to a plan's e-mail reminders right when they save
+  it: an e-mail field stands beside the Save Plan button. A new setting under
+  Meal Plans ("Subscription when saving") makes it off, possible or required;
+  in required mode a plan only saves with an address. The text under the
+  field is configurable and can be shown either as a checkbox that must be
+  ticked or as a plain notice. Double opt-in applies in every case.
+
+* New settings tab "Privacy Policy": a suggestion for the MixMyMeals section
+  of the privacy policy, generated from this site's settings (retention
+  periods, consent IP, required subscription, photo approval, send log …)
+  and kept current by itself. Embed it with [mmm_privacy_policy] so the
+  published policy follows changes; WordPress's privacy guide shows the same
+  text. Add-ons add their own items via the mixmymeals_privacy_policy_items
+  filter.
+
+Fixed:
+* "Share planner" no longer shows on an empty planner.
 
 = 3.49.0 =
 

@@ -679,6 +679,27 @@
     font-weight: 600;
 }
 
+/* Privacy Policy tab: the generated section as it will read on a policy
+   page — on a white card, at reading width, so it is reviewed as text and
+   not as settings. */
+#mixmymeals_settings .mmm-privacy-preview {
+    max-width: 52em;
+    padding: 4px 24px 8px;
+    background: var(--mmm-ad-surface);
+    border: 1px solid var(--mmm-ad-line);
+    border-radius: 4px;
+    line-height: 1.6;
+}
+
+#mixmymeals_settings .mmm-privacy-preview ul {
+    list-style: disc;
+    padding-left: 1.4em;
+}
+
+#mixmymeals_settings .mmm-privacy-preview li {
+    margin-bottom: 8px;
+}
+
 #mixmymeals_settings .mmm-settings-group-desc {
     margin: 8px 0 0;
     max-width: 60em;

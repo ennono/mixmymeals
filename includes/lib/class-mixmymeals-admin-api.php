@@ -214,6 +214,7 @@ class Mixmymeals_Admin_API {
 				break;
 
 			case 'subscription_append_text':
+			case 'plan_subscribe_notice':
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
 						. '" rows="6" name="' . esc_attr( $option_name )
 						. '" class="large-text code" placeholder="'
@@ -242,6 +243,7 @@ class Mixmymeals_Admin_API {
 			case 'subscription_log_ip':
 			case 'photos_auto_approve':
 			case 'public_mode':
+			case 'plan_subscribe_notice_checkbox':
 			case 'show_recipe_steps':
 			case 'delete_data_on_uninstall':
 				$checked = '';
@@ -376,6 +378,25 @@ class Mixmymeals_Admin_API {
 				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
 
 				foreach ( Mixmymeals_Meal_Plan::thumbs_modes() as $mode => $label ) {
+					$html .= sprintf(
+						'<option value="%s"%s>%s</option>',
+						esc_attr( $mode ),
+						selected( $current, $mode, false ),
+						esc_html( $label )
+					);
+				}
+
+				$html .= '</select>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'plan_subscribe_mode':
+				// What the code acts on, so a legacy value shows as what it now means.
+				$current = Mixmymeals_Subscriptions::save_offer_mode();
+
+				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
+
+				foreach ( Mixmymeals_Subscriptions::save_offer_modes() as $mode => $label ) {
 					$html .= sprintf(
 						'<option value="%s"%s>%s</option>',
 						esc_attr( $mode ),

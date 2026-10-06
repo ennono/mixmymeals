@@ -824,10 +824,47 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
+       SUBSCRIBE WHILE SAVING THE PLAN
+
+       An e-mail field in the action row (render_plan_subscribe_offer() in
+       the plugin), always visible while the offer is on. In "required" mode
+       the Save button stays disabled until it holds a plausible address —
+       and, where the notice is a checkbox, until that is ticked. In
+       "optional" mode nothing is gated: an empty field means no
+       subscription, and a half-filled one is answered by the server.
+       ========================================================== */
+    function mmmPlanSubscribeReady($box) {
+        if (!$box || !$box.length || $box.data('subscribe-mode') !== 'required') {
+            return true;
+        }
+        const field = $box.find('.mmm-plan-subscribe-email').get(0);
+        const $agree = $box.find('.mmm-plan-subscribe-agree');
+        const filled = !!field && field.value.trim() !== '' && field.checkValidity();
+        return filled && (!$agree.length || $agree.is(':checked'));
+    }
+
+    function mmmUpdatePlanSubscribeGate() {
+        const ready = mmmPlanSubscribeReady($('.mmm-plan-subscribe[data-subscribe-mode]'));
+        $('.mmm-create-meal-plan-link')
+            .toggleClass('mmm-is-disabled', !ready)
+            .attr('aria-disabled', ready ? null : 'true');
+    }
+
+    $(document).on('input change', '.mmm-plan-subscribe-email, .mmm-plan-subscribe-agree', mmmUpdatePlanSubscribeGate);
+
+    // Starts disabled when the page loads with a required, still empty field
+    // — matches .mmm-create-meal-plan-link.mmm-is-disabled in style.css.
+    mmmUpdatePlanSubscribeGate();
+
+    /* ==========================================================
        CREATE MEAL PLAN (Read directly from DOM)
        ========================================================== */
     $('.mmm-create-meal-plan-link').on('click', function (e) {
         e.preventDefault();
+
+        if ($(this).hasClass('mmm-is-disabled')) {
+            return;
+        }
 
         const msgBox = $('.mmm-create-meal-plan-message');
         mmmShowInlineMessage(msgBox, '', '');
@@ -848,19 +885,43 @@ jQuery(function ($) {
             });
         });
 
+        // Subscribe-while-saving: whatever the field holds goes along; the
+        // server decides what it means (empty in "optional" = no
+        // subscription). Without a consent checkbox the notice is plain
+        // text, and the server does not ask for a tick at all.
+        let subscribe = null;
+        const $sub = $('.mmm-plan-subscribe[data-subscribe-mode]');
+        if ($sub.length) {
+            const $agree = $sub.find('.mmm-plan-subscribe-agree');
+            subscribe = {
+                email: ($sub.find('.mmm-plan-subscribe-email').val() || '').trim(),
+                agree: (!$agree.length || $agree.is(':checked')) ? '1' : '0'
+            };
+        }
+
         const $create = $(this);
         mmmSetBusy($create, true);
         mmmShowInlineMessage(msgBox, 'Creating...', 'ok');
 
         const startDay = parseInt($('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
 
-        mmmPost('mmm_create_meal_plan', { items: items, start_day: startDay })
+        const payload = { items: items, start_day: startDay };
+        if (subscribe) {
+            payload.subscribe = subscribe;
+        }
+
+        mmmPost('mmm_create_meal_plan', payload)
             .done(function (response) {
                 if (response && response.success) {
                     mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Meal Plan created!', 'ok');
 
                     if (response.data && response.data.redirect_url) {
-                        window.location.href = response.data.redirect_url;
+                        // A moment longer when there is a subscribe notice to
+                        // read — otherwise the redirect cuts it off unread.
+                        const delay = (response.data && response.data.subscribed) ? 1400 : 0;
+                        window.setTimeout(function () {
+                            window.location.href = response.data.redirect_url;
+                        }, delay);
                     }
                     return;
                 }

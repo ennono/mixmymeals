@@ -118,6 +118,190 @@ class Mixmymeals_Subscriptions {
 	}
 
 	/**
+	 * The wording of the consent checkbox, shared by the standalone
+	 * [mmm_meal_plan_subscribe] form and the subscribe-while-saving offer on
+	 * the planner — one sentence, so a site cannot end up agreeing to two
+	 * different promises depending on which form somebody used.
+	 *
+	 * @return string Translated, with markup; escape with wp_kses_post().
+	 */
+	public static function consent_text(): string {
+
+		$privacy_url = esc_url( (string) get_option( self::OPT_PRIVACY_URL, '' ) );
+
+		return '' !== $privacy_url
+			? sprintf(
+				/* translators: %s: privacy policy URL. */
+				__( 'I agree to receive these e-mails and accept the <a href="%s" target="_blank" rel="noopener">privacy policy</a>. I can unsubscribe at any time.', 'mixmymeals' ),
+				$privacy_url
+			)
+			: __( 'I agree to receive these e-mails. I can unsubscribe at any time.', 'mixmymeals' );
+	}
+
+	/* ----------------------------------------------------------
+	 * SUBSCRIBE WHILE SAVING A PLAN
+	 * ---------------------------------------------------------- */
+
+	const SAVE_OFFER_OFF      = 'off';
+	const SAVE_OFFER_OPTIONAL = 'optional';
+	const SAVE_OFFER_REQUIRED = 'required';
+
+	const OPT_SAVE_OFFER           = 'mixmymeals_plan_subscribe_mode';
+	const OPT_SAVE_NOTICE          = 'mixmymeals_plan_subscribe_notice';
+	const OPT_SAVE_NOTICE_CHECKBOX = 'mixmymeals_plan_subscribe_notice_checkbox';
+
+	/**
+	 * The three states of the Save Plan offer, for the settings screen.
+	 *
+	 * `optional`: the e-mail field stands beside the Save button, and a plan
+	 * saves with or without it. `required`: the plan only saves with a valid
+	 * address — the site owner's decision, taken knowing that consent made a
+	 * condition of an unrelated service is what GDPR Art. 7(4) weighs against
+	 * "freely given". Double opt-in still applies either way: nothing is sent
+	 * before the address is confirmed.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function save_offer_modes(): array {
+		return array(
+			self::SAVE_OFFER_OFF      => __( 'Off', 'mixmymeals' ),
+			self::SAVE_OFFER_OPTIONAL => __( 'Possible (optional)', 'mixmymeals' ),
+			self::SAVE_OFFER_REQUIRED => __( 'Required', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The stored save-offer setting, validated against save_offer_modes().
+	 *
+	 * `hint` and `choice` were values of an earlier, never committed shape of
+	 * this setting that a site may already hold; both offered a subscription
+	 * without demanding one, so they read as `optional` rather than silently
+	 * switching the offer off.
+	 *
+	 * @return string
+	 */
+	public static function save_offer_mode(): string {
+
+		$mode = (string) get_option( self::OPT_SAVE_OFFER, self::SAVE_OFFER_OFF );
+
+		if ( 'hint' === $mode || 'choice' === $mode ) {
+			return self::SAVE_OFFER_OPTIONAL;
+		}
+
+		return isset( self::save_offer_modes()[ $mode ] ) ? $mode : self::SAVE_OFFER_OFF;
+	}
+
+	/**
+	 * The text under the planner's e-mail field — the site's own wording, or
+	 * the consent sentence of the standalone form when none is set, so an
+	 * untouched site still says what the address is for. May carry links.
+	 *
+	 * @return string Markup; escape with wp_kses_post().
+	 */
+	public static function save_offer_notice(): string {
+
+		$text = trim( (string) get_option( self::OPT_SAVE_NOTICE, '' ) );
+
+		return '' !== $text ? $text : self::consent_text();
+	}
+
+	/**
+	 * Whether that text is a checkbox that has to be ticked, or a plain
+	 * notice beside the field. On by default: an untouched site keeps the
+	 * explicit tick the standalone form has always asked for.
+	 *
+	 * @return bool
+	 */
+	public static function save_offer_notice_is_checkbox(): bool {
+		// 'on' or '' once saved (an unticked box submits nothing); the default
+		// only applies while the option does not exist at all.
+		return 'on' === (string) get_option( self::OPT_SAVE_NOTICE_CHECKBOX, 'on' );
+	}
+
+	/**
+	 * The save-offer setting, folded with the preconditions that make it
+	 * meaningless on their own — asked once here instead of by every caller,
+	 * so the settings screen, the planner and the AJAX handler cannot land on
+	 * different answers. Off when subscriptions are disabled or carry no send
+	 * rule yet, the same two conditions render_form() already gates on.
+	 *
+	 * @return string
+	 */
+	public static function save_offer_mode_effective(): string {
+
+		if ( ! self::is_enabled() || empty( self::get_triggers() ) ) {
+			return self::SAVE_OFFER_OFF;
+		}
+
+		return self::save_offer_mode();
+	}
+
+	/**
+	 * Creates a pending subscription and sends its confirmation mail — the
+	 * part of double opt-in step 1 that is about the data, not the request.
+	 * Shared by ajax_subscribe() (the standalone form) and the "subscribe
+	 * while saving" offer on the planner's Save Plan button, so the two can
+	 * never build a pending row differently. The caller is responsible for
+	 * anything that is about the *request* rather than the subscription
+	 * itself — the nonce, the rate limit, the explicit-consent checkbox.
+	 *
+	 * @param int    $plan_id Meal plan post ID. Must already be published.
+	 * @param string $email   Subscriber e-mail, not yet validated.
+	 * @param string $name    Subscriber name, optional.
+	 * @param string $start   Subscriber-chosen start date (Y-m-d), optional.
+	 * @return int|WP_Error Subscription post ID, or an error with a public message.
+	 */
+	public static function create_pending( int $plan_id, string $email, string $name, string $start = '' ) {
+
+		if ( get_post_type( $plan_id ) !== 'mmm_meal_plan' || 'publish' !== get_post_status( $plan_id ) ) {
+			return new WP_Error( 'plan_unavailable', __( 'This meal plan is not available.', 'mixmymeals' ) );
+		}
+
+		$email = sanitize_email( $email );
+		if ( '' === $email || ! is_email( $email ) ) {
+			return new WP_Error( 'invalid_email', __( 'Please enter a valid e-mail address.', 'mixmymeals' ) );
+		}
+
+		$token = wp_generate_password( 40, false, false );
+
+		$sub_id = wp_insert_post(
+			array(
+				'post_type'   => self::POST_TYPE,
+				'post_status' => 'publish',
+				'post_title'  => $email . ' → ' . get_the_title( $plan_id ),
+			),
+			true
+		);
+
+		if ( is_wp_error( $sub_id ) ) {
+			return new WP_Error( 'create_failed', __( 'Could not create the subscription. Please try again.', 'mixmymeals' ) );
+		}
+
+		update_post_meta( $sub_id, '_mmm_sub_plan_id', $plan_id );
+		update_post_meta( $sub_id, '_mmm_sub_email', strtolower( $email ) );
+		update_post_meta( $sub_id, '_mmm_sub_name', sanitize_text_field( $name ) );
+		update_post_meta( $sub_id, '_mmm_sub_status', 'pending' );
+		update_post_meta( $sub_id, '_mmm_sub_token', $token );
+		update_post_meta( $sub_id, '_mmm_sub_consent_time', time() );
+
+		$start_anchor = self::validated_start_anchor( $plan_id, $start );
+		if ( $start_anchor > 0 ) {
+			update_post_meta( $sub_id, '_mmm_sub_start_anchor', $start_anchor );
+		}
+
+		if ( 'on' === get_option( self::OPT_LOG_IP, '' ) ) {
+			$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+			if ( '' !== $ip ) {
+				update_post_meta( $sub_id, '_mmm_sub_consent_ip', $ip );
+			}
+		}
+
+		self::send_confirmation_mail( $sub_id );
+
+		return $sub_id;
+	}
+
+	/**
 	 * Built-in trigger ids mapped to their human label.
 	 *
 	 * @return array<string,string>
@@ -435,14 +619,7 @@ class Mixmymeals_Subscriptions {
 			return '';
 		}
 
-		$privacy_url = esc_url( (string) get_option( self::OPT_PRIVACY_URL, '' ) );
-		$consent     = '' !== $privacy_url
-			? sprintf(
-				/* translators: %s: privacy policy URL. */
-				__( 'I agree to receive these e-mails and accept the <a href="%s" target="_blank" rel="noopener">privacy policy</a>. I can unsubscribe at any time.', 'mixmymeals' ),
-				$privacy_url
-			)
-			: __( 'I agree to receive these e-mails. I can unsubscribe at any time.', 'mixmymeals' );
+		$consent = self::consent_text();
 
 		ob_start();
 		?>
@@ -554,40 +731,11 @@ class Mixmymeals_Subscriptions {
 		}
 		set_transient( $rl_key, $count + 1, HOUR_IN_SECONDS );
 
-		$token = wp_generate_password( 40, false, false );
-
-		$sub_id = wp_insert_post(
-			array(
-				'post_type'   => self::POST_TYPE,
-				'post_status' => 'publish',
-				'post_title'  => $email . ' → ' . get_the_title( $plan_id ),
-			),
-			true
-		);
+		$sub_id = self::create_pending( $plan_id, $email, $name, $start );
 
 		if ( is_wp_error( $sub_id ) ) {
-			wp_send_json_error( array( 'message' => __( 'Could not create the subscription. Please try again.', 'mixmymeals' ) ), 500 );
+			wp_send_json_error( array( 'message' => $sub_id->get_error_message() ), 500 );
 		}
-
-		update_post_meta( $sub_id, '_mmm_sub_plan_id', $plan_id );
-		update_post_meta( $sub_id, '_mmm_sub_email', strtolower( $email ) );
-		update_post_meta( $sub_id, '_mmm_sub_name', $name );
-		update_post_meta( $sub_id, '_mmm_sub_status', 'pending' );
-		update_post_meta( $sub_id, '_mmm_sub_token', $token );
-		update_post_meta( $sub_id, '_mmm_sub_consent_time', time() );
-
-		// Optional subscriber-chosen start day (only stored when valid; the drip
-		// otherwise falls back to the next start weekday after confirmation).
-		$start_anchor = self::validated_start_anchor( $plan_id, $start );
-		if ( $start_anchor > 0 ) {
-			update_post_meta( $sub_id, '_mmm_sub_start_anchor', $start_anchor );
-		}
-
-		if ( 'on' === get_option( self::OPT_LOG_IP, '' ) ) {
-			update_post_meta( $sub_id, '_mmm_sub_consent_ip', $ip );
-		}
-
-		$this->send_confirmation_mail( $sub_id );
 
 		$response = array(
 			'message' => __( 'Almost done! Please check your inbox and confirm your subscription.', 'mixmymeals' ),
@@ -1484,7 +1632,7 @@ class Mixmymeals_Subscriptions {
 	 * @param int $sub_id Subscription ID.
 	 * @return void
 	 */
-	private function send_confirmation_mail( int $sub_id ): void {
+	private static function send_confirmation_mail( int $sub_id ): void {
 
 		if ( ! class_exists( 'Mixmymeals_Mailer' ) ) {
 			return;
@@ -1495,7 +1643,7 @@ class Mixmymeals_Subscriptions {
 		$token   = (string) get_post_meta( $sub_id, '_mmm_sub_token', true );
 		$plan_id = (int) get_post_meta( $sub_id, '_mmm_sub_plan_id', true );
 
-		$confirm_url = $this->endpoint_url( 'confirm', $token );
+		$confirm_url = self::endpoint_url( 'confirm', $token );
 		$greeting    = '' !== $name ? $name : __( 'Hello', 'mixmymeals' );
 		$plan_title  = get_the_title( $plan_id );
 
@@ -1561,7 +1709,7 @@ class Mixmymeals_Subscriptions {
 		$plan  = new Mixmymeals_Meal_Plan( $plan_id );
 		$name  = (string) get_post_meta( $sub_id, '_mmm_sub_name', true );
 
-		$unsubscribe_url = $this->endpoint_url( 'unsubscribe', $token );
+		$unsubscribe_url = self::endpoint_url( 'unsubscribe', $token );
 
 		$vars = $this->mail_vars( $plan, $day, $name, $unsubscribe_url, $token );
 
@@ -2600,7 +2748,7 @@ class Mixmymeals_Subscriptions {
 	 * @param string $token  Token.
 	 * @return string
 	 */
-	private function endpoint_url( string $action, string $token ): string {
+	private static function endpoint_url( string $action, string $token ): string {
 		return add_query_arg(
 			array(
 				'mmm_sub' => $action,
@@ -3077,7 +3225,7 @@ class Mixmymeals_Subscriptions {
 		$sub_id = $this->verify_action( 'mmm_sub_resend' );
 
 		if ( 'pending' === (string) get_post_meta( $sub_id, '_mmm_sub_status', true ) ) {
-			$this->send_confirmation_mail( $sub_id );
+			self::send_confirmation_mail( $sub_id );
 			$this->redirect_back( 'resent' );
 		}
 

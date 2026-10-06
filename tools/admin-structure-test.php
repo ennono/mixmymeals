@@ -85,6 +85,15 @@ $check( false === strpos( $settings_html, 'tab=mixmymeals-visitors' ), 'Einstell
 $check( false !== strpos( $settings_html, 'admin.php?page=mixmymeals_settings' ) || false !== strpos( $settings_html, 'page=mixmymeals_settings' ), 'Einstellungen: Reiterlinks' );
 $check( false === strpos( $settings_html, 'options-general.php?page=mixmymeals' ), 'Einstellungen: keine alte URL mehr' );
 
+// --- Datenschutz-Reiter: Text statt Formular ---
+$_GET['tab'] = 'mixmymeals-privacy'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- test harness.
+ob_start();
+$settings->settings_page();
+$privacy_html = ob_get_clean();
+unset( $_GET['tab'] );
+$check( false === strpos( $privacy_html, 'action="options.php"' ), 'Datenschutz-Reiter: kein Formular, nichts zu speichern' );
+$check( false !== strpos( $privacy_html, 'mmm-privacy-preview' ) && false !== strpos( $privacy_html, '[mmm_privacy_policy]' ), 'Datenschutz-Reiter: Vorschau und Shortcode-Hinweis' );
+
 // --- Der Helfer ---
 $check( false !== strpos( Mixmymeals_Settings::settings_url(), 'admin.php' ), 'settings_url() zeigt auf admin.php' );
 $check( false !== strpos( Mixmymeals_Settings::settings_url( 'mixmymeals-language' ), 'tab=mixmymeals-language' ), 'settings_url() nimmt einen Tab' );
@@ -132,6 +141,9 @@ $check( ! $doppelt, 'Einstellungen: kein Feld steht in zwei Tabs' . ( $doppelt ?
 foreach ( array(
 	'public_mode'           => 'mixmymeals-meal-plans',
 	'notice_plan'           => 'mixmymeals-meal-plans',
+	'plan_subscribe_mode'   => 'mixmymeals-meal-plans',
+	'plan_subscribe_notice' => 'mixmymeals-meal-plans',
+	'plan_subscribe_notice_checkbox' => 'mixmymeals-meal-plans',
 	'photos_auto_approve'   => 'mixmymeals-meal-plans',
 	'notice_photo'          => 'mixmymeals-meal-plans',
 	'notice_rating'         => 'mixmymeals-recipes',
@@ -232,6 +244,7 @@ $host_tabs = array(
 	'mixmymeals-ingredients',
 	'mixmymeals-meal-plans',
 	'mixmymeals-email',
+	'mixmymeals-privacy',
 	'mixmymeals-language',
 );
 $check( array_slice( $tabs, 0, count( $host_tabs ) ) === $host_tabs, 'Reiter: Reihenfolge des Hosts (' . implode( ', ', $tabs ) . ')' );

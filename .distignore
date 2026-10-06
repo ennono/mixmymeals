@@ -35,6 +35,5 @@
 /tools
 
 # Working notes / not for distribution
-/datenschutzerklaerung*
 /data-model.json
 /README.md
