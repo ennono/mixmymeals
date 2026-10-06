@@ -595,9 +595,6 @@ jQuery(function ($) {
         const $builder = $('.mmm-plan-builder');
         if (!$builder.length) return;
 
-        const sums = {};
-        const counts = {};
-
         // The whole pattern, not just the unit: where the number goes is part
         // of the wording the site configured.
         const pattern = String($builder.data('kcal-pattern') || '{kcal} kcal');
@@ -619,63 +616,10 @@ jQuery(function ($) {
                 $value.text('');
                 $total.prop('hidden', true);
             }
-
-            const key = parseInt($day.find('.mmm-plan-day-list').attr('data-day-list'), 10);
-            sums[key] = sum;
-            counts[key] = $day.find('.mmm-plan-item').length;
         });
-
-        mmmUpdatePlannerWeek($builder, sums, counts);
-    }
-
-    /**
-     * The seven bars above the planner.
-     *
-     * Scaled against the fullest day rather than against an absolute: the
-     * question the row answers is which days are heavy and which are still
-     * empty, and a fixed ceiling would flatten every ordinary week into
-     * nothing.
-     *
-     * **A day counts as planned by its meals, never by its energy** — the same
-     * rule calc_nutrition_per_day_person() keeps. A dish whose recipe has no
-     * nutrition data yet would otherwise leave its day looking empty, and
-     * filling that data in later would make a bar appear where the plan had
-     * not changed at all. So a planned day always shows a stub.
-     *
-     * @param {jQuery} $builder The planner.
-     * @param {Object} sums     Day number to kcal.
-     * @param {Object} counts   Day number to number of meals.
-     */
-    function mmmUpdatePlannerWeek($builder, sums, counts) {
-        const $week = $builder.find('.mmm-plan-week');
-        if (!$week.length) return;
-
-        const max = Math.max.apply(null, Object.keys(sums).map(k => sums[k] || 0).concat([0]));
-        const planned = Object.keys(counts).reduce((n, k) => n + (counts[k] || 0), 0);
-        const startDay = parseInt($builder.find('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
-
-        $week.find('.mmm-plan-week__day').each(function () {
-            const $day = $(this);
-            const key = parseInt($day.attr('data-week-day'), 10);
-            const sum = sums[key] || 0;
-            const has = (counts[key] || 0) > 0;
-            // 14% is the smallest stub that still reads as a bar rather
-            // than as an underline under the track.
-            const share = has ? Math.max(14, max > 0 ? Math.round((sum / max) * 100) : 14) : 0;
-
-            $day.find('.mmm-plan-week__bar').css('height', share + '%');
-            $day.toggleClass('is-filled', has);
-            $day.toggleClass('is-start', key === startDay);
-        });
-
-        // Nothing planned at all: seven empty tracks say less than no row.
-        $week.toggleClass('is-empty', planned === 0);
     }
 
     mmmUpdatePlannerTotals();
-
-    // The start day marks a bar, so changing it has to repaint the row.
-    $(document).on('change', 'input[name="mmm-plan-startday"]', mmmUpdatePlannerTotals);
 
     /* ==========================================================
        DRAG & DROP

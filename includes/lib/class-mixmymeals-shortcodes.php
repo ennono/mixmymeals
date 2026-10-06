@@ -3895,31 +3895,6 @@ class Mixmymeals_Shortcodes {
 
         <div class="mmm-plan-builder" data-kcal-pattern="<?php echo esc_attr( self::chip_text_pattern( 'energy' ) ); ?>">
 
-			<?php
-			/*
-			 * The week at a glance. Which days are full and which are still
-			 * empty costs three screens of scrolling to find out otherwise,
-			 * and the numbers are already there — every item carries its
-			 * kilocalories and each day prints its own total.
-			 *
-			 * aria-hidden, because it says nothing the day headings and
-			 * totals below do not say in words. A screen reader would only
-			 * hear the same seven numbers twice.
-			 */
-			?>
-            <div class="mmm-plan-week" aria-hidden="true">
-				<?php foreach ( $days as $mmm_week_day => $mmm_week_label ) : ?>
-                    <div class="mmm-plan-week__day" data-week-day="<?php echo esc_attr( (string) $mmm_week_day ); ?>">
-                        <div class="mmm-plan-week__track">
-                            <span class="mmm-plan-week__bar"></span>
-                        </div>
-                        <span class="mmm-plan-week__label">
-							<?php echo esc_html( Mixmymeals_Meal_Plan::weekday_name( (int) $mmm_week_day, true ) ); ?>
-                        </span>
-                    </div>
-				<?php endforeach; ?>
-            </div>
-
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
                 <h3><?php echo esc_html__( 'Unassigned Recipes',
