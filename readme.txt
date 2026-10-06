@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.50.0
+Stable tag: 3.50.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.50.2 =
+
+Fixed:
+* Privacy section: saved plans get a storage period even when the cleanup is
+  off ("kept until their deletion is requested").
+
+= 3.50.1 =
+
+Fixed:
+* Privacy section, after a data-protection review: correct legal bases for
+  ratings and photos, saved plans named as public pages, the planner cookie
+  called pseudonymous, the mails' content and the voluntary/required address
+  explained, retention described as the code applies it. The consent text
+  names what the mails contain and no longer asks to "accept" the policy.
+* IP addresses in rate-limit counters are hashed with the site's salt
+  (wp_hash) instead of plain md5.
 
 = 3.50.0 =
 

@@ -4377,7 +4377,7 @@ class Mixmymeals_Shortcodes {
 		if ( $public_mode && $is_guest ) {
 
 			$ip     = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
-			$ip_key = 'mmm_rl_create_plan_ip_' . md5( $ip );
+			$ip_key = 'mmm_rl_create_plan_ip_' . wp_hash( $ip ); // Keyed, so the counter cannot be reversed to the IP.
 
 			$limit
 				    = (int) get_option( 'mixmymeals_published_meal_plans_per_hour_limit',

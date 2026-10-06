@@ -123,6 +123,13 @@ class Mixmymeals_Subscriptions {
 	 * the planner — one sentence, so a site cannot end up agreeing to two
 	 * different promises depending on which form somebody used.
 	 *
+	 * It names what the mails contain, because the consent covers exactly
+	 * that: the invitations to rate recipes and share photos are what makes
+	 * them advertising in the sense of § 7(2) no. 2 UWG, and a consent to
+	 * "these e-mails" that does not mention them is weaker than it looks. And
+	 * it links the privacy policy as information, not as something to be
+	 * "accepted" — a privacy policy informs, nobody agrees to it.
+	 *
 	 * @return string Translated, with markup; escape with wp_kses_post().
 	 */
 	public static function consent_text(): string {
@@ -132,10 +139,10 @@ class Mixmymeals_Subscriptions {
 		return '' !== $privacy_url
 			? sprintf(
 				/* translators: %s: privacy policy URL. */
-				__( 'I agree to receive these e-mails and accept the <a href="%s" target="_blank" rel="noopener">privacy policy</a>. I can unsubscribe at any time.', 'mixmymeals' ),
+				__( 'I would like to receive the e-mails for this meal plan (meals, shopping list, invitations to rate recipes and share photos). I can unsubscribe at any time. Information on data protection: <a href="%s" target="_blank" rel="noopener">privacy policy</a>.', 'mixmymeals' ),
 				$privacy_url
 			)
-			: __( 'I agree to receive these e-mails. I can unsubscribe at any time.', 'mixmymeals' );
+			: __( 'I would like to receive the e-mails for this meal plan (meals, shopping list, invitations to rate recipes and share photos). I can unsubscribe at any time.', 'mixmymeals' );
 	}
 
 	/* ----------------------------------------------------------
@@ -724,7 +731,7 @@ class Mixmymeals_Subscriptions {
 
 		// Rate limit per IP.
 		$ip     = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
-		$rl_key = 'mmm_sub_rl_' . md5( $ip );
+		$rl_key = 'mmm_sub_rl_' . wp_hash( $ip ); // Keyed, so the counter cannot be reversed to the IP.
 		$count  = (int) get_transient( $rl_key );
 		if ( $count >= (int) apply_filters( 'mixmymeals_subscribe_rate_limit_per_hour', 5 ) ) {
 			wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again later.', 'mixmymeals' ) ), 429 );

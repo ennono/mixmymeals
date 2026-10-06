@@ -399,11 +399,35 @@ class Mixmymeals_Privacy {
 		/* translators: %s: list of purposes, separated by semicolons. */
 		$html .= $p( sprintf( __( 'Purposes of processing: %s.', 'mixmymeals' ), implode( '; ', $purposes ) ) );
 
-		$html .= $p(
-			$subs_on
-				? __( 'Legal bases: consent (Art. 6(1)(a) GDPR) for e-mail subscriptions, ratings and photo uploads; legitimate interests (Art. 6(1)(f) GDPR) for the meal planner, abuse protection, the send log and keeping records. The planner cookie is technically necessary for the function the user requested (§ 25(2) no. 2 TDDDG).', 'mixmymeals' )
-				: __( 'Legal bases: consent (Art. 6(1)(a) GDPR) for ratings and photo uploads; legitimate interests (Art. 6(1)(f) GDPR) for the meal planner and abuse protection. The planner cookie is technically necessary for the function the user requested (§ 25(2) no. 2 TDDDG).', 'mixmymeals' )
+		/*
+		 * Legal bases, one clause per basis. Ratings and photos are not
+		 * consent: neither form asks for one, so naming consent would claim
+		 * a declaration nobody made — they are the feature the visitor uses
+		 * (lit. b). Legitimate interests name the interest itself (Art. 13(1)(d)
+		 * GDPR), each beside the processing it justifies.
+		 */
+		$interests = array(
+			__( 'the meal planner (our interest in a planner that works without an account)', 'mixmymeals' ),
+			__( 'abuse protection (our interest in protection against automated abuse and overload)', 'mixmymeals' ),
 		);
+		if ( $log_on ) {
+			$interests[] = __( 'the send log (our interest in tracing and proving the delivery of e-mails)', 'mixmymeals' );
+		}
+		if ( $subs_on ) {
+			$interests[] = __( 'keeping finished subscriptions and the suppression list (our interest in being able to prove consents and in honouring objections)', 'mixmymeals' );
+		}
+
+		$bases = array();
+		if ( $subs_on ) {
+			$bases[] = __( 'consent (Art. 6(1)(a) GDPR) for e-mail subscriptions', 'mixmymeals' );
+		}
+		$bases[] = __( 'provision of the feature used (Art. 6(1)(b) GDPR) for saving plans, ratings and photo uploads', 'mixmymeals' );
+		/* translators: %s: processings with the interest behind each, separated by semicolons. */
+		$bases[] = sprintf( __( 'legitimate interests (Art. 6(1)(f) GDPR) for %s', 'mixmymeals' ), implode( '; ', $interests ) );
+
+		/* translators: %s: legal bases, separated by semicolons. */
+		$html .= $p( sprintf( __( 'Legal bases: %s.', 'mixmymeals' ), implode( '; ', $bases ) ) );
+		$html .= $p( __( 'The planner cookie is technically necessary for the function the user requested (§ 25(2) no. 2 TDDDG).', 'mixmymeals' ) );
 
 		$html .= $p( __( 'Further information on processing operations, procedures and services:', 'mixmymeals' ) );
 
@@ -415,8 +439,8 @@ class Mixmymeals_Privacy {
 		$items['planner'] = sprintf(
 			/* translators: 1: cookie name, 2: number of days. */
 			_n(
-				'Meal planner: for visitors who are not logged in, a cookie named “%1$s” stores a random identifier with no personal reference; the recipe selection itself is stored on the server and deleted automatically after %2$d day.',
-				'Meal planner: for visitors who are not logged in, a cookie named “%1$s” stores a random identifier with no personal reference; the recipe selection itself is stored on the server and deleted automatically after %2$d days.',
+				'Meal planner: for visitors who are not logged in, a cookie named “%1$s” stores a random, pseudonymous identifier that links the recipe selection to the browser; the selection itself is stored on the server and deleted automatically after %2$d day.',
+				'Meal planner: for visitors who are not logged in, a cookie named “%1$s” stores a random, pseudonymous identifier that links the recipe selection to the browser; the selection itself is stored on the server and deleted automatically after %2$d days.',
 				$cart_days,
 				'mixmymeals'
 			),
@@ -435,19 +459,63 @@ class Mixmymeals_Privacy {
 			$share_days
 		);
 
+		/*
+		 * Saving a plan publishes it — the public is a recipient (Art. 13(1)(e)
+		 * GDPR) and was not named. Each sentence follows what decides it: who
+		 * may save (public mode), whether a guest's plan waits as a draft, the
+		 * author name on plans of logged-in users (the plan's author box falls
+		 * back to the WordPress account), and the cleanup of plans nobody
+		 * categorised.
+		 */
+		$public_mode = 'on' === (string) get_option( 'mixmymeals_public_mode', '' );
+
+		$plans = __( 'Saving plans: a plan saved in the planner becomes a publicly accessible page showing its recipes, servings and weekdays.', 'mixmymeals' );
+		if ( $public_mode ) {
+			$plans .= ' ' . ( 'on' === (string) get_option( 'mixmymeals_save_meal_plans_published_by_visitors_as_draft', '' )
+				? __( 'Plans saved by visitors who are not logged in are first stored as drafts and only appear publicly once we publish them; no name is stored with them.', 'mixmymeals' )
+				: __( 'Visitors who are not logged in can save plans too; no name is stored with them.', 'mixmymeals' ) );
+		}
+		$plans .= ' ' . __( 'For logged-in users, the display name of their account is shown as the author.', 'mixmymeals' );
+		if ( class_exists( 'Mixmymeals_Cleanup' ) && Mixmymeals_Cleanup::is_enabled() ) {
+			$min_age = Mixmymeals_Cleanup::get_min_age_days();
+			$plans  .= ' ' . sprintf(
+				/* translators: %d: number of days. */
+				_n(
+					'Plans we do not assign to a category are deleted automatically %d day after they were saved.',
+					'Plans we do not assign to a category are deleted automatically %d days after they were saved.',
+					$min_age,
+					'mixmymeals'
+				),
+				$min_age
+			);
+		} else {
+			// Art. 13(2)(a) GDPR wants a storage period either way; without the
+			// cleanup there is none but deletion on request, and that is said.
+			$plans .= ' ' . __( 'Saved plans are kept until their deletion is requested.', 'mixmymeals' );
+		}
+		$items['plans'] = $plans;
+
 		// The save counter only exists where visitors may save plans and an
 		// hourly limit is set (mmm_create_meal_plan_ajax_callback()); the PDF
 		// counter always does.
-		$save_counter = 'on' === (string) get_option( 'mixmymeals_public_mode', '' )
+		$save_counter = $public_mode
 			&& (int) get_option( 'mixmymeals_published_meal_plans_per_hour_limit', 0 ) > 0;
 
 		$items['abuse'] = $save_counter
 			? __( 'Abuse protection: when a visitor saves a meal plan or downloads a plan as a PDF, the IP address is stored in hashed (pseudonymised) form as a short-lived counter — about a minute for PDFs, an hour when saving — and then deleted automatically.', 'mixmymeals' )
 			: __( 'PDF export: to limit abuse, the IP address is stored in hashed (pseudonymised) form as a short-lived counter when a plan PDF is downloaded, and deleted automatically after about a minute.', 'mixmymeals' );
 
-		$items['ratings'] = $subs_on
-			? __( 'Recipe ratings: logged-in users and e-mail subscribers (via a personalised link) can leave star ratings and reviews. These are stored as a comment together with the name and e-mail address given, until the author objects or requests deletion.', 'mixmymeals' )
-			: __( 'Recipe ratings: logged-in users can leave star ratings and reviews. These are stored as a comment together with the name and e-mail address given, until the author objects or requests deletion.', 'mixmymeals' );
+		/*
+		 * Two routes, two different records: the comment form of logged-in
+		 * users runs through wp_new_comment(), which stores IP address and
+		 * user agent; the subscriber link goes through wp_insert_comment()
+		 * (Mixmymeals_Ratings::add_subscriber_rating()), which stores neither
+		 * and approves at once.
+		 */
+		$items['ratings'] = ( $subs_on
+				? __( 'Recipe ratings: logged-in users and e-mail subscribers (via a personalised link) can leave star ratings and reviews. These are published as a comment with the name given and stored together with the e-mail address, until the author objects or requests deletion. Ratings via the subscriber link appear immediately and are stored without an IP address.', 'mixmymeals' )
+				: __( 'Recipe ratings: logged-in users can leave star ratings and reviews. These are published as a comment with the name given and stored together with the e-mail address, until the author objects or requests deletion.', 'mixmymeals' ) )
+			. ' ' . __( 'Ratings submitted through the comment form are processed by WordPress\'s comment function, which also stores the IP address and the browser identification (user agent).', 'mixmymeals' );
 
 		$photo_review = class_exists( 'Mixmymeals_Photos' ) && Mixmymeals_Photos::is_auto_approved()
 			? __( 'Photos appear publicly without prior review.', 'mixmymeals' )
@@ -465,8 +533,24 @@ class Mixmymeals_Privacy {
 				? __( 'E-mail subscriptions: sign-ups use the double opt-in procedure, either on the page of a meal plan or when saving a plan in the planner.', 'mixmymeals' )
 				: __( 'E-mail subscriptions: sign-ups use the double opt-in procedure, on the page of a meal plan.', 'mixmymeals' );
 
+			// What the mails contain — the consent covers exactly this, and the
+			// rating and photo invitations are what makes them advertising in
+			// the sense of § 7 UWG, so they are named rather than implied.
+			$sub .= ' ' . ( '' !== trim( (string) get_option( Mixmymeals_Subscriptions::OPT_APPEND_TEXT, '' ) )
+				? __( 'The e-mails contain the meals and the shopping list of the subscribed plan, links for rating its recipes and sharing photos, and a short additional text from us.', 'mixmymeals' )
+				: __( 'The e-mails contain the meals and the shopping list of the subscribed plan and links for rating its recipes and sharing photos.', 'mixmymeals' ) );
+
+			// Art. 13(2)(e) GDPR: whether the address is required, and what
+			// follows if it is not given or not confirmed.
 			if ( Mixmymeals_Subscriptions::SAVE_OFFER_REQUIRED === $save_mode ) {
-				$sub .= ' ' . __( 'Saving a plan in the planner requires an e-mail address; the subscription only starts once it is confirmed via the link in the confirmation e-mail.', 'mixmymeals' );
+				$sub .= ' ' . sprintf(
+					/* translators: %s: confirmation window, e.g. "48 hours". */
+					__( 'Providing an e-mail address is required to save a plan in the planner; without it the plan cannot be saved. If the sign-up is not confirmed, the plan stays saved, the address is deleted after %s and no further e-mails are sent.', 'mixmymeals' ),
+					/* translators: %d: number of hours. */
+					sprintf( _n( '%d hour', '%d hours', Mixmymeals_Subscriptions::get_pending_hours(), 'mixmymeals' ), Mixmymeals_Subscriptions::get_pending_hours() )
+				);
+			} elseif ( 'off' !== $save_mode ) {
+				$sub .= ' ' . __( 'Giving an e-mail address when saving a plan is voluntary; the plan is saved without it.', 'mixmymeals' );
 			}
 
 			$sub .= ' ' . __( 'Stored are the e-mail address, optionally a name, the subscribed meal plan, the times of sign-up and confirmation, and an access token that the links in the e-mails rely on. To limit abuse, the IP address is additionally stored in hashed form for at most one hour when signing up on a plan\'s page.', 'mixmymeals' );
@@ -480,7 +564,7 @@ class Mixmymeals_Privacy {
 
 			$sub .= ' ' . sprintf(
 				/* translators: 1: number of hours, 2: number of days. */
-				__( 'Deletion: unconfirmed sign-ups are deleted automatically after %1$s; confirmed, finished or cancelled records after %2$s.', 'mixmymeals' ),
+				__( 'Deletion: unconfirmed sign-ups are deleted automatically after %1$s. A running subscription is kept while it runs; finished or cancelled subscriptions are deleted %2$s after they ended and are kept until then as proof of consent (Art. 7(1), Art. 6(1)(f) GDPR).', 'mixmymeals' ),
 				/* translators: %d: number of hours. */
 				sprintf( _n( '%d hour', '%d hours', $pending, 'mixmymeals' ), $pending ),
 				/* translators: %d: number of days. */

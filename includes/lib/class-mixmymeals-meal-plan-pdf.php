@@ -61,7 +61,9 @@ class Mixmymeals_Meal_Plan_PDF {
 			wp_die( esc_html__( 'Meal Plan not found.', 'mixmymeals' ), '', array( 'response' => 404 ) );
 		}
 
-		$ip       = md5( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '' );
+		// Keyed hash, not md5: an unsalted md5 of an IPv4 address is reversed
+		// by trying all 2^32 of them. wp_hash() is an HMAC with the site's salt.
+		$ip       = wp_hash( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '' );
 		$rate_key = 'mmm_pdf_rate_' . $ip;
 		$count    = (int) get_transient( $rate_key );
 		if ( $count >= 5 ) {

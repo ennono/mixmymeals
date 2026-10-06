@@ -55,6 +55,7 @@ $keys  = array(
 	'mixmymeals_public_mode',
 	'mixmymeals_published_meal_plans_per_hour_limit',
 	'mixmymeals_save_meal_plans_published_by_visitors_as_draft',
+	'mixmymeals_enable_cleanup',
 );
 $saved = array();
 foreach ( $keys as $k ) {
@@ -79,13 +80,27 @@ echo "-- 1. Zahlen kommen aus Konstanten und Einstellungen\n";
 
 mmm_ppt_assert( $has( Mixmymeals_Cart::COOKIE_NAME ), 'der Cookie-Name steht drin, aus Mixmymeals_Cart::COOKIE_NAME' );
 mmm_ppt_assert( $has( 'after 7 days' ) && $has( 'after 30 days' ), 'Planer 7 Tage, geteilte Kopie 30 Tage — aus EXPIRATION und SHARE_EXPIRATION' );
-mmm_ppt_assert( $has( 'after 48 hours' ) && $has( 'records after 7 days' ), 'Abo-Fristen 48 Stunden / 7 Tage aus den Einstellungen' );
+mmm_ppt_assert( $has( 'after 48 hours' ) && $has( 'deleted 7 days after they ended' ), 'Abo-Fristen 48 Stunden / 7 Tage aus den Einstellungen' );
 
 update_option( 'mixmymeals_subscription_retention_days', 30 );
-mmm_ppt_assert( $has( 'records after 30 days' ), 'eine geänderte Aufbewahrung ändert den Text mit' );
+mmm_ppt_assert( $has( 'deleted 30 days after they ended' ), 'eine geänderte Aufbewahrung ändert den Text mit' );
+mmm_ppt_assert( $has( 'A running subscription is kept while it runs' ), 'laufende Abos werden nicht als gelöscht beschrieben (prune() löscht nur beendete)' );
 
 mmm_ppt_assert( $has( (string) Mixmymeals_Mail_Log::get_max_entries() . ' most recent entries' ), 'Versandprotokoll: Obergrenze aus Mixmymeals_Mail_Log' );
 mmm_ppt_assert( $has( 'after ' . Mixmymeals_Mail_Log::get_retention_days() . ' days at the latest' ), 'Versandprotokoll: auch die Altersgrenze, die der alte Text nie nannte' );
+
+echo "-- 1b. Befunde der Datenschutzprüfung\n";
+
+mmm_ppt_assert( $has( 'consent (Art. 6(1)(a) GDPR) for e-mail subscriptions;' ) && ! $has( 'consent (Art. 6(1)(a) GDPR) for e-mail subscriptions, ratings' ), 'Einwilligung nur für Abos, nicht für Bewertungen und Fotos' );
+mmm_ppt_assert( $has( '(Art. 6(1)(b) GDPR) for saving plans, ratings and photo uploads' ), 'Bewertungen, Fotos, Pläne: Bereitstellung der Funktion' );
+mmm_ppt_assert( $has( 'our interest in protection against automated abuse' ), 'berechtigte Interessen werden benannt' );
+mmm_ppt_assert( $has( 'becomes a publicly accessible page' ) && $has( 'display name of their account' ), 'gespeicherte Pläne werden öffentlich, mit Kontoname bei Angemeldeten' );
+update_option( 'mixmymeals_enable_cleanup', '' );
+mmm_ppt_assert( $has( 'kept until their deletion is requested' ), 'Aufräumen aus: Pläne bleiben bis zum Löschverlangen — gesagt statt verschwiegen' );
+mmm_ppt_assert( $has( 'pseudonymous identifier' ) && ! $has( 'no personal reference' ), 'die Planer-Kennung heißt pseudonym' );
+mmm_ppt_assert( $has( 'user agent' ), 'Kommentarformular: IP und User-Agent genannt' );
+mmm_ppt_assert( $has( 'links for rating its recipes and sharing photos' ), 'der Mail-Inhalt wird genannt' );
+mmm_ppt_assert( ! str_contains( Mixmymeals_Subscriptions::consent_text(), 'accept' ), 'der Einwilligungssatz lässt die Erklärung nicht mehr „akzeptieren“' );
 
 echo "-- 2. Bedingte Sätze stehen nur da, wo ihre Bedingung gilt\n";
 
@@ -95,9 +110,9 @@ mmm_ppt_assert( $has( 'full IP address' ) && ! $has( 'No IP address is stored' )
 
 mmm_ppt_assert( ! $has( 'when saving a plan in the planner' ), 'Abo beim Speichern aus: der Planer wird nicht als Anmeldeweg genannt' );
 update_option( 'mixmymeals_plan_subscribe_mode', 'optional' );
-mmm_ppt_assert( $has( 'when saving a plan in the planner' ) && ! $has( 'requires an e-mail address' ), 'möglich: Planer genannt, keine Pflicht' );
+mmm_ppt_assert( $has( 'when saving a plan in the planner' ) && $has( 'is voluntary; the plan is saved without it' ) && ! $has( 'is required to save a plan' ), 'möglich: Planer genannt, Freiwilligkeit gesagt' );
 update_option( 'mixmymeals_plan_subscribe_mode', 'required' );
-mmm_ppt_assert( $has( 'requires an e-mail address' ), 'Pflicht: der Pflicht-Satz' );
+mmm_ppt_assert( $has( 'is required to save a plan' ) && $has( 'the plan stays saved, the address is deleted after 48 hours' ), 'Pflicht: Art. 13 Abs. 2 lit. e — Pflicht und Folge der Nichtbestätigung' );
 
 mmm_ppt_assert( $has( 'reviewed editorially' ), 'Fotos ohne Sofortfreigabe: werden geprüft' );
 update_option( 'mixmymeals_photos_auto_approve', 'on' );

@@ -1075,7 +1075,7 @@ class Mixmymeals_Mailer {
 	 * @return string
 	 */
 	private static function rate_key( string $email ): string {
-		return 'mmm_mail_rl_' . md5( strtolower( $email ) );
+		return 'mmm_mail_rl_' . wp_hash( strtolower( $email ) ); // Keyed: an md5 of a known address is a lookup.
 	}
 
 	/* ----------------------------------------------------------
