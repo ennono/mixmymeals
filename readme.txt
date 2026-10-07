@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.50.7
+Stable tag: 3.51.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,15 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.51.0 =
+
+Added:
+* Several diets can be chosen at once above the recipe archive, e.g.
+  gluten-free and vegan; the list shows recipes that suit all of them.
+  Choosing a diet of the same kind (vegetarian while vegan is on)
+  replaces it. Chosen diets carry a tick, and clicking one again
+  removes it.
 
 = 3.50.7 =
 

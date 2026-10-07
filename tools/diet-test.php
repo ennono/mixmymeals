@@ -903,6 +903,50 @@ update_option( Mixmymeals_Diet::FORMER_OPTION, $mmm_map_bak );
 update_option( Mixmymeals_Diet::MIGRATION_OPTION, 1 );
 Mixmymeals_Diet::reset_types();
 
+echo "\n=== 21. Mehrere Ernaehrungsformen zugleich ===\n";
+
+/*
+ * Die Diaet-Zeile laesst mehrere Formen zu, und alle muessen gelten: wer
+ * glutenfrei und vegan braucht, braucht beides. Auf derselben Achse ersetzt
+ * die neue die alte — vegan und vegetarisch zusammen waere nur vegan.
+ */
+$mf_both = mk_ing( 'T Hirse', array( 'vegan', 'gluten_free' ) );
+$mf_vgn  = mk_ing( 'T Seitan', array( 'vegan' ) );
+$mf_r1   = mk_recipe( 'R41', array( row( $mf_both ) ) );
+$mf_r2   = mk_recipe( 'R42', array( row( $mf_vgn ) ) );
+// Direkt, nicht ueber die Warteschlange: Abschnitt 20 hat per Term-Aenderung
+// alle Rezepte vorgemerkt, und ueber der Obergrenze uebergibt flush() an Cron.
+( new Mixmymeals_Recipe( $mf_r1 ) )->recount_indexes();
+( new Mixmymeals_Recipe( $mf_r2 ) )->recount_indexes();
+
+$mf_base = array( 'view' => '', 'time' => 0, 'ingredients' => array(), 'title' => '' );
+$mf_two  = Mixmymeals_Shortcodes::archive_filters_with_diets( $mf_base, array( 'vegan', 'gluten_free' ) );
+
+t( 'Reihenfolge des Vokabulars, nicht der Klicks', 'gluten_free,vegan', $mf_two['diets'] );
+t( 'mit zweien gibt es keine einzelne Diaet', '', $mf_two['diet'] );
+t( 'gleiche Achse: die spaetere ersetzt die fruehere', 'gluten_free,vegetarian',
+   Mixmymeals_Shortcodes::archive_filters_with_diets( $mf_two, array( 'vegan', 'gluten_free', 'vegetarian' ) )['diets'] );
+t( 'Unbekanntes faellt heraus', 'vegan',
+   Mixmymeals_Shortcodes::archive_filters_with_diets( $mf_base, array( 'zz-quatsch', 'vegan' ) )['diets'] );
+
+$mf_ids = get_posts( array_merge(
+	array( 'post_type' => 'mmm_recipe', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true ),
+	Mixmymeals_Shortcodes::archive_filter_query_args( $mf_two )
+) );
+t( 'beide Formen: das Rezept, das beides kann', '1', (string) (int) in_array( $mf_r1, $mf_ids, true ) );
+t( 'beide Formen: nicht das nur vegane', '0', (string) (int) in_array( $mf_r2, $mf_ids, true ) );
+
+$strip = fn( $u ) => str_replace( get_post_type_archive_link( 'mmm_recipe' ), '/', (string) $u );
+t( 'zwei Diaeten ohne Pfad: als ein Parameter, in den Pfadwoertern', '/?diaet=glutenfrei%2Cvegan',
+   $strip( Mixmymeals_Shortcodes::archive_url_for( $mf_two ) ) );
+t( 'mit Zeit: die Zeit traegt den Pfad', '/unter-30-minuten/?diaet=glutenfrei%2Cvegan',
+   $strip( Mixmymeals_Shortcodes::archive_url_for( array_merge( $mf_two, array( 'time' => 30 ) ) ) ) );
+t( 'eine abwaehlen: die andere wird wieder Pfad', '/glutenfrei/',
+   $strip( Mixmymeals_Shortcodes::archive_url_for( Mixmymeals_Shortcodes::archive_filters_without( $mf_two, 'diet', 'vegan' ) ) ) );
+t( '"Beliebig" nimmt alle', '/',
+   $strip( Mixmymeals_Shortcodes::archive_url_for( Mixmymeals_Shortcodes::archive_filters_without( $mf_two, 'diet' ) ) ) );
+t( 'mit zweien besitzt keine Diaet den Pfad', '', Mixmymeals_Shortcodes::archive_primary_facet( $mf_two ) );
+
 echo "\n=== Ergebnis ===\n";
 printf( "  %d bestanden, %d fehlgeschlagen\n", $GLOBALS['PASS'], $GLOBALS['FAIL'] );
 

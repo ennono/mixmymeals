@@ -8218,7 +8218,7 @@ class Mixmymeals_Shortcodes {
 		// has neither a time nor an ingredient index behind it.
 		$recipes = 'mmm_recipe' === $post_type;
 		$filters = $recipes ? self::archive_filters() : array();
-		$has_any = $recipes && ( '' !== $cur_s || ! empty( $filters['diet'] ) || ! empty( $filters['time'] )
+		$has_any = $recipes && ( '' !== $cur_s || ! empty( $filters['diets'] ) || ! empty( $filters['time'] )
 			|| ! empty( $filters['ingredients'] ) || '' !== $filters['view'] );
 
 		ob_start();
@@ -8298,12 +8298,19 @@ class Mixmymeals_Shortcodes {
 	 * the heading all have to agree about which filter the path stands for, and
 	 * three separate answers would disagree on the day somebody adds a facet.
 	 *
+	 * A diet owns the path only while it is the only one: a path holds one
+	 * slug, and several diets travel together as a parameter instead.
+	 *
 	 * @param array<string,mixed> $filters As archive_filters() returns them.
 	 * @return string 'diet', 'time', 'view' or ''.
 	 */
 	public static function archive_primary_facet( array $filters ): string {
 
-		foreach ( array( 'diet', 'time', 'view' ) as $kind ) {
+		if ( 1 === count( self::archive_diets( $filters ) ) ) {
+			return 'diet';
+		}
+
+		foreach ( array( 'time', 'view' ) as $kind ) {
 			if ( ! empty( $filters[ $kind ] ) ) {
 				return $kind;
 			}
@@ -8329,8 +8336,10 @@ class Mixmymeals_Shortcodes {
 		 * submit. The time needs no hidden field either way: the select posts
 		 * it.
 		 */
-		if ( ! empty( $filters['diet'] ) && 'diet' !== $primary ) {
-			$hidden['diaet'] = (string) $filters['diet'];
+		$diets = self::archive_diets( $filters );
+
+		if ( $diets && 'diet' !== $primary ) {
+			$hidden['diaet'] = self::archive_diet_param( $diets );
 		}
 
 		if ( ! empty( $filters['time'] ) && 'time' !== $primary ) {
@@ -8394,12 +8403,22 @@ class Mixmymeals_Shortcodes {
 
 
 	/**
-	 * Shortcode [mmm_archive_filters]: the diet pills above the recipe archive.
+	 * Shortcode [mmm_archive_filters]: the diet and time rows above the recipe
+	 * archive.
 	 *
-	 * Links, not a form: one facet is one address, and a link is what a visitor
-	 * can share, bookmark and open in a new tab. The time step is a select in
-	 * the search form instead — four ordered values on one scale read as a
-	 * scale, while four diets are four alternatives and read as pills.
+	 * Links, not a form: one state is one address, and a link is what a visitor
+	 * can share, bookmark and open in a new tab.
+	 *
+	 * **Diets combine, times do not.** A diet link toggles: it adds that diet
+	 * to the ones in force, or drops it when it is already on, and the chosen
+	 * diets all have to hold ("gluten-free and lactose-free" is one person's
+	 * question, not two). A diet on the same axis as one already chosen
+	 * replaces it instead — vegan and vegetarian together is just vegan, and a
+	 * row showing both lit would claim a choice nobody made. The time steps
+	 * stay single: they are one scale, and "under 20 and under 60" is under 20.
+	 *
+	 * The counts are per diet over the whole archive, not narrowed by what is
+	 * already chosen — the same rule as between the two rows.
 	 *
 	 * A diet nothing is classified under is left out rather than shown empty:
 	 * the counts come from one grouped query over the index, so this costs one
@@ -8426,12 +8445,21 @@ class Mixmymeals_Shortcodes {
 
 			$links = array();
 
+			$chosen = self::archive_diets( $filters );
+
 			foreach ( $diets as $slug => $count ) {
+
+				$active = in_array( $slug, $chosen, true );
+
 				$links[] = array(
 					'label'  => Mixmymeals_Diet::label( $slug ),
 					'count'  => $count,
-					'active' => $slug === $filters['diet'],
-					'url'    => self::archive_url_for( array_merge( $filters, array( 'diet' => $slug ) ) ),
+					'active' => $active,
+					'url'    => self::archive_url_for(
+						$active
+							? self::archive_filters_without( $filters, 'diet', $slug )
+							: self::archive_filters_with_diets( $filters, array_merge( $chosen, array( $slug ) ) )
+					),
 				);
 			}
 
@@ -8439,8 +8467,9 @@ class Mixmymeals_Shortcodes {
 				__( 'Diet', 'mixmymeals' ),
 				__( 'Any', 'mixmymeals' ),
 				self::archive_url_for( self::archive_filters_without( $filters, 'diet' ) ),
-				'' === $filters['diet'],
-				$links
+				empty( $chosen ),
+				$links,
+				true
 			);
 		}
 
@@ -8489,13 +8518,15 @@ class Mixmymeals_Shortcodes {
 	 * @param string                                                           $any_url    Where it leads.
 	 * @param bool                                                             $any_active Whether nothing is chosen here.
 	 * @param array<int, array{label:string,count:int,active:bool,url:string}> $links      The choices.
+	 * @param bool                                                             $multi      Whether several choices combine
+	 *                                                                                     (the theme marks those as ticks).
 	 * @return string
 	 */
-	private static function render_filter_row( string $label, string $any_label, string $any_url, bool $any_active, array $links ): string {
+	private static function render_filter_row( string $label, string $any_label, string $any_url, bool $any_active, array $links, bool $multi = false ): string {
 
 		ob_start();
 		?>
-		<div class="mmm-archive-filters">
+		<div class="mmm-archive-filters<?php echo $multi ? ' mmm-archive-filters--multi' : ''; ?>">
 			<span class="mmm-archive-filters__label"><?php echo esc_html( $label ); ?></span>
 			<?php if ( '' !== $any_url ) : ?>
 				<a class="<?php echo esc_attr( $any_active ? 'active' : '' ); ?>" href="<?php echo esc_url( $any_url ); ?>">
@@ -8504,7 +8535,7 @@ class Mixmymeals_Shortcodes {
 			<?php endif; ?>
 			<?php foreach ( $links as $link ) : ?>
 				<?php if ( '' !== $link['url'] ) : ?>
-					<a class="<?php echo esc_attr( $link['active'] ? 'active' : '' ); ?>" href="<?php echo esc_url( $link['url'] ); ?>">
+					<a class="<?php echo esc_attr( $link['active'] ? 'active' : '' ); ?>" href="<?php echo esc_url( $link['url'] ); ?>"<?php echo $link['active'] ? ' aria-current="true"' : ''; ?>>
 						<?php echo esc_html( $link['label'] ); ?>
 						<span class="mmm-archive-filters__count"><?php echo esc_html( number_format_i18n( $link['count'] ) ); ?></span>
 					</a>
@@ -8683,9 +8714,11 @@ class Mixmymeals_Shortcodes {
 			return true;
 		}
 
-		$facets = 0;
+		// Every diet counts on its own: "vegan and gluten-free" is a
+		// combination like any other.
+		$facets = count( self::archive_diets( $filters ) );
 
-		foreach ( array( 'view', 'diet', 'time' ) as $kind ) {
+		foreach ( array( 'view', 'time' ) as $kind ) {
 			if ( ! empty( $filters[ $kind ] ) ) {
 				++$facets;
 			}
@@ -8709,7 +8742,14 @@ class Mixmymeals_Shortcodes {
 	 * than registered as query variables: short German names like `zeit` are
 	 * only safe to use because nothing else in WordPress ever sees them.
 	 *
-	 * @return array{view:string, diet:string, time:int, ingredients:string[], title:string}
+	 * Several diets travel as one parameter, `?diaet=vegan,glutenfrei`; when it
+	 * is there it replaces the path's diet rather than adding to it, which is
+	 * what keeps "a parameter beats a path" true with more than one value.
+	 * `diets` is the answer; `diet` is that list when it holds exactly one —
+	 * the only case a path can carry, and what archive_primary_facet() and the
+	 * theme's heading read.
+	 *
+	 * @return array{view:string, diets:string[], diet:string, time:int, ingredients:string[], title:string}
 	 */
 	public static function archive_filters(): array {
 
@@ -8720,7 +8760,7 @@ class Mixmymeals_Shortcodes {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only public GET filters, like mmm_s.
-		$diet = isset( $_GET['diaet'] ) ? sanitize_title( wp_unslash( $_GET['diaet'] ) ) : '';
+		$diet = isset( $_GET['diaet'] ) ? sanitize_text_field( wp_unslash( $_GET['diaet'] ) ) : '';
 		$time = isset( $_GET['zeit'] ) ? absint( wp_unslash( $_GET['zeit'] ) ) : 0;
 		$raw  = isset( $_GET['zutat'] ) ? sanitize_text_field( wp_unslash( $_GET['zutat'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
@@ -8729,26 +8769,118 @@ class Mixmymeals_Shortcodes {
 			$diet = sanitize_title( (string) get_query_var( Mixmymeals_Recipe::DIET_VIEW_VAR, '' ) );
 		}
 
+		$diets = array_map( 'sanitize_title', explode( ',', (string) $diet ) );
+
 		if ( 0 === $time ) {
 			$time = absint( get_query_var( Mixmymeals_Recipe::TIME_VIEW_VAR, 0 ) );
 		}
 
 		// A diet decides what a public page claims to be cookable, and a time
 		// step decides which path exists: neither is passed through unchecked.
-		$resolved = Mixmymeals_Recipe::resolve_archive_view( $diet );
-		$diet     = ( $resolved && 'diet' === $resolved['kind'] ) ? (string) $resolved['value'] : '';
+		$known = array();
+
+		foreach ( $diets as $candidate ) {
+			$resolved = Mixmymeals_Recipe::resolve_archive_view( $candidate );
+
+			if ( $resolved && 'diet' === $resolved['kind'] ) {
+				$known[] = (string) $resolved['value'];
+			}
+		}
 
 		if ( ! in_array( $time, Mixmymeals_Recipe::prep_time_steps(), true ) ) {
 			$time = 0;
 		}
 
-		$filters = array(
-			'view'        => Mixmymeals_Recipe::current_browse_view(),
-			'diet'        => $diet,
-			'time'        => $time,
-			'ingredients' => self::parse_ingredient_tokens( $raw ),
-			'title'       => self::archive_search_term(),
+		$filters = self::archive_filters_with_diets(
+			array(
+				'view'        => Mixmymeals_Recipe::current_browse_view(),
+				'time'        => $time,
+				'ingredients' => self::parse_ingredient_tokens( $raw ),
+				'title'       => self::archive_search_term(),
+			),
+			$known
 		);
+
+		return $filters;
+	}
+
+	/**
+	 * The diets of a filter set.
+	 *
+	 * Reads `diets`, and falls back to `diet` for a set built by hand with only
+	 * that key — the shape every filter set had before diets could combine.
+	 *
+	 * @param array<string,mixed> $filters As archive_filters() returns them.
+	 * @return string[]
+	 */
+	public static function archive_diets( array $filters ): array {
+
+		if ( isset( $filters['diets'] ) && is_array( $filters['diets'] ) ) {
+			return array_values( array_map( 'strval', $filters['diets'] ) );
+		}
+
+		return ! empty( $filters['diet'] ) ? array( (string) $filters['diet'] ) : array();
+	}
+
+	/**
+	 * Several diets as the `diaet` parameter, in the words the paths use.
+	 *
+	 * The last slug registered for a diet is the translated one — the same
+	 * choice archive_view_url() makes for a path — so the address reads
+	 * `?diaet=glutenfrei,vegan` rather than the internal keys.
+	 *
+	 * @param string[] $diets Diet slugs.
+	 * @return string
+	 */
+	private static function archive_diet_param( array $diets ): string {
+
+		$words = array();
+
+		foreach ( Mixmymeals_Recipe::archive_view_slugs() as $slug => $entry ) {
+			if ( 'diet' === $entry[0] && in_array( (string) $entry[1], $diets, true ) ) {
+				$words[ (string) $entry[1] ] = (string) $slug;
+			}
+		}
+
+		return implode( ',', array_map( static fn( $diet ) => $words[ $diet ] ?? $diet, $diets ) );
+	}
+
+	/**
+	 * The same filter set with these diets in force.
+	 *
+	 * The one place a diet list is normalised, so every address built from it
+	 * is the same address: one diet per axis (the later one wins, which is how
+	 * a click on "vegetarian" replaces "vegan"), unknown slugs dropped, and the
+	 * vocabulary's own order rather than the order of the clicks. `diet` is
+	 * kept in step with `diets` here and nowhere else.
+	 *
+	 * @param array<string,mixed> $filters Filter set.
+	 * @param string[]            $diets   Diet slugs, in the order chosen.
+	 * @return array<string,mixed>
+	 */
+	public static function archive_filters_with_diets( array $filters, array $diets ): array {
+
+		$types   = Mixmymeals_Diet::types();
+		$by_axis = array();
+
+		foreach ( $diets as $slug ) {
+
+			$slug = (string) $slug;
+
+			if ( ! isset( $types[ $slug ] ) ) {
+				continue;
+			}
+
+			$axis = (string) ( $types[ $slug ]['axis'] ?? $slug );
+
+			unset( $by_axis[ $axis ] );
+			$by_axis[ $axis ] = $slug;
+		}
+
+		$ordered = array_values( array_intersect( array_keys( $types ), $by_axis ) );
+
+		$filters['diets'] = $ordered;
+		$filters['diet']  = 1 === count( $ordered ) ? $ordered[0] : '';
 
 		return $filters;
 	}
@@ -8815,10 +8947,12 @@ class Mixmymeals_Shortcodes {
 		$args = array();
 		$meta = array();
 
-		if ( ! empty( $filters['diet'] ) ) {
+		// One clause per diet, and meta_query joins clauses with AND: a recipe
+		// has to be cookable for every diet chosen.
+		foreach ( self::archive_diets( $filters ) as $diet ) {
 			$meta[] = array(
 				'key'   => Mixmymeals_Recipe::META_DIET_INDEX,
-				'value' => (string) $filters['diet'],
+				'value' => $diet,
 			);
 		}
 
@@ -8932,6 +9066,26 @@ class Mixmymeals_Shortcodes {
 
 		$primary = self::archive_primary_facet( $filters );
 
+		/*
+		 * Whatever the path does not carry travels as a parameter beside it —
+		 * including several diets with no other facet, where there is no path
+		 * at all and the plain archive carries them.
+		 */
+		$diets = self::archive_diets( $filters );
+
+		if ( $diets && 'diet' !== $primary ) {
+			$params['diaet'] = self::archive_diet_param( $diets );
+		}
+
+		foreach ( array( 'time', 'view' ) as $kind ) {
+
+			if ( $kind === $primary || empty( $filters[ $kind ] ) ) {
+				continue;
+			}
+
+			$params[ 'time' === $kind ? 'zeit' : Mixmymeals_Recipe::BROWSE_VIEW_VAR ] = (string) $filters[ $kind ];
+		}
+
 		if ( '' === $primary ) {
 			$base = get_post_type_archive_link( 'mmm_recipe' );
 
@@ -8945,18 +9099,9 @@ class Mixmymeals_Shortcodes {
 				: $base;
 		}
 
-		// Whatever the path does not carry travels as a parameter beside it.
-		foreach ( array( 'diet', 'time', 'view' ) as $kind ) {
+		$value = 'diet' === $primary ? $diets[0] : $filters[ $primary ];
 
-			if ( $kind === $primary || empty( $filters[ $kind ] ) ) {
-				continue;
-			}
-
-			$params[ 'time' === $kind ? 'zeit' : ( 'diet' === $kind ? 'diaet' : Mixmymeals_Recipe::BROWSE_VIEW_VAR ) ]
-				= (string) $filters[ $kind ];
-		}
-
-		return Mixmymeals_Recipe::archive_view_url( $primary, $filters[ $primary ], $params );
+		return Mixmymeals_Recipe::archive_view_url( $primary, $value, $params );
 	}
 
 	/**
@@ -8964,7 +9109,8 @@ class Mixmymeals_Shortcodes {
 	 *
 	 * @param array<string,mixed> $filters As archive_filters() returns them.
 	 * @param string              $kind    'diet', 'time', 'view', 'title' or 'ingredient'.
-	 * @param string              $value   For 'ingredient': which token to drop.
+	 * @param string              $value   For 'ingredient' and 'diet': which one to drop
+	 *                                     ('' drops every diet).
 	 * @return array<string,mixed>
 	 */
 	public static function archive_filters_without( array $filters, string $kind, string $value = '' ): array {
@@ -8986,6 +9132,14 @@ class Mixmymeals_Shortcodes {
 
 			case 'time':
 				$filters['time'] = 0;
+				break;
+
+			case 'diet':
+				// A value drops that one diet, none drops them all.
+				$filters = self::archive_filters_with_diets(
+					$filters,
+					'' === $value ? array() : array_diff( self::archive_diets( $filters ), array( $value ) )
+				);
 				break;
 
 			default:
@@ -9010,7 +9164,15 @@ class Mixmymeals_Shortcodes {
 		$filters = self::archive_filters();
 		$out     = array();
 
-		foreach ( array( 'diet', 'time', 'view' ) as $kind ) {
+		foreach ( self::archive_diets( $filters ) as $diet ) {
+			$out[] = array(
+				'kind'  => 'diet',
+				'value' => $diet,
+				'url'   => self::archive_url_for( self::archive_filters_without( $filters, 'diet', $diet ) ),
+			);
+		}
+
+		foreach ( array( 'time', 'view' ) as $kind ) {
 
 			if ( empty( $filters[ $kind ] ) ) {
 				continue;
