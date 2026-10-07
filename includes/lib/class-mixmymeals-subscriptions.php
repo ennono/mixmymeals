@@ -632,8 +632,8 @@ class Mixmymeals_Subscriptions {
 		?>
 		<form class="mmm-subscribe-form" data-plan-id="<?php echo esc_attr( $plan_id ); ?>">
 			<div class="mmm-subscribe-field">
-				<label><?php esc_html_e( 'Your name (optional)', 'mixmymeals' ); ?>
-					<input type="text" class="mmm-subscribe-name" autocomplete="name">
+				<label><?php esc_html_e( 'Your first name (optional)', 'mixmymeals' ); ?>
+					<input type="text" class="mmm-subscribe-name" autocomplete="given-name" maxlength="100">
 				</label>
 			</div>
 			<div class="mmm-subscribe-field">

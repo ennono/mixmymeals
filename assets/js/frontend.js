@@ -770,8 +770,9 @@ jQuery(function ($) {
     /* ==========================================================
        SUBSCRIBE WHILE SAVING THE PLAN
 
-       An e-mail field in the action row (render_plan_subscribe_offer() in
-       the plugin), always visible while the offer is on. In "required" mode
+       A first-name and an e-mail field above the action row
+       (render_plan_subscribe_offer() in the plugin), always visible while
+       the offer is on. The name is never required. In "required" mode
        the Save button stays disabled until it holds a plausible address —
        and, where the notice is a checkbox, until that is ticked. In
        "optional" mode nothing is gated: an empty field means no
@@ -839,6 +840,7 @@ jQuery(function ($) {
             const $agree = $sub.find('.mmm-plan-subscribe-agree');
             subscribe = {
                 email: ($sub.find('.mmm-plan-subscribe-email').val() || '').trim(),
+                name: ($sub.find('.mmm-plan-subscribe-name').val() || '').trim(),
                 agree: (!$agree.length || $agree.is(':checked')) ? '1' : '0'
             };
         }

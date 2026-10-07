@@ -316,12 +316,17 @@ mmm_pst_assert( 'subscribe_email_invalid' === ( $res['data']['code'] ?? '' ), 'P
 $res = mmm_pst_save( array( 'email' => 'zz-pflicht@example.invalid', 'agree' => '0' ), $recipe_id );
 mmm_pst_assert( 'subscribe_consent_required' === ( $res['data']['code'] ?? '' ), 'Pflicht mit Checkbox: ohne Haken wird nicht gespeichert' );
 
-$res     = mmm_pst_save( array( 'email' => 'zz-pflicht@example.invalid', 'agree' => '1' ), $recipe_id );
+$res     = mmm_pst_save( array( 'email' => 'zz-pflicht@example.invalid', 'name' => ' Zora <b>Z</b> ', 'agree' => '1' ), $recipe_id );
 $plan_id = mmm_pst_track( $res, $created );
 mmm_pst_assert( true === ( $res['success'] ?? null ) && true === ( $res['data']['subscribed'] ?? null ), 'Pflicht: mit Adresse und Haken gespeichert und abonniert' );
 mmm_pst_assert(
 	1 === count( get_posts( array( 'post_type' => 'mmm_subscription', 'post_status' => 'any', 'fields' => 'ids', 'meta_key' => '_mmm_sub_plan_id', 'meta_value' => $plan_id ) ) ), // phpcs:ignore WordPress.DB.SlowDBQuery
 	'genau ein ausstehendes Abo für genau diesen Plan'
+);
+$sub_ids = get_posts( array( 'post_type' => 'mmm_subscription', 'post_status' => 'any', 'fields' => 'ids', 'meta_key' => '_mmm_sub_plan_id', 'meta_value' => $plan_id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+mmm_pst_assert(
+	'Zora Z' === get_post_meta( (int) ( $sub_ids[0] ?? 0 ), '_mmm_sub_name', true ),
+	'der Vorname aus dem Planer landet bereinigt im Abo, wie beim Abo-Formular'
 );
 
 update_option( 'mixmymeals_plan_subscribe_mode', 'optional' );

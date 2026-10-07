@@ -4560,6 +4560,11 @@ msgstr "Deine E-Mail"
 msgid "Your e-mail (optional)"
 msgstr "Deine E-Mail (optional)"
 
+#: includes/lib/class-mixmymeals-shortcodes.php
+#: includes/lib/class-mixmymeals-subscriptions.php:635
+msgid "Your first name (optional)"
+msgstr "Dein Vorname (optional)"
+
 #: includes/lib/class-mixmymeals-shortcodes.php:4348
 msgid "Please enter your e-mail address to save the plan."
 msgstr "Bitte gib deine E-Mail-Adresse an, um den Plan zu speichern."
@@ -5424,10 +5429,6 @@ msgstr "Abos"
 #: includes/lib/class-mixmymeals-subscriptions.php:956
 msgid "Subscription"
 msgstr "Abo"
-
-#: includes/lib/class-mixmymeals-subscriptions.php:635
-msgid "Your name (optional)"
-msgstr "Dein Name (optional)"
 
 #: includes/lib/class-mixmymeals-subscriptions.php:652
 msgid "Start date"

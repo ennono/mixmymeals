@@ -4212,10 +4212,12 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * The "subscribe while saving" offer: an e-mail field that stands in the
-	 * action row beside Save Plan whenever the offer is on — always visible,
-	 * no checkbox or radio in front of it, since entering the address is the
-	 * whole point and a step before that step only hid it.
+	 * The "subscribe while saving" offer: a first-name and an e-mail field
+	 * on their own line above Save Plan whenever the offer is on — always
+	 * visible, no checkbox or radio in front of them, since entering the
+	 * address is the whole point and a step before that step only hid it.
+	 * The name is the same one the [mmm_meal_plan_subscribe] form asks for
+	 * and is always optional.
 	 *
 	 * Below the row sits the site's notice (Mixmymeals_Subscriptions::
 	 * save_offer_notice()), either as a checkbox that has to be ticked or as
@@ -4238,14 +4240,24 @@ class Mixmymeals_Shortcodes {
 		$placeholder = $required
 			? __( 'Your e-mail', 'mixmymeals' )
 			: __( 'Your e-mail (optional)', 'mixmymeals' );
+		// Never required, whatever the mode: the name only greets in the mails.
+		$name_label  = __( 'Your first name (optional)', 'mixmymeals' );
 		$notice      = Mixmymeals_Subscriptions::save_offer_notice();
 		?>
         <div class="mmm-plan-subscribe" data-subscribe-mode="<?php echo esc_attr( $mode ); ?>">
-            <input type="email"
-                   class="mmm-plan-subscribe-email"
-                   autocomplete="email"
-                   placeholder="<?php echo esc_attr( $placeholder ); ?>"
-                   aria-label="<?php echo esc_attr( $placeholder ); ?>"<?php echo $required ? ' required' : ''; ?>>
+            <div class="mmm-plan-subscribe__fields">
+                <input type="text"
+                       class="mmm-plan-subscribe-name"
+                       autocomplete="given-name"
+                       maxlength="100"
+                       placeholder="<?php echo esc_attr( $name_label ); ?>"
+                       aria-label="<?php echo esc_attr( $name_label ); ?>">
+                <input type="email"
+                       class="mmm-plan-subscribe-email"
+                       autocomplete="email"
+                       placeholder="<?php echo esc_attr( $placeholder ); ?>"
+                       aria-label="<?php echo esc_attr( $placeholder ); ?>"<?php echo $required ? ' required' : ''; ?>>
+            </div>
 			<?php if ( Mixmymeals_Subscriptions::save_offer_notice_is_checkbox() ) : ?>
                 <label class="mmm-plan-subscribe__notice mmm-plan-subscribe__consent">
                     <input type="checkbox" class="mmm-plan-subscribe-agree">
@@ -4301,6 +4313,7 @@ class Mixmymeals_Shortcodes {
 		 */
 		$sub_mode  = self::plan_subscribe_offer_mode();
 		$sub_email = '';
+		$sub_name  = '';
 		$sub_agree = false;
 
 		if ( Mixmymeals_Subscriptions::SAVE_OFFER_OFF !== $sub_mode ) {
@@ -4309,6 +4322,7 @@ class Mixmymeals_Shortcodes {
 			$subscribe_post = isset( $_POST['subscribe'] ) && is_array( $_POST['subscribe'] ) ? wp_unslash( $_POST['subscribe'] ) : array();
 			$sub_email      = isset( $subscribe_post['email'] ) ? sanitize_email( trim( (string) $subscribe_post['email'] ) ) : '';
 			$sub_raw_email  = isset( $subscribe_post['email'] ) ? trim( (string) $subscribe_post['email'] ) : '';
+			$sub_name       = isset( $subscribe_post['name'] ) ? sanitize_text_field( (string) $subscribe_post['name'] ) : '';
 
 			// A plain notice asks for no tick: entering the address is the act.
 			$sub_agree = ! Mixmymeals_Subscriptions::save_offer_notice_is_checkbox()
@@ -4570,7 +4584,7 @@ class Mixmymeals_Shortcodes {
 		$subscribed = false;
 
 		if ( '' !== $sub_email && $sub_agree && 'publish' === $post_status ) {
-			$sub_id     = Mixmymeals_Subscriptions::create_pending( $meal_plan_id, $sub_email, '' );
+			$sub_id     = Mixmymeals_Subscriptions::create_pending( $meal_plan_id, $sub_email, $sub_name );
 			$subscribed = ! is_wp_error( $sub_id );
 		}
 

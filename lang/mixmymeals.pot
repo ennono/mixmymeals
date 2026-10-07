@@ -4621,8 +4621,9 @@ msgstr ""
 msgid "Subscription"
 msgstr ""
 
+#: includes/lib/class-mixmymeals-shortcodes.php
 #: includes/lib/class-mixmymeals-subscriptions.php:635
-msgid "Your name (optional)"
+msgid "Your first name (optional)"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-subscriptions.php:652

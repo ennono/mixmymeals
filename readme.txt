@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.50.6
+Stable tag: 3.50.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.50.7 =
+
+Added:
+* Saving a plan in the planner with a subscription now asks for a first
+  name too (optional), the same one the subscribe form asks for and the
+  mails greet with. Name and e-mail sit on their own line above the
+  buttons.
+
+Changed:
+* The subscribe form labels its name field "Your first name".
 
 = 3.50.6 =
 
