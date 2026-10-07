@@ -524,6 +524,14 @@ class Mixmymeals_Recipe {
 			$claim( Mixmymeals_Diet::label( $diet ), 'diet', $diet );
 		}
 
+		// The keys of the former built-ins, so /rezepte/vegetarian/ keeps
+		// answering after the term's slug became "vegetarisch".
+		foreach ( Mixmymeals_Diet::former_terms() as $key => $diet ) {
+			if ( Mixmymeals_Diet::is_known( $diet ) ) {
+				$claim( $key, 'diet', $diet );
+			}
+		}
+
 		foreach ( self::prep_time_steps() as $minutes ) {
 
 			// The untranslated literal first, as the stable key: it is what the

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.50.4
+Stable tag: 3.50.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,27 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.50.6 =
+
+Changed:
+* Diets are no longer built into the code. Vegan, vegetarian, gluten-free
+  and lactose-free are ordinary terms now; their group, strength and
+  schema.org URL were moved onto the terms once, so every recipe and plan
+  keeps its classification. Their slug can be changed freely.
+
+Fixed:
+* Changing the slug of one of those diets showed it twice when editing
+  products, and everything assigned to it stopped counting as that diet.
+  The update repairs this: the empty duplicate is removed and the old
+  slugs (e.g. "vegetarian") keep working in the API and in archive links.
+
+= 3.50.5 =
+
+Fixed:
+* Save Plan stayed disabled after the server refused a save (consent box
+  not ticked, invalid address, rate limit), so the plan could not be saved
+  even after fixing the problem.
 
 = 3.50.4 =
 

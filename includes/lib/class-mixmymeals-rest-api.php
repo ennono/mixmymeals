@@ -302,13 +302,13 @@ class Mixmymeals_Rest_Api {
 
 		// ── Ingredients ───────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_ingredients' ),    'permission_callback' => '__return_true' ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian', '' ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian', '' ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => array( 'required' => false, 'type' => 'number' ), 'fat' => array( 'required' => false, 'type' => 'number' ), 'carbs' => array( 'required' => false, 'type' => 'number' ), 'protein' => array( 'required' => false, 'type' => 'number' ), 'sugar' => array( 'required' => false, 'type' => 'number' ), 'fiber' => array( 'required' => false, 'type' => 'number' ), 'salt' => array( 'required' => false, 'type' => 'number' ), 'weight_item' => array( 'required' => false, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/price', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_price' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'price_per_100g' => array( 'required' => true, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/units', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient_units' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/search', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'search_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'query' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian' ) ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 20 ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/search', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'search_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'query' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => Mixmymeals_Diet::axis_slugs( 'diet' ) ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 20 ) ) ) );
 
 		// ── Audit ─────────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/diets/migrate', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'migrate_diets' ), 'permission_callback' => $auth, 'args' => array( 'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => true ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 200, 'minimum' => 1, 'maximum' => 1000 ) ) ) );
@@ -449,7 +449,7 @@ class Mixmymeals_Rest_Api {
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
 				'price'          => array( 'required' => false, 'type' => array( 'number', 'null' ), 'minimum' => 0 ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
-				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
+				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ),
 				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
 				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
 			),
@@ -477,7 +477,7 @@ class Mixmymeals_Rest_Api {
 				'package_weight' => array( 'required' => false, 'type' => 'number' ),
 				'price'          => array( 'required' => false, 'type' => array( 'number', 'null' ), 'minimum' => 0 ),
 				'source'         => array( 'required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field' ),
-				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array( 'vegan', 'vegetarian', '' ) ),
+				'diet_type'      => array( 'required' => false, 'type' => 'string',  'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ),
 				'nutrition'      => array( 'required' => false, 'type' => 'object' ),
 				'is_reference'   => array( 'required' => false, 'type' => 'boolean' ),
 			),
@@ -590,7 +590,7 @@ class Mixmymeals_Rest_Api {
 			'permission_callback' => '__return_true',
 			'args'                => array(
 				'search'       => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-				'diet'         => array( 'required' => false, 'type' => 'string', 'enum' => array( 'vegan', 'vegetarian' ) ),
+				'diet'         => array( 'required' => false, 'type' => 'string', 'enum' => Mixmymeals_Diet::axis_slugs( 'diet' ) ),
 				'category'     => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
 				'tag'          => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
 				'min_calories' => array( 'required' => false, 'type' => 'number' ),
@@ -2247,7 +2247,7 @@ class Mixmymeals_Rest_Api {
 			$args['tax_query'] = $tax; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 		}
 
-		$diet     = $request->get_param( 'diet' );
+		$diet     = Mixmymeals_Diet::resolve( (string) $request->get_param( 'diet' ) );
 		$min_cal  = $request->has_param( 'min_calories' ) ? (float) $request->get_param( 'min_calories' ) : null;
 		$max_cal  = $request->has_param( 'max_calories' ) ? (float) $request->get_param( 'max_calories' ) : null;
 		$max_prep = $request->has_param( 'max_prep' ) ? (int) $request->get_param( 'max_prep' ) : null;
@@ -2732,7 +2732,7 @@ class Mixmymeals_Rest_Api {
 	public function search_ingredients( WP_REST_Request $request ): WP_REST_Response {
 
 		$query = trim( (string) $request->get_param( 'query' ) );
-		$diet  = $request->get_param( 'diet_type' );
+		$diet  = Mixmymeals_Diet::resolve( (string) $request->get_param( 'diet_type' ) );
 		$limit = max( 1, min( 100, (int) ( $request->get_param( 'limit' ) ?: 20 ) ) );
 
 		$args = array(

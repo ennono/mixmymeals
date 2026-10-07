@@ -29,11 +29,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * meta and is inherited down the tree where it makes sense (axis). types()
  * assembles all of it, so a diet is added by adding a term, with no code.
  *
- * The four diets the plugin ships stay defined in code and win over their
- * terms: they carry the wording and the schema URLs the translations and the
- * structured data rely on, and renaming "Vegan" on the taxonomy screen must
- * not be able to change what a public label means. Their terms can still be
- * moved in the tree, which only ever adds implications.
+ * **No diet is defined in code.** Vegan, vegetarian, gluten-free and
+ * lactose-free used to be built in, recognised by their slug and winning over
+ * their terms. Changing such a slug on the term screen made the term a second
+ * diet of the same name beside the built-in, and everything assigned to it
+ * quietly stopped counting as vegan. migrate_former_builtins() moved their
+ * definitions onto the terms once; since then a term is a diet like any
+ * other, and its slug and name are the editor's.
+ *
+ * The four former keys survive as aliases (former_terms()), resolved through
+ * the term ID rather than the slug: legacy meta, REST clients and shared links
+ * still say "vegetarian", and they keep reaching the term whatever it is
+ * called today.
  *
  * A term with no relations implies nothing and answers a question of its own
  * (its axis defaults to its own slug), so an invented term cannot produce or
@@ -84,16 +91,24 @@ class Mixmymeals_Diet {
 	const META_SCHEMA = '_mmm_diet_schema';
 
 	/**
-	 * Option gating the one-off move of the built-in diets into their tree.
+	 * Option gating the one-off move of the former built-ins onto their terms.
 	 *
 	 * @var string
 	 */
-	const HIERARCHY_OPTION = 'mixmymeals_diet_hierarchy_version';
+	const MIGRATION_OPTION = 'mixmymeals_diet_terms_version';
 
 	/**
-	 * The diets this plugin knows how to reason about.
+	 * Option mapping each former built-in key to the term ID that took it over.
 	 *
-	 * Each entry carries what a term cannot:
+	 * @var string
+	 */
+	const FORMER_OPTION = 'mixmymeals_diet_former_terms';
+
+	/**
+	 * What the four former built-ins were, for migrate_former_builtins() only.
+	 *
+	 * Nothing reads this at run time; a diet is what its term says. Each entry
+	 * carries what a bare term cannot:
 	 *  - axis    Which question it answers. One axis holds one claim at a
 	 *            time; a dish is vegan or vegetarian, never both, while
 	 *            gluten-free is a separate question with its own answer.
@@ -103,21 +118,18 @@ class Mixmymeals_Diet {
 	 *  - rank    Which wins when one axis holds several. Higher is stronger
 	 *            and is what a label shows.
 	 *
-	 * An entry may add 'suitability' to word the capable form itself; without
-	 * one it is composed from the label and the site's pattern, which is the
-	 * normal case and what the setting governs.
+	 * 'source' is the untranslated label, which is what a term created before
+	 * the translation loaded is called. 'parent' names the diet this one sits
+	 * under in the tree.
 	 *
-	 * These are the diets that ship with the plugin; types() adds the terms
-	 * an editor created and runs the filter. 'parent' names the diet this one
-	 * sits under in the tree and is what ensure_terms() seeds.
-	 *
-	 * @return array<string,array{label:string,axis:string,implies:string[],rank:int,schema:string,parent?:string,suitability?:string}>
+	 * @return array<string,array{label:string,source:string,axis:string,implies:string[],rank:int,schema:string,parent?:string}>
 	 */
-	private static function builtin_types(): array {
+	private static function former_builtins(): array {
 
 		$types = array(
 			'vegan'        => array(
 				'label'   => __( 'Vegan', 'mixmymeals' ),
+				'source'  => 'Vegan',
 				'axis'    => 'diet',
 				'implies' => array( 'vegetarian' ),
 				'parent'  => 'vegetarian',
@@ -126,6 +138,7 @@ class Mixmymeals_Diet {
 			),
 			'vegetarian'   => array(
 				'label'   => __( 'Vegetarian', 'mixmymeals' ),
+				'source'  => 'Vegetarian',
 				'axis'    => 'diet',
 				'implies' => array(),
 				'rank'    => 10,
@@ -133,6 +146,7 @@ class Mixmymeals_Diet {
 			),
 			'gluten_free'  => array(
 				'label'   => __( 'Gluten-free', 'mixmymeals' ),
+				'source'  => 'Gluten-free',
 				'axis'    => 'free_from',
 				'implies' => array(),
 				'rank'    => 10,
@@ -140,6 +154,7 @@ class Mixmymeals_Diet {
 			),
 			'lactose_free' => array(
 				'label'   => __( 'Lactose-free', 'mixmymeals' ),
+				'source'  => 'Lactose-free',
 				'axis'    => 'lactose',
 				'implies' => array(),
 				'rank'    => 10,
@@ -153,8 +168,8 @@ class Mixmymeals_Diet {
 	/**
 	 * The diets this plugin knows how to reason about.
 	 *
-	 * Built-ins, then every term of the taxonomy (see terms_as_types()), then
-	 * the filter, then normalised: implications made transitive and ranks made
+	 * Every term of the taxonomy (see terms_as_types()), then the filter,
+	 * then normalised: implications made transitive and ranks made
 	 * to agree with them. Memoised for the request; the term and term-meta
 	 * hooks reset it, reset_types() does so by hand.
 	 *
@@ -168,10 +183,10 @@ class Mixmymeals_Diet {
 			return $memo;
 		}
 
-		$types = self::builtin_types();
+		$types = array();
 
-		// Before init the taxonomy does not exist; answer from code alone and
-		// do not remember it, or the terms would stay invisible all request.
+		// Before init the taxonomy does not exist; answer from the filter alone
+		// and do not remember it, or the terms would stay invisible all request.
 		$ready = taxonomy_exists( self::TAXONOMY );
 
 		if ( $ready ) {
@@ -225,15 +240,13 @@ class Mixmymeals_Diet {
 	}
 
 	/**
-	 * Lays the terms over the built-ins.
+	 * Turns the terms into definitions.
 	 *
-	 * A built-in slug keeps its own label, axis, rank and schema — the tree
-	 * only adds implications to it. Any other term becomes a definition:
-	 * label from the name, axis from its meta or the nearest ancestor that has
+	 * Label from the name, axis from its meta or the nearest ancestor that has
 	 * one (else a question of its own), rank from its meta or its depth, and
 	 * 'implies' from its ancestors.
 	 *
-	 * @param array $types Built-in definitions.
+	 * @param array $types Definitions so far.
 	 * @return array
 	 */
 	private static function terms_as_types( array $types ): array {
@@ -277,34 +290,23 @@ class Mixmymeals_Diet {
 			$ancestry[ $term->slug ] = $chain( $term );
 		}
 
-		$builtin = self::builtin_types();
+		// Axes stated on the term itself, before anything is inherited.
+		$own_axis = array();
+
+		foreach ( $by_id as $term ) {
+			$own_axis[ $term->slug ] = (string) get_term_meta( $term->term_id, self::META_AXIS, true );
+		}
 
 		foreach ( $by_id as $term ) {
 
 			$slug      = $term->slug;
 			$ancestors = $ancestry[ $slug ];
-
-			if ( isset( $types[ $slug ] ) ) {
-				$types[ $slug ]['implies'] = array_values( array_unique( array_merge( (array) $types[ $slug ]['implies'], array_reverse( $ancestors ) ) ) );
-				continue;
-			}
-
-			$axis = (string) get_term_meta( $term->term_id, self::META_AXIS, true );
+			$axis      = $own_axis[ $slug ];
 
 			if ( '' === $axis ) {
 				// Nearest ancestor first: its term meta, or the axis a built-in of that slug has.
 				foreach ( array_reverse( $ancestors ) as $up ) {
-					$up_term = null;
-					foreach ( $by_id as $candidate ) {
-						if ( $candidate->slug === $up ) {
-							$up_term = $candidate;
-							break;
-						}
-					}
-					$found = isset( $types[ $up ] ) ? (string) $types[ $up ]['axis'] : '';
-					if ( '' === $found && $up_term ) {
-						$found = (string) get_term_meta( $up_term->term_id, self::META_AXIS, true );
-					}
+					$found = (string) ( $own_axis[ $up ] ?? '' );
 					if ( '' !== $found ) {
 						$axis = $found;
 						break;
@@ -315,15 +317,17 @@ class Mixmymeals_Diet {
 			$rank_meta = get_term_meta( $term->term_id, self::META_RANK, true );
 
 			/*
-			 * A root nobody gave an axis, with a shipped diet somewhere beneath
-			 * it, answers that diet's question: "Pescetarian" above "Vegetarian"
-			 * is plainly the same axis, and making the editor type "diet" to say
-			 * so would be a field that exists to be forgotten.
+			 * A term nobody gave an axis, with a diet of a stated axis somewhere
+			 * beneath it, answers that diet's question: "Pescetarian" above
+			 * "Vegetarian" is plainly the same axis, and making the editor type
+			 * "diet" to say so would be a field that exists to be forgotten.
+			 * (This used to look for a built-in beneath; the built-ins now carry
+			 * their axis as term meta, so a stated axis is the same test.)
 			 */
 			if ( '' === $axis ) {
 				foreach ( $ancestry as $below => $above ) {
-					if ( isset( $builtin[ $below ] ) && in_array( $slug, $above, true ) ) {
-						$axis = (string) $builtin[ $below ]['axis'];
+					if ( '' !== $own_axis[ $below ] && in_array( $slug, $above, true ) ) {
+						$axis = $own_axis[ $below ];
 						break;
 					}
 				}
@@ -437,6 +441,97 @@ class Mixmymeals_Diet {
 	 */
 	public static function is_known( string $slug ): bool {
 		return isset( self::types()[ $slug ] );
+	}
+
+	/**
+	 * The diet a slug stands for: itself when it is a diet, the term that took
+	 * over a former built-in key ("vegetarian") otherwise, else ''.
+	 *
+	 * Every place a slug arrives from outside — legacy meta, the REST API, an
+	 * address — goes through this, so a key from before the migration reaches
+	 * the same term the editor sees, whatever its slug is today.
+	 *
+	 * @param string $slug Slug or former key.
+	 * @return string
+	 */
+	public static function resolve( string $slug ): string {
+
+		if ( self::is_known( $slug ) ) {
+			return $slug;
+		}
+
+		$former = self::former_terms()[ $slug ] ?? '';
+
+		return '' !== $former && self::is_known( $former ) ? $former : '';
+	}
+
+	/**
+	 * The diets of one axis, plus the former keys that reach one of them.
+	 *
+	 * What the REST API accepts for its single-axis `diet_type` and `diet`
+	 * parameters: the slugs as they are today, and "vegan" / "vegetarian" for
+	 * clients written before the migration.
+	 *
+	 * @param string $axis Axis.
+	 * @return string[]
+	 */
+	public static function axis_slugs( string $axis ): array {
+
+		$out = array();
+
+		foreach ( self::types() as $slug => $type ) {
+			if ( $type['axis'] === $axis ) {
+				$out[] = (string) $slug;
+			}
+		}
+
+		foreach ( self::former_terms() as $key => $slug ) {
+			if ( in_array( $slug, $out, true ) && ! in_array( $key, $out, true ) ) {
+				$out[] = (string) $key;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Former built-in key => the current slug of the term that took it over.
+	 *
+	 * Stored as term IDs, so renaming a slug afterwards cannot break it.
+	 * Entries whose term is gone are left out.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function former_terms(): array {
+
+		$out = array();
+
+		foreach ( (array) get_option( self::FORMER_OPTION, array() ) as $key => $term_id ) {
+
+			$term = get_term( (int) $term_id, self::TAXONOMY );
+
+			if ( $term instanceof WP_Term ) {
+				$out[ (string) $key ] = $term->slug;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Which former built-in key a diet took over, or ''.
+	 *
+	 * For wording that is still keyed by those four — the theme's archive
+	 * headings — and nothing else: what a diet *is* comes from its term.
+	 *
+	 * @param string $slug Diet slug.
+	 * @return string
+	 */
+	public static function former_key( string $slug ): string {
+
+		$key = array_search( $slug, self::former_terms(), true );
+
+		return false === $key ? '' : (string) $key;
 	}
 
 	/**
@@ -790,7 +885,8 @@ class Mixmymeals_Diet {
 				true
 			);
 
-			$result = self::is_known( (string) $meta ) ? array( (string) $meta ) : array();
+			$meta   = self::resolve( (string) $meta );
+			$result = '' !== $meta ? array( $meta ) : array();
 		}
 
 		self::memo( $post_id, $result );
@@ -881,7 +977,7 @@ class Mixmymeals_Diet {
 			return;
 		}
 
-		$known = array_values( array_unique( array_filter( array_map( 'strval', $slugs ), array( __CLASS__, 'is_known' ) ) ) );
+		$known = array_values( array_unique( array_filter( array_map( array( __CLASS__, 'resolve' ), array_map( 'strval', $slugs ) ) ) ) );
 
 		wp_set_object_terms( $post_id, $known, self::TAXONOMY, false );
 
@@ -958,80 +1054,121 @@ class Mixmymeals_Diet {
 	}
 
 	/**
-	 * Creates the terms for the shipped diets if they are missing, parents first.
+	 * Moves the four former built-in diets onto their terms. Once.
 	 *
-	 * Runs on admin_init rather than on every request: assigning a diet needs
-	 * the term to exist, and an editor should not have to type "vegan" to get
-	 * the one the plugin reasons about. Only what code defines is created here
-	 * (built-ins and filter additions); terms an editor made already exist.
+	 * Until 3.50.6 vegan, vegetarian, gluten-free and lactose-free were defined
+	 * in code and recognised by their slug. This writes what the code said —
+	 * group, strength, schema.org URL, Vegan below Vegetarian — onto the term
+	 * that carries each of them, so every recipe, meal and plan reads exactly
+	 * what it read before, and records which term took over which key.
 	 *
-	 * "Vegan" is seeded as a child of "Vegetarian", which is what the
-	 * built-in implication says anyway — the tree shows the editor what the
-	 * rule is. Existing installs get that once, and only for a term still
-	 * sitting at the root: someone who has already arranged the tree is left
-	 * alone.
+	 * The term is found by slug, or by name where the slug was changed. A slug
+	 * change used to make ensure_terms() create a second, empty term under the
+	 * old slug; where the one found by name carries the assignments and the
+	 * one under the old slug carries none, the empty one is that duplicate and
+	 * is deleted. Nothing with an assignment is ever deleted.
+	 *
+	 * Meta already present on a term is kept: an editor who stated a group or
+	 * a strength has said something the code never did.
+	 *
+	 * Nothing is created: an install without these terms simply has no such
+	 * diets, which is the point.
 	 *
 	 * @return void
 	 */
-	public static function ensure_terms(): void {
+	public static function migrate_former_builtins(): void {
 
-		if ( ! taxonomy_exists( self::TAXONOMY ) ) {
+		if ( (int) get_option( self::MIGRATION_OPTION, 0 ) >= 1 || ! taxonomy_exists( self::TAXONOMY ) ) {
 			return;
 		}
 
-		$types   = self::types();
-		$builtin = self::builtin_types();
-		$once    = (int) get_option( self::HIERARCHY_OPTION, 0 ) < 1;
+		// The labels go onto terms, which every visitor sees in the site's
+		// language — not in the language of whoever triggers this request.
+		$switched = switch_to_locale( get_locale() );
+		$former   = self::former_builtins();
 
-		$guard  = array();
-		$ensure = static function ( string $slug ) use ( &$ensure, &$guard, $types, $once ): int {
+		if ( $switched ) {
+			restore_previous_locale();
+		}
 
-			if ( isset( $guard[ $slug ] ) || ! isset( $types[ $slug ] ) ) {
-				$existing = term_exists( $slug, self::TAXONOMY );
-				return $existing ? (int) $existing['term_id'] : 0;
-			}
+		$terms = get_terms(
+			array(
+				'taxonomy'   => self::TAXONOMY,
+				'hide_empty' => false,
+			)
+		);
 
-			$guard[ $slug ] = true;
+		$terms = is_wp_error( $terms ) ? array() : $terms;
 
-			$parent_slug = (string) ( $types[ $slug ]['parent'] ?? '' );
-			$parent_id   = '' !== $parent_slug ? $ensure( $parent_slug ) : 0;
-			$existing    = term_exists( $slug, self::TAXONOMY );
-
-			if ( $existing ) {
-
-				$id = (int) $existing['term_id'];
-
-				if ( $once && $parent_id && 0 === (int) get_term( $id, self::TAXONOMY )->parent ) {
-					wp_update_term( $id, self::TAXONOMY, array( 'parent' => $parent_id ) );
-				}
-
-				return $id;
-			}
-
-			$made = wp_insert_term(
-				$types[ $slug ]['label'],
-				self::TAXONOMY,
-				array(
-					'slug'   => $slug,
-					'parent' => $parent_id,
-				)
-			);
-
-			return is_wp_error( $made ) ? 0 : (int) $made['term_id'];
+		$used = static function ( WP_Term $term ): bool {
+			$ids = get_objects_in_term( (int) $term->term_id, self::TAXONOMY );
+			return ! is_wp_error( $ids ) && ! empty( $ids );
 		};
 
-		foreach ( array_keys( $types ) as $slug ) {
-			// Terms that already exist and are not defined in code are skipped inside.
-			if ( isset( $builtin[ $slug ] ) || ! term_exists( $slug, self::TAXONOMY ) ) {
-				$ensure( (string) $slug );
+		$map = array();
+
+		foreach ( $former as $key => $def ) {
+
+			$by_slug = null;
+			$by_name = null;
+			$names   = array( mb_strtolower( $def['label'] ), mb_strtolower( $def['source'] ) );
+
+			foreach ( $terms as $term ) {
+				if ( $term->slug === $key ) {
+					$by_slug = $term;
+				} elseif ( null === $by_name && in_array( mb_strtolower( $term->name ), $names, true ) ) {
+					$by_name = $term;
+				}
+			}
+
+			$term = $by_slug ?? $by_name;
+
+			if ( $by_slug && $by_name && ! $used( $by_slug ) && $used( $by_name ) ) {
+				wp_delete_term( (int) $by_slug->term_id, self::TAXONOMY );
+				$term = $by_name;
+			}
+
+			if ( ! $term ) {
+				continue;
+			}
+
+			$id          = (int) $term->term_id;
+			$map[ $key ] = $id;
+
+			foreach (
+				array(
+					self::META_AXIS   => (string) $def['axis'],
+					self::META_RANK   => (string) $def['rank'],
+					self::META_SCHEMA => (string) $def['schema'],
+				) as $meta_key => $value
+			) {
+				if ( '' === (string) get_term_meta( $id, $meta_key, true ) ) {
+					update_term_meta( $id, $meta_key, $value );
+				}
+			}
+
+			// A term created before the translation loaded carries the English
+			// source; the visitor used to see the translation in its place.
+			if ( $term->name === $def['source'] && $def['label'] !== $def['source'] ) {
+				wp_update_term( $id, self::TAXONOMY, array( 'name' => $def['label'] ) );
 			}
 		}
 
-		if ( $once ) {
-			update_option( self::HIERARCHY_OPTION, 1 );
+		// "Vegan implies vegetarian" was code; on terms it is the tree. Only a
+		// vegan term still at the root is moved — any other place is a choice.
+		if ( isset( $map['vegan'], $map['vegetarian'] ) ) {
+			$vegan = get_term( $map['vegan'], self::TAXONOMY );
+			if ( $vegan instanceof WP_Term && 0 === (int) $vegan->parent ) {
+				wp_update_term( $map['vegan'], self::TAXONOMY, array( 'parent' => $map['vegetarian'] ) );
+			}
 		}
 
+		update_option( self::FORMER_OPTION, $map );
+		update_option( self::MIGRATION_OPTION, 1 );
+		delete_option( 'mixmymeals_diet_hierarchy_version' );
+
 		self::reset_types();
+		Mixmymeals_Recipe::mark_all_indexes_dirty();
 	}
 
 	/*
@@ -1168,12 +1305,6 @@ class Mixmymeals_Diet {
 
 		wp_nonce_field( 'mmm_diet_term', 'mmm_diet_term_nonce' );
 
-		if ( isset( self::builtin_types()[ $term->slug ] ) ) {
-			echo '<tr class="form-field"><th scope="row">' . esc_html__( 'Defined by the plugin', 'mixmymeals' ) . '</th><td>';
-			echo '<p class="description">' . esc_html__( 'The name, group, strength and schema.org URL of this diet are fixed by the plugin. Moving it in the tree only adds to what it implies.', 'mixmymeals' ) . '</p></td></tr>';
-			return;
-		}
-
 		$axis   = (string) get_term_meta( $term->term_id, self::META_AXIS, true );
 		$rank   = (string) get_term_meta( $term->term_id, self::META_RANK, true );
 		$schema = (string) get_term_meta( $term->term_id, self::META_SCHEMA, true );
@@ -1215,7 +1346,7 @@ class Mixmymeals_Diet {
 	 * Reads the three fields off the request and says what is wrong with them.
 	 *
 	 * Returns null when the request carries none of our form (REST, import, the
-	 * code's own ensure_terms()) — those paths set meta directly or not at all.
+	 * the migration) — those paths set meta directly or not at all.
 	 * Before this, a bad value was quietly dropped by the sanitisers and the
 	 * term appeared to have been saved with the fields the editor typed; an
 	 * error that names the field is the only honest answer.
@@ -1314,7 +1445,7 @@ class Mixmymeals_Diet {
 	}
 
 	/**
-	 * Stores the three fields. Built-ins are never touched.
+	 * Stores the three fields.
 	 *
 	 * @param int $term_id Term ID.
 	 * @return void
@@ -1325,12 +1456,6 @@ class Mixmymeals_Diet {
 		$fields = self::read_term_fields();
 
 		if ( ! is_array( $fields ) ) {
-			return;
-		}
-
-		$term = get_term( (int) $term_id, self::TAXONOMY );
-
-		if ( ! $term instanceof WP_Term || isset( self::builtin_types()[ $term->slug ] ) ) {
 			return;
 		}
 

@@ -866,7 +866,10 @@ jQuery(function ($) {
                         window.setTimeout(function () {
                             window.location.href = response.data.redirect_url;
                         }, delay);
+                        return;
                     }
+
+                    mmmSetBusy($create, false);
                     return;
                 }
 
@@ -875,6 +878,12 @@ jQuery(function ($) {
                 mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error while creating meal plan.' });
             })
             .fail(function (xhr) {
+                // Every refusal from the handler arrives here, not in .done():
+                // wp_send_json_error() answers with a 4xx status (missing
+                // consent, invalid address, rate limit, expired session). The
+                // button has to come back, or the visitor who just fixed the
+                // one thing the message named cannot save at all.
+                mmmSetBusy($create, false);
                 mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
             });
     });

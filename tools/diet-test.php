@@ -767,7 +767,7 @@ $mk = function ( string $name, string $slug, int $parent = 0 ) use ( &$mmm_clean
 	return (int) $r['term_id'];
 };
 
-Mixmymeals_Diet::ensure_terms();
+Mixmymeals_Diet::migrate_former_builtins();
 $veg = term_exists( 'vegetarian', Mixmymeals_Diet::TAXONOMY );
 $vgn = term_exists( 'vegan', Mixmymeals_Diet::TAXONOMY );
 t( 'Vegan haengt unter Vegetarisch', (int) $veg['term_id'], (int) get_term( (int) $vgn['term_id'], Mixmymeals_Diet::TAXONOMY )->parent );
@@ -786,7 +786,7 @@ $types = Mixmymeals_Diet::types();
 t( 'Vegetarisch impliziert nun Pescetarisch', true, in_array( 'zz_pescetarian', $types['vegetarian']['implies'], true ) );
 t( 'Vegan impliziert transitiv beides', array( 'vegetarian', 'zz_pescetarian' ), (function () use ( $types ) { $i = $types['vegan']['implies']; sort( $i ); return $i; })() );
 t( 'expand() folgt dem Baum', true, in_array( 'zz_pescetarian', Mixmymeals_Diet::expand( array( 'vegan' ) ), true ) );
-t( 'die Wurzel uebernimmt die Achse der Eingebauten darunter', 'diet', $types['zz_pescetarian']['axis'] );
+t( 'die Wurzel uebernimmt die Achse des Begriffs darunter', 'diet', $types['zz_pescetarian']['axis'] );
 t( 'Rang: Vegetarisch schlaegt Pescetarisch', true, $types['vegetarian']['rank'] > $types['zz_pescetarian']['rank'] );
 t( 'strongest() nennt das Staerkste', 'vegan', Mixmymeals_Diet::strongest( array( 'zz_pescetarian', 'vegan', 'vegetarian' ) ) );
 
@@ -806,11 +806,6 @@ $types = Mixmymeals_Diet::types();
 t( 'Term-Meta: Frage', 'zz_other', $types['zz_side']['axis'] );
 t( 'Term-Meta: Staerke', 77, $types['zz_side']['rank'] );
 t( 'Term-Meta: schema.org', 'https://schema.org/KosherDiet', Mixmymeals_Diet::schema_url( 'zz_side' ) );
-
-// Eingebaute bleiben von Umbenennung unberuehrt.
-wp_update_term( (int) $vgn['term_id'], Mixmymeals_Diet::TAXONOMY, array( 'name' => 'ZZ Umbenannt' ) );
-t( 'eine eingebaute Diaet behaelt ihr Etikett', Mixmymeals_Diet::label( 'vegan' ), __( 'Vegan', 'mixmymeals' ) );
-wp_update_term( (int) $vgn['term_id'], Mixmymeals_Diet::TAXONOMY, array( 'name' => 'Vegan' ) );
 
 // Eine Zutat mit dem Kindterm gilt im Rezept auch als vegetarisch.
 $zz_ing = trash( wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'ZZ Roh', 'post_status' => 'publish' ) ) );
@@ -833,6 +828,80 @@ $mmm_shortcodes_src = file_get_contents( dirname( __DIR__ ) . '/includes/lib/cla
 t( 'kein eigenes $mmm_diet_labels mehr im Code', false, false !== strpos( (string) $mmm_shortcodes_src, '$mmm_diet_labels' ) );
 
 foreach ( $mmm_cleanup_terms as $mmm_tid ) { wp_delete_term( $mmm_tid, Mixmymeals_Diet::TAXONOMY ); }
+
+echo "\n=== 20. Keine eingebauten Ernaehrungsformen mehr ===\n";
+
+/*
+ * Bis 3.50.6 waren vegan, vegetarisch, glutenfrei und laktosefrei im Code
+ * definiert und am Slug erkannt. Wer den Slug aenderte, bekam eine zweite
+ * Diaet gleichen Namens, ensure_terms() legte unter dem alten Slug einen
+ * leeren Doppelgaenger an, und alles Zugeordnete war still nicht mehr vegan.
+ * Genau diesen Zustand (so auf stopfnicht.de vorgefunden) stellt dieser
+ * Abschnitt nach und laesst die Migration darueber laufen.
+ */
+$mmm_tax     = Mixmymeals_Diet::TAXONOMY;
+$mmm_veg_id  = (int) $veg['term_id'];
+$mmm_map_bak = get_option( Mixmymeals_Diet::FORMER_OPTION );
+$mmm_meta_bak = array();
+foreach ( array( Mixmymeals_Diet::META_AXIS, Mixmymeals_Diet::META_RANK, Mixmymeals_Diet::META_SCHEMA ) as $mmm_k ) {
+	$mmm_meta_bak[ $mmm_k ] = get_term_meta( $mmm_veg_id, $mmm_k, true );
+	delete_term_meta( $mmm_veg_id, $mmm_k );
+}
+
+// Der Name folgt jetzt dem Begriff, wie bei jeder anderen Diaet.
+wp_update_term( (int) $vgn['term_id'], $mmm_tax, array( 'name' => 'ZZ Umbenannt' ) );
+t( 'ein umbenannter Begriff traegt seinen neuen Namen', 'ZZ Umbenannt', Mixmymeals_Diet::label( 'vegan' ) );
+wp_update_term( (int) $vgn['term_id'], $mmm_tax, array( 'name' => 'Vegan' ) );
+
+// Zustand wie auf stopfnicht.de: Slug geaendert, leerer Doppelgaenger daneben.
+wp_update_term( $mmm_veg_id, $mmm_tax, array( 'slug' => 'zz-vegetarisch', 'parent' => 0 ) );
+$mmm_dupe = wp_insert_term( get_term( $mmm_veg_id, $mmm_tax )->name, $mmm_tax, array( 'slug' => 'vegetarian' ) );
+$mmm_dupe = is_wp_error( $mmm_dupe ) ? 0 : (int) $mmm_dupe['term_id'];
+t( 'Ausgangslage: Doppelgaenger angelegt', true, $mmm_dupe > 0 );
+$mmm_used = mk_ing( 'T Halloumi' );
+wp_set_object_terms( $mmm_used, array( $mmm_veg_id ), $mmm_tax );
+$mmm_legacy = mk_ing( 'T Altlast', array(), 'vegetarian' );
+
+delete_option( Mixmymeals_Diet::MIGRATION_OPTION );
+delete_option( Mixmymeals_Diet::FORMER_OPTION );
+Mixmymeals_Diet::migrate_former_builtins();
+Mixmymeals_Diet::reset_types();
+clean_object_term_cache( array( $mmm_used, $mmm_legacy ), 'mmm_ingredient' );
+
+t( 'der leere Doppelgaenger ist geloescht', false, (bool) get_term( $mmm_dupe, $mmm_tax ) );
+t( 'der benutzte Begriff ist der Nachfolger', 'zz-vegetarisch', Mixmymeals_Diet::former_terms()['vegetarian'] ?? '' );
+$types = Mixmymeals_Diet::types();
+t( 'er traegt die Gruppe', 'diet', $types['zz-vegetarisch']['axis'] ?? '' );
+t( 'und die Schema-URL', 'https://schema.org/VegetarianDiet', Mixmymeals_Diet::schema_url( 'zz-vegetarisch' ) );
+t( 'Vegetarisch steht nur einmal in der Liste', 1, count( array_filter( $types, fn( $x ) => $x['label'] === $types['zz-vegetarisch']['label'] ) ) );
+t( 'vegan impliziert den Nachfolger', true, in_array( 'zz-vegetarisch', Mixmymeals_Diet::expand( array( 'vegan' ) ), true ) );
+t( 'resolve(): alter Schluessel', 'zz-vegetarisch', Mixmymeals_Diet::resolve( 'vegetarian' ) );
+t( 'resolve(): neuer Slug', 'zz-vegetarisch', Mixmymeals_Diet::resolve( 'zz-vegetarisch' ) );
+t( 'resolve(): Unbekanntes', '', Mixmymeals_Diet::resolve( 'zz-gibt-es-nicht' ) );
+t( 'former_key() fuer die Theme-Texte', 'vegetarian', Mixmymeals_Diet::former_key( 'zz-vegetarisch' ) );
+t( 'REST nimmt alten Schluessel und neuen Slug', true,
+   in_array( 'vegetarian', Mixmymeals_Diet::axis_slugs( 'diet' ), true ) && in_array( 'zz-vegetarisch', Mixmymeals_Diet::axis_slugs( 'diet' ), true ) );
+t( 'die zugeordnete Zutat ist vegetarisch', 'zz-vegetarisch', ( new Mixmymeals_Ingredient( $mmm_used ) )->get_diet_type() );
+t( 'alte Meta "vegetarian" erreicht den Nachfolger', 'zz-vegetarisch', ( new Mixmymeals_Ingredient( $mmm_legacy ) )->get_diet_type() );
+$mmm_rv = Mixmymeals_Recipe::resolve_archive_view( 'vegetarian' );
+t( '/rezepte/vegetarian/ fuehrt weiter zum Nachfolger', 'diet:zz-vegetarisch', $mmm_rv ? $mmm_rv['kind'] . ':' . $mmm_rv['value'] : '' );
+( new Mixmymeals_Ingredient( $mmm_legacy ) )->set_diet_type( 'vegetarian' );
+t( 'set_diet_type( "vegetarian" ) schreibt den Nachfolger', 'zz-vegetarisch', Mixmymeals_Diet::for_post( $mmm_legacy ) );
+
+// Danach ist der Slug frei: aendern bricht nichts mehr.
+wp_update_term( $mmm_veg_id, $mmm_tax, array( 'slug' => 'zz-veggie' ) );
+Mixmymeals_Diet::reset_types();
+t( 'nach erneutem Slugwechsel: alter Schluessel folgt', 'zz-veggie', Mixmymeals_Diet::resolve( 'vegetarian' ) );
+t( 'und vegan impliziert ihn weiter', true, in_array( 'zz-veggie', Mixmymeals_Diet::expand( array( 'vegan' ) ), true ) );
+
+// Zuruecksetzen.
+wp_update_term( $mmm_veg_id, $mmm_tax, array( 'slug' => 'vegetarian' ) );
+foreach ( $mmm_meta_bak as $mmm_k => $mmm_v ) {
+	'' === (string) $mmm_v ? delete_term_meta( $mmm_veg_id, $mmm_k ) : update_term_meta( $mmm_veg_id, $mmm_k, $mmm_v );
+}
+update_option( Mixmymeals_Diet::FORMER_OPTION, $mmm_map_bak );
+update_option( Mixmymeals_Diet::MIGRATION_OPTION, 1 );
+Mixmymeals_Diet::reset_types();
 
 echo "\n=== Ergebnis ===\n";
 printf( "  %d bestanden, %d fehlgeschlagen\n", $GLOBALS['PASS'], $GLOBALS['FAIL'] );

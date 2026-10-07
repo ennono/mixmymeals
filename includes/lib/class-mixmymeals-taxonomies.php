@@ -38,7 +38,11 @@ class Mixmymeals_Taxonomies {
 		// Diäten leben in ihrer eigenen Klasse, weil dort auch die Regeln
 		// stehen, nach denen sie sich zu Rezepten verdichten.
 		add_action( 'init', array( 'Mixmymeals_Diet', 'register_taxonomy' ) );
-		add_action( 'admin_init', array( 'Mixmymeals_Diet', 'ensure_terms' ) );
+		// Einmalig: die früher fest eingebauten Diäten wandern auf ihre Terme.
+		// Auf init statt admin_init, damit das Frontend nach einem Update nicht
+		// bis zum ersten Admin-Besuch ohne Gruppen und Schema-URLs dasteht; nach
+		// der Registrierung (10) und vor den Archiv-Pfaden (20).
+		add_action( 'init', array( 'Mixmymeals_Diet', 'migrate_former_builtins' ), 15 );
 		// Die Begriffe sind das Verzeichnis: Eltern-Kind-Beziehung, Frage und
 		// Stärke stehen am Term, nicht mehr in einer festen Liste. Deshalb
 		// gibt es keine Sperre für unbekannte Begriffe mehr.

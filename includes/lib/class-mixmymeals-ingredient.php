@@ -792,7 +792,10 @@ class Mixmymeals_Ingredient {
 			}
 		}
 
-		if ( Mixmymeals_Diet::is_known( $type ) ) {
+		// A former key ("vegetarian") reaches the term that took it over.
+		$type = Mixmymeals_Diet::resolve( $type );
+
+		if ( '' !== $type ) {
 			$keep[] = $type;
 		}
 
