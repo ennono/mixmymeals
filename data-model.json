@@ -75,6 +75,10 @@
           "type": "float",
           "description": "Fett pro 100 g in Gramm."
         },
+        "_mmm_saturates": {
+          "type": "float",
+          "description": "Gesättigte Fettsäuren pro 100 g in Gramm. Achter Wert, seit 3.52.0 — damit ist der EU-Pflichtsatz vollständig. Präfix _mmm_, weil _rmm_ ein Überrest des Vorgängerplugins ist."
+        },
         "_rmm_carbs": {
           "type": "float",
           "description": "Kohlenhydrate pro 100 g in Gramm."
@@ -368,7 +372,7 @@
       "mmm_ingredient": {
         "endpoint": "/wp-json/wp/v2/mmm_ingredient",
         "note": "publicly_queryable: false — Lesen erfordert Authentifizierung.",
-        "meta_via_rest": ["_rmm_calories_100", "_rmm_fat", "_rmm_carbs", "_rmm_protein", "_rmm_sugar", "_rmm_fiber", "_rmm_salt", "_rmm_weight_item", "_mmm_price_per_100g", "_mmm_diet_type", "_mmm_default_unit"]
+        "meta_via_rest": ["_rmm_calories_100", "_rmm_fat", "_mmm_saturates", "_rmm_carbs", "_rmm_protein", "_rmm_sugar", "_rmm_fiber", "_rmm_salt", "_rmm_weight_item", "_mmm_price_per_100g", "_mmm_diet_type", "_mmm_default_unit"]
       },
       "mmm_ingr_unit": {
         "endpoint": "/wp-json/wp/v2/mmm_ingr_unit",

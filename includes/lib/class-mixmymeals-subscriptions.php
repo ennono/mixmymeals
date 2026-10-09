@@ -381,14 +381,8 @@ class Mixmymeals_Subscriptions {
 	public static function default_subject( string $template ): string {
 		$subjects = array(
 			'each-day.html'       => __( 'Your meals today: {{ plan }}', 'mixmymeals' ),
-			'on-start.html'       => __( 'Your plan starts today: {{ plan }}', 'mixmymeals' ),
-			'before-start.html'   => __( 'Your plan starts tomorrow: {{ plan }}', 'mixmymeals' ),
-			'evening-before.html' => __( 'Tomorrow’s meals: {{ plan }}', 'mixmymeals' ),
-			'on-end.html'         => __( 'Last day of your plan: {{ plan }}', 'mixmymeals' ),
-			'after-end.html'      => __( 'That was {{ plan }}', 'mixmymeals' ),
-			'on-confirm.html'     => __( 'Welcome to {{ plan }}', 'mixmymeals' ),
+			'shopping-list.html'  => __( 'Your shopping list: {{ plan }}', 'mixmymeals' ),
 			'rate-recipe.html'    => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
-			'upload-photos.html'  => __( 'Show us your meals! {{ plan }}', 'mixmymeals' ),
 		);
 
 		return $subjects[ basename( $template ) ] ?? __( '{{ plan }}', 'mixmymeals' );
@@ -442,7 +436,8 @@ class Mixmymeals_Subscriptions {
 		 * settings backup is covered too.
 		 */
 		$renamed = array(
-			'rate-recipes.html' => 'rate-recipe.html',
+			'rate-recipes.html'  => 'rate-recipe.html',
+			'before-start.html'  => 'shopping-list.html',
 		);
 
 		$base = basename( $template );
@@ -1744,14 +1739,6 @@ class Mixmymeals_Subscriptions {
 	 *  - {{ rating_links_html }}     Per-recipe "rate this recipe" links for the day
 	 *                                (empty unless a rating page is configured and a
 	 *                                token is available, i.e. a real drip send).
-	 *  - {{ upload_links_html }}     Per-recipe "upload your photo" links for the day
-	 *                                (empty unless a photo upload page is configured
-	 *                                and a token is available).
-	 *  - {{ plan_rating_links_html }} The same, but for every recipe in the whole
-	 *  - {{ plan_upload_links_html }} plan rather than one day. What a mail sent
-	 *                                after the plan has ended needs: by then the
-	 *                                subscriber has cooked all of them, and the
-	 *                                per-day block would only offer the last day's.
 	 *  - {{ day_summary_html }}      The day's figures as one highlighted line:
 	 *                                the same numbers as day_nutrition_html,
 	 *                                with a label and in the accent colour.
@@ -1759,7 +1746,7 @@ class Mixmymeals_Subscriptions {
 	 *  - {{ day_nutrition_html }}    The day's figures as one line, per person;
 	 *                                empty when the day has no data. Fibre and
 	 *                                salt join it only when recorded.
-	 *  - {{ nutrition_table_html }}  All seven figures with their share of the
+	 *  - {{ nutrition_table_html }}  All eight figures with their share of the
 	 *                                reference intake, laid out like a food
 	 *                                label — including the note that the
 	 *                                percentages are a labelling reference and
@@ -1767,11 +1754,9 @@ class Mixmymeals_Subscriptions {
 	 *  - {{ meal_nutrition_html }}   Energy and macros of one serving of each of
 	 *                                the day's dishes, so the day's total can be
 	 *                                traced to what caused it.
-	 *  - {{ week_nutrition_html }}   The plan's daily average per person, over
-	 *                                the days that carry meals. Empty for a plan
-	 *                                of a single day.
 	 *  - {{ day_protein }} {{ day_carbs }} {{ day_fat }}  Grams, per person.
-	 *  - {{ day_sugar }} {{ day_fiber }} {{ day_salt }}   Grams, per person.
+	 *  - {{ day_sugar }} {{ day_saturates }} {{ day_fiber }} {{ day_salt }}
+	 *                                Grams, per person.
 	 *  - {{ day_kcal_percent }}      The day's energy as a percentage of the
 	 *                                reference intake (a bare number).
 	 *  - {{ day_ingredients_html }}  Ingredients needed for this day's meals.
@@ -1809,9 +1794,6 @@ class Mixmymeals_Subscriptions {
 			'meal_list_html'       => $meals['list_html'],
 			'meal_images_html'     => $this->render_meal_images( $plan, $day ),
 			'rating_links_html'    => $this->render_rating_links( $plan, $day, $rate_token ),
-			'upload_links_html'    => $this->render_upload_links( $plan, $day, $rate_token ),
-			'plan_rating_links_html' => $this->render_rating_links( $plan, null, $rate_token ),
-			'plan_upload_links_html' => $this->render_upload_links( $plan, null, $rate_token ),
 			'day_summary_html'     => $this->render_day_summary( $nutrition ),
 			'day_kcal'             => $meals['day_kcal'],
 			'day_cost'             => $meals['day_cost'],
@@ -1819,13 +1801,13 @@ class Mixmymeals_Subscriptions {
 			'day_carbs'            => number_format_i18n( $nutrition['carbs'], 1 ),
 			'day_fat'              => number_format_i18n( $nutrition['fat'], 1 ),
 			'day_sugar'            => number_format_i18n( $nutrition['sugar'], 1 ),
+			'day_saturates'        => number_format_i18n( $nutrition['saturates'], 1 ),
 			'day_fiber'            => number_format_i18n( $nutrition['fiber'], 1 ),
 			'day_salt'             => number_format_i18n( $nutrition['salt'], 2 ),
 			'day_kcal_percent'     => (string) (int) Mixmymeals_Meal_Plan::nutrition_percentages( $nutrition )['calories'],
 			'day_nutrition_html'   => $this->render_day_nutrition( $nutrition ),
 			'nutrition_table_html' => $this->render_nutrition_table( $nutrition ),
 			'meal_nutrition_html'  => $this->render_meal_nutrition( $plan, $day ),
-			'week_nutrition_html'  => $this->render_week_nutrition( $plan ),
 			'currency'             => (string) get_option( 'mixmymeals_currency', '€' ),
 			'day_ingredients_html' => $this->render_ingredient_list( $plan, $day, __( 'No ingredients needed for this day.', 'mixmymeals' ) ),
 			'shopping_list_html'   => $this->render_ingredient_list( $plan, null, __( 'The shopping list is empty.', 'mixmymeals' ) ),
@@ -1951,7 +1933,7 @@ class Mixmymeals_Subscriptions {
 	}
 
 	/**
-	 * The day's nutrition as a full table: all seven figures with their share of
+	 * The day's nutrition as a full table: all eight figures with their share of
 	 * the reference intake, laid out like the panel on a food packet so the
 	 * numbers are comparable to one.
 	 *
@@ -1982,9 +1964,9 @@ class Mixmymeals_Subscriptions {
 				continue;
 			}
 
-			// "of which sugars" is a sub-entry of carbohydrate on every label,
-			// so it is indented rather than listed as an equal.
-			$indent = 'sugar' === $key ? 'padding-left:16px;' : '';
+			// "of which sugars" and "of which saturates" are sub-entries on
+			// every label, so they are indented rather than listed as equals.
+			$indent = in_array( $key, array( 'sugar', 'saturates' ), true ) ? 'padding-left:16px;' : '';
 
 			$rows .= '<tr>'
 				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;">'
@@ -1992,7 +1974,10 @@ class Mixmymeals_Subscriptions {
 				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
 				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $value ) ) . '</td>'
 				. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;">'
-				. esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ) . '</td>'
+				// With "max." or "min." where the 100 % is a ceiling or a
+				// floor: the bare percentage read as "complete" for all of
+				// them, which is the opposite of what salt at 100 % means.
+				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ) . '</td>'
 				. '</tr>';
 		}
 
@@ -2087,64 +2072,6 @@ class Mixmymeals_Subscriptions {
 	}
 
 	/**
-	 * The whole plan at a glance: the daily average per person plus the number
-	 * of days it covers. A single day says nothing about whether the week
-	 * balances out — this does.
-	 *
-	 * Averaged over the days that actually carry meals, not over the plan's
-	 * length: a plan with two empty days would otherwise look far lighter than
-	 * anything anyone eats.
-	 *
-	 * @param Mixmymeals_Meal_Plan $plan Plan.
-	 * @return string
-	 */
-	private function render_week_nutrition( Mixmymeals_Meal_Plan $plan ): string {
-
-		$per_day = $plan->calc_nutrition_per_day_person();
-
-		// A single day is not a week, and an average over one is just that
-		// day's figures under a heading that promises more.
-		if ( $per_day['days'] < 2 ) {
-			return '';
-		}
-
-		$average = $per_day['average'];
-
-		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $average );
-
-		// Each figure carries its label: "670 kcal · 46,4 g · 47,2 g" leaves the
-		// reader guessing which gram is which.
-		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
-		$parts  = array();
-
-		foreach ( array( 'calories', 'protein', 'carbs', 'fat' ) as $key ) {
-
-			$value = Mixmymeals_Meal_Plan::format_nutrition_value( $key, $average[ $key ] );
-
-			$parts[] = 'calories' === $key
-				? $value
-				: sprintf(
-					/* translators: 1: an amount with unit, 2: the nutrient's name. */
-					__( '%1$s %2$s', 'mixmymeals' ),
-					$value,
-					$labels[ $key ]
-				);
-		}
-
-		return '<p style="margin:0 0 8px;">'
-			. esc_html(
-				sprintf(
-					/* translators: 1: number of days with meals, 2: the averaged nutrition figures, 3: percentage of the reference intake. */
-					__( 'Across the %1$d days of this plan, on average per day: %2$s (%3$d %% of the reference intake).', 'mixmymeals' ),
-					$per_day['days'],
-					implode( ' · ', $parts ),
-					(int) $percentages['calories']
-				)
-			)
-			. '</p>';
-	}
-
-	/**
 	 * Builds the "rate this recipe" links block for a plan weekday: one link per
 	 * (distinct) recipe cooked that day, pointing at the configured rating page.
 	 * Returns '' when no rating page is set, no token is available (e.g. the admin
@@ -2183,9 +2110,40 @@ class Mixmymeals_Subscriptions {
 				return '';
 			}
 
-			$items[] = '<li style="margin:0 0 8px;"><a href="' . esc_url( $href )
-				. '" style="color:#E8A33D;font-weight:700;text-decoration:none;">'
-				. esc_html( get_the_title( $recipe_id ) ) . ' &#9733;</a></li>';
+			/*
+			 * Zwei benannte Handlungen statt eines Sterns hinter dem Titel:
+			 * Der Stern sah aus wie eine Auszeichnung des Rezepts, nicht wie
+			 * eine Aufforderung, und er verschwieg, dass es auch um das Foto
+			 * geht. Der Titel bleibt Text, die Links tragen die Verben.
+			 *
+			 * Der Foto-Link faellt weg, wenn keine Upload-Seite eingestellt
+			 * ist — upload_url() gibt dann '' zurueck. Der Bewerten-Link
+			 * entscheidet wie bisher ueber den ganzen Block.
+			 *
+			 * Unterstrichen, weil in einer Mail nichts anderes sie als Links
+			 * ausweist: Der Titel daneben traegt kein Fett mehr, und auf die
+			 * Farbe allein ist kein Verlass — Mail-Clients rechnen sie im
+			 * Dunkelmodus um oder lassen sie ganz weg.
+			 */
+			$actions = array(
+				'<a href="' . esc_url( $href )
+				. '" style="color:#E8A33D;text-decoration:underline;">'
+				. esc_html__( 'Rate', 'mixmymeals' ) . '</a>',
+			);
+
+			$upload_href = $this->upload_url( $rate_token, $recipe_id );
+
+			if ( '' !== $upload_href ) {
+				$actions[] = '<a href="' . esc_url( $upload_href )
+					. '" style="color:#E8A33D;text-decoration:underline;">'
+					. esc_html__( 'Upload photo', 'mixmymeals' ) . '</a>';
+			}
+
+			$items[] = '<li style="margin:0 0 8px;">'
+				. esc_html( get_the_title( $recipe_id ) )
+				. '<span style="color:#9A958A;"> &middot; </span>'
+				. implode( '<span style="color:#9A958A;"> &middot; </span>', $actions )
+				. '</li>';
 		}
 
 		if ( empty( $items ) ) {
@@ -2198,65 +2156,6 @@ class Mixmymeals_Subscriptions {
 				null === $day
 					? __( 'Rate the recipes from this plan:', 'mixmymeals' )
 					: __( 'Rate the recipes you cooked and share a photo:', 'mixmymeals' )
-			)
-			. '</p>'
-			. '<ul style="list-style:none;margin:0;padding:0;">' . implode( '', $items ) . '</ul>'
-			. '</div>';
-	}
-
-	/**
-	 * Builds the "upload your photo" links block for a plan weekday: one link
-	 * per (distinct) recipe cooked that day, pointing at the configured photo
-	 * upload page. Returns '' when no upload page is set, no token is available
-	 * (e.g. the admin test preview) or the day has no recipes.
-	 *
-	 * @param Mixmymeals_Meal_Plan $plan       Plan.
-	 * @param int                  $day        Weekday (1-7).
-	 * @param string               $rate_token Subscription token.
-	 * @return string
-	 */
-	private function render_upload_links( Mixmymeals_Meal_Plan $plan, ?int $day, string $rate_token ): string {
-
-		if ( '' === $rate_token ) {
-			return '';
-		}
-
-		$items = array();
-		$seen  = array();
-
-		foreach ( $plan->get_meals() as $meal_post ) {
-			$meal = new Mixmymeals_Meal( $meal_post->ID );
-			// null = the whole plan, see render_rating_links().
-			if ( null !== $day && (int) $meal->get_day() !== $day ) {
-				continue;
-			}
-
-			$recipe_id = (int) $meal->get_recipe_id();
-			if ( ! $recipe_id || isset( $seen[ $recipe_id ] ) || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
-				continue;
-			}
-			$seen[ $recipe_id ] = true;
-
-			$href = $this->upload_url( $rate_token, $recipe_id );
-			if ( '' === $href ) {
-				return '';
-			}
-
-			$items[] = '<li style="margin:0 0 8px;"><a href="' . esc_url( $href )
-				. '" style="color:#E8A33D;font-weight:700;text-decoration:none;">'
-				. esc_html( get_the_title( $recipe_id ) ) . ' &#128247;</a></li>';
-		}
-
-		if ( empty( $items ) ) {
-			return '';
-		}
-
-		return '<div class="mmm-mail-upload-links">'
-			. '<p style="margin:0 0 8px;font-weight:700;">'
-			. esc_html(
-				null === $day
-					? __( 'Upload a photo of any meal from this plan:', 'mixmymeals' )
-					: __( 'Upload a photo of the meals you cooked:', 'mixmymeals' )
 			)
 			. '</p>'
 			. '<ul style="list-style:none;margin:0;padding:0;">' . implode( '', $items ) . '</ul>'

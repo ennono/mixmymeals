@@ -119,6 +119,14 @@ class Mixmymeals_Ratings {
 			. esc_html__( 'Your review', 'mixmymeals' )
 			. '</label><textarea id="comment" name="comment" cols="45" rows="6" required></textarea></p>';
 
+		// The site's notice on what happens to a rating, directly under the
+		// text it is about rather than between the stars and the textarea.
+		// The comment field is only rendered for logged-in users (guests get
+		// must_log_in), so it appears exactly where the form does.
+		if ( class_exists( 'Mixmymeals_Shortcodes' ) ) {
+			$defaults['comment_field'] .= Mixmymeals_Shortcodes::input_notice( 'rating' );
+		}
+
 		$defaults['must_log_in'] = '<p class="must-log-in">' . sprintf(
 			wp_kses(
 				/* translators: %s: log-in URL */
@@ -161,10 +169,6 @@ class Mixmymeals_Ratings {
 		echo '</span>';
 		wp_nonce_field( 'mmm_rate', 'mmm_rating_nonce' );
 		echo '</p>';
-
-		if ( class_exists( 'Mixmymeals_Shortcodes' ) ) {
-			echo Mixmymeals_Shortcodes::input_notice( 'rating' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
-		}
 	}
 
 	/**

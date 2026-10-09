@@ -307,7 +307,7 @@ class Mixmymeals_Meal_Plan_PDF {
 		 * "Calories" and "Carbohydrates" where the mail said "Energy" and
 		 * "Carbohydrate" for the identical figure.
 		 *
-		 * The per-day table keeps the four macros: seven columns times seven
+		 * The per-day table keeps the four macros: eight columns times seven
 		 * weekdays does not fit an A4 page. The full label-style breakdown,
 		 * including fibre, sugar, salt and the reference intakes, follows it as
 		 * its own table.
@@ -393,7 +393,7 @@ class Mixmymeals_Meal_Plan_PDF {
                     <tr>
                         <td><?php echo esc_html( $label ); ?></td>
                         <td class="align-right"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $average[ $key ] ) ); ?></td>
-                        <td class="align-right"><?php echo esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ); ?></td>
+                        <td class="align-right"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ); ?></td>
                     </tr>
 				<?php endforeach; ?>
                 </tbody>

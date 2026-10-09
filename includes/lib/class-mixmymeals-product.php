@@ -45,6 +45,9 @@ class Mixmymeals_Product {
 	const NUTRITION_FIELDS = array(
 		'calories_100' => '_mmm_product_calories_100',
 		'fat'          => '_mmm_product_fat',
+		// The eighth figure, added in 3.52.0 — see the note on
+		// Mixmymeals_Ingredient::NUTRITION_META.
+		'saturates'    => '_mmm_product_saturates',
 		'carbs'        => '_mmm_product_carbs',
 		'protein'      => '_mmm_product_protein',
 		'sugar'        => '_mmm_product_sugar',

@@ -216,6 +216,14 @@ class Mixmymeals_Post_Types {
 			'pre_get_posts',
 			array( $this, 'filter_ingredient_query_by_category' )
 		);
+		add_filter(
+			'views_edit-mmm_ingredient',
+			array( $this, 'add_ingredient_nutrition_view' )
+		);
+		add_action(
+			'pre_get_posts',
+			array( $this, 'filter_ingredients_without_nutrition' )
+		);
 
 		add_filter(
 			'manage_mmm_recipe_posts_columns',
@@ -962,6 +970,14 @@ class Mixmymeals_Post_Types {
 				$new['servings']    = __( 'Servings', 'mixmymeals' );
 				$new['cost_serv']   = sprintf( __( 'Cost / Serving', 'mixmymeals' ) . ' (%s)', esc_html( get_option( 'mixmymeals_currency', '€' ) ) );
 				$new['kcal_serv']   = __( 'kcal / Serving', 'mixmymeals' );
+
+				/*
+				 * Beside the figure it qualifies, not at the end of the row:
+				 * the percentage is a statement about the kcal to its left,
+				 * and a reader who has to look for it will read the kcal as
+				 * final.
+				 */
+				$new['nutrition_cover'] = __( 'Nutrition data', 'mixmymeals' );
 				$new['kcal_100']    = __( 'kcal / 100g', 'mixmymeals' );
 				$new['protein_100'] = __( 'Protein / 100g', 'mixmymeals' );
 				$new['carbs_100']   = __( 'Carbs / 100g', 'mixmymeals' );
@@ -1012,6 +1028,10 @@ class Mixmymeals_Post_Types {
 
 			case 'kcal_serv':
 				echo esc_html( round( $nut_serv['calories'] ?? 0, 2 ) );
+				break;
+
+			case 'nutrition_cover':
+				$this->render_recipe_nutrition_coverage( $recipe );
 				break;
 
 			case 'kcal_100':
@@ -1133,6 +1153,182 @@ class Mixmymeals_Post_Types {
 			$query->set( 'meta_key', '_mmm_plan_meals_count' );
 			$query->set( 'orderby', 'meta_value_num' );
 		}
+	}
+
+	/**
+	 * How much of a recipe the nutrition figures beside it describe.
+	 *
+	 * The column exists because the sum cannot say it: a missing value counts
+	 * as 0 in Mixmymeals_Recipe::_calculate_total_nutrition(), so a recipe
+	 * holding an ingredient nobody has filled in prints a figure that looks
+	 * finished and is too low. Either the editor sees that here, or nowhere.
+	 *
+	 * A tick, not "100 %", for a complete one: a row of numbers invites
+	 * comparison, and the only thing worth noticing in this column is the rows
+	 * that are not complete. Gaps up to
+	 * Mixmymeals_Recipe::NUTRITION_TOLERANCE count as complete — see the note
+	 * there on why a gram of oregano must not raise a flag.
+	 *
+	 * The figure named is the **worst of the seven**, not an average over
+	 * them: "80 %" beside a table whose fibre row is built from half the dish
+	 * would be a promise the table does not keep, and fibre is the row that is
+	 * missing in practice. Which ingredients are short of what goes in the
+	 * title attribute, because that is what it takes to act, and a list table
+	 * column has no room for it.
+	 *
+	 * @param Mixmymeals_Recipe $recipe The recipe of the row.
+	 * @return void
+	 */
+	private function render_recipe_nutrition_coverage( Mixmymeals_Recipe $recipe ): void {
+
+		$coverage = $recipe->nutrition_coverage();
+
+		// No weighed ingredient at all: there is nothing to document, which is
+		// a different thing from undocumented and must not read as a fault.
+		if ( $coverage['weight'] <= 0 ) {
+			echo '–';
+			return;
+		}
+
+		if ( $coverage['complete'] ) {
+			echo '<span aria-hidden="true">✓</span><span class="screen-reader-text">'
+				. esc_html__( 'Nutrition data complete', 'mixmymeals' )
+				. '</span>';
+			return;
+		}
+
+		$lines = array();
+
+		foreach ( array_slice( $coverage['missing'], 0, 8 ) as $row ) {
+
+			$lines[] = sprintf(
+				'%1$s (%2$s)',
+				$row['name'],
+				implode(
+					', ',
+					array_map(
+						array( 'Mixmymeals_Ingredient', 'nutrition_label' ),
+						$row['keys']
+					)
+				)
+			);
+		}
+
+		if ( count( $coverage['missing'] ) > count( $lines ) ) {
+			$lines[] = '…';
+		}
+
+		printf(
+			'<span title="%1$s">%2$s</span>',
+			esc_attr( implode( ' · ', $lines ) ),
+			esc_html(
+				sprintf(
+					/* translators: 1: name of a nutrition figure, e.g. "Fibre", 2: share of the dish weight that figure is built from. */
+					__( '%1$s: %2$d %% of the weight', 'mixmymeals' ),
+					Mixmymeals_Ingredient::nutrition_label( $coverage['worst'] ),
+					(int) round( $coverage['share'] * 100 )
+				)
+			)
+		);
+	}
+
+	/**
+	 * The query argument that narrows the ingredient list to the backlog.
+	 *
+	 * @var string
+	 */
+	const NUTRITION_VIEW_VAR = 'mmm_nutrition';
+
+	/**
+	 * Adds "No nutrition data" to the links above the ingredient list.
+	 *
+	 * A view of the existing list, not a screen of its own: the backlog is
+	 * worked through by opening these rows, and a separate page would arrive
+	 * without the search box, the category filter, the sorting and the nutrition
+	 * columns that are already there — and would need a menu entry, which
+	 * SUBMENU_ORDER would then have to carry for a list that is empty once the
+	 * work is done.
+	 *
+	 * Carries its count, because that is the number that says whether this is
+	 * an afternoon or a fortnight.
+	 *
+	 * @param array<string,string> $views The links core assembled.
+	 * @return array<string,string>
+	 */
+	public function add_ingredient_nutrition_view( $views ) {
+
+		$missing = Mixmymeals_Ingredient::ids_without_nutrition();
+		$count   = count( $missing );
+
+		if ( ! $count ) {
+			return $views;
+		}
+
+		$url = add_query_arg(
+			array(
+				'post_type'              => 'mmm_ingredient',
+				self::NUTRITION_VIEW_VAR => 'missing',
+			),
+			admin_url( 'edit.php' )
+		);
+
+		// No nonce: selecting a view changes nothing, and a nonce would make
+		// the link unbookmarkable and expire it — the same reasoning the
+		// settings tab row follows.
+		$views['mmm_nutrition_missing'] = sprintf(
+			'<a href="%1$s"%2$s>%3$s <span class="count">(%4$s)</span></a>',
+			esc_url( $url ),
+			$this->nutrition_view_is_active() ? ' class="current" aria-current="page"' : '',
+			esc_html__( 'No nutrition data', 'mixmymeals' ),
+			esc_html( number_format_i18n( $count ) )
+		);
+
+		return $views;
+	}
+
+	/**
+	 * Whether the ingredient list is currently showing that view.
+	 *
+	 * @return bool
+	 */
+	private function nutrition_view_is_active(): bool {
+
+		return isset( $_GET[ self::NUTRITION_VIEW_VAR ] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a list filter, see add_ingredient_nutrition_view().
+			&& 'missing' === sanitize_key( wp_unslash( $_GET[ self::NUTRITION_VIEW_VAR ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- same.
+	}
+
+	/**
+	 * Narrows the ingredient list to the ingredients without nutrition data.
+	 *
+	 * By ID rather than by meta_query: the rule is "no value above zero in any
+	 * of the seven fields, and none supplied by a reference product either",
+	 * and that is not a clause — it is Mixmymeals_Ingredient::has_nutrition(),
+	 * which is also what the gate on the edit screen and `/audit` ask. A
+	 * meta_query spelling of a near-enough version of it would be a second
+	 * rule, and the two would answer differently the day either changed.
+	 *
+	 * @param WP_Query $query Current admin query.
+	 * @return void
+	 */
+	public function filter_ingredients_without_nutrition( WP_Query $query ): void {
+
+		if ( ! is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+
+		if ( 'mmm_ingredient' !== $query->get( 'post_type' ) ) {
+			return;
+		}
+
+		if ( ! $this->nutrition_view_is_active() ) {
+			return;
+		}
+
+		$ids = Mixmymeals_Ingredient::ids_without_nutrition();
+
+		// An empty post__in is ignored by WP_Query, which would show the whole
+		// list under a heading promising the opposite.
+		$query->set( 'post__in', $ids ? $ids : array( 0 ) );
 	}
 
 	/**

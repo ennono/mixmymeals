@@ -83,6 +83,16 @@ class Mixmymeals_Post_Meta {
 			'save_post_mmm_ingredient',
 			array( $this, 'save_ingredient_price_meta' )
 		);
+
+		/*
+		 * Priority 20: after every save handler of this screen has written its
+		 * meta, because what it checks is the result of them.
+		 */
+		add_action(
+			'save_post_mmm_ingredient',
+			array( $this, 'require_ingredient_nutrition' ),
+			20
+		);
 		add_action(
 			'save_post_mmm_recipe',
 			array(
@@ -1392,6 +1402,90 @@ class Mixmymeals_Post_Meta {
 	 *  INGREDIENT META BOX
 	 * ====================================================== */
 
+	/**
+	 * Guards against the demotion below re-entering through its own write.
+	 *
+	 * @var bool
+	 */
+	private static bool $forcing_ingredient_draft = false;
+
+	/**
+	 * An ingredient without nutrition does not stay published.
+	 *
+	 * The figures are the point of an ingredient: a published one with none
+	 * silently subtracts from every recipe that uses it, because
+	 * Mixmymeals_Recipe::_calculate_total_nutrition() has to read a missing
+	 * value as 0. A draft is the honest state for that — and it is not a
+	 * cosmetic one: every picker queries `post_status => 'publish'`, so a draft
+	 * cannot be added to a recipe, while Mixmymeals_Ingredient::is_valid()
+	 * ignores status on purpose and the recipes already using it keep working
+	 * unchanged. Fill the seven fields in, publish again, done.
+	 *
+	 * **Only where the seven fields were on screen.** The guard is the
+	 * ingredient screen's own nonce, the one save_ingredient_meta() uses, so a
+	 * quick edit, a bulk edit and a REST write pass untouched. That is
+	 * deliberate for REST: the MCP server creates an ingredient first and
+	 * POSTs its nutrition in a second call, and a gate there would reject
+	 * every one of them. `/audit` is what reports those — see
+	 * `ingredients_without_nutrition`.
+	 *
+	 * It fires on every save of the screen, not only on the one that
+	 * publishes: an ingredient that has been published without figures since
+	 * long before this existed is in exactly the state this prevents, and
+	 * saving it is the moment somebody is looking at it. The nutrition box
+	 * says so before it happens and again afterwards.
+	 *
+	 * @param int $post_ID The ingredient being saved.
+	 * @return void
+	 */
+	public function require_ingredient_nutrition( int $post_ID ): void {
+
+		if ( self::$forcing_ingredient_draft ) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( wp_is_post_revision( $post_ID ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return;
+		}
+
+		if (
+			! isset( $_POST['mmm_ingredient_amounts_meta_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_ingredient_amounts_meta_nonce'] ) ),
+				'mmm_ingredient_amounts_meta_box'
+			)
+		) {
+			return;
+		}
+
+		if ( 'publish' !== get_post_status( $post_ID ) ) {
+			return;
+		}
+
+		if ( ( new Mixmymeals_Ingredient( $post_ID ) )->has_nutrition() ) {
+			return;
+		}
+
+		self::$forcing_ingredient_draft = true;
+
+		wp_update_post(
+			array(
+				'ID'          => $post_ID,
+				'post_status' => 'draft',
+			)
+		);
+
+		self::$forcing_ingredient_draft = false;
+	}
+
 	public function add_ingredient_meta_box(): void {
 		add_meta_box(
 			'mixmymeals_ingredient_meta_box',
@@ -1410,6 +1504,73 @@ class Mixmymeals_Post_Meta {
 			'rmm_ingredient_meta_box',
 			'rmm_ingredient_meta_nonce'
 		);
+
+		/*
+		 * What require_ingredient_nutrition() does, said where the empty
+		 * fields are. In this box rather than in an admin notice because the
+		 * ingredient screen is the block editor: it re-renders the meta box
+		 * area after a save and drops admin notices, so this is the one place
+		 * a message reaches the editor in both editors and immediately after
+		 * the demotion rather than on the next page load.
+		 *
+		 * Two wordings for two states, and the difference is not cosmetic: by
+		 * the time this re-renders, a published ingredient without figures has
+		 * already been set back to a draft, and telling somebody what will
+		 * happen when it just did is how a notice loses its credibility.
+		 */
+		if ( ! $ingredient_obj->has_nutrition() ) {
+
+			echo '<div class="notice notice-warning inline"><p>';
+
+			echo 'publish' === get_post_status( $post->ID )
+				? esc_html__( 'No nutrition data. This ingredient will be set back to a draft the next time it is saved — a published ingredient without figures subtracts from every recipe that uses it.', 'mixmymeals' )
+				: esc_html__( 'Without nutrition data this ingredient stays a draft, and a draft cannot be added to a recipe. Figures stated by its reference product count too.', 'mixmymeals' );
+
+			echo '</p></div>';
+
+		} else {
+			/*
+			 * Some figures stated and others not: the publish gate lets that
+			 * through on purpose — a packet stating energy and fat and nothing
+			 * else is a real packet — but each empty field still enters every
+			 * recipe's total for that row as a 0, which is the same mistake
+			 * one figure down. Named rather than counted, because which field
+			 * it is decides whether it can be filled in at all.
+			 */
+			$unstated = $ingredient_obj->unstated_nutrition_keys();
+
+			if ( $unstated ) {
+
+				echo '<div class="notice notice-warning inline"><p>';
+
+				printf(
+					/* translators: %s: comma-separated list of nutrition figures, e.g. "Fibre, of which sugars". */
+					esc_html__( 'Empty: %s. An empty field counts as 0 in every recipe total — a figure the packet does not state is better left to the reference product than guessed.', 'mixmymeals' ),
+					esc_html(
+						implode(
+							', ',
+							array_map(
+								array( 'Mixmymeals_Ingredient', 'nutrition_label' ),
+								$unstated
+							)
+						)
+					)
+				);
+
+				echo '</p></div>';
+			}
+		}
+
+		/*
+		 * Contradictions in the figures themselves, on the resolved values —
+		 * the ones recipes are built from, product override included — because
+		 * a combination that cannot be true is worth seeing even when neither
+		 * half is wrong on its own. The panel below shows which packet
+		 * supplies what.
+		 */
+		foreach ( Mixmymeals_Ingredient::nutrition_warnings( $values ) as $mmm_warning ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html( $mmm_warning ) . '</p></div>';
+		}
 
 		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
 
@@ -1431,14 +1592,30 @@ class Mixmymeals_Post_Meta {
 
 		echo '<table class="form-table mixmymeals-meta-table"><tbody>';
 
-		$nutrition = array(
-			'fat'     => __( 'Fat (g)', 'mixmymeals' ),
-			'carbs'   => __( 'Carbohydrates (g)', 'mixmymeals' ),
-			'protein' => __( 'Protein (g)', 'mixmymeals' ),
-			'sugar'   => __( 'Sugar (g)', 'mixmymeals' ),
-			'fiber'   => __( 'Fiber (g)', 'mixmymeals' ),
-			'salt'    => __( 'Salt (g)', 'mixmymeals' ),
-		);
+		/*
+		 * Labels and order from the one source every nutrition table uses, so
+		 * the fields read like the packet they are copied from: fat, of which
+		 * saturates, carbohydrate, of which sugars, fibre, protein, salt. They
+		 * used to be six hand-written strings in a different order ("Fat (g)",
+		 * "Carbohydrates (g)", …), which is how the eighth figure could be
+		 * added to the data model in 3.52.0 and still have nowhere to be
+		 * typed in.
+		 */
+		$nutrition = array();
+
+		foreach ( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS as $mmm_key ) {
+
+			// Energy has its own field above, in kcal rather than grams.
+			if ( 'calories_100' === $mmm_key ) {
+				continue;
+			}
+
+			$nutrition[ $mmm_key ] = sprintf(
+				/* translators: %s: name of a nutrition figure, e.g. "Fat". The unit is grams. */
+				__( '%s (g)', 'mixmymeals' ),
+				Mixmymeals_Ingredient::nutrition_label( $mmm_key )
+			);
+		}
 
 		foreach ( $nutrition as $key => $label ) {
 			echo '<tr>';
@@ -1474,22 +1651,34 @@ class Mixmymeals_Post_Meta {
 		}
 
 		// ----------------- Nutrition -----------------
-		$data = array(
-			'calories_100' => isset( $_POST['rmm_calories_100'] )
-				? floatval( wp_unslash( $_POST['rmm_calories_100'] ) ) : '',
-			'fat'          => isset( $_POST['rmm_fat'] )
-				? floatval( wp_unslash( $_POST['rmm_fat'] ) ) : '',
-			'carbs'        => isset( $_POST['rmm_carbs'] )
-				? floatval( wp_unslash( $_POST['rmm_carbs'] ) ) : '',
-			'protein'      => isset( $_POST['rmm_protein'] )
-				? floatval( wp_unslash( $_POST['rmm_protein'] ) ) : '',
-			'sugar'        => isset( $_POST['rmm_sugar'] )
-				? floatval( wp_unslash( $_POST['rmm_sugar'] ) ) : '',
-			'fiber'        => isset( $_POST['rmm_fiber'] )
-				? floatval( wp_unslash( $_POST['rmm_fiber'] ) ) : '',
-			'salt'         => isset( $_POST['rmm_salt'] )
-				? floatval( wp_unslash( $_POST['rmm_salt'] ) ) : '',
-		);
+
+		/*
+		 * An empty field is passed on as an empty string, and the setter
+		 * deletes the row for it. It used to be floatval( '' ), which wrote a
+		 * hard 0 — so a value nobody had ever stated was indistinguishable
+		 * from one measured at zero, and a recipe total counted the ingredient
+		 * as water. The product panel beside this one has always said "an
+		 * empty field is not the same as zero"; now this one means it too.
+		 *
+		 * A field that is not posted at all is left out entirely rather than
+		 * cleared, the way save_plan_meals() leaves meals alone on a screen
+		 * that does not render them: a form without these inputs must not wipe
+		 * figures it never showed.
+		 */
+		$data = array();
+
+		foreach ( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS as $mmm_field ) {
+
+			$mmm_key = 'rmm_' . $mmm_field;
+
+			if ( ! isset( $_POST[ $mmm_key ] ) ) {
+				continue;
+			}
+
+			$mmm_value = trim( sanitize_text_field( wp_unslash( $_POST[ $mmm_key ] ) ) );
+
+			$data[ $mmm_field ] = '' === $mmm_value ? '' : floatval( $mmm_value );
+		}
 
 		$ingredient_obj = new Mixmymeals_Ingredient( $post_ID );
 		$ingredient_obj->set_nutrition( $data );
@@ -1739,17 +1928,9 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'per 100 g', 'mixmymeals' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
-		$labels = array(
-			'calories' => __( 'Calories (kcal)', 'mixmymeals' ),
-			'protein'  => __( 'Protein (g)', 'mixmymeals' ),
-			'carbs'    => __( 'Carbohydrates (g)', 'mixmymeals' ),
-			'fat'      => __( 'Fat (g)', 'mixmymeals' ),
-			'sugar'    => __( 'Sugar (g)', 'mixmymeals' ),
-			'fiber'    => __( 'Fiber (g)', 'mixmymeals' ),
-			'salt'     => __( 'Salt (g)', 'mixmymeals' ),
-		);
-
-		foreach ( $labels as $key => $label ) {
+		// Rows from the shared label list, so a figure added to the data model
+		// appears here without this table having to be found first.
+		foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $key => $label ) {
 			printf(
 				'<tr><th>%s</th><td>%s</td><td>%s</td></tr>',
 				esc_html( $label ),
@@ -2785,6 +2966,7 @@ class Mixmymeals_Post_Meta {
 		echo '<div class="mmm-products__figures">';
 		$field( 'calories_100', __( 'kcal/100 g', 'mixmymeals' ), $nutrition['calories_100'] ?? null );
 		$field( 'fat', __( 'Fat', 'mixmymeals' ), $nutrition['fat'] ?? null );
+		$field( 'saturates', __( 'of which saturates', 'mixmymeals' ), $nutrition['saturates'] ?? null );
 		$field( 'carbs', __( 'Carbohydrate', 'mixmymeals' ), $nutrition['carbs'] ?? null );
 		$field( 'sugar', __( 'of which sugars', 'mixmymeals' ), $nutrition['sugar'] ?? null );
 		$field( 'fiber', __( 'Fibre', 'mixmymeals' ), $nutrition['fiber'] ?? null );
@@ -2792,6 +2974,12 @@ class Mixmymeals_Post_Meta {
 		$field( 'salt', __( 'Salt', 'mixmymeals' ), $nutrition['salt'] ?? null );
 
 		echo '</div>'; // .mmm-products__figures
+
+		// On the packet's own figures, not the resolved ones: this row is where
+		// they are typed, and a warning has to be fixable where it appears.
+		foreach ( Mixmymeals_Ingredient::nutrition_warnings( $nutrition ) as $mmm_warning ) {
+			echo '<p class="mmm-products__warning">' . esc_html( $mmm_warning ) . '</p>';
+		}
 
 		echo '<label class="mmm-products__field mmm-products__field--source">'
 			. '<span>'

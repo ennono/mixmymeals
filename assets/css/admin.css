@@ -42,6 +42,7 @@
     --mmm-ad-ink-2:   #646970;  /* Sekundärtext, Beschreibungen */
     --mmm-ad-link:    #2271b1;  /* Links, Fokus */
     --mmm-ad-danger:  #b32d2e;  /* Löschen, Fehler */
+    --mmm-ad-warn:    #dba617;  /* Warnung — WordPress' eigenes Gelb */
 
     --mmm-ad-line:    #c3c4c7;  /* Rahmen einer Karte */
     --mmm-ad-line-2:  #dcdcde;  /* leiserer Rahmen, Trenner */
@@ -987,7 +988,7 @@ tbody > tr:first-child.mmm-products__head {
 }
 
 /*
- * A grid, not a flex row: seven figures of equal importance
+ * A grid, not a flex row: eight figures of equal importance
  * read as a rank, and auto-fill keeps them lined up under each
  * other when the row wraps instead of leaving a ragged tail.
  * Capped, or on a wide screen one number gets a 200px field.
@@ -1014,6 +1015,19 @@ tbody > tr:first-child.mmm-products__head {
 .mmm-products__usage .description {
     display: block;
     margin: 4px 0 0;
+}
+
+/* Figures that cannot all be true at once (saturates above total fat, energy
+   that does not follow from the macros). Right under the fields they are about
+   and in the admin's own warning colour — not a notice box, which inside a
+   table row would be wider than the panel and read as a problem with the whole
+   ingredient rather than with this one packet. */
+.mmm-products__warning {
+    margin: 8px 0 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--mmm-ad-warn);
+    max-width: 880px;
+    color: var(--mmm-ad-ink-2);
 }
 
 /* A real source is a sentence — 420px cut most of them off. */

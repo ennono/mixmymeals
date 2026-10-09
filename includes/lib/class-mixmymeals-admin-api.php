@@ -617,7 +617,7 @@ class Mixmymeals_Admin_API {
 
 		// Templates.
 		$out .= '<h4 style="margin:14px 0 4px;">' . esc_html__( 'Templates — what the mail shows', 'mixmymeals' ) . '</h4>';
-		$out .= '<p class="description">' . esc_html__( 'Each trigger has a matching template, named after it (each-day.html, on-start.html, before-start.html, evening-before.html, on-confirm.html). Pick the one that fits the rule’s trigger.', 'mixmymeals' ) . '</p>';
+		$out .= '<p class="description">' . esc_html__( 'One template is tied to a trigger by its name (each-day.html). The others fit any trigger: shopping-list.html, rate-recipe.html. Pick the one that fits the rule.', 'mixmymeals' ) . '</p>';
 		$out .= '<p class="description">' . sprintf(
 			/* translators: %s: theme templates path. */
 			esc_html__( 'Templates live in your theme at %s; the plugin only ships an example.html as a starter. Add a .html file there to get a new entry in the Template dropdown. The shared frame (header, footer, unsubscribe link) lives in layout.html.', 'mixmymeals' ),

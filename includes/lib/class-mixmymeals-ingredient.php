@@ -158,26 +158,37 @@ class Mixmymeals_Ingredient {
 			return;
 		}
 
-		$fields = array(
-			'calories_100' => '_rmm_calories_100',
-			'weight_item'  => '_rmm_weight_item',
-			'fat'          => '_rmm_fat',
-			'carbs'        => '_rmm_carbs',
-			'protein'      => '_rmm_protein',
-			'sugar'        => '_rmm_sugar',
-			'fiber'        => '_rmm_fiber',
-			'salt'         => '_rmm_salt',
-			// 'unit'       => '_rmm_unit',
-		);
+		foreach ( self::NUTRITION_META as $key => $meta_key ) {
 
-		foreach ( $fields as $key => $meta_key ) {
-			if ( isset( $data[ $key ] ) ) {
-				update_post_meta(
-					$this->post_id,
-					$meta_key,
-					sanitize_text_field( $data[ $key ] )
-				);
+			if ( ! array_key_exists( $key, $data ) ) {
+				continue;
 			}
+
+			$value = $data[ $key ];
+
+			/*
+			 * An empty value deletes the row instead of writing a 0. The
+			 * product panel has always worked that way and says so on screen
+			 * ("an empty field is not the same as zero"); this setter wrote
+			 * `floatval( '' )` for every field the admin box left blank and so
+			 * turned silence into a stated zero. That is what made missing
+			 * data indistinguishable from a real 0 — and what let a recipe
+			 * total count an undocumented ingredient as if it were water.
+			 *
+			 * The field list is NUTRITION_META rather than a second copy of
+			 * it: the getter and the setter disagreeing about which keys exist
+			 * is the kind of drift the pair below exists to prevent.
+			 */
+			if ( null === $value || '' === trim( (string) $value ) ) {
+				delete_post_meta( $this->post_id, $meta_key );
+				continue;
+			}
+
+			update_post_meta(
+				$this->post_id,
+				$meta_key,
+				sanitize_text_field( (string) $value )
+			);
 		}
 	}
 
@@ -190,6 +201,17 @@ class Mixmymeals_Ingredient {
 		'calories_100' => '_rmm_calories_100',
 		'weight_item'  => '_rmm_weight_item',
 		'fat'          => '_rmm_fat',
+
+		/*
+		 * The eighth figure, added in 3.52.0, and the only one of the EU's
+		 * mandatory seven this plugin did not store. `_mmm_` rather than
+		 * `_rmm_`: the old prefix is a leftover from the plugin this one grew
+		 * out of, and new meta has not used it for years. Nothing migrates —
+		 * the key simply has no value on any ingredient until somebody enters
+		 * one, and an unstated figure is exactly what the lists built on
+		 * unstated_nutrition_keys() are for.
+		 */
+		'saturates'    => '_mmm_saturates',
 		'carbs'        => '_rmm_carbs',
 		'protein'      => '_rmm_protein',
 		'sugar'        => '_rmm_sugar',
@@ -316,6 +338,375 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * Whether anybody has stated this ingredient's nutrition at all.
+	 *
+	 * The one rule for that question. The recipe list's coverage column, the
+	 * publish gate on the ingredient screen and `/audit` all ask it, so they
+	 * cannot disagree about which ingredients are still blank — the audit used
+	 * to ask `empty( $nutrition['calories_100'] )` in a line of its own and
+	 * nothing else asked anywhere.
+	 *
+	 * **Value-based, not null-based**, although read_own_nutrition() carefully
+	 * distinguishes the two. Until 3.52.0 the admin box saved `floatval( '' )`
+	 * — a hard 0 — into every field left empty, so on an install that has been
+	 * running, an unfilled ingredient carries seven zeros and not seven absent
+	 * rows. A rule turning on `null` would declare all of them filled in and
+	 * find nothing to fix. The single false positive is an ingredient that
+	 * really is zero throughout, water being the only one anyone enters; it
+	 * reads as undocumented, which is why every list built on this says "no
+	 * nutrition data" rather than accusing anybody of an error.
+	 *
+	 * Resolved through the product like every other read, so an ingredient
+	 * whose reference product carries the figures counts as documented — it
+	 * does have nutrition, it just does not store it itself.
+	 *
+	 * @param int $pinned Product ID from a recipe row, 0 when none.
+	 * @return bool
+	 */
+	public function has_nutrition( int $pinned = 0 ): bool {
+
+		foreach ( $this->get_nutrition_pinned( $pinned ) as $key => $value ) {
+			/*
+			 * The weight of one piece is not nutrition: an onion that knows it
+			 * weighs 60 g and nothing else is exactly the case being looked
+			 * for here.
+			 */
+			if ( 'weight_item' === $key ) {
+				continue;
+			}
+
+			if ( null !== $value && (float) $value > 0 ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The nutrition keys of an ingredient, in the order a food label lists
+	 * them and without `weight_item`, which is not nutrition.
+	 *
+	 * @var string[]
+	 */
+	const NUTRITION_FIGURE_KEYS = array( 'calories_100', 'fat', 'saturates', 'carbs', 'sugar', 'fiber', 'protein', 'salt' );
+
+	/**
+	 * The sum key each ingredient figure adds up into, in label order.
+	 *
+	 * Only energy differs between the two spellings — an ingredient states it
+	 * per 100 g — but every table that lists an ingredient's or a product's
+	 * figures needs the pairing, and three of them each carried their own copy
+	 * of it until 3.52.0. One copy, so an eighth figure is one line and not a
+	 * hunt.
+	 *
+	 * @var array<string,string>
+	 */
+	const NUTRITION_KEY_MAP = array(
+		'calories'  => 'calories_100',
+		'fat'       => 'fat',
+		'saturates' => 'saturates',
+		'carbs'     => 'carbs',
+		'sugar'     => 'sugar',
+		'fiber'     => 'fiber',
+		'protein'   => 'protein',
+		'salt'      => 'salt',
+	);
+
+	/**
+	 * What the eight figures cannot all be true at once.
+	 *
+	 * A typo in a nutrition field is copied into every recipe that uses the
+	 * ingredient, into every plan holding such a recipe, into the mails, the
+	 * PDF and the schema.org markup, and nothing downstream can notice: a
+	 * misread decimal point looks exactly like a dense food. These are the
+	 * contradictions arithmetic can see without knowing what the food is.
+	 *
+	 * **Warnings, never a block.** The figures come off a packet, packets
+	 * round their own numbers, and a rule that refused the save would make a
+	 * legitimate label unenterable. Each message names both figures it
+	 * compares, because "implausible" on its own leaves the editor hunting.
+	 *
+	 * @param array<string,float|null> $nutrition Figures per 100 g, keyed as
+	 *                                            Mixmymeals_Ingredient::get_nutrition()
+	 *                                            returns them.
+	 * @return string[] Translated sentences, empty when nothing contradicts.
+	 */
+	public static function nutrition_warnings( array $nutrition ): array {
+
+		$value = static function ( string $key ) use ( $nutrition ): ?float {
+			return isset( $nutrition[ $key ] ) && is_numeric( $nutrition[ $key ] )
+				? (float) $nutrition[ $key ]
+				: null;
+		};
+
+		$grams = static function ( float $number ): string {
+			return number_format_i18n( $number, 1 );
+		};
+
+		$warnings = array();
+
+		$kcal      = $value( 'calories_100' );
+		$fat       = $value( 'fat' );
+		$saturates = $value( 'saturates' );
+		$carbs     = $value( 'carbs' );
+		$sugar     = $value( 'sugar' );
+		$fiber     = $value( 'fiber' );
+		$protein   = $value( 'protein' );
+		$salt      = $value( 'salt' );
+
+		/*
+		 * The two "of which" rows cannot exceed what they are part of. These
+		 * catch the most common slip of all: a figure typed into the row below
+		 * the one it belongs to.
+		 */
+		if ( null !== $saturates && null !== $fat && $saturates > $fat ) {
+			$warnings[] = sprintf(
+				/* translators: 1: grams of saturates, 2: grams of total fat. */
+				__( 'Saturates (%1$s g) are above total fat (%2$s g).', 'mixmymeals' ),
+				$grams( $saturates ),
+				$grams( $fat )
+			);
+		}
+
+		if ( null !== $sugar && null !== $carbs && $sugar > $carbs ) {
+			$warnings[] = sprintf(
+				/* translators: 1: grams of sugars, 2: grams of total carbohydrate. */
+				__( 'Sugars (%1$s g) are above total carbohydrate (%2$s g).', 'mixmymeals' ),
+				$grams( $sugar ),
+				$grams( $carbs )
+			);
+		}
+
+		/*
+		 * 100 g of a food cannot hold more than 100 g of anything. Fibre is
+		 * added separately because EU labelling states carbohydrate *without*
+		 * it. Half a gram of slack, so a label whose own rounding adds up to
+		 * 100.3 is left alone.
+		 */
+		$mass = 0.0;
+
+		foreach ( array( $fat, $carbs, $fiber, $protein, $salt ) as $part ) {
+			$mass += null === $part ? 0.0 : $part;
+		}
+
+		if ( $mass > 100.5 ) {
+			$warnings[] = sprintf(
+				/* translators: %s: a weight in grams. */
+				__( 'Fat, carbohydrate, fibre, protein and salt add up to %s g per 100 g.', 'mixmymeals' ),
+				$grams( $mass )
+			);
+		}
+
+		/*
+		 * The energy a label states has to follow from its macros: 9 kcal per
+		 * gram of fat, 4 for carbohydrate and protein, 2 for fibre — the EU's
+		 * own conversion factors. A fifth is allowed either way, which is wide
+		 * enough for polyols, organic acids, alcohol and a label's rounding,
+		 * and narrow enough to catch a decimal point in the wrong place.
+		 */
+		$macros = 9.0 * (float) $fat + 4.0 * (float) $carbs + 4.0 * (float) $protein + 2.0 * (float) $fiber;
+
+		if ( null !== $kcal && $kcal > 0 && $macros > 0 && ( $kcal > $macros * 1.2 || $kcal < $macros * 0.8 ) ) {
+			$warnings[] = sprintf(
+				/* translators: 1: stated kilocalories, 2: kilocalories the macros work out to. */
+				__( 'Energy (%1$s kcal) does not match the macros, which work out to about %2$s kcal per 100 g.', 'mixmymeals' ),
+				number_format_i18n( round( $kcal ) ),
+				number_format_i18n( round( $macros ) )
+			);
+		}
+
+		// Pure fat is about 900 kcal per 100 g; nothing edible is above it.
+		if ( null !== $kcal && $kcal > 900 ) {
+			$warnings[] = sprintf(
+				/* translators: %s: stated kilocalories per 100 g. */
+				__( 'Energy of %s kcal per 100 g is above what any food reaches (about 900 kcal, for pure fat).', 'mixmymeals' ),
+				number_format_i18n( round( $kcal ) )
+			);
+		}
+
+		foreach ( self::NUTRITION_FIGURE_KEYS as $key ) {
+
+			if ( 'calories_100' === $key ) {
+				continue;
+			}
+
+			$figure = $value( $key );
+
+			if ( null !== $figure && $figure > 100 ) {
+				$warnings[] = sprintf(
+					/* translators: 1: name of a nutrition figure, 2: the stated amount in grams. */
+					__( '%1$s: %2$s g per 100 g is more than 100 g.', 'mixmymeals' ),
+					self::nutrition_label( $key ),
+					$grams( $figure )
+				);
+			}
+		}
+
+		return $warnings;
+	}
+
+	/**
+	 * Which of the seven figures nobody has stated.
+	 *
+	 * The finer-grained question beside has_nutrition(), and the reason both
+	 * exist: has_nutrition() answers whether an ingredient may be published —
+	 * one figure is enough there, because a packet that states energy and fat
+	 * and stops is a real packet and refusing it would make the field
+	 * unfillable. This answers what the recipe sums are actually missing, and
+	 * there every empty field counts: a blank fibre row goes into every
+	 * recipe's fibre total as 0, exactly as a blank ingredient went into the
+	 * energy total before 3.52.0.
+	 *
+	 * **A stated 0 is an answer**, so only `null` is a gap. Note what that
+	 * means on an install older than 3.52.0: the admin box wrote
+	 * `floatval( '' )` into every blank field, so its blanks are stored as
+	 * zeros and read as stated here. The figures entered from now on are
+	 * exact, and the old rows can be cleared by hand — but this method will
+	 * not invent a gap it cannot see, because a warning nobody can act on is
+	 * worse than none.
+	 *
+	 * @param int $pinned Product ID from a recipe row, 0 when none.
+	 * @return string[] The unstated keys, in label order. Empty when all seven
+	 *                  are stated.
+	 */
+	public function unstated_nutrition_keys( int $pinned = 0 ): array {
+
+		$nutrition = $this->get_nutrition_pinned( $pinned );
+		$unstated  = array();
+
+		foreach ( self::NUTRITION_FIGURE_KEYS as $key ) {
+
+			if ( ! array_key_exists( $key, $nutrition ) || null === $nutrition[ $key ] ) {
+				$unstated[] = $key;
+			}
+		}
+
+		return $unstated;
+	}
+
+	/**
+	 * The label of one nutrition key.
+	 *
+	 * From Mixmymeals_Meal_Plan::nutrition_labels(), the wording every
+	 * nutrition table on the site already uses, so a gap is named exactly as
+	 * the row it belongs to. Only the energy key differs between the two
+	 * spellings — `calories_100` on an ingredient, `calories` in a sum.
+	 *
+	 * @param string $key An ingredient nutrition key.
+	 * @return string The label, or the key itself when it is none of the seven.
+	 */
+	public static function nutrition_label( string $key ): string {
+
+		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
+		$key    = 'calories_100' === $key ? 'calories' : $key;
+
+		/*
+		 * The two indented rows are the exception, and the reason is the
+		 * wording's own: in a nutrition table they stand under the figure they
+		 * belong to and read "of which sugars", "of which saturates", which is
+		 * only a sentence while the row above is there. Named on their own —
+		 * in a list of empty fields, beside a percentage in the recipe list,
+		 * in the note under a plan's table — they have to be nouns.
+		 */
+		$standalone = array(
+			'sugar'     => __( 'Sugars', 'mixmymeals' ),
+			'saturates' => __( 'Saturates', 'mixmymeals' ),
+		);
+
+		if ( isset( $standalone[ $key ] ) ) {
+			return $standalone[ $key ];
+		}
+
+		return $labels[ $key ] ?? $key;
+	}
+
+	/**
+	 * Every ingredient nobody has stated nutrition for, newest data model
+	 * included: the backlog, in one list.
+	 *
+	 * Drafts and private ones count. The question is which rows need filling
+	 * in, and a draft is where require_ingredient_nutrition() puts exactly
+	 * these — leaving them out would hide the ones the gate has already acted
+	 * on.
+	 *
+	 * Primed rather than walked: has_nutrition() resolves through the
+	 * reference product, so an unprimed pass costs a query per ingredient that
+	 * has one, and the count under the ingredient list pays it on every view.
+	 * Three queries now — the ids, their meta, the products their meta names —
+	 * and the loop runs entirely out of the object cache. Held for the request
+	 * because the list's filter link and its query both ask.
+	 *
+	 * @return int[] Ingredient IDs, ordered by title.
+	 */
+	public static function ids_without_nutrition(): array {
+
+		static $cache = null;
+
+		if ( null !== $cache ) {
+			return $cache;
+		}
+
+		$ids = array_map(
+			'intval',
+			(array) get_posts(
+				array(
+					'post_type'      => 'mmm_ingredient',
+					'post_status'    => 'any',
+					'posts_per_page' => -1,
+					'orderby'        => 'title',
+					'order'          => 'ASC',
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
+			)
+		);
+
+		if ( ! $ids ) {
+			return $cache = array();
+		}
+
+		update_meta_cache( 'post', $ids );
+
+		$products = array();
+
+		foreach ( $ids as $id ) {
+
+			$product_id = (int) get_post_meta( $id, Mixmymeals_Product::META_REFERENCE, true );
+
+			if ( $product_id > 0 ) {
+				$products[] = $product_id;
+			}
+		}
+
+		if ( $products ) {
+			// Through WP_Query rather than _prime_post_caches(): same priming
+			// of the post and meta caches, without reaching for a function
+			// core marks private.
+			get_posts(
+				array(
+					'post_type'      => Mixmymeals_Product::POST_TYPE,
+					'post_status'    => 'any',
+					'post__in'       => $products,
+					'posts_per_page' => count( $products ),
+					'no_found_rows'  => true,
+				)
+			);
+		}
+
+		$without = array();
+
+		foreach ( $ids as $id ) {
+
+			if ( ! ( new self( $id ) )->has_nutrition() ) {
+				$without[] = $id;
+			}
+		}
+
+		return $cache = $without;
+	}
+
+	/**
 	 * The ingredient's own stored figures, before any product is considered.
 	 *
 	 * @return array<string,float|null>
@@ -385,19 +776,9 @@ class Mixmymeals_Ingredient {
 			return;
 		}
 
-		$fields = array(
-			'_rmm_calories_100',
-			'_rmm_weight_item',
-			'_rmm_fat',
-			'_rmm_carbs',
-			'_rmm_protein',
-			'_rmm_sugar',
-			'_rmm_fiber',
-			'_rmm_salt',
-			// '_rmm_unit',
-		);
-
-		foreach ( $fields as $meta_key ) {
+		// From NUTRITION_META, not from a list of its own: a key missing here
+		// would survive a purge and reappear on the next read.
+		foreach ( self::NUTRITION_META as $meta_key ) {
 			delete_post_meta( $this->post_id, $meta_key );
 		}
 	}

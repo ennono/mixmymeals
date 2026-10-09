@@ -205,7 +205,7 @@ class Mixmymeals_Rest_Api {
 		) );
 
 		// mmm_ingredient
-		foreach ( array( '_rmm_calories_100', '_rmm_fat', '_rmm_carbs', '_rmm_protein', '_rmm_sugar', '_rmm_fiber', '_rmm_salt', '_rmm_weight_item' ) as $field ) {
+		foreach ( array( '_rmm_calories_100', '_rmm_fat', '_mmm_saturates', '_rmm_carbs', '_rmm_protein', '_rmm_sugar', '_rmm_fiber', '_rmm_salt', '_rmm_weight_item' ) as $field ) {
 			register_post_meta( 'mmm_ingredient', $field, array( 'type' => 'number', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
 		}
 		register_post_meta( 'mmm_ingredient', '_mmm_price_per_100g', array( 'type' => 'number', 'single' => true, 'show_in_rest' => true, 'sanitize_callback' => $to_float, 'auth_callback' => $can_edit ) );
@@ -305,7 +305,7 @@ class Mixmymeals_Rest_Api {
 		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => array( 'required' => false, 'type' => 'number' ), 'fat' => array( 'required' => false, 'type' => 'number' ), 'carbs' => array( 'required' => false, 'type' => 'number' ), 'protein' => array( 'required' => false, 'type' => 'number' ), 'sugar' => array( 'required' => false, 'type' => 'number' ), 'fiber' => array( 'required' => false, 'type' => 'number' ), 'salt' => array( 'required' => false, 'type' => 'number' ), 'weight_item' => array( 'required' => false, 'type' => 'number' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => array( 'required' => false, 'type' => 'number' ), 'fat' => array( 'required' => false, 'type' => 'number' ), 'saturates' => array( 'required' => false, 'type' => 'number' ), 'carbs' => array( 'required' => false, 'type' => 'number' ), 'protein' => array( 'required' => false, 'type' => 'number' ), 'sugar' => array( 'required' => false, 'type' => 'number' ), 'fiber' => array( 'required' => false, 'type' => 'number' ), 'salt' => array( 'required' => false, 'type' => 'number' ), 'weight_item' => array( 'required' => false, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/price', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_price' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'price_per_100g' => array( 'required' => true, 'type' => 'number' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/units', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient_units' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/search', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'search_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'query' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => Mixmymeals_Diet::axis_slugs( 'diet' ) ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 20 ) ) ) );
@@ -1612,7 +1612,9 @@ class Mixmymeals_Rest_Api {
 		$guard = $this->require_can_edit( $id );
 		if ( $guard ) return $guard;
 		$data = array();
-		foreach ( array( 'calories_100', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt', 'weight_item' ) as $field ) {
+		// weight_item beside the figures: it is stored with them, even though
+		// it is not one of them.
+		foreach ( array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'weight_item' ) ) as $field ) {
 			if ( $request->has_param( $field ) ) $data[ $field ] = floatval( $request->get_param( $field ) );
 		}
 		$ing->set_nutrition( $data );
@@ -3151,6 +3153,16 @@ class Mixmymeals_Rest_Api {
 			'recipes_placeholder_image' => array(),
 			'recipes_without_image'     => array(),
 			'recipes_without_nutrition' => array(),
+
+			/*
+			 * Recipes whose figures are built from only part of the dish. They
+			 * are the dangerous ones: a recipe with no figures at all prints
+			 * nothing and nobody is misled, while this one prints a kcal
+			 * number that looks finished and is too low, because a missing
+			 * value counts as 0 in the sum. Each entry carries the share of
+			 * the weight that is covered and the ingredients that are not.
+			 */
+			'recipes_partial_nutrition' => array(),
 			'recipes_without_category'  => array(),
 			'recipes_without_excerpt'   => array(),
 		);
@@ -3182,8 +3194,27 @@ class Mixmymeals_Rest_Api {
 
 			// Ohne Kalorien pro Portion fehlen entweder Zutaten oder deren Nährwerte.
 			$nutrition = $recipe->calculate_nutrition_per_serving();
+			$coverage  = $recipe->nutrition_coverage();
+
 			if ( empty( $nutrition['calories'] ) ) {
 				$groups['recipes_without_nutrition'][] = $this->audit_entry( $recipe_id );
+			} elseif ( ! $coverage['complete'] ) {
+				$groups['recipes_partial_nutrition'][] = array(
+					'id'      => $recipe_id,
+					'title'   => get_the_title( $recipe_id ),
+					// The worst of the seven and its share, not an average:
+					// see Mixmymeals_Recipe::nutrition_coverage().
+					'figure'  => $coverage['worst'],
+					'covered' => (int) round( $coverage['share'] * 100 ),
+					'missing' => array_map(
+						static fn( array $row ): array => array(
+							'id'      => $row['id'],
+							'title'   => $row['name'],
+							'figures' => $row['keys'],
+						),
+						$coverage['missing']
+					),
+				);
 			}
 
 			$terms = get_the_terms( $recipe_id, 'mmm_recipe_category' );
@@ -3208,6 +3239,29 @@ class Mixmymeals_Rest_Api {
 
 		$groups = array(
 			'ingredients_without_nutrition' => array(),
+
+			/*
+			 * Ingredients stating some of the seven figures and not others.
+			 * They pass the publish gate on purpose — a packet that states
+			 * energy and fat and stops is a real packet — and every empty
+			 * field still enters each recipe's total for that figure as a 0.
+			 * This is the list that decides which rows of a nutrition table
+			 * can be trusted at all, and it is the long one: on an install
+			 * older than 3.52.0 a blank field was saved as a zero and counts
+			 * as stated here, so what shows up is what has been entered since.
+			 */
+			'ingredients_partial_nutrition' => array(),
+
+			/*
+			 * Figures that contradict each other — saturates above total fat,
+			 * energy that does not follow from the macros, a hundred grams
+			 * holding more than a hundred grams. A typo here is copied into
+			 * every recipe, plan, mail and PDF that uses the ingredient, and
+			 * nothing downstream can tell it from a dense food. Products are
+			 * listed in the same group with the ingredient they hang off,
+			 * because the figure has to be corrected where it was typed.
+			 */
+			'nutrition_implausible'         => array(),
 			'ingredients_without_unit'      => array(),
 			'ingredients_without_price'     => array(),
 			'ingredients_unused'            => array(),
@@ -3250,9 +3304,39 @@ class Mixmymeals_Rest_Api {
 				continue;
 			}
 
-			$nutrition = $ingredient->get_nutrition();
-			if ( empty( $nutrition['calories_100'] ) ) {
+			/*
+			 * has_nutrition() rather than `empty( $nutrition['calories_100'] )`:
+			 * the same rule the ingredient list's filter and the publish gate
+			 * on the edit screen use, so the three cannot name different
+			 * ingredients. It also answers for an ingredient that states
+			 * nothing but fat — which the kcal test called undocumented and
+			 * the recipe sum happily adds up.
+			 */
+			if ( ! $ingredient->has_nutrition() ) {
 				$groups['ingredients_without_nutrition'][] = $this->audit_entry( $ingredient_id );
+			} else {
+
+				$unstated = $ingredient->unstated_nutrition_keys();
+
+				$implausible = Mixmymeals_Ingredient::nutrition_warnings( $ingredient->get_nutrition() );
+
+				if ( $implausible ) {
+					$groups['nutrition_implausible'][] = array(
+						'id'       => $ingredient_id,
+						'title'    => get_the_title( $ingredient_id ),
+						'kind'     => 'ingredient',
+						'warnings' => $implausible,
+					);
+				}
+
+				if ( $unstated ) {
+					$groups['ingredients_partial_nutrition'][] = array(
+						'id'      => $ingredient_id,
+						'title'   => get_the_title( $ingredient_id ),
+						'figures' => $unstated,
+						'recipes' => count( $usage[ $ingredient_id ] ?? array() ),
+					);
+				}
 			}
 
 			if ( empty( $ingredient->get_diet_suitabilities() ) ) {
@@ -3275,8 +3359,22 @@ class Mixmymeals_Rest_Api {
 			}
 
 			foreach ( $products as $product ) {
+
 				if ( '' === $product->get_source() ) {
 					$groups['products_without_source'][] = $this->audit_entry( $product->get_id() );
+				}
+
+				$implausible = Mixmymeals_Ingredient::nutrition_warnings( $product->get_nutrition() );
+
+				if ( $implausible ) {
+					$groups['nutrition_implausible'][] = array(
+						'id'               => $product->get_id(),
+						'title'            => get_the_title( $product->get_id() ),
+						'kind'             => 'product',
+						'ingredient_id'    => $ingredient_id,
+						'ingredient_title' => get_the_title( $ingredient_id ),
+						'warnings'         => $implausible,
+					);
 				}
 			}
 

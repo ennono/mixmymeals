@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.51.0
+Stable tag: 3.52.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,81 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.52.0 =
+
+Added:
+* The recipe list now says how much of each dish its nutrition figures
+  actually describe, figure by figure. An empty field counts as zero in
+  the sum, so a recipe holding such an ingredient printed a figure that
+  looked finished and was too low. The column names the worst of the
+  eight — "Fibre: 60 % of the weight" — and lists the ingredients short
+  of it. Gaps up to two per cent of the weight still count as complete:
+  a gram of oregano changes nothing.
+* The nutrition box names the empty fields of an ingredient. An
+  ingredient stating energy and fat and nothing else may still be
+  published — that is a real packet — but each empty field enters every
+  recipe's total for that figure as a zero, and until now nothing said
+  so anywhere.
+* "No nutrition data" above the ingredient list, with a count: the
+  ingredients still to be filled in, as a view of the list that is
+  already there rather than a screen of its own.
+* /audit reports two new groups: recipes_partial_nutrition, recipes
+  whose figures are built from only part of the dish, with the worst
+  figure, its share and the ingredients missing it; and
+  ingredients_partial_nutrition, ingredients stating some of the eight
+  figures and not others, with how many recipes use them.
+* Saturated fat as an eighth figure, on ingredients and on products, with
+  the EU reference intake of 20 g — the one mandatory figure a food label
+  carries that this plugin did not store. It appears in every nutrition
+  table, in recipe and plan sums, in the subscription mail
+  ({{ day_saturates }}), in the PDF and as saturatedFatContent in the
+  recipe markup. Nothing is migrated: the field is simply empty until
+  somebody fills it in, and the lists above say where.
+* Plausibility warnings under the nutrition fields of an ingredient and
+  of each product: saturates above total fat, sugars above total
+  carbohydrate, more than 100 g in 100 g, an energy figure that does not
+  follow from the macros (the EU's own 9/4/4/2 kcal per gram, a fifth of
+  slack either way), or more than 900 kcal per 100 g. Warnings only — a
+  packet's own rounding must not make a real label unenterable. /audit
+  reports them as nutrition_implausible.
+
+Changed:
+* Percentages of the reference intake now say which way they point.
+  "100 % salt" read as an achievement where it means a day's limit
+  reached; fat, saturates, sugars and salt are now marked "max." and
+  protein and fibre "min.", with the footnote under every nutrition
+  table explaining both. Sites that set their own reference intakes can
+  set their own directions through the mixmymeals_nutrition_directions
+  filter.
+* The nutrition fields of an ingredient are now labelled and ordered
+  like the panel on a packet — fat, of which saturates, carbohydrate, of
+  which sugars, fibre, protein, salt — and take their wording from the
+  same source as every nutrition table on the site. The nutrition table
+  under a meal printed "Fiber" and "Salt" in English on a German site;
+  it does not any more.
+* An ingredient without nutrition data no longer stays published.
+  Saving one on the ingredient screen sets it back to a draft, which
+  keeps it out of the recipe pickers while the recipes already using it
+  go on working unchanged. Figures stated by its reference product
+  count. Quick edit, bulk edit and the REST API are untouched, since
+  those create an ingredient before its figures exist.
+
+Fixed:
+* The recipe markup stated salt where schema.org asks for sodium, so
+  every recipe published a sodium figure two and a half times the real
+  one — repeated by Google's rich result and anything else reading the
+  markup. Salt is now converted (sodium = salt / 2.5).
+* An empty nutrition field on the ingredient screen now stays empty
+  instead of being saved as a zero. Until now "never stated" and
+  "measured zero" could not be told apart afterwards, which is what let
+  a recipe total count an undocumented ingredient as water.
+
+= 3.51.1 =
+
+Changed:
+* The notice on the recipe rating form now stands under the review text
+  field instead of between the stars and the text field.
 
 = 3.51.0 =
 

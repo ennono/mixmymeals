@@ -542,6 +542,7 @@ const TOOLS = [
           properties: {
             calories_100: { type: "number" },
             fat:          { type: "number" },
+            saturates:    { type: "number" },
             carbs:        { type: "number" },
             protein:      { type: "number" },
             sugar:        { type: "number" },
@@ -573,6 +574,7 @@ const TOOLS = [
           properties: {
             calories_100: { type: "number" },
             fat:          { type: "number" },
+            saturates:    { type: "number" },
             carbs:        { type: "number" },
             protein:      { type: "number" },
             sugar:        { type: "number" },
@@ -595,6 +597,7 @@ const TOOLS = [
         id:           { type: "number" },
         calories_100: { type: "number", description: "kcal/100g" },
         fat:          { type: "number" },
+        saturates:    { type: "number" },
         carbs:        { type: "number" },
         protein:      { type: "number" },
         sugar:        { type: "number" },
@@ -699,7 +702,7 @@ const TOOLS = [
         package_weight: { type: "number", description: "Gewicht einer Packung in Gramm" },
         price:          { type: ["number", "null"], description: "Preis einer Packung in der Shop-Währung. Der Preis je 100 g ergibt sich daraus und aus package_weight — ohne Packungsgewicht wirkt der Preis nicht. Ist das Produkt die Referenz, ersetzt er den Preis der Zutat in allen Kostenrechnungen. null löscht ihn." },
         source:         { type: "string", description: "Woher die Angaben stammen, z. B. 'Packung, 08/2026'. Diese Werte veralten — ohne Quelle unterscheidet später niemand eine aktuelle von einer alten Angabe." },
-        nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
+        nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, saturates, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
         diet_type:      { type: "string", description: "Slug einer Ernaehrungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Einstufung dieses Artikels. Leer = nicht geprüft, dann gilt die Einstufung der Zutat. Sobald gesetzt, überschreibt sie diese — Nudeln mit Ei sind nicht vegan, auch wenn die Zutat es ist. Wirkt nur über die Referenz." },
         is_reference:   { type: "boolean", description: "Dieses Produkt zur Referenz der Zutat machen: die Zutat nutzt dann seine Werte, Wert für Wert — Nährwerte wie Einstufung." },
       },
@@ -719,7 +722,7 @@ const TOOLS = [
         package_weight: { type: "number" },
         price:          { type: ["number", "null"], description: "Preis einer Packung. Wirkt nur zusammen mit package_weight und nur, wenn das Produkt die Referenz ist. null löscht ihn." },
         source:         { type: "string" },
-        nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
+        nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, saturates, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
         diet_type:      { type: "string", description: "Slug einer Ernaehrungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Einstufung dieses Artikels. Leer loescht sie ganz — Terme und die alte Meta-Zeile —, dann gilt die der Zutat. Ein fehlender Schluessel aendert nichts." },
         is_reference:   { type: "boolean", description: "true macht es zur Referenz, false hebt die Referenz der Zutat auf." },
       },
@@ -793,7 +796,7 @@ const TOOLS = [
 
   {
     name: "mmm_audit",
-    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu ingredients_without_diet: Zutaten, zu denen weder sie selbst noch eines ihrer Produkte eine Ernaehrungsform nennt. Eine einzige davon nimmt jedem Rezept, das sie verwendet, die Pille \"Geeignet fuer …\" — diese Gruppe entscheidet also, wie viele Rezepte ueberhaupt eine tragen koennen. Jeder Eintrag nennt Kategorie und die Zahl der Rezepte, die die Zutat verwenden: danach sortiert lohnt sich die Pflege zuerst. Zum Nachtragen mmm_set_diets, das viele auf einmal schreibt. Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
+    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Rezepte mit nur teilweisen Naehrwerten (recipes_partial_nutrition: die Summe ist aus einem Teil des Gerichts gebaut, weil ein leeres Feld als 0 zaehlt. Feldweise gerechnet: figure nennt den schlechtesten der sieben Werte, covered dessen gedeckten Gewichtsanteil in Prozent — nicht den Durchschnitt, der mehr verspraeche als die Tabelle haelt —, und missing jede Zutat mit figures, den Werten, die ihr fehlen; gefaehrlicher als ganz fehlende Naehrwerte, weil die Zahl fertig aussieht und zu niedrig ist). Dazu ingredients_partial_nutrition: Zutaten, die einige der sieben Werte nennen und andere nicht. Sie duerfen veroeffentlicht sein — eine Packung, die Energie und Fett nennt und sonst nichts, ist eine echte Packung —, aber jedes leere Feld geht in jede Rezeptsumme dieses Werts als 0 ein. Jeder Eintrag nennt figures und die Zahl der Rezepte, die die Zutat verwenden; danach sortiert lohnt die Pflege zuerst. Nachtragen mit mmm_update_ingredient_nutrition. Dazu nutrition_implausible: Angaben, die sich widersprechen — gesaettigte Fettsaeuren ueber dem Gesamtfett, Zucker ueber den Kohlenhydraten, mehr als 100 g in 100 g, oder eine Energieangabe, die nicht aus den Makros folgt (9/4/4/2 kcal je g Fett/KH/Eiweiss/Ballaststoffe, ein Fuenftel Spielraum). Jeder Eintrag nennt kind (ingredient oder product), bei Produkten die zugehoerige Zutat, und warnings als fertige Saetze. Ein Tippfehler hier wandert in jedes Rezept, jeden Plan, jede Mail und das schema.org-Markup, und nachgelagert ist er von einem gehaltvollen Lebensmittel nicht zu unterscheiden. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu ingredients_without_diet: Zutaten, zu denen weder sie selbst noch eines ihrer Produkte eine Ernaehrungsform nennt. Eine einzige davon nimmt jedem Rezept, das sie verwendet, die Pille \"Geeignet fuer …\" — diese Gruppe entscheidet also, wie viele Rezepte ueberhaupt eine tragen koennen. Jeder Eintrag nennt Kategorie und die Zahl der Rezepte, die die Zutat verwenden: danach sortiert lohnt sich die Pflege zuerst. Zum Nachtragen mmm_set_diets, das viele auf einmal schreibt. Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1408,7 +1411,7 @@ async function handleTool(name, args) {
     case "mmm_update_ingredient_nutrition": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["calories_100", "fat", "carbs", "protein", "sugar", "fiber", "salt", "weight_item"];
+      const allowed = ["calories_100", "fat", "saturates", "carbs", "protein", "sugar", "fiber", "salt", "weight_item"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }

@@ -56,6 +56,28 @@ class Mixmymeals_Recipe {
 	 */
 	private static $cost_cache = array();
 
+	/**
+	 * Per-request nutrition coverage, keyed by recipe ID.
+	 *
+	 * @var array<int, array<string, mixed>>
+	 */
+	private static $coverage_cache = array();
+
+	/**
+	 * The share of a dish's weight that may lack nutrition data before the
+	 * figures stop being called complete.
+	 *
+	 * Two per cent, because the gaps that actually occur are a gram of oregano
+	 * and a pinch of baking powder, and calling a recipe's nutrition
+	 * questionable over 1 g in 800 would put a warning on nearly every recipe
+	 * — which is the same as putting it on none. Anything above this moves
+	 * energy or a macro by more than the rounding the figures are printed
+	 * with, and then it belongs on screen.
+	 *
+	 * @var float
+	 */
+	const NUTRITION_TOLERANCE = 0.02;
+
 	/** The URL parameter that narrows the recipe archive to one browse view. */
 	const BROWSE_VIEW_VAR = 'mmm_view';
 
@@ -937,7 +959,11 @@ class Mixmymeals_Recipe {
 		 * call, so without this it answered with the nutrition from before the
 		 * write — found by the test suite, not in production.
 		 */
-		unset( self::$per_serving_cache[ $this->post_id ], self::$cost_cache[ $this->post_id ] );
+		unset(
+			self::$per_serving_cache[ $this->post_id ],
+			self::$cost_cache[ $this->post_id ],
+			self::$coverage_cache[ $this->post_id ]
+		);
 
 		if ( ! $this->is_valid() ) {
 			return false;
@@ -1153,10 +1179,10 @@ class Mixmymeals_Recipe {
 
 		$ingredients = $this->get_ingredients_scaled($scale);
 
-		$totals = array_fill_keys(
-			['calories','fat','carbs','protein','sugar','fiber','salt'],
-			0.0
-		);
+		// From the plan's key list, not a copy of it: these totals are what
+		// calc_nutrition() adds up per day, and a key in one and not the other
+		// would be a figure that exists on a recipe and vanishes on a plan.
+		$totals = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0.0 );
 
 		$total_weight = 0.0;
 
@@ -1181,16 +1207,177 @@ class Mixmymeals_Recipe {
 			// Zweiter Gürtel: get_nutrition() liefert bereits float|null, aber
 			// diese Rechnung darf unter keinen Umständen fatal werden — sie
 			// hängt an der Rezeptliste im Admin und an jeder Rezeptseite.
-			$totals['calories'] += (float) ( $nutrition['calories_100'] ?? 0 ) * $weight / 100;
-			$totals['fat']      += (float) ( $nutrition['fat'] ?? 0 ) * $weight / 100;
-			$totals['carbs']    += (float) ( $nutrition['carbs'] ?? 0 ) * $weight / 100;
-			$totals['protein']  += (float) ( $nutrition['protein'] ?? 0 ) * $weight / 100;
-			$totals['sugar']    += (float) ( $nutrition['sugar'] ?? 0 ) * $weight / 100;
-			$totals['fiber']    += (float) ( $nutrition['fiber'] ?? 0 ) * $weight / 100;
-			$totals['salt']     += (float) ( $nutrition['salt'] ?? 0 ) * $weight / 100;
+			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
+				$totals[ $sum_key ] += (float) ( $nutrition[ $own_key ] ?? 0 ) * $weight / 100;
+			}
 		}
 
 		return [$totals, $total_weight];
+	}
+
+	/**
+	 * How much of this dish the nutrition figures actually describe.
+	 *
+	 * _calculate_total_nutrition() reads a missing value as 0 — it has to, the
+	 * recipe list and every recipe page hang on that sum not going fatal — so
+	 * an ingredient nobody has filled in lowers the total silently and the
+	 * result looks exactly like a genuinely light dish. This says how much of
+	 * the weight the sum is built from, over the same ingredient rows and in
+	 * the same order, so the share always describes the figure printed beside
+	 * it rather than a second, differently assembled one.
+	 *
+	 * Optional ingredients count. They are in the sum (get_ingredients_scaled()
+	 * returns them and the totals add them), and a coverage figure that
+	 * measured a different set than the total it qualifies would be worse than
+	 * none.
+	 *
+	 * **Per figure, not per ingredient.** An ingredient that states energy and
+	 * fat and leaves fibre empty is documented enough to be published — see
+	 * Mixmymeals_Ingredient::has_nutrition() — and its blank fibre still goes
+	 * into this recipe's fibre total as 0. Judging coverage by the ingredient
+	 * would print a tick over exactly that, so each of the seven figures is
+	 * counted on its own and `share` reports the worst of them: the one number
+	 * that cannot promise more than the table delivers.
+	 *
+	 * `complete` is not `share === 1.0`: see NUTRITION_TOLERANCE.
+	 *
+	 * @return array{
+	 *     weight:float,
+	 *     share:float,
+	 *     complete:bool,
+	 *     worst:string,
+	 *     keys:array<string, array{covered:float, share:float, complete:bool}>,
+	 *     missing:array<int, array{id:int, name:string, weight:float, keys:string[]}>
+	 * } `share` is 1.0 and `worst` empty for a recipe with no weight at all —
+	 *   nothing is undocumented there, there is simply nothing to document,
+	 *   and a recipe without ingredients must not be reported as a data gap.
+	 *   `missing` lists every ingredient short of at least one figure, with
+	 *   the keys it is short of.
+	 */
+	public function nutrition_coverage(): array {
+
+		$keys = Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS;
+
+		if ( ! $this->is_valid() ) {
+			return array(
+				'weight'   => 0.0,
+				'share'    => 1.0,
+				'complete' => true,
+				'worst'    => '',
+				'keys'     => array_fill_keys(
+					$keys,
+					array(
+						'covered'  => 0.0,
+						'share'    => 1.0,
+						'complete' => true,
+					)
+				),
+				'missing'  => array(),
+			);
+		}
+
+		if ( isset( self::$coverage_cache[ $this->post_id ] ) ) {
+			return self::$coverage_cache[ $this->post_id ];
+		}
+
+		$weight  = 0.0;
+		$covered = array_fill_keys( $keys, 0.0 );
+		$missing = array();
+
+		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ing ) {
+
+			$row_weight = (float) $ing['weight_g'];
+
+			if ( $row_weight <= 0 ) {
+				continue;
+			}
+
+			$ingredient = new Mixmymeals_Ingredient( (int) $ing['id'] );
+
+			if ( ! $ingredient->is_valid() ) {
+				continue;
+			}
+
+			$weight += $row_weight;
+
+			// Through the row's product, exactly as the totals are: a row
+			// naming a packet that states a figure has that figure, whatever
+			// the ingredient behind it does or does not store.
+			$unstated = $ingredient->unstated_nutrition_keys( (int) ( $ing['product_id'] ?? 0 ) );
+
+			foreach ( $keys as $key ) {
+				if ( ! in_array( $key, $unstated, true ) ) {
+					$covered[ $key ] += $row_weight;
+				}
+			}
+
+			if ( ! $unstated ) {
+				continue;
+			}
+
+			/*
+			 * Keyed by ingredient, not appended per row: an onion used in
+			 * three steps is one gap to fill, and a list naming it three times
+			 * reads as three different problems. The keys are merged rather
+			 * than overwritten, because two rows of the same ingredient may
+			 * name different products and so be short of different figures.
+			 */
+			$id = (int) $ing['id'];
+
+			if ( isset( $missing[ $id ] ) ) {
+				$missing[ $id ]['weight'] += $row_weight;
+				$missing[ $id ]['keys']    = array_values(
+					array_intersect( $keys, array_unique( array_merge( $missing[ $id ]['keys'], $unstated ) ) )
+				);
+				continue;
+			}
+
+			$missing[ $id ] = array(
+				'id'     => $id,
+				'name'   => (string) $ing['name'],
+				'weight' => $row_weight,
+				'keys'   => $unstated,
+			);
+		}
+
+		$per_key = array();
+		$worst   = '';
+
+		foreach ( $keys as $key ) {
+
+			$key_share = $weight > 0 ? $covered[ $key ] / $weight : 1.0;
+
+			$per_key[ $key ] = array(
+				'covered'  => $covered[ $key ],
+				'share'    => $key_share,
+				'complete' => ( 1.0 - $key_share ) <= self::NUTRITION_TOLERANCE,
+			);
+
+			/*
+			 * The worst figure, and on a tie the one a food label lists first
+			 * — energy before fat before fibre. An arbitrary pick would make
+			 * the column's wording jump between two equally bad rows on every
+			 * reload, which reads as a changing recipe.
+			 */
+			if ( '' === $worst || $key_share < $per_key[ $worst ]['share'] ) {
+				$worst = $key;
+			}
+		}
+
+		$complete = true;
+
+		foreach ( $per_key as $figures ) {
+			$complete = $complete && $figures['complete'];
+		}
+
+		return self::$coverage_cache[ $this->post_id ] = array(
+			'weight'   => $weight,
+			'share'    => '' === $worst ? 1.0 : $per_key[ $worst ]['share'],
+			'complete' => $complete,
+			'worst'    => $complete ? '' : $worst,
+			'keys'     => $per_key,
+			'missing'  => array_values( $missing ),
+		);
 	}
 
 	/** @return array<int, array<string, mixed>> */
@@ -3564,18 +3751,36 @@ class Mixmymeals_Recipe {
 		$nutrition = $this->calculate_nutrition_per_serving();
 		$info      = array( '@type' => 'NutritionInformation' );
 		$mapping   = array(
-			'calories' => array( 'calories', ' kcal' ),
-			'protein'  => array( 'proteinContent', ' g' ),
-			'carbs'    => array( 'carbohydrateContent', ' g' ),
-			'fat'      => array( 'fatContent', ' g' ),
-			'sugar'    => array( 'sugarContent', ' g' ),
-			'fiber'    => array( 'fiberContent', ' g' ),
-			'salt'     => array( 'sodiumContent', ' g' ),
+			'calories'  => array( 'calories', ' kcal' ),
+			'protein'   => array( 'proteinContent', ' g' ),
+			'carbs'     => array( 'carbohydrateContent', ' g' ),
+			'fat'       => array( 'fatContent', ' g' ),
+			'saturates' => array( 'saturatedFatContent', ' g' ),
+			'sugar'     => array( 'sugarContent', ' g' ),
+			'fiber'     => array( 'fiberContent', ' g' ),
+			'salt'      => array( 'sodiumContent', ' g' ),
 		);
 		foreach ( $mapping as $key => list( $prop, $unit ) ) {
-			if ( ! empty( $nutrition[ $key ] ) ) {
-				$info[ $prop ] = round( (float) $nutrition[ $key ], 1 ) . $unit;
+
+			if ( empty( $nutrition[ $key ] ) ) {
+				continue;
 			}
+
+			$value = (float) $nutrition[ $key ];
+
+			/*
+			 * schema.org's sodiumContent is sodium, and this plugin stores
+			 * salt — the figure a packet prints. They differ by a factor of
+			 * 2.5 (NaCl is 39.3 % sodium by mass), so until 3.52.0 every
+			 * recipe published a sodium figure two and a half times the real
+			 * one, which is what Google's rich result and anything else
+			 * reading the markup repeated.
+			 */
+			if ( 'salt' === $key ) {
+				$value /= 2.5;
+			}
+
+			$info[ $prop ] = round( $value, 1 ) . $unit;
 		}
 		if ( count( $info ) > 1 ) {
 			$schema['nutrition'] = $info;

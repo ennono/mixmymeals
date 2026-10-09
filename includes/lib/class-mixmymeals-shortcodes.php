@@ -2022,16 +2022,8 @@ class Mixmymeals_Shortcodes {
 			       . '</p>';
 		}
 
-		$totals = [
-			'calories' => 0,
-			'protein'  => 0,
-			'carbs'    => 0,
-			'fat'      => 0,
-			'sugar'    => 0,
-			'fiber'    => 0,
-			'salt'     => 0,
-			'weight'   => 0,
-		];
+		$totals           = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0 );
+		$totals['weight'] = 0;
 
 		foreach ( $ingredients as $ing ) {
 
@@ -2055,13 +2047,9 @@ class Mixmymeals_Shortcodes {
 
 			$totals['weight'] += $weight;
 
-			$totals['calories'] += (float) ( $nutrition['calories_100'] ?? 0 ) * $weight / 100;
-			$totals['protein']  += (float) ( $nutrition['protein'] ?? 0 ) * $weight / 100;
-			$totals['carbs']    += (float) ( $nutrition['carbs'] ?? 0 ) * $weight / 100;
-			$totals['fat']      += (float) ( $nutrition['fat'] ?? 0 ) * $weight / 100;
-			$totals['sugar']    += (float) ( $nutrition['sugar'] ?? 0 ) * $weight / 100;
-			$totals['fiber']    += (float) ( $nutrition['fiber'] ?? 0 ) * $weight / 100;
-			$totals['salt']     += (float) ( $nutrition['salt'] ?? 0 ) * $weight / 100;
+			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
+				$totals[ $sum_key ] += (float) ( $nutrition[ $own_key ] ?? 0 ) * $weight / 100;
+			}
 		}
 
 		$per_serving = [];
@@ -2106,20 +2094,20 @@ class Mixmymeals_Shortcodes {
                 <tbody>
 
 				<?php
-				$rows = [
-					'calories' => 'kcal',
-					'protein'  => 'g',
-					'carbs'    => 'g',
-					'fat'      => 'g',
-					'sugar'    => 'g',
-					'fiber'    => 'g',
-					'salt'     => 'g',
-				];
+				/*
+				 * Labels from the shared list rather than ucfirst() of the key:
+				 * this table printed "Fiber" and "Salt" in English on a German
+				 * site for as long as it has existed, and it is the one a
+				 * reader sees under a meal.
+				 */
+				$mmm_row_labels   = Mixmymeals_Meal_Plan::nutrition_labels();
+				$rows             = array_fill_keys( array_keys( $mmm_row_labels ), 'g' );
+				$rows['calories'] = 'kcal';
 
 				foreach ( $rows as $key => $unit ) :
 					?>
                     <tr>
-                        <td><?php echo esc_html( ucfirst( $key ) ); ?></td>
+                        <td><?php echo esc_html( $mmm_row_labels[ $key ] ?? ucfirst( $key ) ); ?></td>
 						<?php
 						$is_calories = ( $key === 'calories' );
 
@@ -6998,11 +6986,11 @@ class Mixmymeals_Shortcodes {
                 </thead>
                 <tbody>
 				<?php foreach ( $labels as $key => $label ) : ?>
-                    <tr<?php echo 'sugar' === $key ? ' class="mmm-nutri-table__sub"' : ''; ?>>
+                    <tr<?php echo in_array( $key, array( 'sugar', 'saturates' ), true ) ? ' class="mmm-nutri-table__sub"' : ''; ?>>
                         <td data-label="<?php echo esc_attr__( 'Nutrition', 'mixmymeals' ); ?>"><?php echo esc_html( $label ); ?></td>
                         <td data-label="<?php echo esc_attr__( 'Total / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_total[ $key ] ) ); ?></td>
                         <td data-label="<?php echo esc_attr__( 'Avg. per day / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_day[ $key ] ) ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'of RI*', 'mixmymeals' ); ?>"><?php echo esc_html( sprintf( '%d %%', (int) $percentages[ $key ] ) ); ?></td>
+                        <td data-label="<?php echo esc_attr__( 'of RI*', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ); ?></td>
                         <td data-label="<?php echo esc_attr__( 'Avg. per meal / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_meal[ $key ] ) ); ?></td>
                     </tr>
 				<?php endforeach; ?>
@@ -7063,7 +7051,7 @@ class Mixmymeals_Shortcodes {
 		 * right, but this table called them "Calories" and "Carbohydrates"
 		 * where the other three said "Energy" and "Carbohydrate".
 		 *
-		 * Four macros, not all seven: this table already spends a column per
+		 * Four macros, not all eight: this table already spends a column per
 		 * nutrient across every weekday, and the full breakdown belongs to
 		 * [mmm_nutrition_overview_for_a_single_meal_plan].
 		 */
@@ -9518,16 +9506,12 @@ class Mixmymeals_Shortcodes {
 		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
 
 		// The value key differs from the nutrition key only for energy, which an
-		// ingredient stores per 100 g.
-		$rows = array(
-			array( 'calories', 'calories_100' ),
-			array( 'fat', 'fat' ),
-			array( 'carbs', 'carbs' ),
-			array( 'sugar', 'sugar' ),
-			array( 'fiber', 'fiber' ),
-			array( 'protein', 'protein' ),
-			array( 'salt', 'salt' ),
-		);
+		// ingredient stores per 100 g — the pairing itself lives in one place.
+		$rows = array();
+
+		foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $label_key => $value_key ) {
+			$rows[] = array( $label_key, $value_key );
+		}
 
 		$has = false;
 		foreach ( $rows as $r ) {
@@ -9600,15 +9584,7 @@ class Mixmymeals_Shortcodes {
 		// site; only the energy key differs, because a product stores its
 		// calories per 100 g.
 		$labels = Mixmymeals_Meal_Plan::nutrition_labels();
-		$cols   = array(
-			'calories' => 'calories_100',
-			'fat'      => 'fat',
-			'carbs'    => 'carbs',
-			'sugar'    => 'sugar',
-			'fiber'    => 'fiber',
-			'protein'  => 'protein',
-			'salt'     => 'salt',
-		);
+		$cols   = Mixmymeals_Ingredient::NUTRITION_KEY_MAP;
 
 		/*
 		 * One column is the anchor and keeps its absolute figures; the rest are
@@ -9626,7 +9602,7 @@ class Mixmymeals_Shortcodes {
 				<=> ( $b->get_id() === $baseline->get_id() ? 0 : 1 )
 		);
 
-		// Read once per product rather than once per cell: seven rows times
+		// Read once per product rather than once per cell: eight rows times
 		// however many products is a lot of meta lookups for one table.
 		$nutrition = array();
 
@@ -9640,7 +9616,7 @@ class Mixmymeals_Shortcodes {
 
 		/*
 		 * Products across, nutrition down — the same shape as every other
-		 * nutrition table on the site, and the only one that fits: seven
+		 * nutrition table on the site, and the only one that fits: eight
 		 * figures as columns push Protein and Salt off the page, which are
 		 * exactly the two a reader compares yoghurts by.
 		 *

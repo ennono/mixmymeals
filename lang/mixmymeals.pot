@@ -5360,3 +5360,109 @@ msgstr ""
 #, php-format
 msgid "%s per 100 g"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Rate"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Your shopping list: {{ plan }}"
+msgstr ""
+
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "No nutrition data. This ingredient will be set back to a draft the next time it is saved — a published ingredient without figures subtracts from every recipe that uses it."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Without nutrition data this ingredient stays a draft, and a draft cannot be added to a recipe. Figures stated by its reference product count too."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-types.php
+msgid "Nutrition data"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-types.php
+msgid "Nutrition data complete"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-types.php
+#, php-format
+msgid "%1$s: %2$d %% of the weight"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "Empty: %s. An empty field counts as 0 in every recipe total — a figure the packet does not state is better left to the reference product than guessed."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-types.php
+msgid "No nutrition data"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgid "Sugars"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "of which saturates"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgid "Saturates"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "%s (g)"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s · max."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s · min."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Figures marked \"max.\" are upper guides (%s): 100 %% is a day's limit reached, not a target met."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Figures marked \"min.\" are lower guides (%s)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Saturates (%1$s g) are above total fat (%2$s g)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Sugars (%1$s g) are above total carbohydrate (%2$s g)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Fat, carbohydrate, fibre, protein and salt add up to %s g per 100 g."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Energy (%1$s kcal) does not match the macros, which work out to about %2$s kcal per 100 g."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Energy of %s kcal per 100 g is above what any food reaches (about 900 kcal, for pure fat)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "%1$s: %2$s g per 100 g is more than 100 g."
+msgstr ""

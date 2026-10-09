@@ -6181,6 +6181,110 @@ msgstr "%s pro Tag und Person"
 msgid "%s per 100 g"
 msgstr "%s pro 100 g"
 
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Rate"
+msgstr "Bewerten"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Your shopping list: {{ plan }}"
+msgstr "Deine Einkaufsliste: {{ plan }}"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "No nutrition data. This ingredient will be set back to a draft the next time it is saved — a published ingredient without figures subtracts from every recipe that uses it."
+msgstr "Keine Nährwerte. Diese Zutat wird beim nächsten Speichern auf Entwurf zurückgesetzt – eine veröffentlichte Zutat ohne Angaben zieht die Summe jedes Rezepts, das sie verwendet, nach unten."
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Without nutrition data this ingredient stays a draft, and a draft cannot be added to a recipe. Figures stated by its reference product count too."
+msgstr "Ohne Nährwerte bleibt diese Zutat ein Entwurf, und ein Entwurf lässt sich keinem Rezept hinzufügen. Angaben des Referenzprodukts zählen mit."
+
+#: includes/lib/class-mixmymeals-post-types.php
+msgid "Nutrition data"
+msgstr "Nährwerte"
+
+#: includes/lib/class-mixmymeals-post-types.php
+msgid "Nutrition data complete"
+msgstr "Nährwerte vollständig"
+
+#: includes/lib/class-mixmymeals-post-types.php
+#, php-format
+msgid "%1$s: %2$d %% of the weight"
+msgstr "%1$s: %2$d %% des Gewichts"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "Empty: %s. An empty field counts as 0 in every recipe total — a figure the packet does not state is better left to the reference product than guessed."
+msgstr "Leer: %s. Ein leeres Feld zählt in jeder Rezeptsumme als 0 — einen Wert, den die Packung nicht nennt, besser dem Referenzprodukt überlassen als schätzen."
+
+#: includes/lib/class-mixmymeals-post-types.php
+msgid "No nutrition data"
+msgstr "Ohne Nährwerte"
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgid "Sugars"
+msgstr "Zucker"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "of which saturates"
+msgstr "davon gesättigte Fettsäuren"
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgid "Saturates"
+msgstr "Gesättigte Fettsäuren"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "%s (g)"
+msgstr "%s (g)"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s · max."
+msgstr "%s · max."
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s · min."
+msgstr "%s · min."
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Figures marked \"max.\" are upper guides (%s): 100 %% is a day's limit reached, not a target met."
+msgstr "Mit „max.“ markierte Werte sind Obergrenzen (%s): 100 %% heißt, das Tagesmaximum ist erreicht — nicht ein Ziel erfüllt."
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Figures marked \"min.\" are lower guides (%s)."
+msgstr "Mit „min.“ markierte Werte sind Untergrenzen (%s)."
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Saturates (%1$s g) are above total fat (%2$s g)."
+msgstr "Gesättigte Fettsäuren (%1$s g) liegen über dem Gesamtfett (%2$s g)."
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Sugars (%1$s g) are above total carbohydrate (%2$s g)."
+msgstr "Zucker (%1$s g) liegt über den Kohlenhydraten insgesamt (%2$s g)."
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Fat, carbohydrate, fibre, protein and salt add up to %s g per 100 g."
+msgstr "Fett, Kohlenhydrate, Ballaststoffe, Eiweiß und Salz ergeben zusammen %s g je 100 g."
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Energy (%1$s kcal) does not match the macros, which work out to about %2$s kcal per 100 g."
+msgstr "Die Energieangabe (%1$s kcal) passt nicht zu den Makronährwerten, die etwa %2$s kcal je 100 g ergeben."
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "Energy of %s kcal per 100 g is above what any food reaches (about 900 kcal, for pure fat)."
+msgstr "%s kcal je 100 g liegen über allem, was ein Lebensmittel erreicht (etwa 900 kcal, bei reinem Fett)."
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "%1$s: %2$s g per 100 g is more than 100 g."
+msgstr "%1$s: %2$s g je 100 g sind mehr als 100 g."
 #~ msgid ""
 #~ "Legal bases: consent (Art. 6(1)(a) GDPR) for e-mail subscriptions, ratings "
 #~ "and photo uploads; legitimate interests (Art. 6(1)(f) GDPR) for the meal "

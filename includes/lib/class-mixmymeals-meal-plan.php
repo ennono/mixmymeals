@@ -786,7 +786,7 @@ class Mixmymeals_Meal_Plan {
 	 *
 	 * @var string[]
 	 */
-	const NUTRITION_KEYS = array( 'calories', 'fat', 'carbs', 'protein', 'sugar', 'fiber', 'salt' );
+	const NUTRITION_KEYS = array( 'calories', 'fat', 'saturates', 'carbs', 'protein', 'sugar', 'fiber', 'salt' );
 
 	/**
 	 * Reference intakes for an average adult, used to put a figure in context:
@@ -806,13 +806,14 @@ class Mixmymeals_Meal_Plan {
 	 * @var array<string,float>
 	 */
 	const REFERENCE_INTAKE = array(
-		'calories' => 2000.0,
-		'fat'      => 70.0,
-		'carbs'    => 260.0,
-		'protein'  => 50.0,
-		'sugar'    => 90.0,
-		'fiber'    => 30.0,
-		'salt'     => 6.0,
+		'calories'  => 2000.0,
+		'fat'       => 70.0,
+		'saturates' => 20.0,
+		'carbs'     => 260.0,
+		'protein'   => 50.0,
+		'sugar'     => 90.0,
+		'fiber'     => 30.0,
+		'salt'      => 6.0,
 	);
 
 	/**
@@ -837,17 +838,134 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * What each reference figure is: a ceiling, a floor, or neither.
+	 *
+	 * The percentages were all printed the same way until 3.52.0, and that
+	 * made two opposite statements look identical: 100 % of the salt figure is
+	 * a day's *limit* reached, 100 % of the fibre figure is a day's *target*
+	 * met. "Complete" is the natural reading of a percentage, which is exactly
+	 * the wrong one for four of the eight.
+	 *
+	 * Energy and carbohydrate are neither — they describe an average adult's
+	 * intake, and whether a given person should sit above or below it is not
+	 * something a recipe plugin knows. Fat, saturates, sugars and salt are
+	 * upper guides, protein and fibre lower ones; this follows the EU's
+	 * reference intakes, which is where the figures themselves come from.
+	 *
+	 * @var array<string,string> Key => 'limit', 'target' or 'reference'.
+	 */
+	const NUTRITION_DIRECTIONS = array(
+		'calories'  => 'reference',
+		'fat'       => 'limit',
+		'saturates' => 'limit',
+		'carbs'     => 'reference',
+		'sugar'     => 'limit',
+		'fiber'     => 'target',
+		'protein'   => 'target',
+		'salt'      => 'limit',
+	);
+
+	/**
+	 * Whether a figure's reference is a ceiling, a floor or neither.
+	 *
+	 * Filterable beside the figures themselves: a site that sets its own
+	 * reference intakes may well mean something else by them — a sports diet
+	 * treating carbohydrate as a target rather than a neutral reference, for
+	 * one — and a figure whose direction it could not state would be printed
+	 * with the wrong one.
+	 *
+	 * @param string $key Nutrition key.
+	 * @return string 'limit', 'target' or 'reference'; 'reference' for
+	 *                anything unknown, which is the claim that says least.
+	 */
+	public static function nutrition_direction( string $key ): string {
+
+		$directions = (array) apply_filters( 'mixmymeals_nutrition_directions', self::NUTRITION_DIRECTIONS );
+		$direction  = (string) ( $directions[ $key ] ?? 'reference' );
+
+		return in_array( $direction, array( 'limit', 'target', 'reference' ), true ) ? $direction : 'reference';
+	}
+
+	/**
+	 * One percentage, with what its 100 % would mean.
+	 *
+	 * "75 % · max." and "60 % · min." rather than a sentence per cell: these
+	 * sit in a table column eight rows deep, in the PDF and in a mail, and a
+	 * clause repeated eight times is read once and then skipped. The marker is
+	 * short enough to survive that and distinct enough to ask about —
+	 * reference_intake_note(), which every one of those three places prints
+	 * under the figures, is what answers.
+	 *
+	 * @param string $key     Nutrition key.
+	 * @param float  $percent The percentage, as nutrition_percentages() gives it.
+	 * @return string
+	 */
+	public static function format_nutrition_percentage( string $key, float $percent ): string {
+
+		$value = sprintf( '%d %%', (int) round( $percent ) );
+
+		switch ( self::nutrition_direction( $key ) ) {
+
+			case 'limit':
+				/* translators: %s: a percentage, e.g. "75 %". The figure it refers to is an upper guide. */
+				return sprintf( __( '%s · max.', 'mixmymeals' ), $value );
+
+			case 'target':
+				/* translators: %s: a percentage, e.g. "60 %". The figure it refers to is a lower guide. */
+				return sprintf( __( '%s · min.', 'mixmymeals' ), $value );
+
+			default:
+				return $value;
+		}
+	}
+
+	/**
 	 * The wording that has to accompany any percentage of the reference intake,
 	 * so a number never reads as personal dietary advice.
+	 *
+	 * It now has a second job: saying which way the percentages point. Without
+	 * that, "100 % salt" reads as an achievement — see NUTRITION_DIRECTIONS.
+	 * The keys are named through nutrition_labels() rather than written out, so
+	 * the sentence cannot name a figure differently from the table above it.
 	 *
 	 * @return string
 	 */
 	public static function reference_intake_note(): string {
 
-		return (string) apply_filters(
-			'mixmymeals_reference_intake_note',
-			__( 'Percentages refer to the reference intake of an average adult (2 000 kcal). Your own needs may differ.', 'mixmymeals' )
+		$labels = self::nutrition_labels();
+		$named  = array(
+			'limit'  => array(),
+			'target' => array(),
 		);
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+
+			$direction = self::nutrition_direction( $key );
+
+			if ( isset( $named[ $direction ] ) ) {
+				$named[ $direction ][] = Mixmymeals_Ingredient::nutrition_label( $key );
+			}
+		}
+
+		$note = __( 'Percentages refer to the reference intake of an average adult (2 000 kcal). Your own needs may differ.', 'mixmymeals' );
+
+		if ( $named['limit'] ) {
+			$note .= ' ' . sprintf(
+				/* translators: %s: comma-separated list of nutrition figures, e.g. "Fat, Saturates, Sugars, Salt". */
+				__( 'Figures marked "max." are upper guides (%s): 100 %% is a day\'s limit reached, not a target met.', 'mixmymeals' ),
+				implode( ', ', $named['limit'] )
+			);
+		}
+
+		if ( $named['target'] ) {
+			$note .= ' ' . sprintf(
+				/* translators: %s: comma-separated list of nutrition figures, e.g. "Fibre, Protein". */
+				__( 'Figures marked "min." are lower guides (%s).', 'mixmymeals' ),
+				implode( ', ', $named['target'] )
+			);
+		}
+
+		return (string) apply_filters( 'mixmymeals_reference_intake_note', $note );
 	}
 
 	/**
@@ -880,13 +998,14 @@ class Mixmymeals_Meal_Plan {
 	public static function nutrition_labels(): array {
 
 		return array(
-			'calories' => __( 'Energy', 'mixmymeals' ),
-			'fat'      => __( 'Fat', 'mixmymeals' ),
-			'carbs'    => __( 'Carbohydrate', 'mixmymeals' ),
-			'sugar'    => __( 'of which sugars', 'mixmymeals' ),
-			'fiber'    => __( 'Fibre', 'mixmymeals' ),
-			'protein'  => __( 'Protein', 'mixmymeals' ),
-			'salt'     => __( 'Salt', 'mixmymeals' ),
+			'calories'  => __( 'Energy', 'mixmymeals' ),
+			'fat'       => __( 'Fat', 'mixmymeals' ),
+			'saturates' => __( 'of which saturates', 'mixmymeals' ),
+			'carbs'     => __( 'Carbohydrate', 'mixmymeals' ),
+			'sugar'     => __( 'of which sugars', 'mixmymeals' ),
+			'fiber'     => __( 'Fibre', 'mixmymeals' ),
+			'protein'   => __( 'Protein', 'mixmymeals' ),
+			'salt'      => __( 'Salt', 'mixmymeals' ),
 		);
 	}
 
