@@ -1993,7 +1993,7 @@ class Mixmymeals_Shortcodes {
 	 * traffic light, so the two cannot rate different numbers.
 	 *
 	 * @param Mixmymeals_Meal $meal The meal.
-	 * @return array{per_serving:array<string,float>, per_100g:array<string,float>, weight_per_serving:float}|null
+	 * @return array{per_serving:array<string,float>, per_100g:array<string,float>, weight_per_serving:float, cooked:string[]}|null
 	 *         Null when the recipe has no ingredients.
 	 */
 	private function meal_nutrition_figures( Mixmymeals_Meal $meal ): ?array {
@@ -2013,6 +2013,7 @@ class Mixmymeals_Shortcodes {
 
 		$totals           = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0 );
 		$totals['weight'] = 0;
+		$cooked           = array();
 
 		foreach ( $ingredients as $ing ) {
 
@@ -2036,7 +2037,12 @@ class Mixmymeals_Shortcodes {
 			}
 
 			// Cooked weight for what the portion weighs, raw for its nutrients.
-			$totals['weight'] += $ingredient_obj->cooked_weight( $weight, $pinned );
+			$cooked_weight     = $ingredient_obj->cooked_weight( $weight, $pinned );
+			$totals['weight'] += $cooked_weight;
+
+			if ( abs( $cooked_weight - $weight ) > 0.0001 ) {
+				$cooked[ (int) $ing['id'] ] = get_the_title( (int) $ing['id'] );
+			}
 
 			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
 				$totals[ $sum_key ] += (float) ( $nutrition[ $own_key ] ?? 0 ) * $weight / 100;
@@ -2070,6 +2076,8 @@ class Mixmymeals_Shortcodes {
 			'per_serving'        => $per_serving,
 			'per_100g'           => $per_100g,
 			'weight_per_serving' => $weight_per_serving,
+			// Ingredients whose cooking factor moved the weight, by name.
+			'cooked'             => array_values( $cooked ),
 		);
 	}
 
@@ -2222,12 +2230,21 @@ class Mixmymeals_Shortcodes {
 	 * @param array<string,array<string,string|null>> $data    Column → nutrient key → printed
 	 *                                                         figure; null prints a dash.
 	 * @param array<string,mixed>                     $args    `tokens` for headings, `lights`
-	 *                                                         from traffic_light_figures().
+	 *                                                         from traffic_light_figures(),
+	 *                                                         `cooked`: names of the
+	 *                                                         ingredients whose cooking
+	 *                                                         factor moved the weight.
 	 * @return string '' when the site has switched every column off.
 	 */
 	private function render_nutrition_table( string $context, array $data, array $args = array() ): string {
 
-		$config = Mixmymeals_Nutrition_Table::config( $context, (array) ( $args['tokens'] ?? array() ) );
+		$cooked = array_values( (array) ( $args['cooked'] ?? array() ) );
+		$tokens = (array) ( $args['tokens'] ?? array() );
+
+		/* translators: Marks a serving weight as the weight once cooked, e.g. "450 g cooked". */
+		$tokens['cooked'] = $cooked ? _x( 'cooked', 'serving weight', 'mixmymeals' ) : '';
+
+		$config = Mixmymeals_Nutrition_Table::config( $context, $tokens );
 
 		if ( empty( $config['columns'] ) ) {
 			return '';
@@ -2266,6 +2283,19 @@ class Mixmymeals_Shortcodes {
 		<?php if ( isset( $config['columns']['ri'] ) ) : ?>
 			<p class="mmm-nutri-note">
 				<?php echo esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() ); ?>
+			</p>
+		<?php endif; ?>
+		<?php
+		/*
+		 * Only where a factor actually moved the weight. Without it the same
+		 * recipe would show other figures per 100 g the day somebody enters a
+		 * factor, and nothing on the page would say why.
+		 */
+		$mmm_cooked_note = $config['cooked_note'] ? Mixmymeals_Nutrition_Table::cooked_note( $cooked ) : '';
+		?>
+		<?php if ( '' !== $mmm_cooked_note ) : ?>
+			<p class="mmm-nutri-note mmm-nutri-note--cooked">
+				<?php echo esc_html( $mmm_cooked_note ); ?>
 			</p>
 		<?php endif; ?>
 		<?php
@@ -2420,6 +2450,7 @@ class Mixmymeals_Shortcodes {
 			array(
 				'tokens' => array( 'weight' => (string) round( $weight_per_serving ) ),
 				'lights' => $lights,
+				'cooked' => $figures['cooked'] ?? array(),
 			)
 		);
 
@@ -3703,8 +3734,9 @@ class Mixmymeals_Shortcodes {
 				'per_100g' => $this->format_nutrition_column( $nutrition_per_100g ),
 			),
 			array(
-				'tokens' => array( 'weight' => (string) $nutrition_per_serving['weight_per_serving'] ),
+				'tokens' => array( 'weight' => (string) round( (float) $nutrition_per_serving['weight_per_serving'] ) ),
 				'lights' => $lights,
+				'cooked' => $recipe->get_cooked_ingredients(),
 			)
 		);
 
@@ -7229,6 +7261,18 @@ class Mixmymeals_Shortcodes {
 		$per_100g = $plan->calc_nutrition_per_100g();
 		$lights   = $this->traffic_light_figures( $meal_plan_id );
 
+		// Every dish on the plan whose weight a cooking factor moved: the
+		// per-100 g column is a mix of their cooked weights.
+		$mmm_plan_cooked = array();
+
+		foreach ( $meals as $mmm_meal_post ) {
+			$mmm_recipe = new Mixmymeals_Recipe( (int) ( new Mixmymeals_Meal( $mmm_meal_post->ID ) )->get_recipe_id() );
+
+			if ( $mmm_recipe->is_valid() ) {
+				$mmm_plan_cooked = array_merge( $mmm_plan_cooked, $mmm_recipe->get_cooked_ingredients() );
+			}
+		}
+
 		$stat_cards = [
 			'calories' => __( 'Ø Energy / day / person', 'mixmymeals' ),
 			'protein'  => __( 'Ø Protein / day / person', 'mixmymeals' ),
@@ -7264,7 +7308,10 @@ class Mixmymeals_Shortcodes {
 					'meal'     => $this->format_nutrition_column( $person_meal ),
 					'per_100g' => $this->format_nutrition_column( $per_100g ),
 				),
-				array( 'lights' => $lights )
+				array(
+					'lights' => $lights,
+					'cooked' => $mmm_plan_cooked,
+				)
 			);
 			?>
         </div>

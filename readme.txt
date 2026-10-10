@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.56.0
+Stable tag: 3.57.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.57.0 =
+
+Added:
+* Nutrition tables say when a cooking factor was applied: the serving
+  weight reads "450 g cooked", and a note under the table names the
+  ingredients whose factor moved the weight ("cooking factor for pasta,
+  minced meat"). Only where a factor actually changed something — a stated
+  1.0 does not count. Switchable per table under Settings, beside the
+  traffic light; a custom serving heading places the word with {cooked}.
 
 = 3.56.0 =
 

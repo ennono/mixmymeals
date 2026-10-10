@@ -50,6 +50,16 @@ class Mixmymeals_Recipe {
 	private static $per_serving_cache = array();
 
 	/**
+	 * Per-request names of the ingredients whose cooking factor changed the
+	 * weight, keyed by recipe ID. Filled by the same pass that sums the weight,
+	 * so the note under a table cannot name a different set than the one the
+	 * figures were computed from.
+	 *
+	 * @var array<int, string[]>
+	 */
+	private static $cooked_cache = array();
+
+	/**
 	 * Per-request cost per serving, keyed by recipe ID.
 	 *
 	 * @var array<int, float>
@@ -961,6 +971,7 @@ class Mixmymeals_Recipe {
 		 */
 		unset(
 			self::$per_serving_cache[ $this->post_id ],
+			self::$cooked_cache[ $this->post_id ],
 			self::$cost_cache[ $this->post_id ],
 			self::$coverage_cache[ $this->post_id ]
 		);
@@ -1089,10 +1100,13 @@ class Mixmymeals_Recipe {
 		}
 
 		if ( ! $this->is_valid() ) {
+			self::$cooked_cache[ $this->post_id ] = array();
 			return self::$per_serving_cache[ $this->post_id ] = [];
 		}
 
-		[ $totals, $total_weight ] = $this->_calculate_total_nutrition( 1.0 );
+		[ $totals, $total_weight, $cooked ] = $this->_calculate_total_nutrition( 1.0 );
+
+		self::$cooked_cache[ $this->post_id ] = $cooked;
 
 		$servings = max(1.0, floatval($this->get_servings()));
 
@@ -1185,6 +1199,7 @@ class Mixmymeals_Recipe {
 		$totals = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0.0 );
 
 		$total_weight = 0.0;
+		$cooked       = array();
 
 		foreach ($ingredients as $ing) {
 
@@ -1208,7 +1223,13 @@ class Mixmymeals_Recipe {
 			 * cooked one: water taken up or boiled off carries no nutrients, but
 			 * it is on the plate, and everything per 100 g divides by it.
 			 */
-			$total_weight += $ingredient_obj->cooked_weight( $weight, $pinned );
+			$cooked_weight = $ingredient_obj->cooked_weight( $weight, $pinned );
+			$total_weight += $cooked_weight;
+
+			// Only a factor that moved the weight: a stated 1.0 corrects nothing.
+			if ( abs( $cooked_weight - $weight ) > 0.0001 ) {
+				$cooked[ (int) $ing['id'] ] = get_the_title( (int) $ing['id'] );
+			}
 
 			// Zweiter Gürtel: get_nutrition() liefert bereits float|null, aber
 			// diese Rechnung darf unter keinen Umständen fatal werden — sie
@@ -1218,7 +1239,22 @@ class Mixmymeals_Recipe {
 			}
 		}
 
-		return [$totals, $total_weight];
+		return [ $totals, $total_weight, array_values( $cooked ) ];
+	}
+
+	/**
+	 * The ingredients whose cooking factor changed this recipe's weight, by
+	 * name, in recipe order; empty when the weight is the raw sum.
+	 *
+	 * @return string[]
+	 */
+	public function get_cooked_ingredients(): array {
+
+		if ( ! isset( self::$cooked_cache[ $this->post_id ] ) ) {
+			$this->calculate_nutrition_per_serving();
+		}
+
+		return self::$cooked_cache[ $this->post_id ] ?? array();
 	}
 
 	/**

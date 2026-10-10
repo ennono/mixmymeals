@@ -170,7 +170,31 @@ try {
 	setup_postdata( $GLOBALS['post'] );
 	$table = do_shortcode( '[mmm_meal_nutrition_table_for_a_single_meal]' );
 	wp_reset_postdata();
-	mmm_cf_assert( false !== strpos( $table, '(450 g)' ), 'Mahlzeit nennt das gegarte Portionsgewicht' );
+	mmm_cf_assert( 1 === preg_match( '/\(450 g \S+\)/u', $table ), 'Mahlzeit nennt das gegarte Portionsgewicht, gekennzeichnet' );
+	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ) && false !== strpos( $table, 'ZZ Nudeln' ), 'Mahlzeit: Hinweis unter der Tabelle nennt die Zutat' );
+
+	$table = do_shortcode( '[mmm_nutrition_table_for_a_single_recipe post_id="' . $recipe . '"]' );
+	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ), 'Rezept: Hinweis vorhanden' );
+	mmm_cf_assert( array( 'ZZ Nudeln' ) === $r->get_cooked_ingredients(), 'Rezept: genau die Zutat mit Faktor, nicht die Sauce' );
+
+	$table = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan . '"]' );
+	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ), 'Plan: Hinweis vorhanden' );
+
+	$mmm_cf_option = get_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', false );
+	update_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', Mixmymeals_Nutrition_Table::sanitize( 'recipe', array( 'columns' => array( 'serving' => array( 'show' => '1' ) ) ) ) );
+	$table = do_shortcode( '[mmm_nutrition_table_for_a_single_recipe post_id="' . $recipe . '"]' );
+	mmm_cf_assert( false === strpos( $table, 'mmm-nutri-note--cooked' ) && false !== strpos( $table, '(450 g)' ), 'Schalter aus: kein Hinweis, keine Kennzeichnung' );
+	if ( false === $mmm_cf_option ) {
+		delete_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe' );
+	} else {
+		update_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', $mmm_cf_option );
+	}
+
+	$ing->set_cooking_factor( 1.0 );
+	$r->set_steps( $r->get_steps() );
+	mmm_cf_assert( array() === $r->get_cooked_ingredients(), 'Faktor 1,0 bewegt nichts und wird nicht genannt' );
+	$ing->set_cooking_factor( 2.5 );
+	$r->set_steps( $r->get_steps() );
 
 	echo "\n=== 4. Bulk und Lückenliste ===\n";
 

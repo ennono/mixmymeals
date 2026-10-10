@@ -271,6 +271,11 @@ class Mixmymeals_Admin_API {
 				         . '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[light]' ) . '"'
 				         . checked( $config['light'], true, false ) . ' /> '
 				         . esc_html__( 'Show the traffic light in this table', 'mixmymeals' ) . '</label></p>'
+				         . ( in_array( $context, Mixmymeals_Nutrition_Table::COOKING_CONTEXTS, true )
+					         ? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[cooked_note]' ) . '"'
+					           . checked( $config['cooked_note'], true, false ) . ' /> '
+					           . esc_html__( 'Mark the cooked weight and name the cooking factors under the table', 'mixmymeals' ) . '</label></p>'
+					         : '' )
 				         . '<p class="description">'
 				         . esc_html__( 'The thresholds are set under Settings → Ingredients. Switching the light off here also hides it where it is printed on its own.', 'mixmymeals' )
 				         . '</p>';

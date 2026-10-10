@@ -45,6 +45,12 @@ final class Mixmymeals_Nutrition_Table {
 	);
 
 	/**
+	 * The subjects whose figures can rest on a cooking factor. An ingredient's
+	 * table states the ingredient as bought, so it never does.
+	 */
+	const COOKING_CONTEXTS = array( 'recipe', 'meal', 'plan' );
+
+	/**
 	 * The subjects that have a table, with their settings label.
 	 *
 	 * @return array<string,string>
@@ -101,7 +107,7 @@ final class Mixmymeals_Nutrition_Table {
 					'serving'  => array(
 						'title' => __( 'per serving', 'mixmymeals' ),
 						'on'    => true,
-						'note'  => __( 'Add {weight} to the heading to print the weight of a serving in grams; without it the default heading carries the weight in brackets.', 'mixmymeals' ),
+						'note'  => __( 'Add {weight} to the heading to print the weight of a serving in grams, and {cooked} for the word marking it as cooked; without them the default heading carries both in brackets.', 'mixmymeals' ),
 					),
 					'ri'       => array(
 						'title' => __( 'of RI*', 'mixmymeals' ),
@@ -164,15 +170,27 @@ final class Mixmymeals_Nutrition_Table {
 	 *
 	 * @param string               $context ingredient, recipe, meal or plan.
 	 * @param array<string,string> $tokens  Values for placeholders in headings
-	 *                                      ({weight}); a heading without the
-	 *                                      placeholder is printed as typed.
-	 * @return array{label:string,columns:array<string,string>,light:bool}
+	 *                                      ({weight}, {cooked}); a heading
+	 *                                      without the placeholder is printed
+	 *                                      as typed.
+	 * @return array{label:string,columns:array<string,string>,light:bool,cooked_note:bool}
 	 */
 	public static function config( string $context, array $tokens = array() ): array {
 
 		$available = self::available_columns( $context );
 		$stored    = get_option( self::OPTION_PREFIX . $context, false );
 		$stored    = is_array( $stored ) && isset( $stored['columns'] ) && is_array( $stored['columns'] ) ? $stored : array();
+
+		/*
+		 * By key, not by "was it saved": an option saved before this switch
+		 * existed carries no such key, and reading that as "off" would hide
+		 * the note on every site that had touched its table.
+		 */
+		$cooked_note = in_array( $context, self::COOKING_CONTEXTS, true )
+			&& ( array_key_exists( 'cooked_note', $stored ) ? ! empty( $stored['cooked_note'] ) : true );
+
+		// Switched off, the marker goes with the note: one decision.
+		$tokens['cooked'] = $cooked_note ? (string) ( $tokens['cooked'] ?? '' ) : '';
 
 		$columns = array();
 
@@ -193,13 +211,16 @@ final class Mixmymeals_Nutrition_Table {
 				// The default heading names the weight itself, so a serving's
 				// size is stated without every site having to ask for it.
 				if ( isset( $tokens['weight'] ) && 'serving' === $key ) {
-					$title .= ' (' . $tokens['weight'] . ' g)';
+					$title .= ' (' . $tokens['weight'] . ' g' . ( '' !== $tokens['cooked'] ? ' ' . $tokens['cooked'] : '' ) . ')';
 				}
 			}
 
 			foreach ( $tokens as $token => $value ) {
-				$title = str_replace( '{' . $token . '}', $value, $title );
+				$title = str_replace( '{' . $token . '}', (string) $value, $title );
 			}
+
+			// An empty {cooked} must not leave "(450 g )" behind.
+			$title = trim( (string) preg_replace( array( '/\s+/', '/\s+\)/' ), array( ' ', ')' ), $title ) );
 
 			$columns[ $key ] = $title;
 		}
@@ -209,7 +230,38 @@ final class Mixmymeals_Nutrition_Table {
 		return array(
 			'label'   => '' === $label ? self::default_label() : $label,
 			'columns' => $columns,
-			'light'   => isset( $stored['columns'] ) ? ! empty( $stored['light'] ) : true,
+			'light'       => isset( $stored['columns'] ) ? ! empty( $stored['light'] ) : true,
+			'cooked_note' => $cooked_note,
+		);
+	}
+
+	/**
+	 * The note under a table whose weight rests on cooking factors, or ''.
+	 *
+	 * Names the ingredients, because "cooked" alone does not say which part of
+	 * the dish was corrected, and the reader comparing two recipes needs to
+	 * know why the same pasta weighs differently in each.
+	 *
+	 * @param string[] $names Ingredient names with a factor that changed the weight.
+	 * @return string Plain text.
+	 */
+	public static function cooked_note( array $names ): string {
+
+		$names = array_values( array_unique( array_filter( array_map( 'strval', $names ) ) ) );
+
+		if ( ! $names ) {
+			return '';
+		}
+
+		// A plan can name dozens; the first few say what kind of correction it is.
+		$more  = count( $names ) > 6;
+		$names = array_slice( $names, 0, 6 );
+		$list  = implode( ', ', $names ) . ( $more ? ' …' : '' );
+
+		return sprintf(
+			/* translators: %s: comma-separated ingredient names. */
+			__( 'Weight and figures per 100 g refer to the cooked dish (cooking factor for %s).', 'mixmymeals' ),
+			$list
 		);
 	}
 
@@ -253,6 +305,10 @@ final class Mixmymeals_Nutrition_Table {
 			'light'   => empty( $input['light'] ) ? '' : '1',
 			'columns' => array(),
 		);
+
+		if ( in_array( $context, self::COOKING_CONTEXTS, true ) ) {
+			$out['cooked_note'] = empty( $input['cooked_note'] ) ? '' : '1';
+		}
 
 		$any = false;
 

@@ -7037,8 +7037,8 @@ msgid "The only column the traffic light can be read against."
 msgstr "Die einzige Spalte, an der sich die Ampel ablesen lässt."
 
 #: includes/lib/class-mixmymeals-nutrition-table.php
-msgid "Add {weight} to the heading to print the weight of a serving in grams; without it the default heading carries the weight in brackets."
-msgstr "{weight} in der Überschrift gibt das Gewicht einer Portion in Gramm aus; ohne Eintrag nennt die Standardüberschrift das Gewicht in Klammern."
+msgid "Add {weight} to the heading to print the weight of a serving in grams, and {cooked} for the word marking it as cooked; without them the default heading carries both in brackets."
+msgstr "{weight} in der Überschrift gibt das Gewicht einer Portion in Gramm aus, {cooked} das Wort, das es als gegart kennzeichnet; ohne beides nennt die Standardüberschrift sie in Klammern."
 
 #: includes/lib/class-mixmymeals-nutrition-table.php
 msgid "Share of the reference intake that one serving covers."
@@ -7108,3 +7108,17 @@ msgstr "Derzeit vom Produkt %1$s festgelegt: %2$s."
 #: includes/lib/class-mixmymeals-post-meta.php
 msgid "as ingredient"
 msgstr "wie Zutat"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+#, php-format
+msgid "Weight and figures per 100 g refer to the cooked dish (cooking factor for %s)."
+msgstr "Gewicht und Werte pro 100 g beziehen sich auf das gegarte Gericht (Garfaktor für %s)."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgctxt "serving weight"
+msgid "cooked"
+msgstr "gegart"
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "Mark the cooked weight and name the cooking factors under the table"
+msgstr "Gegartes Gewicht kennzeichnen und Garfaktoren unter der Tabelle nennen"
