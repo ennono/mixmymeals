@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.55.0
+Stable tag: 3.55.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.55.1 =
+
+Changed:
+* The product-impact tables (plan and meal) carry the same classes as the
+  nutrition tables — `mmm-nutrition-table mmm-nutri-table
+  mmm-nutri-table--impact` — so a theme styles them alike, including the
+  card layout on phones. Their cell labels now include the brand.
+* The plan's per-100 g column is headed "Avg. per 100 g" by default.
+* German strings for the nutrition-table settings are compiled.
 
 = 3.55.0 =
 

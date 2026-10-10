@@ -10317,12 +10317,12 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
 
 					<div class="mmm-product-impact__scroll">
-						<table class="mmm-nutrition-table"<?php echo '' !== $caption ? ' aria-describedby="' . esc_attr( $mmm_caption_id ) . '"' : ''; ?>>
+						<table class="mmm-nutrition-table mmm-nutri-table mmm-nutri-table--impact"<?php echo '' !== $caption ? ' aria-describedby="' . esc_attr( $mmm_caption_id ) . '"' : ''; ?>>
 							<thead>
 							<tr>
-								<th><?php echo esc_html( $unit_label ); ?></th>
+								<th class="mmm-nutri-table__col mmm-nutri-table__col--label"><?php echo esc_html( $unit_label ); ?></th>
 								<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
-									<th>
+									<th class="mmm-nutri-table__col mmm-nutri-table__col--product<?php echo $mmm_row['is_anchor'] ? ' mmm-nutri-table__col--base' : ''; ?>">
 										<div class="mmm-product-impact__product">
 											<?php echo esc_html( $mmm_row['title'] ); ?>
 											<?php if ( $mmm_row['is_reference'] ) : ?>
@@ -10395,7 +10395,7 @@ class Mixmymeals_Shortcodes {
 									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php esc_html_e( 'Diet', 'mixmymeals' ); ?></td>
 									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
 										<td class="<?php echo esc_attr( $mmm_row['is_anchor'] ? 'mmm-product-impact__base' : 'mmm-product-impact__delta' ); ?>"
-											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
+											data-label="<?php echo esc_attr( trim( $mmm_row['title'] . ' ' . ( '' !== ( $mmm_row['brand'] ?? '' ) ? '(' . $mmm_row['brand'] . ')' : '' ) ) ); ?>">
 											<?php
 											/*
 											 * A dash where the packet says
@@ -10413,7 +10413,7 @@ class Mixmymeals_Shortcodes {
 								</tr>
 							<?php endif; ?>
 							<?php foreach ( $labels as $mmm_key => $mmm_label ) : ?>
-								<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
+								<tr<?php echo in_array( $mmm_key, array( 'sugar', 'saturates' ), true ) ? ' class="mmm-nutri-table__sub mmm-nutrition-table__sub"' : ''; ?>>
 									<td data-label="<?php echo esc_attr( $unit_label ); ?>"><?php echo esc_html( $mmm_label ); ?></td>
 									<?php foreach ( $mmm_group['products'] as $mmm_row ) : ?>
 										<?php
@@ -10441,7 +10441,7 @@ class Mixmymeals_Shortcodes {
 										}
 										?>
 										<td class="<?php echo esc_attr( $mmm_class ); ?>"
-											data-label="<?php echo esc_attr( $mmm_row['title'] ); ?>">
+											data-label="<?php echo esc_attr( trim( $mmm_row['title'] . ' ' . ( '' !== ( $mmm_row['brand'] ?? '' ) ? '(' . $mmm_row['brand'] . ')' : '' ) ) ); ?>">
 											<?php echo esc_html( $mmm_text ); ?>
 										</td>
 									<?php endforeach; ?>
