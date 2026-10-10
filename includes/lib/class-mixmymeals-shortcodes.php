@@ -111,6 +111,9 @@ class Mixmymeals_Shortcodes {
 			array( $this, 'mmm_nutrition_table_for_a_single_ingredient_callback' ) );
 		add_shortcode( 'mmm_ingredient_products',
 			[ $this, 'mmm_ingredient_products_callback' ] );
+		// Works on ingredients, recipes, meals and plans alike.
+		add_shortcode( 'mmm_nutrition_traffic_lights',
+			array( $this, 'mmm_nutrition_traffic_lights_callback' ) );
 		add_shortcode( 'mmm_recipes_for_a_single_ingredient',
 			array( $this, 'mmm_recipes_for_a_single_ingredient_callback' ) );
 		add_shortcode( 'mmm_ingredients_index',
@@ -1983,30 +1986,17 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Shortcode [mmm_meal_nutrition_table_for_a_single_meal].
-	 * Renders a nutrition table for the current meal, scaled to the meal's serving count.
+	 * A meal's figures, scaled to its own servings: per serving, per 100 g and
+	 * the weight of one serving. Shared by the meal's nutrition table and its
+	 * traffic light, so the two cannot rate different numbers.
 	 *
-	 * @return string
+	 * @param Mixmymeals_Meal $meal The meal.
+	 * @return array{per_serving:array<string,float>, per_100g:array<string,float>, weight_per_serving:float}|null
+	 *         Null when the recipe has no ingredients.
 	 */
-	public function mmm_meal_nutrition_table_for_a_single_meal_callback(): string {
+	private function meal_nutrition_figures( Mixmymeals_Meal $meal ): ?array {
 
-		$post_id = get_the_ID();
-
-		if ( ! $post_id || get_post_type( $post_id ) !== 'mmm_meal' ) {
-			return '<p>'
-			       . esc_html__( 'This shortcode can only be used on meal posts.',
-					'mixmymeals' )
-			       . '</p>';
-		}
-
-		$meal      = new Mixmymeals_Meal( $post_id );
 		$recipe_id = $meal->get_recipe_id();
-
-		if ( ! $recipe_id ) {
-			return '<p>' . esc_html__( 'No recipe assigned to this meal.',
-					'mixmymeals' ) . '</p>';
-		}
-
 		$recipe = new Mixmymeals_Recipe( $recipe_id );
 
 		$recipe_servings = max( 1.0, floatval( $recipe->get_servings() ) );
@@ -2016,10 +2006,7 @@ class Mixmymeals_Shortcodes {
 		$ingredients = $recipe->get_ingredients_scaled( $factor );
 
 		if ( empty( $ingredients ) ) {
-			return '<p>'
-			       . esc_html__( 'No ingredients found for this recipe.',
-					'mixmymeals' )
-			       . '</p>';
+			return null;
 		}
 
 		$totals           = array_fill_keys( Mixmymeals_Meal_Plan::NUTRITION_KEYS, 0 );
@@ -2075,6 +2062,232 @@ class Mixmymeals_Shortcodes {
 				: 0;
 		}
 
+		return array(
+			'per_serving'        => $per_serving,
+			'per_100g'           => $per_100g,
+			'weight_per_serving' => $weight_per_serving,
+		);
+	}
+
+	/**
+	 * The figures per 100 g the traffic light rates, for an ingredient, a
+	 * recipe, a meal or a plan — the one place that decides which number a
+	 * light is drawn from, so a table and the [mmm_nutrition_traffic_lights]
+	 * row cannot disagree.
+	 *
+	 * Ingredients resolve through their product like every other read; a
+	 * recipe, a meal and a plan sum those. A figure comes back **null**, and
+	 * gets no light, when part of the dish has no value for it
+	 * (Mixmymeals_Recipe::nutrition_coverage()): a missing salt figure lowers
+	 * the sum silently, and a green light on a sum that is short of its salt
+	 * is the most misleading thing this could print.
+	 *
+	 * @param int $post_id Ingredient, recipe, meal or plan.
+	 * @return array<string,float|null> Keyed by Mixmymeals_Meal_Plan::NUTRITION_KEYS;
+	 *                                  empty for anything else.
+	 */
+	private function traffic_light_figures( int $post_id ): array {
+
+		$keys = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
+
+		switch ( get_post_type( $post_id ) ) {
+
+			case 'mmm_ingredient':
+				$nutrition = ( new Mixmymeals_Ingredient( $post_id ) )->get_nutrition();
+				$out       = array();
+
+				foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
+					$value           = $nutrition[ $own_key ] ?? null;
+					$out[ $sum_key ] = is_numeric( $value ) ? (float) $value : null;
+				}
+
+				return $out;
+
+			case 'mmm_recipe':
+				$recipes = array( $post_id );
+				$recipe  = new Mixmymeals_Recipe( $post_id );
+				$figures = $recipe->is_valid() && $recipe->calculate_nutrition_per_serving()['weight_per_serving'] > 0
+					? $recipe->calculate_nutrition_per_100g()
+					: array();
+				break;
+
+			case 'mmm_meal':
+				$meal    = new Mixmymeals_Meal( $post_id );
+				$recipes = array( (int) $meal->get_recipe_id() );
+				$figures = (array) ( $this->meal_nutrition_figures( $meal )['per_100g'] ?? array() );
+
+				// Weightless means nothing was summed; 0 there is not a figure.
+				if ( ! array_filter( $figures ) ) {
+					$figures = array();
+				}
+				break;
+
+			case 'mmm_meal_plan':
+				$plan    = new Mixmymeals_Meal_Plan( $post_id );
+				$recipes = array();
+
+				foreach ( $plan->get_meals() as $meal_post ) {
+					$recipes[] = (int) ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id();
+				}
+
+				$figures = $plan->calc_nutrition_per_100g();
+				break;
+
+			default:
+				return array();
+		}
+
+		$out = array_fill_keys( $keys, null );
+
+		if ( empty( $figures ) ) {
+			return $out;
+		}
+
+		foreach ( $keys as $key ) {
+			$out[ $key ] = isset( $figures[ $key ] ) ? (float) $figures[ $key ] : null;
+		}
+
+		// A figure the dish is short of anywhere gets no light at all.
+		foreach ( array_unique( array_filter( $recipes ) ) as $recipe_id ) {
+
+			$coverage = ( new Mixmymeals_Recipe( $recipe_id ) )->nutrition_coverage();
+
+			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
+				if ( empty( $coverage['keys'][ $own_key ]['complete'] ) ) {
+					$out[ $sum_key ] = null;
+				}
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * One traffic light, as plain markup for the theme to draw.
+	 *
+	 * The word is the content and the colour a modifier class: the plugin says
+	 * "high", the theme decides what high looks like. `data-amount` carries the
+	 * same fact unlocalised, for a theme that wants to select on it.
+	 *
+	 * @param string     $key      Sum key.
+	 * @param float|null $per_100g Figure per 100 g, null when unknown.
+	 * @return string '' when the figure has no light.
+	 */
+	private function traffic_light_markup( string $key, ?float $per_100g ): string {
+
+		$light = Mixmymeals_Ingredient::traffic_light( $key, $per_100g );
+
+		if ( ! $light ) {
+			return '';
+		}
+
+		return sprintf(
+			'<span class="mmm-traffic-light mmm-traffic-light--%1$s" data-amount="%2$s">%3$s</span>',
+			esc_attr( $light['colour'] ),
+			esc_attr( $light['amount'] ),
+			esc_html( Mixmymeals_Ingredient::traffic_light_label( $light['amount'] ) )
+		);
+	}
+
+	/**
+	 * The light behind a figure in a per-100 g table cell, with the space that
+	 * separates it from the number; '' when the figure has none.
+	 *
+	 * @param string $key    Sum key.
+	 * @param array  $lights From traffic_light_figures().
+	 * @return string
+	 */
+	private function traffic_light_cell_suffix( string $key, array $lights ): string {
+
+		$light = $this->traffic_light_markup( $key, $lights[ $key ] ?? null );
+
+		return '' === $light ? '' : ' ' . $light;
+	}
+
+	/**
+	 * Shortcode [mmm_nutrition_traffic_lights].
+	 *
+	 * The lights on their own, one list item per figure that has one — the
+	 * front-of-pack row, for a theme that wants it above the table rather than
+	 * in it. Nothing when no figure has a light.
+	 *
+	 * @param array|string $atts post_id: ingredient, recipe, meal or plan;
+	 *                           defaults to the current post.
+	 * @return string
+	 */
+	public function mmm_nutrition_traffic_lights_callback( $atts = array() ): string {
+
+		$atts    = shortcode_atts( array( 'post_id' => 0 ), $atts, 'mmm_nutrition_traffic_lights' );
+		$post_id = absint( $atts['post_id'] );
+		$post_id = $post_id ? $post_id : (int) get_the_ID();
+
+		$figures = $post_id ? $this->traffic_light_figures( $post_id ) : array();
+		$items   = '';
+
+		foreach ( $figures as $key => $value ) {
+
+			$light = $this->traffic_light_markup( $key, $value );
+
+			if ( '' === $light ) {
+				continue;
+			}
+
+			$items .= sprintf(
+				'<li class="mmm-traffic-lights__item"><span class="mmm-traffic-lights__label">%1$s</span> <span class="mmm-traffic-lights__value">%2$s</span> %3$s</li>',
+				esc_html( Mixmymeals_Ingredient::nutrition_label( $key ) ),
+				esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $value ) ),
+				$light
+			);
+		}
+
+		if ( '' === $items ) {
+			return '';
+		}
+
+		return '<ul class="mmm-traffic-lights" aria-label="'
+		       . esc_attr__( 'Traffic light per 100 g', 'mixmymeals' ) . '">'
+		       . $items . '</ul>';
+	}
+
+	/**
+	 * Shortcode [mmm_meal_nutrition_table_for_a_single_meal].
+	 * Renders a nutrition table for the current meal, scaled to the meal's serving count.
+	 *
+	 * @return string
+	 */
+	public function mmm_meal_nutrition_table_for_a_single_meal_callback(): string {
+
+		$post_id = get_the_ID();
+
+		if ( ! $post_id || get_post_type( $post_id ) !== 'mmm_meal' ) {
+			return '<p>'
+			       . esc_html__( 'This shortcode can only be used on meal posts.',
+					'mixmymeals' )
+			       . '</p>';
+		}
+
+		$meal      = new Mixmymeals_Meal( $post_id );
+		$recipe_id = $meal->get_recipe_id();
+
+		if ( ! $recipe_id ) {
+			return '<p>' . esc_html__( 'No recipe assigned to this meal.',
+					'mixmymeals' ) . '</p>';
+		}
+
+		$figures = $this->meal_nutrition_figures( $meal );
+
+		if ( null === $figures ) {
+			return '<p>'
+			       . esc_html__( 'No ingredients found for this recipe.',
+					'mixmymeals' )
+			       . '</p>';
+		}
+
+		$per_serving        = $figures['per_serving'];
+		$per_100g           = $figures['per_100g'];
+		$weight_per_serving = $figures['weight_per_serving'];
+		$lights             = $this->traffic_light_figures( $post_id );
+
 		ob_start();
 		?>
         <div class="mmm-meal-nutrition">
@@ -2121,7 +2334,7 @@ class Mixmymeals_Shortcodes {
 						?>
 
                         <td><?php echo esc_html( $serving_value ); ?><?php echo esc_html( $unit ); ?></td>
-                        <td><?php echo esc_html( $per100_value ); ?><?php echo esc_html( $unit ); ?></td>
+                        <td><?php echo esc_html( $per100_value ); ?><?php echo esc_html( $unit ); ?><?php echo $this->traffic_light_cell_suffix( $key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
                     </tr>
 				<?php endforeach; ?>
 
@@ -3393,6 +3606,7 @@ class Mixmymeals_Shortcodes {
 
 		$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
 		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
+		$lights                = $this->traffic_light_figures( $post_id );
 
 		ob_start();
 		?>
@@ -3424,7 +3638,7 @@ class Mixmymeals_Shortcodes {
                 <tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
                     <td><?php echo esc_html( $mmm_label ); ?></td>
                     <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_serving[ $mmm_key ] ?? 0 ) ) ); ?></td>
-                    <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_100g[ $mmm_key ] ?? 0 ) ) ); ?></td>
+                    <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_100g[ $mmm_key ] ?? 0 ) ) ); ?><?php echo $this->traffic_light_cell_suffix( $mmm_key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
                 </tr>
 				<?php endforeach; ?>
                 </tbody>
@@ -6953,6 +7167,11 @@ class Mixmymeals_Shortcodes {
 		$labels      = Mixmymeals_Meal_Plan::nutrition_labels();
 		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $person_day );
 
+		// Per 100 g of what is eaten: the only column a traffic light can be
+		// read against, since a day's total depends on how much is eaten.
+		$per_100g = $plan->calc_nutrition_per_100g();
+		$lights   = $this->traffic_light_figures( $meal_plan_id );
+
 		$stat_cards = [
 			'calories' => __( 'Ø Energy / day / person', 'mixmymeals' ),
 			'protein'  => __( 'Ø Protein / day / person', 'mixmymeals' ),
@@ -6982,6 +7201,7 @@ class Mixmymeals_Shortcodes {
                     <th><?php esc_html_e( 'Avg. per day / person', 'mixmymeals' ); ?></th>
                     <th><?php esc_html_e( 'of RI*', 'mixmymeals' ); ?></th>
                     <th><?php esc_html_e( 'Avg. per meal / person', 'mixmymeals' ); ?></th>
+                    <th><?php esc_html_e( 'per 100 g', 'mixmymeals' ); ?></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -6992,6 +7212,7 @@ class Mixmymeals_Shortcodes {
                         <td data-label="<?php echo esc_attr__( 'Avg. per day / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_day[ $key ] ) ); ?></td>
                         <td data-label="<?php echo esc_attr__( 'of RI*', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ); ?></td>
                         <td data-label="<?php echo esc_attr__( 'Avg. per meal / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_meal[ $key ] ) ); ?></td>
+                        <td data-label="<?php echo esc_attr__( 'per 100 g', 'mixmymeals' ); ?>"><?php echo esc_html( null === $per_100g[ $key ] ? '–' : Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $per_100g[ $key ] ) ); ?><?php echo $this->traffic_light_cell_suffix( $key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
                     </tr>
 				<?php endforeach; ?>
                 </tbody>
@@ -9489,17 +9710,18 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return $this->render_ingredient_nutrition_table( $ingredient->get_nutrition() );
+		return $this->render_ingredient_nutrition_table( $ingredient->get_nutrition(), $this->traffic_light_figures( $ingredient_id ) );
 	}
 
 	/**
 	 * Builds the per-100 g nutrition table for an ingredient, or '' when there
 	 * are no values.
 	 *
-	 * @param array $nutri Nutrition data from Mixmymeals_Ingredient::get_nutrition().
+	 * @param array $nutri  Nutrition data from Mixmymeals_Ingredient::get_nutrition().
+	 * @param array $lights Figures for the traffic light, from traffic_light_figures().
 	 * @return string
 	 */
-	private function render_ingredient_nutrition_table( array $nutri ): string {
+	private function render_ingredient_nutrition_table( array $nutri, array $lights = array() ): string {
 
 		// Same labels and order as everywhere else; only the energy key differs,
 		// because an ingredient stores its calories per 100 g.
@@ -9539,14 +9761,44 @@ class Mixmymeals_Shortcodes {
 					<?php $val = isset( $nutri[ $mmm_field ] ) ? (float) $nutri[ $mmm_field ] : 0.0; ?>
 					<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
 						<td><?php echo esc_html( $labels[ $mmm_key ] ); ?></td>
-						<td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, $val ) ); ?></td>
+						<td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, $val ) ); ?><?php echo $this->traffic_light_cell_suffix( $mmm_key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
 					</tr>
 				<?php endforeach; ?>
 				</tbody>
 			</table>
 		</div>
 		<?php
-		return (string) ob_get_clean();
+		return (string) ob_get_clean() . self::ingredient_disclaimer();
+	}
+
+	/**
+	 * The recipe disclaimer on an ingredient page, when the site asks for it
+	 * there.
+	 *
+	 * Under the nutrition table rather than at the foot of the page, and the
+	 * same text as on a recipe rather than one of its own: what such a text
+	 * has to say about figures — that they are estimates, that the traffic
+	 * light is not an official labelling, that the packet in the shopping
+	 * basket is what counts — is about the table it now stands under. A second
+	 * setting holding a second wording would drift from the first the day
+	 * either is edited.
+	 *
+	 * Rendered with the class the recipe and meal shortcodes use, so the theme
+	 * styles one thing and not three.
+	 *
+	 * @return string '' when switched off or when no disclaimer is set.
+	 */
+	private static function ingredient_disclaimer(): string {
+
+		if ( 'on' !== get_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' ) ) {
+			return '';
+		}
+
+		$text = trim( (string) get_option( 'mixmymeals_recipe_disclaimer_text', '' ) );
+
+		return '' === $text
+			? ''
+			: '<p class="mmm-recipe-disclaimer">' . esc_html( $text ) . '</p>';
 	}
 
 	/**

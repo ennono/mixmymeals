@@ -530,6 +530,51 @@ mmm_nc_is(
 	)
 );
 
+echo "\n=== 11. Disclaimer auf der Zutatenseite ===\n";
+
+/*
+ * Der Rezept-Disclaimer erreichte nur Rezept- und Mahlzeitenseiten. Die
+ * Zutatenseite zeigt Nährwerttabelle und Ampel — also genau das, worüber so
+ * ein Text etwas sagt.
+ */
+$mmm_nc_disclaimer_before = get_option( 'mixmymeals_recipe_disclaimer_text', '' );
+$mmm_nc_switch_before     = get_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' );
+
+update_option( 'mixmymeals_recipe_disclaimer_text', 'ZZ Hinweis: Verbindlich ist die Packung.' );
+update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' );
+
+$disc_ing = mmm_nc_ing( 'ZZ Mit Nährwerten', $full );
+$render   = static fn(): string => do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' );
+
+mmm_nc_assert( false === strpos( $render(), 'ZZ Hinweis' ), 'ausgeschaltet: kein Hinweis unter der Tabelle' );
+
+update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', 'on' );
+mmm_nc_assert( false !== strpos( $render(), 'ZZ Hinweis' ), 'eingeschaltet: der Hinweis steht da' );
+mmm_nc_assert(
+	false !== strpos( $render(), 'mmm-recipe-disclaimer' ),
+	'und trägt dieselbe Klasse wie auf der Rezeptseite'
+);
+mmm_nc_assert(
+	strpos( $render(), 'ZZ Hinweis' ) > strpos( $render(), '</table>' ),
+	'unter der Tabelle, nicht darüber'
+);
+
+// Ein leerer Disclaimer darf keinen leeren Absatz erzeugen.
+update_option( 'mixmymeals_recipe_disclaimer_text', '   ' );
+mmm_nc_assert( false === strpos( $render(), 'mmm-recipe-disclaimer' ), 'ohne Text: kein leerer Absatz' );
+
+// Eine Zutat ohne Nährwerte hat keine Tabelle — und bekommt auch keinen Hinweis.
+update_option( 'mixmymeals_recipe_disclaimer_text', 'ZZ Hinweis: Verbindlich ist die Packung.' );
+$disc_blank = mmm_nc_ing( 'ZZ Ohne alles' );
+mmm_nc_is(
+	'ohne Tabelle kein Hinweis',
+	'',
+	trim( do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_blank . '"]' ) )
+);
+
+update_option( 'mixmymeals_recipe_disclaimer_text', $mmm_nc_disclaimer_before );
+update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', $mmm_nc_switch_before );
+
 echo "\n=== Aufräumen ===\n";
 
 foreach ( $GLOBALS['MMM_NC_TRASH'] as $trash_id ) {

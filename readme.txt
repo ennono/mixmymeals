@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.53.0
+Stable tag: 3.54.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,32 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.54.0 =
+
+Added:
+* Nutrition traffic light: each figure per 100 g is rated low, medium
+  or high, on ingredients, recipes, meals and plans. Thresholds are set
+  per figure under Settings → Ingredients; fat, saturates, sugars and
+  salt start with the UK Food Standards Agency's values, the others off.
+  Fibre and protein count the other way round — a high amount is green.
+* The light follows the data the way every figure does: a product's
+  values reach the ingredient, the recipe, the meal and the plan.
+* A figure part of the dish has no value for gets no light rather than
+  a green one.
+* The plan's nutrition table gained a per-100 g column.
+* [mmm_nutrition_traffic_lights] shows the lights on their own, as a
+  row for above a table.
+* The recipe disclaimer can also be shown under an ingredient's
+  nutrition table (Settings → Recipes), in the same wording.
+* "Also show on ingredient pages" under the recipe disclaimer
+  (Settings → Recipes) puts the same text under the nutrition table of
+  an ingredient page. That page now shows the figures and the traffic
+  light, which is what such a text is usually about — that the figures
+  are estimates, that the light is not an official labelling, that the
+  packet in the basket is what counts — and until now the disclaimer
+  reached recipe and meal pages only. Off by default; an empty
+  disclaimer prints nothing either way.
 
 = 3.53.0 =
 

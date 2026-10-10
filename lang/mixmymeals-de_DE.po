@@ -6285,6 +6285,13 @@ msgstr "%s kcal je 100 g liegen über allem, was ein Lebensmittel erreicht (etwa
 #, php-format
 msgid "%1$s: %2$s g per 100 g is more than 100 g."
 msgstr "%1$s: %2$s g je 100 g sind mehr als 100 g."
+#: includes/class-mixmymeals-settings.php
+msgid "Also show on ingredient pages"
+msgstr "Auch auf Zutatenseiten ausgeben"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Puts the same disclaimer under the nutrition table of an ingredient page. Worth switching on when the text says anything about the figures or the traffic light: an ingredient page shows both, and until now the disclaimer reached recipe and meal pages only."
+msgstr "Stellt denselben Hinweis unter die Nährwerttabelle einer Zutatenseite. Lohnt sich, sobald der Text etwas über die Werte oder die Nährwertampel sagt: eine Zutatenseite zeigt beides, und bisher erreichte der Hinweis nur Rezept- und Mahlzeitenseiten."
 #~ msgid ""
 #~ "Legal bases: consent (Art. 6(1)(a) GDPR) for e-mail subscriptions, ratings "
 #~ "and photo uploads; legitimate interests (Art. 6(1)(f) GDPR) for the meal "
@@ -6956,3 +6963,54 @@ msgstr "%1$s: %2$s g je 100 g sind mehr als 100 g."
 #~ "Pinterest veröffentlicht, werden das erzeugte Bild und der Seitenlink an "
 #~ "Meta/Pinterest übermittelt. Das betrifft nur die eigenen Inhalte der "
 #~ "Website, keine Besucherdaten."
+
+#: includes/class-mixmymeals-settings.php
+msgid "Nutrition traffic light"
+msgstr "Nährwert-Ampel"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Rates each figure per 100 g as low, medium or high — on ingredients, recipes, meals and plans alike. Up to \"low\" counts as low, above \"high\" as high. Leave both fields of a figure empty to show no light for it. The defaults are the UK Food Standards Agency's values for foods."
+msgstr "Bewertet jeden Wert pro 100 g als niedrig, mittel oder hoch – bei Zutaten, Rezepten, Mahlzeiten und Plänen gleichermaßen. Bis „niedrig bis“ gilt als niedrig, über „hoch über“ als hoch. Beide Felder eines Werts leer lassen, um für ihn keine Ampel zu zeigen. Voreingestellt sind die Werte der britischen Food Standards Agency für Lebensmittel."
+
+#: includes/class-mixmymeals-settings.php
+msgid "Lower guide: a high amount is green, a low one red."
+msgstr "Mindestwert: viel ist grün, wenig rot."
+
+#: includes/class-mixmymeals-settings.php
+msgid "A low amount is green, a high one red."
+msgstr "Wenig ist grün, viel rot."
+
+#: includes/class-mixmymeals-settings.php
+msgid "Ingredient URL slug, archive display and the nutrition traffic light."
+msgstr "URL-Slug und Archivanzeige für Zutaten, dazu die Nährwert-Ampel."
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "low up to"
+msgstr "niedrig bis"
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "high above"
+msgstr "hoch über"
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "low"
+msgstr "niedrig"
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "medium"
+msgstr "mittel"
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "high"
+msgstr "hoch"
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgid "A traffic-light threshold for \"high\" is below the one for \"low\"; that light stays off until it is corrected."
+msgstr "Eine Ampel-Schwelle für „hoch“ liegt unter der für „niedrig“; diese Ampel bleibt aus, bis das korrigiert ist."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Traffic light per 100 g"
+msgstr "Ampel pro 100 g"

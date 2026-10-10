@@ -108,6 +108,11 @@ class Mixmymeals_Admin_API {
 			? 'chip_text'
 			: $field['id'];
 
+		// The same for the traffic light: one field per nutrition figure.
+		if ( str_starts_with( $field['id'], 'traffic_light_' ) ) {
+			$field_id = 'traffic_light';
+		}
+
 		switch ( $field_id ) {
 
 			case 'placeholder_image_id':
@@ -196,6 +201,30 @@ class Mixmymeals_Admin_API {
 				         . esc_html( $field['description'] ) . '</p>';
 				break;
 
+			// Two thresholds per figure, stored as one option so a light is
+			// switched off by emptying its own row rather than a third field.
+			case 'traffic_light':
+				$pair = is_array( $data ) ? $data : array();
+				$unit = (string) ( $field['unit'] ?? '' );
+
+				foreach (
+					array(
+						'low'  => __( 'low up to', 'mixmymeals' ),
+						'high' => __( 'high above', 'mixmymeals' ),
+					) as $end => $end_label
+				) {
+					$html .= '<label class="mmm-traffic-light-field">'
+					         . esc_html( $end_label ) . ' '
+					         . '<input class="small-text" type="number" min="0" step="any" name="'
+					         . esc_attr( $option_name . '[' . $end . ']' ) . '" value="'
+					         . esc_attr( (string) ( $pair[ $end ] ?? '' ) ) . '" /> '
+					         . esc_html( $unit )
+					         . '</label> ';
+				}
+
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
 			case 'recipe_disclaimer_text':
 			case 'affiliate_disclosure':
 			case 'notice_rating':
@@ -246,6 +275,7 @@ class Mixmymeals_Admin_API {
 			case 'plan_subscribe_notice_checkbox':
 			case 'disable_wp_emoji':
 			case 'show_recipe_steps':
+			case 'recipe_disclaimer_on_ingredients':
 			case 'delete_data_on_uninstall':
 				$checked = '';
 				if ( $data && 'on' === $data ) {

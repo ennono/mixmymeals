@@ -414,6 +414,182 @@ class Mixmymeals_Ingredient {
 	);
 
 	/**
+	 * Option prefix of the traffic-light thresholds, one option per figure:
+	 * `mixmymeals_traffic_light_fat` and so on, each holding `low` and `high`.
+	 */
+	const TRAFFIC_LIGHT_OPTION_PREFIX = 'mixmymeals_traffic_light_';
+
+	/**
+	 * Thresholds per 100 g a site starts with, as array( low, high ).
+	 *
+	 * The UK Food Standards Agency's front-of-pack scheme for foods — the only
+	 * published set that is widely recognised — and therefore only the four
+	 * figures it covers. Energy, carbohydrate, protein and fibre start without
+	 * a light: no scheme people know rates them per 100 g, and a light nobody
+	 * has defined is an opinion dressed as a standard.
+	 *
+	 * @var array<string,float[]>
+	 */
+	const TRAFFIC_LIGHT_DEFAULTS = array(
+		'fat'       => array( 3.0, 17.5 ),
+		'saturates' => array( 1.5, 5.0 ),
+		'sugar'     => array( 5.0, 22.5 ),
+		'salt'      => array( 0.3, 1.5 ),
+	);
+
+	/**
+	 * The thresholds in force, keyed by sum key (`calories`, not
+	 * `calories_100`). A figure is missing from the result when it has no
+	 * light — no thresholds, or thresholds that contradict each other.
+	 *
+	 * An option that was never saved falls back to TRAFFIC_LIGHT_DEFAULTS; one
+	 * saved empty means the site switched that light off, which is why the
+	 * two are told apart by `false` rather than by emptiness.
+	 *
+	 * @return array<string, array{low:float, high:float}>
+	 */
+	public static function traffic_light_thresholds(): array {
+
+		$out = array();
+
+		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+
+			$stored = get_option( self::TRAFFIC_LIGHT_OPTION_PREFIX . $key, false );
+
+			if ( false === $stored ) {
+				$pair = self::TRAFFIC_LIGHT_DEFAULTS[ $key ] ?? null;
+			} else {
+				$pair = is_array( $stored ) ? array( $stored['low'] ?? '', $stored['high'] ?? '' ) : null;
+			}
+
+			if ( ! $pair || ! is_numeric( $pair[0] ) || ! is_numeric( $pair[1] ) ) {
+				continue;
+			}
+
+			$low  = (float) $pair[0];
+			$high = (float) $pair[1];
+
+			// Upside-down thresholds would make "medium" an empty band and turn
+			// every reading into one of the two ends. Off rather than wrong.
+			if ( $low < 0 || $high < $low ) {
+				continue;
+			}
+
+			$out[ $key ] = array(
+				'low'  => $low,
+				'high' => $high,
+			);
+		}
+
+		return (array) apply_filters( 'mixmymeals_traffic_light_thresholds', $out );
+	}
+
+	/**
+	 * Where one figure per 100 g sits, and what colour that is.
+	 *
+	 * The amount (`low` up to the low threshold, `high` above the high one,
+	 * `medium` between) is a fact; the colour is a judgement and follows
+	 * Mixmymeals_Meal_Plan::nutrition_direction(): for a target figure —
+	 * fibre, protein — a high amount is green, for everything else red. That
+	 * includes energy and carbohydrate, whose direction is neutral: a site
+	 * that gives them thresholds rates density, where less is the lighter food.
+	 *
+	 * Null is not zero. A figure nobody stated gets no light, never a green
+	 * one — the light would otherwise be most reassuring exactly where least
+	 * is known.
+	 *
+	 * @param string     $key      Sum key, as in Mixmymeals_Meal_Plan::NUTRITION_KEYS.
+	 * @param float|null $per_100g The figure per 100 g.
+	 * @return array{amount:string, colour:string}|array{} Empty when there is no light.
+	 */
+	public static function traffic_light( string $key, ?float $per_100g ): array {
+
+		if ( null === $per_100g ) {
+			return array();
+		}
+
+		$thresholds = self::traffic_light_thresholds()[ $key ] ?? null;
+
+		if ( ! $thresholds ) {
+			return array();
+		}
+
+		if ( $per_100g <= $thresholds['low'] ) {
+			$amount = 'low';
+		} elseif ( $per_100g > $thresholds['high'] ) {
+			$amount = 'high';
+		} else {
+			$amount = 'medium';
+		}
+
+		$colour = 'amber';
+
+		if ( 'medium' !== $amount ) {
+			$good   = 'target' === Mixmymeals_Meal_Plan::nutrition_direction( $key ) ? 'high' : 'low';
+			$colour = $amount === $good ? 'green' : 'red';
+		}
+
+		return array(
+			'amount' => $amount,
+			'colour' => $colour,
+		);
+	}
+
+	/**
+	 * The word for an amount, which is what the light says in text: colour
+	 * alone is lost on a screen reader, a printout and one reader in twelve.
+	 *
+	 * @param string $amount low, medium or high.
+	 * @return string
+	 */
+	public static function traffic_light_label( string $amount ): string {
+
+		$labels = array(
+			/* translators: Nutrition traffic light: the amount per 100 g is low. */
+			'low'    => _x( 'low', 'traffic light', 'mixmymeals' ),
+			/* translators: Nutrition traffic light: the amount per 100 g is medium. */
+			'medium' => _x( 'medium', 'traffic light', 'mixmymeals' ),
+			/* translators: Nutrition traffic light: the amount per 100 g is high. */
+			'high'   => _x( 'high', 'traffic light', 'mixmymeals' ),
+		);
+
+		return $labels[ $amount ] ?? '';
+	}
+
+	/**
+	 * Sanitiser for one traffic-light option.
+	 *
+	 * Stores both thresholds as strings, empty when not given: an empty pair
+	 * is how a site switches a light off, and it has to survive the save as
+	 * something other than `false`, which would bring the default back.
+	 *
+	 * @param mixed $input Posted value.
+	 * @return array{low:string, high:string}
+	 */
+	public static function sanitize_traffic_light( $input ): array {
+
+		$input = is_array( $input ) ? $input : array();
+		$out   = array();
+
+		foreach ( array( 'low', 'high' ) as $end ) {
+			$raw         = str_replace( ',', '.', trim( (string) ( $input[ $end ] ?? '' ) ) );
+			$out[ $end ] = ( '' !== $raw && is_numeric( $raw ) && (float) $raw >= 0 ) ? (string) (float) $raw : '';
+		}
+
+		// An inverted pair is kept as typed, so the field still shows it, and
+		// traffic_light_thresholds() leaves that light off until it is fixed.
+		if ( '' !== $out['low'] && '' !== $out['high'] && (float) $out['high'] < (float) $out['low'] ) {
+			add_settings_error(
+				'mixmymeals_traffic_light',
+				'mixmymeals_traffic_light_order',
+				__( 'A traffic-light threshold for "high" is below the one for "low"; that light stays off until it is corrected.', 'mixmymeals' )
+			);
+		}
+
+		return $out;
+	}
+
+	/**
 	 * What the eight figures cannot all be true at once.
 	 *
 	 * A typo in a nutrition field is copied into every recipe that uses the

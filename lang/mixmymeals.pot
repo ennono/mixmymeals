@@ -5466,3 +5466,62 @@ msgstr ""
 #, php-format
 msgid "%1$s: %2$s g per 100 g is more than 100 g."
 msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Nutrition traffic light"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Rates each figure per 100 g as low, medium or high — on ingredients, recipes, meals and plans alike. Up to \"low\" counts as low, above \"high\" as high. Leave both fields of a figure empty to show no light for it. The defaults are the UK Food Standards Agency's values for foods."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Lower guide: a high amount is green, a low one red."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "A low amount is green, a high one red."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Ingredient URL slug, archive display and the nutrition traffic light."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "low up to"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "high above"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "low"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "medium"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "high"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgid "A traffic-light threshold for \"high\" is below the one for \"low\"; that light stays off until it is corrected."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Traffic light per 100 g"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Also show on ingredient pages"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Puts the same disclaimer under the nutrition table of an ingredient page. Worth switching on when the text says anything about the figures or the traffic light: an ingredient page shows both, and until now the disclaimer reached recipe and meal pages only."
+msgstr ""

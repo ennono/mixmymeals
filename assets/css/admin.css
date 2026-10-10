@@ -707,6 +707,17 @@
     color: var(--mmm-ad-ink-2);
 }
 
+/* Traffic-light thresholds: two inputs per figure on one line. */
+#mixmymeals_settings .mmm-traffic-light-field {
+    display: inline-block;
+    margin-right: 16px;
+    white-space: nowrap;
+}
+
+#mixmymeals_settings .mmm-traffic-light-field input {
+    width: 5em;
+}
+
 /* Give the value column a little more room and align labels to the top. */
 #mixmymeals_settings .form-table th {
     padding-top: 18px;

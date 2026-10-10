@@ -1048,15 +1048,19 @@ class Mixmymeals_Meal_Plan {
 	 *
 	 * @param int|null $day When set (1-7), only include meals on that plan
 	 *                      weekday; otherwise the whole plan.
-	 * @return array{totals:array<string,float>, per_person:array<string,float>, servings:float, meals:int}
+	 * `weight_person` is what those per-person figures weigh, in grams, so
+	 * they can be brought to 100 g — see calc_nutrition_per_100g().
+	 *
+	 * @return array{totals:array<string,float>, per_person:array<string,float>, weight_person:float, servings:float, meals:int}
 	 */
 	public function calc_nutrition( ?int $day = null ): array {
 
 		$result = array(
-			'totals'     => array_fill_keys( self::NUTRITION_KEYS, 0.0 ),
-			'per_person' => array_fill_keys( self::NUTRITION_KEYS, 0.0 ),
-			'servings'   => 0.0,
-			'meals'      => 0,
+			'totals'        => array_fill_keys( self::NUTRITION_KEYS, 0.0 ),
+			'per_person'    => array_fill_keys( self::NUTRITION_KEYS, 0.0 ),
+			'weight_person' => 0.0,
+			'servings'      => 0.0,
+			'meals'         => 0,
 		);
 
 		foreach ( $this->get_meals() as $meal_post ) {
@@ -1076,7 +1080,8 @@ class Mixmymeals_Meal_Plan {
 			$per_serving   = $recipe->calculate_nutrition_per_serving();
 			$meal_servings = max( 0.01, (float) $meal->get_servings() );
 
-			$result['servings'] += $meal_servings;
+			$result['servings']      += $meal_servings;
+			$result['weight_person'] += (float) ( $per_serving['weight_per_serving'] ?? 0.0 );
 			++$result['meals'];
 
 			foreach ( self::NUTRITION_KEYS as $key ) {
@@ -1169,6 +1174,30 @@ class Mixmymeals_Meal_Plan {
 			'sum'     => $sum,
 			'days'    => $days,
 		);
+	}
+
+	/**
+	 * The plan's figures per 100 g of what is eaten, for the traffic light.
+	 *
+	 * The weighted mix of every portion on the plan — one serving per meal,
+	 * as calc_nutrition() counts per person — rather than an average of the
+	 * recipes' own per-100 g figures, which would let a 30 g dip weigh as much
+	 * as a 600 g stew. Null per figure while nothing on the plan weighs
+	 * anything, so no light can be drawn from an empty plan.
+	 *
+	 * @return array<string,float|null>
+	 */
+	public function calc_nutrition_per_100g(): array {
+
+		$figures = $this->calc_nutrition();
+		$weight  = (float) $figures['weight_person'];
+		$out     = array();
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+			$out[ $key ] = $weight > 0 ? $figures['per_person'][ $key ] / $weight * 100 : null;
+		}
+
+		return $out;
 	}
 
 	/**

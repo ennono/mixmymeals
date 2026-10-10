@@ -425,6 +425,17 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'          => 'recipe_disclaimer_on_ingredients',
+					'label'       => __( 'Also show on ingredient pages', 'mixmymeals' ),
+					'description' => __( 'Puts the same disclaimer under the nutrition table of an ingredient page. Worth switching on when the text says anything about the figures or the traffic light: an ingredient page shows both, and until now the disclaimer reached recipe and meal pages only.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array(
+						$this,
+						'recipe_disclaimer_on_ingredients_callback',
+					),
+				),
+				array(
 					'id'          => 'all_recipes_description',
 					'label'       => __( 'Recipe Archive Description', 'mixmymeals' ),
 					'description' => __( 'This description will be used by the corresponding shortcode.',
@@ -508,7 +519,7 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-ingredients'] = array(
 			'title'       => __( 'Ingredients', 'mixmymeals' ),
-			'description' => __( 'Ingredient URL slug and archive display.', 'mixmymeals' ),
+			'description' => __( 'Ingredient URL slug, archive display and the nutrition traffic light.', 'mixmymeals' ),
 			'fields'      => array(
 				array(
 					'id'    => 'ingredients_group_slugs',
@@ -544,6 +555,7 @@ class Mixmymeals_Settings {
 						'archive_description_callback'
 					),
 				),
+				...$this->traffic_light_fields(),
 			),
 		);
 
@@ -1112,6 +1124,49 @@ class Mixmymeals_Settings {
 			$settings
 		);
 		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+	}
+
+	/**
+	 * The nutrition traffic light: one field per figure, each a pair of
+	 * thresholds per 100 g.
+	 *
+	 * On the Ingredients tab because the light rates a figure per 100 g, which
+	 * is what an ingredient states; recipes, meals and plans are rated the
+	 * same way once their figures are brought to 100 g.
+	 *
+	 * @return array[]
+	 */
+	private function traffic_light_fields(): array {
+
+		$fields = array(
+			array(
+				'id'          => 'ingredients_group_traffic_light',
+				'type'        => 'heading',
+				'label'       => __( 'Nutrition traffic light', 'mixmymeals' ),
+				'description' => __( 'Rates each figure per 100 g as low, medium or high — on ingredients, recipes, meals and plans alike. Up to "low" counts as low, above "high" as high. Leave both fields of a figure empty to show no light for it. The defaults are the UK Food Standards Agency\'s values for foods.', 'mixmymeals' ),
+			),
+		);
+
+		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+
+			$default = Mixmymeals_Ingredient::TRAFFIC_LIGHT_DEFAULTS[ $key ] ?? array( '', '' );
+
+			$fields[] = array(
+				'id'          => 'traffic_light_' . $key,
+				'label'       => Mixmymeals_Ingredient::nutrition_label( $key ),
+				'description' => 'target' === Mixmymeals_Meal_Plan::nutrition_direction( $key )
+					? __( 'Lower guide: a high amount is green, a low one red.', 'mixmymeals' )
+					: __( 'A low amount is green, a high one red.', 'mixmymeals' ),
+				'unit'        => 'calories' === $key ? __( 'kcal', 'mixmymeals' ) : __( 'g', 'mixmymeals' ),
+				'default'     => array(
+					'low'  => '' === $default[0] ? '' : (string) $default[0],
+					'high' => '' === $default[1] ? '' : (string) $default[1],
+				),
+				'callback'    => array( Mixmymeals_Ingredient::class, 'sanitize_traffic_light' ),
+			);
+		}
+
+		return $fields;
 	}
 
 	/**
@@ -1978,6 +2033,16 @@ class Mixmymeals_Settings {
 	 */
 	public function recipe_disclaimer_text_callback( mixed $input ): string {
 		return sanitize_textarea_field( $input );
+	}
+
+	/**
+	 * Sanitizes the "also show on ingredient pages" checkbox.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string 'on' or ''
+	 */
+	public function recipe_disclaimer_on_ingredients_callback( mixed $input ): string {
+		return ( 'on' === $input ) ? 'on' : '';
 	}
 
 	/**
