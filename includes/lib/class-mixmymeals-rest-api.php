@@ -290,6 +290,11 @@ class Mixmymeals_Rest_Api {
 			'properties'  => self::author_schema_properties(),
 		);
 
+		// A figure sent as null is withdrawn, not zeroed: "not stated" and
+		// "contains none" are different claims, and only the first lets a
+		// reference product's value show through.
+		$nullable_number = array( 'required' => false, 'type' => array( 'number', 'null' ) );
+
 		// ── Recipes ───────────────────────────────────────────────────────
 		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_recipes' ), 'permission_callback' => '__return_true', 'args' => array( 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft', 'any' ), 'default' => 'publish' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/recipes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_recipe' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'draft', 'enum' => array( 'publish', 'draft', 'pending', 'private' ) ), 'excerpt' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'servings' => array( 'required' => false, 'type' => 'number' ), 'preparation_time' => array( 'required' => false, 'type' => 'integer' ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'steps' => array( 'required' => false, 'type' => 'array' ), 'equipment' => array( 'required' => false, 'type' => 'array' ), 'related_recipes' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'tags' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'author' => $author_arg, 'featured_image' => $featured_arg, 'image_credit' => $image_credit_arg ) ) );
@@ -304,9 +309,9 @@ class Mixmymeals_Rest_Api {
 		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::READABLE,  'callback' => array( $this, 'get_ingredients' ),    'permission_callback' => '__return_true' ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ) ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => array( 'required' => false, 'type' => 'number' ), 'fat' => array( 'required' => false, 'type' => 'number' ), 'saturates' => array( 'required' => false, 'type' => 'number' ), 'carbs' => array( 'required' => false, 'type' => 'number' ), 'protein' => array( 'required' => false, 'type' => 'number' ), 'sugar' => array( 'required' => false, 'type' => 'number' ), 'fiber' => array( 'required' => false, 'type' => 'number' ), 'salt' => array( 'required' => false, 'type' => 'number' ), 'weight_item' => array( 'required' => false, 'type' => 'number' ) ) ) );
-		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/price', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_price' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'price_per_100g' => array( 'required' => true, 'type' => 'number' ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ), 'shelf_life_days' => array( 'required' => false, 'type' => array( 'integer', 'null' ), 'minimum' => 0 ), 'storage_type' => array( 'required' => false, 'type' => 'string', 'enum' => array_merge( array_keys( Mixmymeals_Post_Types::storage_types() ), array( '' ) ) ), 'default_unit' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'nutrition' => array( 'required' => false, 'type' => 'object' ), 'own_price_per_100g' => array( 'required' => false, 'type' => array( 'number', 'null' ), 'minimum' => 0 ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/nutrition', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_nutrition' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'calories_100' => $nullable_number, 'fat' => $nullable_number, 'saturates' => $nullable_number, 'carbs' => $nullable_number, 'protein' => $nullable_number, 'sugar' => $nullable_number, 'fiber' => $nullable_number, 'salt' => $nullable_number, 'weight_item' => $nullable_number ) ) );
+		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/price', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_ingredient_price' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'price_per_100g' => array( 'required' => true, 'type' => array( 'number', 'null' ), 'minimum' => 0 ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/(?P<id>\d+)/units', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_ingredient_units' ), 'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
 		register_rest_route( 'mixmymeals/v1', '/ingredients/search', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'search_ingredients' ), 'permission_callback' => '__return_true', 'args' => array( 'query' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'diet_type' => array( 'required' => false, 'type' => 'string', 'enum' => Mixmymeals_Diet::axis_slugs( 'diet' ) ), 'limit' => array( 'required' => false, 'type' => 'integer', 'default' => 20 ) ) ) );
 
@@ -390,6 +395,57 @@ class Mixmymeals_Rest_Api {
 					),
 				),
 				'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => false ),
+			),
+		) );
+		/*
+		 * Nutrition, price and diet for many ingredients and products at once —
+		 * the data-correction counterpart of /keeping/bulk, and thin for the
+		 * same reason: the single routes answer with whole serializations.
+		 *
+		 * Unknown keys and unknown diets reject the whole request before
+		 * anything is written (additionalProperties false): a mistyped
+		 * "saturated" in a batch of a hundred is a caller bug, and silently
+		 * dropping it would read as a hundred successes.
+		 */
+		register_rest_route( 'mixmymeals/v1', '/bulk-update', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'bulk_update' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'items'   => array(
+					'required' => true,
+					'type'     => 'array',
+					'maxItems' => 100,
+					'items'    => array(
+						'type'                 => 'object',
+						'additionalProperties' => false,
+						'properties'           => array(
+							'type'           => array( 'type' => 'string', 'enum' => array( 'ingredient', 'product' ) ),
+							'id'             => array( 'type' => 'integer' ),
+							'nutrition'      => array(
+								'type'                 => 'object',
+								'additionalProperties' => false,
+								'properties'           => array_fill_keys( array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'weight_item' ) ), array( 'type' => array( 'number', 'null' ), 'minimum' => 0 ) ),
+							),
+							'price_per_100g' => array( 'type' => array( 'number', 'null' ), 'minimum' => 0 ),
+							'diet_type'      => array( 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ),
+						),
+					),
+				),
+				'dry_run' => array( 'required' => false, 'type' => 'boolean', 'default' => false ),
+			),
+		) );
+		register_rest_route( 'mixmymeals/v1', '/missing', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'list_missing' ),
+			'permission_callback' => $auth,
+			'args'                => array(
+				'field'           => array( 'required' => true, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type' ) ) ),
+				'type'            => array( 'required' => false, 'type' => 'string', 'default' => 'ingredient', 'enum' => array( 'ingredient', 'product' ) ),
+				'mode'            => array( 'required' => false, 'type' => 'string', 'default' => 'effective', 'enum' => array( 'effective', 'own' ) ),
+				'zero_is_missing' => array( 'required' => false, 'type' => 'boolean', 'default' => true ),
+				'page'            => array( 'required' => false, 'type' => 'integer', 'default' => 1, 'minimum' => 1 ),
+				'per_page'        => array( 'required' => false, 'type' => 'integer', 'default' => 50, 'minimum' => 1, 'maximum' => 200 ),
 			),
 		) );
 		register_rest_route( 'mixmymeals/v1', '/units/bulk-delete', array(
@@ -1601,6 +1657,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'storage_type' ) ) $ing->set_storage_type( (string) $request->get_param( 'storage_type' ) );
 		if ( $request->has_param( 'default_unit' ) ) $ing->set_default_unit( $request->get_param( 'default_unit' ) );
 		if ( $request->has_param( 'nutrition' ) )    $ing->set_nutrition( (array) $request->get_param( 'nutrition' ) );
+		// The ingredient's own figure; null or 0 clears it. A reference product
+		// with price and package weight still wins over it.
+		if ( $request->has_param( 'own_price_per_100g' ) ) $ing->set_price_per_100g( floatval( $request->get_param( 'own_price_per_100g' ) ?? 0 ) );
 		if ( $request->has_param( 'categories' ) )   wp_set_post_terms( $id, $request->get_param( 'categories' ), 'mmm_ingredient_category' );
 		return new WP_REST_Response( $this->serialize_ingredient( $id ), 200 );
 	}
@@ -1615,7 +1674,12 @@ class Mixmymeals_Rest_Api {
 		// weight_item beside the figures: it is stored with them, even though
 		// it is not one of them.
 		foreach ( array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'weight_item' ) ) as $field ) {
-			if ( $request->has_param( $field ) ) $data[ $field ] = floatval( $request->get_param( $field ) );
+			// null passes through and deletes the row; floatval() would have
+			// turned it into a stated zero.
+			if ( $request->has_param( $field ) ) {
+				$value          = $request->get_param( $field );
+				$data[ $field ] = null === $value ? null : floatval( $value );
+			}
 		}
 		$ing->set_nutrition( $data );
 		return new WP_REST_Response( array( 'id' => $id, 'nutrition' => $ing->get_nutrition() ), 200 );
@@ -1627,7 +1691,8 @@ class Mixmymeals_Rest_Api {
 		if ( ! $ing->is_valid() ) return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
 		$guard = $this->require_can_edit( $id );
 		if ( $guard ) return $guard;
-		$ing->set_price_per_100g( floatval( $request->get_param( 'price_per_100g' ) ) );
+		// null or 0 clears the own price, so the reference product's shows.
+		$ing->set_price_per_100g( floatval( $request->get_param( 'price_per_100g' ) ?? 0 ) );
 		return new WP_REST_Response( array( 'id' => $id, 'price_per_100g' => $ing->get_price_per_100g(), 'own_price_per_100g' => $ing->get_own_price_per_100g() ), 200 );
 	}
 
@@ -2486,6 +2551,355 @@ class Mixmymeals_Rest_Api {
 	}
 
 	/**
+	 * Writes nutrition, price and diet for many ingredients and products.
+	 *
+	 * Writes the ingredient's **own** layer only. A figure the reference
+	 * product states still wins over it, so the answer names those keys under
+	 * `shadowed` — otherwise a caller would read a successful write and see
+	 * nothing change on the page.
+	 *
+	 * `null` withdraws a value, so the ingredient falls back to its reference
+	 * product again; a key left out is not touched. On a product,
+	 * `price_per_100g` is turned into the package price it stores and needs a
+	 * package weight to do so.
+	 *
+	 * The answer lists only what changed, as [old, new], per item — never the
+	 * entity. dry_run computes the same diff and writes nothing.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function bulk_update( WP_REST_Request $request ): WP_REST_Response {
+
+		$items   = (array) $request->get_param( 'items' );
+		$dry_run = (bool) $request->get_param( 'dry_run' );
+
+		$results = array();
+		$errors  = array();
+
+		foreach ( $items as $item ) {
+
+			$item = (array) $item;
+			$id   = isset( $item['id'] ) ? absint( $item['id'] ) : 0;
+			$kind = (string) ( $item['type'] ?? '' );
+
+			if ( $id <= 0 ) {
+				$errors[] = array( 'id' => $id, 'error' => 'missing_id' );
+				continue;
+			}
+
+			$post_type = 'product' === $kind ? Mixmymeals_Product::POST_TYPE : 'mmm_ingredient';
+
+			if ( get_post_type( $id ) !== $post_type ) {
+				$errors[] = array( 'id' => $id, 'error' => get_post_type( $id ) ? 'wrong_type' : 'not_found' );
+				continue;
+			}
+
+			$product    = 'product' === $kind ? new Mixmymeals_Product( $id ) : null;
+			$ingredient = new Mixmymeals_Ingredient( $product ? $product->get_ingredient_id() : $id );
+
+			if ( ( $product && ! $product->is_valid() ) || ( ! $product && ! $ingredient->is_valid() ) ) {
+				$errors[] = array( 'id' => $id, 'error' => 'not_found' );
+				continue;
+			}
+
+			// Products are edited through their ingredient, as everywhere else.
+			if ( $this->require_can_edit( $ingredient->get_id() ) ) {
+				$errors[] = array( 'id' => $id, 'error' => 'forbidden' );
+				continue;
+			}
+
+			if ( ! array_intersect( array( 'nutrition', 'price_per_100g', 'diet_type' ), array_keys( $item ) ) ) {
+				$errors[] = array( 'id' => $id, 'error' => 'no_fields' );
+				continue;
+			}
+
+			$changes = array();
+			$writes  = array();
+
+			if ( isset( $item['nutrition'] ) ) {
+				$nutrition = (array) $item['nutrition'];
+				$own       = $product ? $product->get_nutrition() : $ingredient->get_nutrition_with_product( 0 );
+
+				// weight_item describes the ingredient, never a packet.
+				if ( $product && array_key_exists( 'weight_item', $nutrition ) ) {
+					$errors[] = array( 'id' => $id, 'error' => 'weight_item_not_on_product' );
+					continue;
+				}
+
+				$clean = array();
+
+				foreach ( $nutrition as $key => $value ) {
+					$value = ( null === $value || '' === $value ) ? null : (float) $value;
+					$old   = $own[ $key ] ?? null;
+
+					if ( $old === $value ) {
+						continue;
+					}
+
+					$clean[ $key ]   = $value;
+					$changes[ $key ] = array( $old, $value );
+				}
+
+				if ( $clean ) {
+					$writes[] = fn() => $product ? $product->set_nutrition( $clean ) : $ingredient->set_nutrition( $clean );
+				}
+			}
+
+			if ( array_key_exists( 'price_per_100g', $item ) ) {
+				$price = null === $item['price_per_100g'] ? null : (float) $item['price_per_100g'];
+				$price = $price > 0 ? $price : null;
+
+				if ( $product ) {
+					$old    = $product->get_price_per_100g();
+					$weight = $product->get_package_weight();
+
+					if ( null !== $price && $weight <= 0 ) {
+						$errors[] = array( 'id' => $id, 'error' => 'no_package_weight' );
+						continue;
+					}
+					if ( $old !== $price ) {
+						$changes['price_per_100g'] = array( $old, $price );
+						$writes[]                  = fn() => $product->set_price( null === $price ? null : round( $price * $weight / 100, 2 ) );
+					}
+				} else {
+					$old = $ingredient->get_own_price_per_100g() ?: null;
+
+					if ( $old !== $price ) {
+						$changes['price_per_100g'] = array( $old, $price );
+						$writes[]                  = fn() => $ingredient->set_price_per_100g( (float) $price );
+					}
+				}
+			}
+
+			if ( array_key_exists( 'diet_type', $item ) ) {
+				$diet = Mixmymeals_Diet::resolve( (string) $item['diet_type'] );
+				$old  = $product
+					? $product->get_diet_type()
+					: Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $id ), 'diet' );
+
+				if ( $old !== $diet ) {
+					$changes['diet_type'] = array( $old, $diet );
+					$writes[]             = fn() => $product ? $product->set_diet_type( $diet ) : $ingredient->set_diet_type( $diet );
+				}
+			}
+
+			if ( ! $dry_run ) {
+				foreach ( $writes as $write ) {
+					$write();
+				}
+			}
+
+			$row = array(
+				'id'      => $id,
+				'title'   => $product ? $product->label() : get_the_title( $id ),
+				'changes' => (object) $changes,
+			);
+
+			// Own values that change nothing on the page, because the
+			// reference product states the same key.
+			if ( ! $product && $changes ) {
+				$shadowed = $this->shadowed_by_reference( $id, array_keys( $changes ) );
+
+				if ( $shadowed ) {
+					$row['shadowed'] = $shadowed;
+				}
+			}
+
+			$results[] = $row;
+		}
+
+		return new WP_REST_Response(
+			array(
+				'plugin_version' => Mixmymeals::instance()->_version,
+				'dry_run'        => $dry_run,
+				'requested'      => count( $items ),
+				'changed'        => count( array_filter( $results, fn( $r ) => (array) $r['changes'] ) ),
+				'failed'         => count( $errors ),
+				'results'        => $results,
+				'errors'         => $errors,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Which of the given keys an ingredient's reference product states itself.
+	 *
+	 * Same precedence as Mixmymeals_Ingredient::apply_product() and the price
+	 * and diet getters: a stated product value wins over the ingredient's own.
+	 *
+	 * @param int      $ingredient_id Ingredient.
+	 * @param string[] $keys          Field keys.
+	 * @return string[]
+	 */
+	private function shadowed_by_reference( int $ingredient_id, array $keys ): array {
+
+		$ref = Mixmymeals_Product::get_reference_id( $ingredient_id );
+
+		if ( ! $ref ) {
+			return array();
+		}
+
+		$product   = new Mixmymeals_Product( $ref );
+		$nutrition = $product->get_nutrition();
+		$out       = array();
+
+		foreach ( $keys as $key ) {
+			$stated = match ( $key ) {
+				'price_per_100g' => null !== $product->get_price_per_100g(),
+				'diet_type'      => '' !== $product->get_diet_type(),
+				default          => null !== ( $nutrition[ $key ] ?? null ),
+			};
+
+			if ( $stated ) {
+				$out[] = $key;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Ingredients or products lacking one field, a page at a time.
+	 *
+	 * Deliberately thin: id, title, own value, the value inherited from the
+	 * other layer and the reference product — no units, no categories. The
+	 * single-item serialization costs hundreds of tokens per ingredient, and a
+	 * gap list is read for its ids.
+	 *
+	 * For an ingredient, `effective` mode asks what the site actually lacks
+	 * (the resolved value, reference product included); `own` mode asks what
+	 * the ingredient itself does not state, which is how leftover zeros under
+	 * a reference product are found. A product has no inheritance: its own
+	 * value is all there is, and `inherited_value` is the ingredient's figure
+	 * the site falls back to while that product is the reference.
+	 *
+	 * zero_is_missing defaults to true because installs older than 3.52.0
+	 * stored a blank field as 0 — the same reasoning as has_nutrition().
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function list_missing( WP_REST_Request $request ): WP_REST_Response {
+
+		$field    = (string) $request->get_param( 'field' );
+		$kind     = (string) $request->get_param( 'type' );
+		$mode     = (string) $request->get_param( 'mode' );
+		$zero     = (bool) $request->get_param( 'zero_is_missing' );
+		$page     = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page = max( 1, min( 200, (int) $request->get_param( 'per_page' ) ) );
+
+		$is_missing = function ( $value ) use ( $zero, $field ): bool {
+			if ( 'diet_type' === $field ) {
+				return '' === (string) $value;
+			}
+			return null === $value || ( $zero && 0.0 === (float) $value );
+		};
+
+		$product_value = function ( Mixmymeals_Product $product ) use ( $field ) {
+			return match ( $field ) {
+				'price_per_100g' => $product->get_price_per_100g(),
+				'diet_type'      => $product->get_diet_type(),
+				default          => $product->get_nutrition()[ $field ] ?? null,
+			};
+		};
+
+		$ingredient_value = function ( Mixmymeals_Ingredient $ingredient ) use ( $field ) {
+			return match ( $field ) {
+				'price_per_100g' => $ingredient->get_own_price_per_100g() ?: null,
+				'diet_type'      => Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $ingredient->get_id() ), 'diet' ),
+				default          => $ingredient->get_nutrition_with_product( 0 )[ $field ] ?? null,
+			};
+		};
+
+		$ingredient_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_ingredient',
+				'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'fields'         => 'ids',
+			)
+		);
+		update_meta_cache( 'post', $ingredient_ids );
+		Mixmymeals_Product::prime_for_ingredients( $ingredient_ids );
+
+		// One query for every product rather than one per ingredient, and
+		// past the per-request cache, which a product created in the same
+		// request would not be in.
+		$products_by_ingredient = array();
+
+		if ( 'product' === $kind ) {
+			foreach ( get_posts( array( 'post_type' => Mixmymeals_Product::POST_TYPE, 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) ) as $product_post ) {
+				$products_by_ingredient[ (int) $product_post->post_parent ][] = (int) $product_post->ID;
+			}
+		}
+
+		$rows = array();
+
+		foreach ( $ingredient_ids as $ingredient_id ) {
+
+			$ingredient = new Mixmymeals_Ingredient( (int) $ingredient_id );
+			$ref        = Mixmymeals_Product::get_reference_id( (int) $ingredient_id );
+			$own_ing    = $ingredient_value( $ingredient );
+
+			if ( 'product' === $kind ) {
+				foreach ( $products_by_ingredient[ (int) $ingredient_id ] ?? array() as $product_id ) {
+					$product = new Mixmymeals_Product( (int) $product_id );
+					$own     = $product_value( $product );
+
+					if ( $is_missing( $own ) ) {
+						$rows[] = array(
+							'id'                => $product->get_id(),
+							'title'             => $product->label(),
+							'ingredient_id'     => (int) $ingredient_id,
+							'own_value'         => $own,
+							'inherited_value'   => $own_ing,
+							'reference_product' => $ref,
+						);
+					}
+				}
+				continue;
+			}
+
+			$inherited = $ref ? $product_value( new Mixmymeals_Product( $ref ) ) : null;
+			$inherited = 'diet_type' === $field ? (string) $inherited : $inherited;
+
+			// Product first, own second — the merge every getter applies.
+			$effective = ( 'diet_type' === $field ? '' !== $inherited : null !== $inherited ) ? $inherited : $own_ing;
+
+			if ( $is_missing( 'own' === $mode ? $own_ing : $effective ) ) {
+				$rows[] = array(
+					'id'                => (int) $ingredient_id,
+					'title'             => get_the_title( (int) $ingredient_id ),
+					'own_value'         => $own_ing,
+					'inherited_value'   => $ref ? $inherited : null,
+					'reference_product' => $ref,
+				);
+			}
+		}
+
+		$total = count( $rows );
+
+		return new WP_REST_Response(
+			array(
+				'plugin_version' => Mixmymeals::instance()->_version,
+				'field'          => $field,
+				'type'           => $kind,
+				'mode'           => 'product' === $kind ? 'own' : $mode,
+				'total'          => $total,
+				'page'           => $page,
+				'per_page'       => $per_page,
+				'total_pages'    => (int) ceil( $total / $per_page ),
+				'items'          => array_slice( $rows, ( $page - 1 ) * $per_page, $per_page ),
+			),
+			200
+		);
+	}
+
+	/**
 	 * Deletes several units at once, each judged on its own.
 	 *
 	 * Partial by design: a batch is normally "clean up what is safe", and
@@ -2834,6 +3248,13 @@ class Mixmymeals_Rest_Api {
 		if ( $from_id === $to_id ) {
 			return new WP_Error( 'invalid_merge', 'Source and target must differ.', array( 'status' => 400 ) );
 		}
+		// The target is edited, the source deleted — the same rights the two
+		// single routes ask for.
+		$guard = $this->require_can_edit( $to_id );
+		if ( $guard ) return $guard;
+		if ( ! current_user_can( 'delete_post', $from_id ) ) {
+			return new WP_Error( 'forbidden', 'You are not allowed to delete the source ingredient.', array( 'status' => 403 ) );
+		}
 
 		// Zieleinheiten nach Titel indizieren.
 		$target_units = array();
@@ -2914,12 +3335,26 @@ class Mixmymeals_Rest_Api {
 			}
 		}
 
+		/*
+		 * Die Produkte der Quelle ziehen mit um. Sie sind Kindposts und blieben
+		 * sonst an einer gelöschten Zutat hängen — und jede Rezeptzeile, die
+		 * eins davon festlegt (product_id) oder ausschließt, verlöre es still,
+		 * weil pinned_product_id() ein Produkt einer fremden Zutat als „nichts
+		 * gewählt" liest. Die Referenz der Quelle wandert nicht mit: welches
+		 * Produkt das Ziel liefert, entscheidet das Ziel.
+		 */
+		$products = array_map(
+			fn( $p ) => array( 'id' => $p->get_id(), 'title' => $p->label() ),
+			Mixmymeals_Product::for_ingredient( $from_id )
+		);
+
 		$result = array(
 			'dry_run'          => $dry_run,
 			'from'             => array( 'id' => $from_id, 'title' => get_the_title( $from_id ) ),
 			'to'               => array( 'id' => $to_id,   'title' => get_the_title( $to_id ) ),
 			'affected_recipes' => $affected,
 			'unit_mapping'     => array_values( $mapping ),
+			'products_moved'   => $products,
 			'conflicts'        => array_values( $conflicts ),
 		);
 
@@ -2945,6 +3380,10 @@ class Mixmymeals_Rest_Api {
 
 		foreach ( $new_steps as $recipe_id => $steps ) {
 			update_post_meta( (int) $recipe_id, '_rmm_steps', $steps );
+		}
+
+		foreach ( $products as $product ) {
+			wp_update_post( array( 'ID' => $product['id'], 'post_parent' => $to_id ) );
 		}
 
 		// Quelle samt ihrer Einheiten entfernen – wie in delete_ingredient().

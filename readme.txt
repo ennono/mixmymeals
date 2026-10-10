@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.52.0
+Stable tag: 3.53.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,28 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.53.0 =
+
+Added:
+* POST /bulk-update corrects nutrition, price and diet for up to 100
+  ingredients and products in one call and answers with what changed,
+  as old and new value per field — never the whole entity. dry_run
+  returns the same diff without writing. Fields the reference product
+  states itself are named as shadowed, since an own value there changes
+  nothing on the page.
+* GET /missing lists the ingredients or products lacking one field, a
+  page at a time, with only the own value, the inherited one and the
+  reference product.
+* own_price_per_100g can be set on POST /ingredients/{id}.
+
+Fixed:
+* null on /ingredients/{id}/nutrition stored a zero; it now withdraws
+  the ingredient's own value. The price route accepts null the same way.
+* Merging two ingredients left the source's products attached to a
+  deleted post, so every recipe line pinning one of them silently lost
+  it. They now move to the ingredient that is kept. The merge also
+  checks the rights on both ingredients.
 
 = 3.52.0 =
 

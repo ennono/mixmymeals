@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * WordPress REST API – MCP Server (MixMyMeals-Edition v5.0)
+ * WordPress REST API – MCP Server (MixMyMeals-Edition v5.1)
  *
  * Umgebungsvariablen:
  *   WP_URL           z.B. https://www.stopfnicht.de
@@ -11,6 +11,14 @@
  * Endpunkt-Strategie:
  *   MixMyMeals-Daten  → /wp-json/mixmymeals/v1/  (Plugin-eigene API)
  *   Generisches WP    → /wp-json/wp/v2/           (Posts, Taxonomien, Media)
+ *
+ * Neu in v5.1:
+ *   - Datenkorrektur in Mengen: mmm_bulk_update (Nährwerte, Preis, Diät für
+ *     bis zu 100 Zutaten/Produkte, Antwort nur als Diff, mit dry_run),
+ *     mmm_list_missing (schlanker, seitenweiser Lückenfinder) und
+ *     mmm_merge_ingredients (Rezepte umhängen, Produkte ziehen mit).
+ *   - null löscht in allen Nährwert-Schreibpfaden den Eigenwert, statt 0 zu
+ *     schreiben. mmm_update_ingredient setzt own_price_per_100g.
  *
  * Neu in v5.0:
  *   - Bildquelle: image_credit (creator, source, license, url) in
@@ -189,6 +197,31 @@ const IMAGE_CREDIT_SCHEMA = {
     url:     { type: "string", description: "Optionaler Link; verlinkt Urheber und Quelle, nicht die Lizenz." },
   },
 };
+
+// ── Nährwerte ────────────────────────────────────────────────────────────────
+
+// Je 100 g. null zieht einen Wert zurück, statt ihn auf 0 zu setzen: „nicht
+// angegeben" und „enthält nichts" sind verschiedene Aussagen, und nur bei der
+// ersten scheint der Wert des Referenzprodukts durch.
+const NULLABLE = (description) => ({ type: ["number", "null"], ...(description ? { description } : {}) });
+
+const NUTRITION_PROPS = {
+  calories_100: NULLABLE("kcal je 100 g"),
+  fat:          NULLABLE("Fett, g"),
+  saturates:    NULLABLE("davon gesättigte Fettsäuren, g"),
+  carbs:        NULLABLE("Kohlenhydrate, g"),
+  sugar:        NULLABLE("davon Zucker, g"),
+  fiber:        NULLABLE("Ballaststoffe, g"),
+  protein:      NULLABLE("Eiweiß, g"),
+  salt:         NULLABLE("Salz, g"),
+};
+
+const INGREDIENT_NUTRITION_PROPS = {
+  ...NUTRITION_PROPS,
+  weight_item: NULLABLE("Gewicht eines typischen Stücks in g (nur Zutat, nie Produkt)"),
+};
+
+const NUTRITION_NULL_NOTE = "null löscht den Eigenwert der Zutat — dann gilt wieder der Wert des Referenzprodukts bzw. „nicht angegeben\". 0 ist eine Aussage („enthält nichts\") und kein Löschen. Ein weggelassener Schlüssel bleibt unverändert. Hinweis: Ein Wert, den das Referenzprodukt selbst angibt, gewinnt ohnehin über den Eigenwert der Zutat.";
 
 // ── Tool-Definitionen ────────────────────────────────────────────────────────
 
@@ -557,7 +590,7 @@ const TOOLS = [
 
   {
     name: "mmm_update_ingredient",
-    description: "Zutat aktualisieren (Titel, Diät-Typ, Nährwerte, Kategorie). Verwendet /mixmymeals/v1/ingredients/{id}.",
+    description: "Zutat aktualisieren (Titel, Diät-Typ, Nährwerte, eigener Preis, Kategorie). diet_type und own_price_per_100g sind direkt setzbar. Für viele Zutaten auf einmal mmm_bulk_update verwenden. Verwendet /mixmymeals/v1/ingredients/{id}.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -569,19 +602,11 @@ const TOOLS = [
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" } },
+        own_price_per_100g: { type: ["number", "null"], description: "Eigener Preis der Zutat je 100 g. null oder 0 löscht ihn. Hat die Zutat ein Referenzprodukt mit Packungspreis und -gewicht, gilt dessen Preis und dieser nur als Rückfall." },
         nutrition: {
           type: "object",
-          properties: {
-            calories_100: { type: "number" },
-            fat:          { type: "number" },
-            saturates:    { type: "number" },
-            carbs:        { type: "number" },
-            protein:      { type: "number" },
-            sugar:        { type: "number" },
-            fiber:        { type: "number" },
-            salt:         { type: "number" },
-            weight_item:  { type: "number" },
-          },
+          description: "Nährwerte je 100 g. " + NUTRITION_NULL_NOTE,
+          properties: INGREDIENT_NUTRITION_PROPS,
         },
       },
     },
@@ -589,21 +614,13 @@ const TOOLS = [
 
   {
     name: "mmm_update_ingredient_nutrition",
-    description: "Nährwerte einer Zutat setzen. Verwendet /mixmymeals/v1/ingredients/{id}/nutrition.",
+    description: "Nährwerte einer Zutat setzen, inkl. saturates (gesättigte Fettsäuren). " + NUTRITION_NULL_NOTE + " Für viele Zutaten auf einmal mmm_bulk_update verwenden. Verwendet /mixmymeals/v1/ingredients/{id}/nutrition.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: {
-        id:           { type: "number" },
-        calories_100: { type: "number", description: "kcal/100g" },
-        fat:          { type: "number" },
-        saturates:    { type: "number" },
-        carbs:        { type: "number" },
-        protein:      { type: "number" },
-        sugar:        { type: "number" },
-        fiber:        { type: "number" },
-        salt:         { type: "number" },
-        weight_item:  { type: "number", description: "Gewicht eines typischen Stücks in g" },
+        id: { type: "number" },
+        ...INGREDIENT_NUTRITION_PROPS,
       },
     },
   },
@@ -616,7 +633,7 @@ const TOOLS = [
       required: ["id", "price_per_100g"],
       properties: {
         id:             { type: "number" },
-        price_per_100g: { type: "number" },
+        price_per_100g: { type: ["number", "null"], description: "null oder 0 löscht den Eigenpreis." },
       },
     },
   },
@@ -855,11 +872,70 @@ const TOOLS = [
 
   {
     name: "mmm_delete_product",
-    description: "Produkt löschen. War es die Referenz der Zutat, fällt diese automatisch weg. Verwendet /mixmymeals/v1/products/{id}.",
+    description: "Produkt endgültig löschen (kein Papierkorb). War es die Referenz der Zutat, fällt diese automatisch weg — die Zutat nutzt dann wieder ihre eigenen Werte. Rezeptzeilen, die genau dieses Produkt festgelegt hatten, fallen auf die Referenz bzw. die Zutat zurück. Verwendet /mixmymeals/v1/products/{id}.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: { id: { type: "number" } },
+    },
+  },
+
+  {
+    name: "mmm_bulk_update",
+    description: "Nährwerte, Preis und Ernährungsform für bis zu 100 Zutaten und Produkte in einem Aufruf korrigieren. Antwort bewusst schlank: je Eintrag id, title und changes — nur die tatsächlich geänderten Felder als [alt, neu]; Fehler (not_found, wrong_type, forbidden, no_fields, no_package_weight, weight_item_not_on_product) stehen getrennt in errors, der Rest läuft durch. Keine vollen Entitäten. Geschrieben wird bei Zutaten immer der EIGENWERT. Gibt das Referenzprodukt denselben Wert selbst an, gewinnt dessen Wert weiter — solche Felder nennt shadowed, damit eine scheinbar wirkungslose Änderung erklärt ist. " + NUTRITION_NULL_NOTE + " price_per_100g: bei Zutaten der eigene Preis (null/0 löscht), bei Produkten wird daraus der Packungspreis berechnet — das braucht ein Packungsgewicht. Unbekannte Schlüssel (Tippfehler wie \"saturated\") oder unbekannte diet_type-Werte weisen den GANZEN Aufruf ab, bevor etwas geschrieben wird. dry_run:true liefert nur die Diffs. Verwendet /mixmymeals/v1/bulk-update.",
+    inputSchema: {
+      type: "object",
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          maxItems: 100,
+          items: {
+            type: "object",
+            required: ["type", "id"],
+            additionalProperties: false,
+            properties: {
+              type:           { type: "string", enum: ["ingredient", "product"] },
+              id:             { type: "number", description: "Post-ID der Zutat bzw. des Produkts" },
+              nutrition:      { type: "object", additionalProperties: false, description: "Nur mitgesendete Schlüssel werden angefasst. weight_item nur bei Zutaten.", properties: INGREDIENT_NUTRITION_PROPS },
+              price_per_100g: { type: ["number", "null"], description: "Preis je 100 g. null oder 0 löscht." },
+              diet_type:      { type: "string", description: "Slug einer Ernährungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Leer löscht die Einstufung." },
+            },
+          },
+        },
+        dry_run: { type: "boolean", default: false, description: "Nichts schreiben, nur die Diffs zurückgeben." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_list_missing",
+    description: "Lückenfinder: Zutaten oder Produkte, denen ein Feld fehlt — seitenweise und schlank (id, title, own_value, inherited_value, reference_product; bei Produkten zusätzlich ingredient_id). Keine Einheiten, keine Kategorien. Bei Zutaten fragt mode 'effective' (Standard), was der Seite tatsächlich fehlt — Referenzprodukt eingerechnet; mode 'own' listet alles, was die Zutat selbst nicht angibt, auch wenn das Referenzprodukt es liefert (so findet man alte 0-Eigenwerte, die man mit null in mmm_bulk_update aufräumen kann). Bei Produkten zählt nur der eigene Wert; inherited_value ist dann der Eigenwert der Zutat. zero_is_missing (Standard true) zählt 0 als Lücke, weil ältere Versionen leere Felder als 0 gespeichert haben — für Ballaststoffe oder Salz, wo 0 oft stimmt, auf false setzen. Verwendet /mixmymeals/v1/missing.",
+    inputSchema: {
+      type: "object",
+      required: ["field"],
+      properties: {
+        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type"] },
+        type:            { type: "string", enum: ["ingredient", "product"], default: "ingredient" },
+        mode:            { type: "string", enum: ["effective", "own"], default: "effective", description: "Nur für Zutaten, siehe Beschreibung." },
+        zero_is_missing: { type: "boolean", default: true },
+        page:            { type: "number", default: 1 },
+        per_page:        { type: "number", default: 50, description: "Höchstens 200." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_merge_ingredients",
+    description: "Zwei Zutaten zusammenführen: alle Rezeptzeilen von remove_id werden auf keep_id umgehängt, die Produkte von remove_id ziehen mit (festgelegte und ausgeschlossene Produkte in Rezepten bleiben damit gültig), danach wird remove_id samt Einheiten endgültig gelöscht. Einheiten werden über den Titel zugeordnet (\"EL\" → \"EL\"); fehlt beim Ziel eine benutzte Einheit, bricht der Vorgang ohne Änderung ab und nennt sie unter conflicts — dann erst die Einheit bei keep_id anlegen. Weicht das Gewicht einer zugeordneten Einheit ab, steht das unter unit_mapping[].weight_changes. Das Referenzprodukt von remove_id wird NICHT übernommen. Immer zuerst mit dry_run:true aufrufen. Verwendet /mixmymeals/v1/ingredients/{remove_id}/merge.",
+    inputSchema: {
+      type: "object",
+      required: ["keep_id", "remove_id"],
+      properties: {
+        keep_id:   { type: "number", description: "Zutat, die bleibt" },
+        remove_id: { type: "number", description: "Zutat, die aufgeht und gelöscht wird" },
+        dry_run:   { type: "boolean", default: false, description: "Nichts ändern, nur berichten, was passieren würde." },
+      },
     },
   },
 
@@ -1396,8 +1472,9 @@ async function handleTool(name, args) {
     }
 
     case "mmm_update_ingredient": {
-      const { id, title, diet_type, shelf_life_days, storage_type, default_unit, categories, nutrition } = args;
+      const { id, title, diet_type, shelf_life_days, storage_type, default_unit, categories, nutrition, own_price_per_100g } = args;
       const body = {};
+      if (own_price_per_100g !== undefined) body.own_price_per_100g = own_price_per_100g;
       if (title        !== undefined) body.title        = title;
       if (diet_type    !== undefined) body.diet_type    = diet_type;
       if (shelf_life_days !== undefined) body.shelf_life_days = shelf_life_days;
@@ -1492,6 +1569,26 @@ async function handleTool(name, args) {
 
     case "mmm_delete_product":
       return mmm("DELETE", `/products/${args.id}`);
+
+    case "mmm_bulk_update": {
+      const body = { items: args.items };
+      if (args.dry_run !== undefined) body.dry_run = args.dry_run;
+      return mmm("POST", "/bulk-update", body);
+    }
+
+    case "mmm_list_missing": {
+      const params = new URLSearchParams({ field: args.field });
+      for (const key of ["type", "mode", "zero_is_missing", "page", "per_page"]) {
+        if (args[key] !== undefined) params.set(key, String(args[key]));
+      }
+      return mmm("GET", `/missing?${params}`);
+    }
+
+    case "mmm_merge_ingredients":
+      return mmm("POST", `/ingredients/${args.remove_id}/merge`, {
+        to_id:   args.keep_id,
+        dry_run: args.dry_run === true,
+      });
 
     case "mmm_get_ingr_unit":
       return mmm("GET", `/units/${args.id}`);
@@ -1700,7 +1797,7 @@ async function handleTool(name, args) {
 // ── MCP Server ───────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "wordpress-rest", version: "5.0.0" },
+  { name: "wordpress-rest", version: "5.1.0" },
   { capabilities: { tools: {} } }
 );
 
