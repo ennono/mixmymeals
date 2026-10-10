@@ -113,6 +113,11 @@ class Mixmymeals_Admin_API {
 			$field_id = 'traffic_light';
 		}
 
+		// One field per subject (ingredient, recipe, meal, plan), same idea.
+		if ( str_starts_with( $field['id'], Mixmymeals_Nutrition_Table::FIELD_PREFIX ) ) {
+			$field_id = 'nutrition_table';
+		}
+
 		switch ( $field_id ) {
 
 			case 'placeholder_image_id':
@@ -223,6 +228,52 @@ class Mixmymeals_Admin_API {
 				}
 
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			// Columns of a nutrition table: show / heading per column, the
+			// first column's heading and the traffic light, stored as one option.
+			case 'nutrition_table':
+				$context = (string) ( $field['context'] ?? '' );
+				$config  = Mixmymeals_Nutrition_Table::config( $context );
+				$stored  = get_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . $context, false );
+				$stored  = is_array( $stored ) ? $stored : array();
+
+				$html .= '<table class="mmm-nutrition-table-field"><thead><tr><th>'
+				         . esc_html__( 'Column', 'mixmymeals' ) . '</th><th>'
+				         . esc_html__( 'Show', 'mixmymeals' ) . '</th><th>'
+				         . esc_html__( 'Heading', 'mixmymeals' ) . '</th></tr></thead><tbody>';
+
+				$html .= '<tr><td>' . esc_html__( 'Nutrient names', 'mixmymeals' ) . '</td><td>&mdash;</td><td>'
+				         . '<input type="text" class="regular-text" name="' . esc_attr( $option_name . '[label]' )
+				         . '" placeholder="' . esc_attr( Mixmymeals_Nutrition_Table::default_label() )
+				         . '" value="' . esc_attr( (string) ( $stored['label'] ?? '' ) ) . '" /></td></tr>';
+
+				foreach ( Mixmymeals_Nutrition_Table::available_columns( $context ) as $col => $def ) {
+
+					$name  = $option_name . '[columns][' . $col . ']';
+					$saved = $stored['columns'][ $col ] ?? null;
+					$shown = is_array( $saved ) ? ! empty( $saved['show'] ) : $def['on'];
+
+					$html .= '<tr><td>' . esc_html( $def['title'] );
+
+					if ( '' !== $def['note'] ) {
+						$html .= '<p class="description">' . esc_html( $def['note'] ) . '</p>';
+					}
+
+					$html .= '</td><td><input type="checkbox" value="1" name="' . esc_attr( $name . '[show]' ) . '"'
+					         . checked( $shown, true, false ) . ' /></td><td>'
+					         . '<input type="text" class="regular-text" name="' . esc_attr( $name . '[title]' )
+					         . '" placeholder="' . esc_attr( $def['title'] )
+					         . '" value="' . esc_attr( is_array( $saved ) ? (string) ( $saved['title'] ?? '' ) : '' ) . '" /></td></tr>';
+				}
+
+				$html .= '</tbody></table>'
+				         . '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[light]' ) . '"'
+				         . checked( $config['light'], true, false ) . ' /> '
+				         . esc_html__( 'Show the traffic light in this table', 'mixmymeals' ) . '</label></p>'
+				         . '<p class="description">'
+				         . esc_html__( 'The thresholds are set under Settings → Ingredients. Switching the light off here also hides it where it is printed on its own.', 'mixmymeals' )
+				         . '</p>';
 				break;
 
 			case 'recipe_disclaimer_text':

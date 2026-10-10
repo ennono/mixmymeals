@@ -1168,3 +1168,20 @@ tbody > tr:first-child.mmm-products__head {
 .mmm-equipment__status.is-error {
     color: var(--mmm-ad-danger);
 }
+
+/* Nutrition tables: one small grid per subject (show / heading per column). */
+#mixmymeals_settings .mmm-nutrition-table-field {
+	border-collapse: collapse;
+}
+
+#mixmymeals_settings .mmm-nutrition-table-field th,
+#mixmymeals_settings .mmm-nutrition-table-field td {
+	padding: 4px 12px 4px 0;
+	text-align: left;
+	vertical-align: top;
+}
+
+#mixmymeals_settings .mmm-nutrition-table-field .description {
+	margin: 2px 0 0;
+	max-width: 28em;
+}

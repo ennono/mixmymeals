@@ -2207,6 +2207,110 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * The one nutrition table all four subjects print — ingredient, recipe,
+	 * meal and plan — in the markup the plan's table always had
+	 * (`mmm-nutrition-table mmm-nutri-table`, `data-label` on every cell), so a
+	 * theme styles one table, not four.
+	 *
+	 * Which columns exist and what they are called is
+	 * Mixmymeals_Nutrition_Table's decision; the caller supplies the figures,
+	 * already formatted. A column the site switched off is simply not looked up.
+	 *
+	 * @param string                                  $context ingredient, recipe, meal or plan.
+	 * @param array<string,array<string,string|null>> $data    Column → nutrient key → printed
+	 *                                                         figure; null prints a dash.
+	 * @param array<string,mixed>                     $args    `tokens` for headings, `lights`
+	 *                                                         from traffic_light_figures().
+	 * @return string '' when the site has switched every column off.
+	 */
+	private function render_nutrition_table( string $context, array $data, array $args = array() ): string {
+
+		$config = Mixmymeals_Nutrition_Table::config( $context, (array) ( $args['tokens'] ?? array() ) );
+
+		if ( empty( $config['columns'] ) ) {
+			return '';
+		}
+
+		$lights = ( $config['light'] && ! empty( $args['lights'] ) ) ? (array) $args['lights'] : array();
+
+		ob_start();
+		?>
+		<table class="mmm-nutrition-table mmm-nutri-table mmm-nutri-table--<?php echo esc_attr( $context ); ?>">
+			<thead>
+			<tr>
+				<th class="mmm-nutri-table__col mmm-nutri-table__col--label"><?php echo esc_html( $config['label'] ); ?></th>
+				<?php foreach ( $config['columns'] as $col => $title ) : ?>
+					<th class="mmm-nutri-table__col mmm-nutri-table__col--<?php echo esc_attr( $col ); ?>"><?php echo esc_html( $title ); ?></th>
+				<?php endforeach; ?>
+			</tr>
+			</thead>
+			<tbody>
+			<?php foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $key => $label ) : ?>
+				<tr<?php echo in_array( $key, array( 'sugar', 'saturates' ), true ) ? ' class="mmm-nutri-table__sub mmm-nutrition-table__sub"' : ''; ?>>
+					<td data-label="<?php echo esc_attr( $config['label'] ); ?>"><?php echo esc_html( $label ); ?></td>
+					<?php foreach ( $config['columns'] as $col => $title ) : ?>
+						<td class="mmm-nutri-table__col--<?php echo esc_attr( $col ); ?>" data-label="<?php echo esc_attr( $title ); ?>"><?php
+							$printed = $data[ $col ][ $key ] ?? null;
+							echo esc_html( null === $printed ? '–' : $printed );
+							if ( 'per_100g' === $col ) {
+								echo $this->traffic_light_cell_suffix( $key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+							}
+						?></td>
+					<?php endforeach; ?>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php if ( isset( $config['columns']['ri'] ) ) : ?>
+			<p class="mmm-nutri-note">
+				<?php echo esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() ); ?>
+			</p>
+		<?php endif; ?>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Printed figures of one column: every nutrient key through the shared
+	 * formatter, null where the source has no value.
+	 *
+	 * @param array<string,float|null> $figures Nutrient key → figure.
+	 * @return array<string,string|null>
+	 */
+	private function format_nutrition_column( array $figures ): array {
+
+		$out = array();
+
+		foreach ( array_keys( Mixmymeals_Meal_Plan::nutrition_labels() ) as $key ) {
+			$out[ $key ] = isset( $figures[ $key ] )
+				? Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $figures[ $key ] )
+				: null;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The reference-intake column: every figure as a share, with the
+	 * "max."/"min." direction the shared formatter adds.
+	 *
+	 * @param array<string,float|null> $figures Nutrient key → figure.
+	 * @return array<string,string|null>
+	 */
+	private function format_nutrition_ri_column( array $figures ): array {
+
+		$out         = array();
+		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $figures );
+
+		foreach ( array_keys( Mixmymeals_Meal_Plan::nutrition_labels() ) as $key ) {
+			$out[ $key ] = Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] );
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Shortcode [mmm_nutrition_traffic_lights].
 	 *
 	 * The lights on their own, one list item per figure that has one — the
@@ -2223,7 +2327,15 @@ class Mixmymeals_Shortcodes {
 		$post_id = absint( $atts['post_id'] );
 		$post_id = $post_id ? $post_id : (int) get_the_ID();
 
-		$figures = $post_id ? $this->traffic_light_figures( $post_id ) : array();
+		// The switch under Settings is per subject and governs the lights
+		// wherever they are printed, not only inside the table.
+		$context = $post_id ? Mixmymeals_Nutrition_Table::context_for_post( $post_id ) : '';
+
+		if ( '' === $context || ! Mixmymeals_Nutrition_Table::light_enabled( $context ) ) {
+			return '';
+		}
+
+		$figures = $this->traffic_light_figures( $post_id );
 		$items   = '';
 
 		foreach ( $figures as $key => $value ) {
@@ -2290,62 +2402,26 @@ class Mixmymeals_Shortcodes {
 		$weight_per_serving = $figures['weight_per_serving'];
 		$lights             = $this->traffic_light_figures( $post_id );
 
-		ob_start();
-		?>
-        <div class="mmm-meal-nutrition">
-            <table class="mmm-nutrition-table">
-                <thead>
-                <tr>
-                    <th><?php esc_html_e( 'Nutrition', 'mixmymeals' ); ?></th>
-                    <th>
-						<?php esc_html_e( 'per serving', 'mixmymeals' ); ?>
-						<?php echo ' ('
-						           . esc_html( round( $weight_per_serving ) )
-						           . ' g)'; ?>
-                    </th>
-                    <th><?php esc_html_e( 'per 100 g', 'mixmymeals' ); ?></th>
-                </tr>
-                </thead>
-                <tbody>
+		/*
+		 * Labels, order and formatting are the shared ones: this table printed
+		 * "Fiber" and "Salt" in English on a German site for as long as it
+		 * existed, and then its own rounding ("12.5g") beside the recipe's
+		 * "12,5 g".
+		 */
+		$table = $this->render_nutrition_table(
+			'meal',
+			array(
+				'serving'  => $this->format_nutrition_column( $per_serving ),
+				'ri'       => $this->format_nutrition_ri_column( $per_serving ),
+				'per_100g' => $this->format_nutrition_column( $per_100g ),
+			),
+			array(
+				'tokens' => array( 'weight' => (string) round( $weight_per_serving ) ),
+				'lights' => $lights,
+			)
+		);
 
-				<?php
-				/*
-				 * Labels from the shared list rather than ucfirst() of the key:
-				 * this table printed "Fiber" and "Salt" in English on a German
-				 * site for as long as it has existed, and it is the one a
-				 * reader sees under a meal.
-				 */
-				$mmm_row_labels   = Mixmymeals_Meal_Plan::nutrition_labels();
-				$rows             = array_fill_keys( array_keys( $mmm_row_labels ), 'g' );
-				$rows['calories'] = 'kcal';
-
-				foreach ( $rows as $key => $unit ) :
-					?>
-                    <tr>
-                        <td><?php echo esc_html( $mmm_row_labels[ $key ] ?? ucfirst( $key ) ); ?></td>
-						<?php
-						$is_calories = ( $key === 'calories' );
-
-						$serving_value = $is_calories
-							? round( $per_serving[ $key ] )
-							: round( $per_serving[ $key ], 1 );
-
-						$per100_value = $is_calories
-							? round( $per_100g[ $key ] )
-							: round( $per_100g[ $key ], 1 );
-						?>
-
-                        <td><?php echo esc_html( $serving_value ); ?><?php echo esc_html( $unit ); ?></td>
-                        <td><?php echo esc_html( $per100_value ); ?><?php echo esc_html( $unit ); ?><?php echo $this->traffic_light_cell_suffix( $key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
-                    </tr>
-				<?php endforeach; ?>
-
-                </tbody>
-            </table>
-        </div>
-		<?php
-
-		return ob_get_clean();
+		return '' === $table ? '' : '<div class="mmm-meal-nutrition">' . $table . '</div>';
 	}
 
 	/**
@@ -3610,45 +3686,27 @@ class Mixmymeals_Shortcodes {
 		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
 		$lights                = $this->traffic_light_figures( $post_id );
 
-		ob_start();
-		?>
-        <div class="mmm-recipe-nutrition">
-            <table class="mmm-nutrition-table">
-                <thead>
-                <tr>
-                    <th><?php esc_html_e( 'Nutrition', 'mixmymeals' ); ?></th>
-                    <th>
-						<?php esc_html_e( 'per serving', 'mixmymeals' ); ?>
-						<?php echo ' ('
-						           . esc_html( $nutrition_per_serving['weight_per_serving'] )
-						           . ' g)'; ?>
-                    </th>
-                    <th><?php esc_html_e( 'per 100 g', 'mixmymeals' ); ?></th>
-                </tr>
-                </thead>
-                <tbody>
-				<?php
-				/*
-				 * Labels, order and formatting come from Mixmymeals_Meal_Plan, the
-				 * same source the plan page, the PDF and the subscription mail use.
-				 * The order is a food label's — energy, fat, carbohydrate, of which
-				 * sugars, fibre, protein, salt — so a recipe reads like the panel on
-				 * a packet rather than in its own sequence.
-				 */
-				foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $mmm_key => $mmm_label ) :
-					?>
-                <tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
-                    <td><?php echo esc_html( $mmm_label ); ?></td>
-                    <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_serving[ $mmm_key ] ?? 0 ) ) ); ?></td>
-                    <td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, (float) ( $nutrition_per_100g[ $mmm_key ] ?? 0 ) ) ); ?><?php echo $this->traffic_light_cell_suffix( $mmm_key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
-                </tr>
-				<?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-		<?php
+		/*
+		 * Labels, order and formatting come from Mixmymeals_Meal_Plan, the same
+		 * source the plan page, the PDF and the subscription mail use. The order
+		 * is a food label's — energy, fat, carbohydrate, of which sugars, fibre,
+		 * protein, salt — so a recipe reads like the panel on a packet rather
+		 * than in its own sequence.
+		 */
+		$table = $this->render_nutrition_table(
+			'recipe',
+			array(
+				'serving'  => $this->format_nutrition_column( $nutrition_per_serving ),
+				'ri'       => $this->format_nutrition_ri_column( $nutrition_per_serving ),
+				'per_100g' => $this->format_nutrition_column( $nutrition_per_100g ),
+			),
+			array(
+				'tokens' => array( 'weight' => (string) $nutrition_per_serving['weight_per_serving'] ),
+				'lights' => $lights,
+			)
+		);
 
-		return ob_get_clean();
+		return '' === $table ? '' : '<div class="mmm-recipe-nutrition">' . $table . '</div>';
 	}
 
 
@@ -7164,11 +7222,6 @@ class Mixmymeals_Shortcodes {
 			$person_meal[ $key ] = $person_total[ $key ] / $num_meals;
 		}
 
-		// Shared with the mail and the PDF so the three never word the same
-		// figure differently.
-		$labels      = Mixmymeals_Meal_Plan::nutrition_labels();
-		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $person_day );
-
 		// Per 100 g of what is eaten: the only column a traffic light can be
 		// read against, since a day's total depends on how much is eaten.
 		$per_100g = $plan->calc_nutrition_per_100g();
@@ -7195,34 +7248,23 @@ class Mixmymeals_Shortcodes {
 				<?php endforeach; ?>
             </div>
 
-            <table class="mmm-nutrition-table mmm-nutri-table">
-                <thead>
-                <tr>
-                    <th><?php esc_html_e( 'Nutrition', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Total / person', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Avg. per day / person', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'of RI*', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'Avg. per meal / person', 'mixmymeals' ); ?></th>
-                    <th><?php esc_html_e( 'per 100 g', 'mixmymeals' ); ?></th>
-                </tr>
-                </thead>
-                <tbody>
-				<?php foreach ( $labels as $key => $label ) : ?>
-                    <tr<?php echo in_array( $key, array( 'sugar', 'saturates' ), true ) ? ' class="mmm-nutri-table__sub"' : ''; ?>>
-                        <td data-label="<?php echo esc_attr__( 'Nutrition', 'mixmymeals' ); ?>"><?php echo esc_html( $label ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'Total / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_total[ $key ] ) ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'Avg. per day / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_day[ $key ] ) ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'of RI*', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'Avg. per meal / person', 'mixmymeals' ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $person_meal[ $key ] ) ); ?></td>
-                        <td data-label="<?php echo esc_attr__( 'per 100 g', 'mixmymeals' ); ?>"><?php echo esc_html( null === $per_100g[ $key ] ? '–' : Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $per_100g[ $key ] ) ); ?><?php echo $this->traffic_light_cell_suffix( $key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
-                    </tr>
-				<?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <p class="mmm-nutri-note">
-				<?php echo esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() ); ?>
-            </p>
+			<?php
+			/*
+			 * Which columns show, and under what heading, is the site's choice
+			 * (Settings → Meal Plans). "Total / person" is not on offer any more:
+			 * summed over the plan's whole length it is a number nobody eats.
+			 */
+			echo $this->render_nutrition_table( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+				'plan',
+				array(
+					'day'      => $this->format_nutrition_column( $person_day ),
+					'ri'       => $this->format_nutrition_ri_column( $person_day ),
+					'meal'     => $this->format_nutrition_column( $person_meal ),
+					'per_100g' => $this->format_nutrition_column( $per_100g ),
+				),
+				array( 'lights' => $lights )
+			);
+			?>
         </div>
 		<?php
 
@@ -9778,29 +9820,19 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		ob_start();
-		?>
-		<div class="mmm-recipe-nutrition mmm-ingredient-nutrition">
-			<table class="mmm-nutrition-table">
-				<thead>
-				<tr>
-					<th><?php esc_html_e( 'Nutrition', 'mixmymeals' ); ?></th>
-					<th><?php esc_html_e( 'per 100 g', 'mixmymeals' ); ?></th>
-				</tr>
-				</thead>
-				<tbody>
-				<?php foreach ( $rows as list( $mmm_key, $mmm_field ) ) : ?>
-					<?php $val = isset( $nutri[ $mmm_field ] ) ? (float) $nutri[ $mmm_field ] : 0.0; ?>
-					<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
-						<td><?php echo esc_html( $labels[ $mmm_key ] ); ?></td>
-						<td><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $mmm_key, $val ) ); ?><?php echo $this->traffic_light_cell_suffix( $mmm_key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-		</div>
-		<?php
-		return (string) ob_get_clean();
+		$figures = array();
+
+		foreach ( $rows as list( $mmm_key, $mmm_field ) ) {
+			$figures[ $mmm_key ] = isset( $nutri[ $mmm_field ] ) ? (float) $nutri[ $mmm_field ] : 0.0;
+		}
+
+		$table = $this->render_nutrition_table(
+			'ingredient',
+			array( 'per_100g' => $this->format_nutrition_column( $figures ) ),
+			array( 'lights' => $lights )
+		);
+
+		return '' === $table ? '' : '<div class="mmm-recipe-nutrition mmm-ingredient-nutrition">' . $table . '</div>';
 	}
 
 	/**

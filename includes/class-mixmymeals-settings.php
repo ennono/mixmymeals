@@ -514,6 +514,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
+				...$this->nutrition_table_fields( array( 'recipe' ) ),
 			),
 		);
 
@@ -555,6 +556,7 @@ class Mixmymeals_Settings {
 						'archive_description_callback'
 					),
 				),
+				...$this->nutrition_table_fields( array( 'ingredient' ) ),
 				...$this->traffic_light_fields(),
 			),
 		);
@@ -864,6 +866,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
+				...$this->nutrition_table_fields( array( 'meal', 'plan' ) ),
 			),
 		);
 
@@ -1124,6 +1127,43 @@ class Mixmymeals_Settings {
 			$settings
 		);
 		// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
+	}
+
+	/**
+	 * The nutrition-table fields of one tab: a heading and one field per
+	 * subject, each choosing the columns, their headings and the traffic light.
+	 *
+	 * The tab follows the menu the subject sits under — ingredients, recipes,
+	 * and meals and plans under Meal Plans — so the setting is where the table
+	 * is looked for.
+	 *
+	 * @param string[] $contexts Subjects, keys of Mixmymeals_Nutrition_Table::contexts().
+	 * @return array[]
+	 */
+	private function nutrition_table_fields( array $contexts ): array {
+
+		$labels = Mixmymeals_Nutrition_Table::contexts();
+		$fields = array(
+			array(
+				'id'          => 'nutrition_table_group_' . implode( '_', $contexts ),
+				'type'        => 'heading',
+				'label'       => __( 'Nutrition tables', 'mixmymeals' ),
+				'description' => __( 'Choose which columns the table shows and what they are called. Leave a heading empty for the default wording. Style the table in your child theme through .mmm-nutri-table.', 'mixmymeals' ),
+			),
+		);
+
+		foreach ( $contexts as $context ) {
+
+			$fields[] = array(
+				'id'          => Mixmymeals_Nutrition_Table::FIELD_PREFIX . $context,
+				'label'       => $labels[ $context ],
+				'description' => '',
+				'context'     => $context,
+				'callback'    => static fn( $input ) => Mixmymeals_Nutrition_Table::sanitize( $context, $input ),
+			);
+		}
+
+		return $fields;
 	}
 
 	/**

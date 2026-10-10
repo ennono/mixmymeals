@@ -7015,3 +7015,75 @@ msgstr "Eine Ampel-Schwelle für „hoch“ liegt unter der für „niedrig“; 
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Traffic light per 100 g"
 msgstr "Ampel pro 100 g"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Ingredient nutrition table"
+msgstr "Nährwerttabelle der Zutat"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Recipe nutrition table"
+msgstr "Nährwerttabelle des Rezepts"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Meal nutrition table"
+msgstr "Nährwerttabelle der Mahlzeit"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Meal plan nutrition table"
+msgstr "Nährwerttabelle des Essensplans"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "The only column the traffic light can be read against."
+msgstr "Die einzige Spalte, an der sich die Ampel ablesen lässt."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Add {weight} to the heading to print the weight of a serving in grams; without it the default heading carries the weight in brackets."
+msgstr "{weight} in der Überschrift gibt das Gewicht einer Portion in Gramm aus; ohne Eintrag nennt die Standardüberschrift das Gewicht in Klammern."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Share of the reference intake that one serving covers."
+msgstr "Anteil der Referenzmenge, den eine Portion deckt."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Averaged over the days that carry meals."
+msgstr "Gemittelt über die Tage mit Mahlzeiten."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Share of the reference intake that the daily average covers."
+msgstr "Anteil der Referenzmenge, den der Tagesdurchschnitt deckt."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "%s needs at least one column; the first one was switched back on."
+msgstr "%s braucht mindestens eine Spalte; die erste wurde wieder eingeschaltet."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Nutrition tables"
+msgstr "Nährwerttabellen"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Choose which columns the table shows and what they are called. Leave a heading empty for the default wording. Style the table in your child theme through .mmm-nutri-table."
+msgstr "Lege fest, welche Spalten die Tabelle zeigt und wie sie heißen. Eine leere Überschrift verwendet den Standardtext. Gestaltet wird die Tabelle im Child-Theme über .mmm-nutri-table."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Column"
+msgstr "Spalte"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Show"
+msgstr "Anzeigen"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Heading"
+msgstr "Überschrift"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Nutrient names"
+msgstr "Nährstoffnamen"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Show the traffic light in this table"
+msgstr "Ampel in dieser Tabelle anzeigen"
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "The thresholds are set under Settings → Ingredients. Switching the light off here also hides it where it is printed on its own."
+msgstr "Die Schwellenwerte stehen unter Einstellungen → Zutaten. Wird die Ampel hier abgeschaltet, verschwindet sie auch dort, wo sie einzeln ausgegeben wird."
