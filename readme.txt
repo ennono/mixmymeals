@@ -123,6 +123,9 @@ Added:
   without either nothing is corrected. Over REST and MCP as
   `cooking_factor` on products; ingredients read `cooking_factor` and
   read/write `own_cooking_factor`.
+  `/bulk-update` (MCP `mmm_bulk_update`) sets it for up to 100 ingredients
+  and products at once, and `/missing` (`mmm_list_missing`) lists those
+  without one (`field=cooking_factor`).
 
 = 3.55.1 =
 

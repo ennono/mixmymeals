@@ -57,6 +57,30 @@ function mmm_cf_near( float $a, float $b ): bool {
 	return abs( $a - $b ) < 0.01;
 }
 
+/**
+ * Ein REST-Aufruf an den eigenen Namensraum.
+ *
+ * @param string $method Methode.
+ * @param string $path   Pfad unter /mixmymeals/v1.
+ * @param array  $body   JSON-Körper.
+ * @param array  $query  Query-Parameter.
+ * @return WP_REST_Response
+ */
+function mmm_cf_call( string $method, string $path, array $body = array(), array $query = array() ): WP_REST_Response {
+	$request = new WP_REST_Request( $method, '/mixmymeals/v1' . $path );
+	if ( $body ) {
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body( wp_json_encode( $body ) );
+	}
+	if ( $query ) {
+		$request->set_query_params( $query );
+	}
+	return rest_get_server()->dispatch( $request );
+}
+
+$mmm_cf_admins = get_users( array( 'role' => 'administrator', 'fields' => 'ID', 'number' => 1 ) );
+wp_set_current_user( (int) ( $mmm_cf_admins[0] ?? 1 ) );
+
 try {
 
 	echo "\n=== 1. Auflösung ===\n";
@@ -147,6 +171,43 @@ try {
 	$table = do_shortcode( '[mmm_meal_nutrition_table_for_a_single_meal]' );
 	wp_reset_postdata();
 	mmm_cf_assert( false !== strpos( $table, '(450 g)' ), 'Mahlzeit nennt das gegarte Portionsgewicht' );
+
+	echo "\n=== 4. Bulk und Lückenliste ===\n";
+
+	$res = mmm_cf_call( 'POST', '/bulk-update', array( 'items' => array(
+		array( 'type' => 'ingredient', 'id' => $sauce, 'cooking_factor' => 0.8 ),
+		array( 'type' => 'product', 'id' => $plain, 'cooking_factor' => 2.2 ),
+	) ) )->get_data();
+	mmm_cf_assert( 2 === (int) $res['changed'], 'Bulk: zwei Einträge geändert' );
+	mmm_cf_assert( array( null, 0.8 ) === (array) $res['results'][0]['changes']->cooking_factor, 'Bulk: Diff [alt, neu] für die Zutat' );
+	mmm_cf_assert( 0.8 === ( new Mixmymeals_Ingredient( $sauce ) )->get_own_cooking_factor(), 'Bulk: Zutat geschrieben' );
+	mmm_cf_assert( 2.2 === ( new Mixmymeals_Product( $plain ) )->get_cooking_factor(), 'Bulk: Produkt geschrieben' );
+
+	$res = mmm_cf_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $sauce, 'nutrition' => array( 'fat' => 3 ) ) ) ) )->get_data();
+	mmm_cf_assert( ! isset( ( (array) $res['results'][0]['changes'] )['cooking_factor'] ), 'Bulk: weggelassener Schlüssel bleibt unangetastet' );
+	mmm_cf_assert( 0.8 === ( new Mixmymeals_Ingredient( $sauce ) )->get_own_cooking_factor(), 'Bulk: Faktor steht noch' );
+
+	$res = mmm_cf_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $sauce, 'cooking_factor' => null ) ) ) )->get_data();
+	mmm_cf_assert( null === ( new Mixmymeals_Ingredient( $sauce ) )->get_own_cooking_factor(), 'Bulk: null löscht' );
+
+	$res = mmm_cf_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $sauce, 'cooking_factor' => 50 ) ) ) );
+	mmm_cf_assert( 400 === $res->get_status(), 'Bulk: Faktor über 20 weist den Aufruf ab' );
+
+	Mixmymeals_Product::set_reference_id( $pasta, $fresh );
+	$res = mmm_cf_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $pasta, 'cooking_factor' => 2.6 ) ) ) )->get_data();
+	mmm_cf_assert( in_array( 'cooking_factor', (array) ( $res['results'][0]['shadowed'] ?? array() ), true ), 'Bulk: vom Referenzprodukt verdeckt → shadowed' );
+	Mixmymeals_Product::set_reference_id( $pasta, 0 );
+
+	$ids = static function ( array $data ): array {
+		return array_map( static fn( $row ) => (int) $row['id'], (array) $data['items'] );
+	};
+
+	$data = mmm_cf_call( 'GET', '/missing', array(), array( 'field' => 'cooking_factor', 'per_page' => 200 ) )->get_data();
+	mmm_cf_assert( in_array( $sauce, $ids( $data ), true ), 'Lücke: Sauce ohne Faktor wird gelistet' );
+	mmm_cf_assert( ! in_array( $pasta, $ids( $data ), true ), 'Lücke: Nudeln mit Faktor nicht' );
+
+	$data = mmm_cf_call( 'GET', '/missing', array(), array( 'field' => 'cooking_factor', 'type' => 'product', 'per_page' => 200 ) )->get_data();
+	mmm_cf_assert( ! in_array( $plain, $ids( $data ), true ) && ! in_array( $fresh, $ids( $data ), true ), 'Lücke: Produkte mit Faktor nicht gelistet' );
 
 } finally {
 

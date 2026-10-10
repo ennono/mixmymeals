@@ -429,6 +429,9 @@ class Mixmymeals_Rest_Api {
 							),
 							'price_per_100g' => array( 'type' => array( 'number', 'null' ), 'minimum' => 0 ),
 							'diet_type'      => array( 'type' => 'string', 'enum' => array_merge( Mixmymeals_Diet::axis_slugs( 'diet' ), array( '' ) ) ),
+							// Out of range rejects the whole request, like an unknown
+							// diet: a factor of 240 is a caller bug.
+							'cooking_factor' => array( 'type' => array( 'number', 'null' ), 'minimum' => 0, 'exclusiveMinimum' => true, 'maximum' => Mixmymeals_Ingredient::COOKING_FACTOR_MAX ),
 						),
 					),
 				),
@@ -440,7 +443,7 @@ class Mixmymeals_Rest_Api {
 			'callback'            => array( $this, 'list_missing' ),
 			'permission_callback' => $auth,
 			'args'                => array(
-				'field'           => array( 'required' => true, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type' ) ) ),
+				'field'           => array( 'required' => true, 'type' => 'string', 'enum' => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type', 'cooking_factor' ) ) ),
 				'type'            => array( 'required' => false, 'type' => 'string', 'default' => 'ingredient', 'enum' => array( 'ingredient', 'product' ) ),
 				'mode'            => array( 'required' => false, 'type' => 'string', 'default' => 'effective', 'enum' => array( 'effective', 'own' ) ),
 				'zero_is_missing' => array( 'required' => false, 'type' => 'boolean', 'default' => true ),
@@ -2576,7 +2579,8 @@ class Mixmymeals_Rest_Api {
 	}
 
 	/**
-	 * Writes nutrition, price and diet for many ingredients and products.
+	 * Writes nutrition, price, diet and cooking factor for many ingredients
+	 * and products.
 	 *
 	 * Writes the ingredient's **own** layer only. A figure the reference
 	 * product states still wins over it, so the answer names those keys under
@@ -2634,7 +2638,7 @@ class Mixmymeals_Rest_Api {
 				continue;
 			}
 
-			if ( ! array_intersect( array( 'nutrition', 'price_per_100g', 'diet_type' ), array_keys( $item ) ) ) {
+			if ( ! array_intersect( array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor' ), array_keys( $item ) ) ) {
 				$errors[] = array( 'id' => $id, 'error' => 'no_fields' );
 				continue;
 			}
@@ -2709,6 +2713,18 @@ class Mixmymeals_Rest_Api {
 				}
 			}
 
+			// The own factor on both: the ingredient's is what a product
+			// without one falls back to, and null clears it.
+			if ( array_key_exists( 'cooking_factor', $item ) ) {
+				$factor = Mixmymeals_Ingredient::normalise_cooking_factor( $item['cooking_factor'] );
+				$old    = $product ? $product->get_cooking_factor() : $ingredient->get_own_cooking_factor();
+
+				if ( $old !== $factor ) {
+					$changes['cooking_factor'] = array( $old, $factor );
+					$writes[]                  = fn() => $product ? $product->set_cooking_factor( $factor ) : $ingredient->set_cooking_factor( $factor );
+				}
+			}
+
 			if ( ! $dry_run ) {
 				foreach ( $writes as $write ) {
 					$write();
@@ -2774,6 +2790,7 @@ class Mixmymeals_Rest_Api {
 			$stated = match ( $key ) {
 				'price_per_100g' => null !== $product->get_price_per_100g(),
 				'diet_type'      => '' !== $product->get_diet_type(),
+				'cooking_factor' => null !== $product->get_cooking_factor(),
 				default          => null !== ( $nutrition[ $key ] ?? null ),
 			};
 
@@ -2826,6 +2843,7 @@ class Mixmymeals_Rest_Api {
 			return match ( $field ) {
 				'price_per_100g' => $product->get_price_per_100g(),
 				'diet_type'      => $product->get_diet_type(),
+				'cooking_factor' => $product->get_cooking_factor(),
 				default          => $product->get_nutrition()[ $field ] ?? null,
 			};
 		};
@@ -2834,6 +2852,7 @@ class Mixmymeals_Rest_Api {
 			return match ( $field ) {
 				'price_per_100g' => $ingredient->get_own_price_per_100g() ?: null,
 				'diet_type'      => Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $ingredient->get_id() ), 'diet' ),
+				'cooking_factor' => $ingredient->get_own_cooking_factor(),
 				default          => $ingredient->get_nutrition_with_product( 0 )[ $field ] ?? null,
 			};
 		};

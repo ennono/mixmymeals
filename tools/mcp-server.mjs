@@ -13,7 +13,7 @@
  *   Generisches WP    → /wp-json/wp/v2/           (Posts, Taxonomien, Media)
  *
  * Neu in v5.1:
- *   - Datenkorrektur in Mengen: mmm_bulk_update (Nährwerte, Preis, Diät für
+ *   - Datenkorrektur in Mengen: mmm_bulk_update (Nährwerte, Preis, Diät, Garfaktor für
  *     bis zu 100 Zutaten/Produkte, Antwort nur als Diff, mit dry_run),
  *     mmm_list_missing (schlanker, seitenweiser Lückenfinder) und
  *     mmm_merge_ingredients (Rezepte umhängen, Produkte ziehen mit).
@@ -886,7 +886,7 @@ const TOOLS = [
 
   {
     name: "mmm_bulk_update",
-    description: "Nährwerte, Preis und Ernährungsform für bis zu 100 Zutaten und Produkte in einem Aufruf korrigieren. Antwort bewusst schlank: je Eintrag id, title und changes — nur die tatsächlich geänderten Felder als [alt, neu]; Fehler (not_found, wrong_type, forbidden, no_fields, no_package_weight, weight_item_not_on_product) stehen getrennt in errors, der Rest läuft durch. Keine vollen Entitäten. Geschrieben wird bei Zutaten immer der EIGENWERT. Gibt das Referenzprodukt denselben Wert selbst an, gewinnt dessen Wert weiter — solche Felder nennt shadowed, damit eine scheinbar wirkungslose Änderung erklärt ist. " + NUTRITION_NULL_NOTE + " price_per_100g: bei Zutaten der eigene Preis (null/0 löscht), bei Produkten wird daraus der Packungspreis berechnet — das braucht ein Packungsgewicht. Unbekannte Schlüssel (Tippfehler wie \"saturated\") oder unbekannte diet_type-Werte weisen den GANZEN Aufruf ab, bevor etwas geschrieben wird. dry_run:true liefert nur die Diffs. Verwendet /mixmymeals/v1/bulk-update.",
+    description: "Nährwerte, Preis, Ernährungsform und Garfaktor für bis zu 100 Zutaten und Produkte in einem Aufruf korrigieren. Antwort bewusst schlank: je Eintrag id, title und changes — nur die tatsächlich geänderten Felder als [alt, neu]; Fehler (not_found, wrong_type, forbidden, no_fields, no_package_weight, weight_item_not_on_product) stehen getrennt in errors, der Rest läuft durch. Keine vollen Entitäten. Geschrieben wird bei Zutaten immer der EIGENWERT. Gibt das Referenzprodukt denselben Wert selbst an, gewinnt dessen Wert weiter — solche Felder nennt shadowed, damit eine scheinbar wirkungslose Änderung erklärt ist. " + NUTRITION_NULL_NOTE + " price_per_100g: bei Zutaten der eigene Preis (null/0 löscht), bei Produkten wird daraus der Packungspreis berechnet — das braucht ein Packungsgewicht. Unbekannte Schlüssel (Tippfehler wie \"saturated\") oder unbekannte diet_type-Werte weisen den GANZEN Aufruf ab, bevor etwas geschrieben wird. dry_run:true liefert nur die Diffs. Verwendet /mixmymeals/v1/bulk-update.",
     inputSchema: {
       type: "object",
       required: ["items"],
@@ -904,6 +904,7 @@ const TOOLS = [
               nutrition:      { type: "object", additionalProperties: false, description: "Nur mitgesendete Schlüssel werden angefasst. weight_item nur bei Zutaten.", properties: INGREDIENT_NUTRITION_PROPS },
               price_per_100g: { type: ["number", "null"], description: "Preis je 100 g. null oder 0 löscht." },
               diet_type:      { type: "string", description: "Slug einer Ernährungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Leer löscht die Einstufung." },
+              cooking_factor: { type: ["number", "null"], description: "Garfaktor: Gewicht gegart je Gramm roh bzw. wie gekauft (Nudeln ~2.4, Reis ~2.7, Linsen ~2.5, Hackfleisch ~0.75, Spinat ~0.3). Bei Zutaten der Eigenwert, bei Produkten der des Artikels. Weglassen = unverändert, null löscht (Zutat: keine Korrektur mehr; Produkt: es gilt wieder der Faktor der Zutat). Werte ausserhalb von >0 bis 20 weisen den GANZEN Aufruf ab. Hat das Referenzprodukt einen eigenen Faktor, steht cooking_factor bei der Zutat unter shadowed." },
             },
           },
         },
@@ -919,7 +920,7 @@ const TOOLS = [
       type: "object",
       required: ["field"],
       properties: {
-        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type"] },
+        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type", "cooking_factor"], description: "cooking_factor: mode effective findet Zutaten, für die gar kein Garfaktor gilt (weder eigener noch über das Referenzprodukt); mode own die ohne eigenen. Bei Produkten: ohne eigenen Faktor (dann gilt der der Zutat, inherited_value)." },
         type:            { type: "string", enum: ["ingredient", "product"], default: "ingredient" },
         mode:            { type: "string", enum: ["effective", "own"], default: "effective", description: "Nur für Zutaten, siehe Beschreibung." },
         zero_is_missing: { type: "boolean", default: true },
