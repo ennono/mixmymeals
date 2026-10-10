@@ -175,10 +175,19 @@ try {
 
 	$table = do_shortcode( '[mmm_nutrition_table_for_a_single_recipe post_id="' . $recipe . '"]' );
 	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ), 'Rezept: Hinweis vorhanden' );
+
+	/*
+	 * Fußnotenzeichen: ohne RM-Spalte (Standard beim Rezept) ist der
+	 * Garhinweis der erste und bekommt "*", Portion und pro 100 g tragen es.
+	 */
+	mmm_cf_assert( 1 === preg_match( '/\(450 g [^)]+\)\*</u', $table ), 'Rezept: Portionsspalte trägt das Zeichen des Garhinweises' );
+	mmm_cf_assert( 1 === preg_match( '/mmm-nutri-note--cooked">\s*\* /u', $table ), 'Rezept: Garhinweis beginnt mit genau einem *' );
 	mmm_cf_assert( array( 'ZZ Nudeln' ) === $r->get_cooked_ingredients(), 'Rezept: genau die Zutat mit Faktor, nicht die Sauce' );
 
 	$table = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan . '"]' );
 	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ), 'Plan: Hinweis vorhanden' );
+	// Beim Plan steht die RM-Spalte standardmäßig: sie bekommt *, der Garhinweis **.
+	mmm_cf_assert( 1 === preg_match( '/mmm-nutri-note--ri">\s*\* /u', $table ) && 1 === preg_match( '/mmm-nutri-note--cooked">\s*\*\* /u', $table ), 'Plan: * für die Referenzmenge, ** für das Garen' );
 
 	$mmm_cf_option = get_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', false );
 	update_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', Mixmymeals_Nutrition_Table::sanitize( 'recipe', array( 'columns' => array( 'serving' => array( 'show' => '1' ) ) ) ) );

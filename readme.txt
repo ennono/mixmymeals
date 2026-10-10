@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.57.0
+Stable tag: 3.58.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.58.0 =
+
+Added:
+* The reference-intake note under a nutrition table can be switched off
+  per table, beside the traffic light.
+
+Changed:
+* Notes under a nutrition table are footnotes now: the cooking note gets a
+  mark too, and so do the headings it refers to (serving and per 100 g).
+  Marks are assigned in the order the notes print — "*", "**" — and only to
+  notes that print, so every mark points at exactly one note whatever is
+  switched on. A mark typed into a heading is removed rather than kept.
 
 = 3.57.0 =
 

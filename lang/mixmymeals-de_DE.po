@@ -7122,3 +7122,7 @@ msgstr "gegart"
 #: includes/lib/class-mixmymeals-admin-api.php
 msgid "Mark the cooked weight and name the cooking factors under the table"
 msgstr "Gegartes Gewicht kennzeichnen und Garfaktoren unter der Tabelle nennen"
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "Explain the reference intake under the table (when its column is shown)"
+msgstr "Referenzmenge unter der Tabelle erklären (wenn ihre Spalte angezeigt wird)"

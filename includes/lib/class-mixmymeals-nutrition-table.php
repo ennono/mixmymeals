@@ -173,7 +173,7 @@ final class Mixmymeals_Nutrition_Table {
 	 *                                      ({weight}, {cooked}); a heading
 	 *                                      without the placeholder is printed
 	 *                                      as typed.
-	 * @return array{label:string,columns:array<string,string>,light:bool,cooked_note:bool}
+	 * @return array{label:string,columns:array<string,string>,light:bool,cooked_note:bool,ri_note:bool}
 	 */
 	public static function config( string $context, array $tokens = array() ): array {
 
@@ -191,6 +191,11 @@ final class Mixmymeals_Nutrition_Table {
 
 		// Switched off, the marker goes with the note: one decision.
 		$tokens['cooked'] = $cooked_note ? (string) ( $tokens['cooked'] ?? '' ) : '';
+
+		// Read by key for the same reason. Only where the table can have the
+		// column the note explains.
+		$ri_note = isset( $available['ri'] )
+			&& ( array_key_exists( 'ri_note', $stored ) ? ! empty( $stored['ri_note'] ) : true );
 
 		$columns = array();
 
@@ -222,6 +227,13 @@ final class Mixmymeals_Nutrition_Table {
 			// An empty {cooked} must not leave "(450 g )" behind.
 			$title = trim( (string) preg_replace( array( '/\s+/', '/\s+\)/' ), array( ' ', ')' ), $title ) );
 
+			/*
+			 * Footnote marks are assigned by footnotes(), never typed: a
+			 * heading carrying its own "*" (the translated "der RM*", or one a
+			 * site wrote) would point at whichever note happens to come first.
+			 */
+			$title = rtrim( rtrim( $title, '*' ) );
+
 			$columns[ $key ] = $title;
 		}
 
@@ -232,6 +244,63 @@ final class Mixmymeals_Nutrition_Table {
 			'columns' => $columns,
 			'light'       => isset( $stored['columns'] ) ? ! empty( $stored['light'] ) : true,
 			'cooked_note' => $cooked_note,
+			'ri_note'     => $ri_note,
+		);
+	}
+
+	/**
+	 * The notes under a table and the marks that tie them to its headings.
+	 *
+	 * Marks are handed out in the order the notes print — "*", "**", … — and
+	 * only to notes that actually print, so whichever switches are on, each
+	 * mark in a heading has exactly one note below and each note at least one
+	 * heading above. A note whose columns are all switched off is not printed:
+	 * a footnote nothing refers to explains nothing.
+	 *
+	 * - Reference intake: the `ri` column, when shown and its note is on.
+	 * - Cooking factor: the `serving` column (its weight) and `per_100g` (its
+	 *   figures), when a factor moved the weight and that note is on.
+	 *
+	 * @param array    $config From config().
+	 * @param string[] $cooked Ingredient names whose cooking factor moved the weight.
+	 * @return array{notes:array<int,array{mark:string,kind:string,text:string}>, marks:array<string,string>}
+	 */
+	public static function footnotes( array $config, array $cooked = array() ): array {
+
+		$columns = (array) ( $config['columns'] ?? array() );
+		$wanted  = array();
+
+		if ( ! empty( $config['ri_note'] ) && isset( $columns['ri'] ) ) {
+			$wanted[] = array( 'ri', Mixmymeals_Meal_Plan::reference_intake_note(), array( 'ri' ) );
+		}
+
+		$cooked_columns = array_values( array_intersect( array( 'serving', 'per_100g' ), array_keys( $columns ) ) );
+		$cooked_text    = ! empty( $config['cooked_note'] ) ? self::cooked_note( $cooked ) : '';
+
+		if ( '' !== $cooked_text && $cooked_columns ) {
+			$wanted[] = array( 'cooked', $cooked_text, $cooked_columns );
+		}
+
+		$notes = array();
+		$marks = array();
+
+		foreach ( $wanted as $i => list( $kind, $text, $cols ) ) {
+
+			$mark    = str_repeat( '*', $i + 1 );
+			$notes[] = array(
+				'mark' => $mark,
+				'kind' => $kind,
+				'text' => $text,
+			);
+
+			foreach ( $cols as $col ) {
+				$marks[ $col ] = ( $marks[ $col ] ?? '' ) . ( isset( $marks[ $col ] ) ? ' ' : '' ) . $mark;
+			}
+		}
+
+		return array(
+			'notes' => $notes,
+			'marks' => $marks,
 		);
 	}
 
@@ -308,6 +377,10 @@ final class Mixmymeals_Nutrition_Table {
 
 		if ( in_array( $context, self::COOKING_CONTEXTS, true ) ) {
 			$out['cooked_note'] = empty( $input['cooked_note'] ) ? '' : '1';
+		}
+
+		if ( isset( $available['ri'] ) ) {
+			$out['ri_note'] = empty( $input['ri_note'] ) ? '' : '1';
 		}
 
 		$any = false;

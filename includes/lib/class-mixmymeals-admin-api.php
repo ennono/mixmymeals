@@ -271,6 +271,11 @@ class Mixmymeals_Admin_API {
 				         . '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[light]' ) . '"'
 				         . checked( $config['light'], true, false ) . ' /> '
 				         . esc_html__( 'Show the traffic light in this table', 'mixmymeals' ) . '</label></p>'
+				         . ( isset( Mixmymeals_Nutrition_Table::available_columns( $context )['ri'] )
+					         ? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[ri_note]' ) . '"'
+					           . checked( $config['ri_note'], true, false ) . ' /> '
+					           . esc_html__( 'Explain the reference intake under the table (when its column is shown)', 'mixmymeals' ) . '</label></p>'
+					         : '' )
 				         . ( in_array( $context, Mixmymeals_Nutrition_Table::COOKING_CONTEXTS, true )
 					         ? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[cooked_note]' ) . '"'
 					           . checked( $config['cooked_note'], true, false ) . ' /> '

@@ -2252,6 +2252,14 @@ class Mixmymeals_Shortcodes {
 
 		$lights = ( $config['light'] && ! empty( $args['lights'] ) ) ? (array) $args['lights'] : array();
 
+		// The marks go onto the headings here, once, so the cell labels the
+		// phone layout prints from data-label carry them too.
+		$footnotes = Mixmymeals_Nutrition_Table::footnotes( $config, $cooked );
+
+		foreach ( $footnotes['marks'] as $mmm_col => $mmm_mark ) {
+			$config['columns'][ $mmm_col ] .= $mmm_mark;
+		}
+
 		ob_start();
 		?>
 		<table class="mmm-nutrition-table mmm-nutri-table mmm-nutri-table--<?php echo esc_attr( $context ); ?>">
@@ -2280,24 +2288,19 @@ class Mixmymeals_Shortcodes {
 			<?php endforeach; ?>
 			</tbody>
 		</table>
-		<?php if ( isset( $config['columns']['ri'] ) ) : ?>
-			<p class="mmm-nutri-note">
-				<?php echo esc_html( '* ' . Mixmymeals_Meal_Plan::reference_intake_note() ); ?>
-			</p>
-		<?php endif; ?>
 		<?php
 		/*
-		 * Only where a factor actually moved the weight. Without it the same
-		 * recipe would show other figures per 100 g the day somebody enters a
-		 * factor, and nothing on the page would say why.
+		 * The cooking note prints only where a factor actually moved the
+		 * weight. Without it the same recipe would show other figures per
+		 * 100 g the day somebody enters a factor, and nothing on the page
+		 * would say why.
 		 */
-		$mmm_cooked_note = $config['cooked_note'] ? Mixmymeals_Nutrition_Table::cooked_note( $cooked ) : '';
-		?>
-		<?php if ( '' !== $mmm_cooked_note ) : ?>
-			<p class="mmm-nutri-note mmm-nutri-note--cooked">
-				<?php echo esc_html( $mmm_cooked_note ); ?>
+		foreach ( $footnotes['notes'] as $mmm_note ) :
+			?>
+			<p class="mmm-nutri-note mmm-nutri-note--<?php echo esc_attr( $mmm_note['kind'] ); ?>">
+				<?php echo esc_html( $mmm_note['mark'] . ' ' . $mmm_note['text'] ); ?>
 			</p>
-		<?php endif; ?>
+		<?php endforeach; ?>
 		<?php
 
 		return (string) ob_get_clean();
