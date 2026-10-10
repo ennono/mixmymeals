@@ -129,7 +129,11 @@ final class Mixmymeals_Nutrition_Table {
 						'on'    => true,
 						'note'  => '',
 					),
-					'per_100g' => $per_100g,
+					'per_100g' => array(
+						// A weighted mix of every portion on the plan, not an exact
+						// figure of one dish as on the other three tables.
+						'title' => __( 'Avg. per 100 g', 'mixmymeals' ),
+					) + $per_100g,
 				);
 				break;
 

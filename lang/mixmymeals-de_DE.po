@@ -7087,3 +7087,7 @@ msgstr "Ampel in dieser Tabelle anzeigen"
 #: includes/lib/class-mixmymeals-nutrition-table.php
 msgid "The thresholds are set under Settings → Ingredients. Switching the light off here also hides it where it is printed on its own."
 msgstr "Die Schwellenwerte stehen unter Einstellungen → Zutaten. Wird die Ampel hier abgeschaltet, verschwindet sie auch dort, wo sie einzeln ausgegeben wird."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+msgid "Avg. per 100 g"
+msgstr "Ø pro 100 g"
