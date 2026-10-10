@@ -6290,8 +6290,9 @@ msgid "Also show on ingredient pages"
 msgstr "Auch auf Zutatenseiten ausgeben"
 
 #: includes/class-mixmymeals-settings.php
-msgid "Puts the same disclaimer under the nutrition table of an ingredient page. Worth switching on when the text says anything about the figures or the traffic light: an ingredient page shows both, and until now the disclaimer reached recipe and meal pages only."
-msgstr "Stellt denselben Hinweis unter die Nährwerttabelle einer Zutatenseite. Lohnt sich, sobald der Text etwas über die Werte oder die Nährwertampel sagt: eine Zutatenseite zeigt beides, und bisher erreichte der Hinweis nur Rezept- und Mahlzeitenseiten."
+msgid "Same text, in a Note section as on recipe pages."
+msgstr "Derselbe Text, in einem eigenen Hinweis-Abschnitt wie auf Rezeptseiten."
+
 #~ msgid ""
 #~ "Legal bases: consent (Art. 6(1)(a) GDPR) for e-mail subscriptions, ratings "
 #~ "and photo uploads; legitimate interests (Art. 6(1)(f) GDPR) for the meal "

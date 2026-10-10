@@ -261,6 +261,8 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_disclaimer_for_a_single_recipe',
 			[ $this, 'mmm_disclaimer_for_a_single_recipe_callback' ] );
+		add_shortcode( 'mmm_disclaimer_for_a_single_ingredient',
+			[ $this, 'mmm_disclaimer_for_a_single_ingredient_callback' ] );
 
 		add_shortcode( 'mmm_feature_image_for_a_single_recipe',
 			[ $this, 'mmm_feature_image_for_a_single_recipe_callback' ] );
@@ -7575,6 +7577,36 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Shortcode [mmm_disclaimer_for_a_single_ingredient].
+	 *
+	 * The same text as on a recipe, and only where the site has asked for it
+	 * (Settings → Recipes → "Also show on ingredient pages"). One wording
+	 * rather than a second setting: what such a text says about figures — that
+	 * they are estimates, that the traffic light is not an official labelling,
+	 * that the packet in the basket is what counts — holds for an ingredient
+	 * page as much as for a recipe, and two fields would drift apart the day
+	 * either is edited.
+	 *
+	 * Unlike its two siblings this one returns '' when switched off or empty,
+	 * so the theme can hide the whole section instead of printing a heading
+	 * over nothing.
+	 *
+	 * @return string
+	 */
+	public function mmm_disclaimer_for_a_single_ingredient_callback(): string {
+
+		if ( 'on' !== get_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' ) ) {
+			return '';
+		}
+
+		$text = trim( (string) get_option( 'mixmymeals_recipe_disclaimer_text', '' ) );
+
+		return '' === $text
+			? ''
+			: '<p class="mmm-recipe-disclaimer">' . esc_html( $text ) . '</p>';
+	}
+
+	/**
 	 * Shortcode [mmm_feature_image_for_a_single_recipe].
 	 * Renders the featured image for the current recipe at the specified size.
 	 *
@@ -9768,37 +9800,7 @@ class Mixmymeals_Shortcodes {
 			</table>
 		</div>
 		<?php
-		return (string) ob_get_clean() . self::ingredient_disclaimer();
-	}
-
-	/**
-	 * The recipe disclaimer on an ingredient page, when the site asks for it
-	 * there.
-	 *
-	 * Under the nutrition table rather than at the foot of the page, and the
-	 * same text as on a recipe rather than one of its own: what such a text
-	 * has to say about figures — that they are estimates, that the traffic
-	 * light is not an official labelling, that the packet in the shopping
-	 * basket is what counts — is about the table it now stands under. A second
-	 * setting holding a second wording would drift from the first the day
-	 * either is edited.
-	 *
-	 * Rendered with the class the recipe and meal shortcodes use, so the theme
-	 * styles one thing and not three.
-	 *
-	 * @return string '' when switched off or when no disclaimer is set.
-	 */
-	private static function ingredient_disclaimer(): string {
-
-		if ( 'on' !== get_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' ) ) {
-			return '';
-		}
-
-		$text = trim( (string) get_option( 'mixmymeals_recipe_disclaimer_text', '' ) );
-
-		return '' === $text
-			? ''
-			: '<p class="mmm-recipe-disclaimer">' . esc_html( $text ) . '</p>';
+		return (string) ob_get_clean();
 	}
 
 	/**

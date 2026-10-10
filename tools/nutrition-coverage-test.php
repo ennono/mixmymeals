@@ -544,9 +544,10 @@ update_option( 'mixmymeals_recipe_disclaimer_text', 'ZZ Hinweis: Verbindlich ist
 update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' );
 
 $disc_ing = mmm_nc_ing( 'ZZ Mit Nährwerten', $full );
-$render   = static fn(): string => do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' );
+$render   = static fn(): string => do_shortcode( '[mmm_disclaimer_for_a_single_ingredient]' );
+$table    = static fn() => do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' );
 
-mmm_nc_assert( false === strpos( $render(), 'ZZ Hinweis' ), 'ausgeschaltet: kein Hinweis unter der Tabelle' );
+mmm_nc_is( 'ausgeschaltet: der Shortcode gibt nichts zurück', '', trim( $render() ) );
 
 update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', 'on' );
 mmm_nc_assert( false !== strpos( $render(), 'ZZ Hinweis' ), 'eingeschaltet: der Hinweis steht da' );
@@ -554,22 +555,25 @@ mmm_nc_assert(
 	false !== strpos( $render(), 'mmm-recipe-disclaimer' ),
 	'und trägt dieselbe Klasse wie auf der Rezeptseite'
 );
-mmm_nc_assert(
-	strpos( $render(), 'ZZ Hinweis' ) > strpos( $render(), '</table>' ),
-	'unter der Tabelle, nicht darüber'
-);
 
-// Ein leerer Disclaimer darf keinen leeren Absatz erzeugen.
+/*
+ * Die Nährwerttabelle trägt ihn nicht mehr: der Hinweis steht im Template in
+ * einer eigenen Section, wie auf der Rezeptseite. Stünde er in beidem, hätte
+ * die Zutatenseite ihn zweimal.
+ */
+mmm_nc_assert( false === strpos( $table(), 'mmm-recipe-disclaimer' ), 'die Tabelle selbst trägt ihn nicht' );
+
+// Ein leerer Disclaimer darf keinen leeren Absatz erzeugen — sonst steht im
+// Template ein Heading über nichts.
 update_option( 'mixmymeals_recipe_disclaimer_text', '   ' );
-mmm_nc_assert( false === strpos( $render(), 'mmm-recipe-disclaimer' ), 'ohne Text: kein leerer Absatz' );
+mmm_nc_is( 'ohne Text: nichts, nicht ein leerer Absatz', '', trim( $render() ) );
 
-// Eine Zutat ohne Nährwerte hat keine Tabelle — und bekommt auch keinen Hinweis.
+// Unabhängig von den Nährwerten: der Text spricht nicht nur über die Tabelle,
+// und auf der Rezeptseite steht er auch ohne sie.
 update_option( 'mixmymeals_recipe_disclaimer_text', 'ZZ Hinweis: Verbindlich ist die Packung.' );
-$disc_blank = mmm_nc_ing( 'ZZ Ohne alles' );
-mmm_nc_is(
-	'ohne Tabelle kein Hinweis',
-	'',
-	trim( do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_blank . '"]' ) )
+mmm_nc_assert(
+	false !== strpos( $render(), 'ZZ Hinweis' ),
+	'auch für eine Zutat ohne Nährwerte'
 );
 
 update_option( 'mixmymeals_recipe_disclaimer_text', $mmm_nc_disclaimer_before );

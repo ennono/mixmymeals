@@ -126,16 +126,16 @@ Added:
 * The plan's nutrition table gained a per-100 g column.
 * [mmm_nutrition_traffic_lights] shows the lights on their own, as a
   row for above a table.
-* The recipe disclaimer can also be shown under an ingredient's
-  nutrition table (Settings → Recipes), in the same wording.
 * "Also show on ingredient pages" under the recipe disclaimer
-  (Settings → Recipes) puts the same text under the nutrition table of
-  an ingredient page. That page now shows the figures and the traffic
-  light, which is what such a text is usually about — that the figures
-  are estimates, that the light is not an official labelling, that the
-  packet in the basket is what counts — and until now the disclaimer
-  reached recipe and meal pages only. Off by default; an empty
-  disclaimer prints nothing either way.
+  (Settings → Recipes) shows the same text on ingredient pages, in a
+  Note section as on recipe pages. Such a text is usually about the
+  figures — that they are estimates, that the traffic light is not an
+  official labelling, that the packet in the basket is what counts —
+  and an ingredient page shows both. Off by default; an empty
+  disclaimer prints nothing, so the section stays away.
+* [mmm_disclaimer_for_a_single_ingredient] for themes that place it
+  themselves. Unlike its recipe and meal siblings it returns nothing
+  while the setting is off, so a template can hide the whole section.
 
 = 3.53.0 =
 

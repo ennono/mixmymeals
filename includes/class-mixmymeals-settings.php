@@ -427,7 +427,7 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'recipe_disclaimer_on_ingredients',
 					'label'       => __( 'Also show on ingredient pages', 'mixmymeals' ),
-					'description' => __( 'Puts the same disclaimer under the nutrition table of an ingredient page. Worth switching on when the text says anything about the figures or the traffic light: an ingredient page shows both, and until now the disclaimer reached recipe and meal pages only.', 'mixmymeals' ),
+					'description' => __( 'Same text, in a Note section as on recipe pages.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
