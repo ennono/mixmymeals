@@ -1628,7 +1628,41 @@ class Mixmymeals_Post_Meta {
 			echo '</tr>';
 		}
 
+		/*
+		 * The ingredient's own factor, not the resolved one: this field writes
+		 * back, and showing a product's factor here would copy it into the
+		 * ingredient on the next save — the rule the price field keeps.
+		 */
+		$mmm_factor = $ingredient_obj->get_own_cooking_factor();
+
+		echo '<tr>';
+		echo '<th scope="row"><label for="mmm_cooking_factor">'
+			. esc_html__( 'Cooking factor', 'mixmymeals' ) . '</label></th>';
+		echo '<td><input type="number" step="0.01" min="0.01" max="'
+			. esc_attr( (string) Mixmymeals_Ingredient::COOKING_FACTOR_MAX )
+			. '" name="mmm_cooking_factor" id="mmm_cooking_factor" value="'
+			. esc_attr( null === $mmm_factor ? '' : (string) $mmm_factor )
+			. '" class="small-text" placeholder="1"></td>';
+		echo '</tr>';
+
 		echo '</tbody></table>';
+
+		echo '<p class="description">'
+			. esc_html__( 'Cooked weight per gram raw, e.g. 2.4 for dry pasta, 0.75 for minced meat. Used only for figures per 100 g and the serving weight; empty means no correction. A product with its own factor overrides this one.', 'mixmymeals' )
+			. '</p>';
+
+		$mmm_resolved = $ingredient_obj->get_cooking_factor();
+
+		if ( null !== $mmm_resolved && $mmm_resolved !== $mmm_factor ) {
+			echo '<p class="description">' . esc_html(
+				sprintf(
+					/* translators: 1: product name, 2: cooking factor */
+					__( 'Currently set by the product %1$s: %2$s.', 'mixmymeals' ),
+					Mixmymeals_Product::reference_label( $post->ID ),
+					number_format_i18n( $mmm_resolved, 2 )
+				)
+			) . '</p>';
+		}
 	}
 
 	public function save_ingredient_meta( int $post_ID ): void {
@@ -1682,6 +1716,13 @@ class Mixmymeals_Post_Meta {
 
 		$ingredient_obj = new Mixmymeals_Ingredient( $post_ID );
 		$ingredient_obj->set_nutrition( $data );
+
+		// Not posted means not rendered: leave it alone, like the figures above.
+		if ( isset( $_POST['mmm_cooking_factor'] ) ) {
+			$ingredient_obj->set_cooking_factor(
+				Mixmymeals_Ingredient::normalise_cooking_factor( sanitize_text_field( wp_unslash( $_POST['mmm_cooking_factor'] ) ) )
+			);
+		}
 
 		// ----------------- Ingredient Amounts -----------------
 		if ( isset( $_POST['mmm_ingredient_amounts'] )
@@ -2645,6 +2686,9 @@ class Mixmymeals_Post_Meta {
 			$product->set_price(
 				isset( $row['price'] ) && '' !== trim( (string) $row['price'] ) ? (float) $row['price'] : null
 			);
+			$product->set_cooking_factor(
+				Mixmymeals_Ingredient::normalise_cooking_factor( $row['cooking_factor'] ?? null )
+			);
 
 			/*
 			 * Every key is passed through, including the empty ones: an emptied
@@ -2980,6 +3024,17 @@ class Mixmymeals_Post_Meta {
 		foreach ( Mixmymeals_Ingredient::nutrition_warnings( $nutrition ) as $mmm_warning ) {
 			echo '<p class="mmm-products__warning">' . esc_html( $mmm_warning ) . '</p>';
 		}
+
+		$mmm_product_factor = $is_new ? null : $product->get_cooking_factor();
+
+		echo '<label class="mmm-products__field">'
+			. '<span>' . esc_html__( 'Cooking factor', 'mixmymeals' ) . '</span>'
+			. '<input type="number" step="0.01" min="0.01" max="'
+			. esc_attr( (string) Mixmymeals_Ingredient::COOKING_FACTOR_MAX ) . '" name="'
+			. esc_attr( $name ) . '[cooking_factor]" value="'
+			. esc_attr( null === $mmm_product_factor ? '' : (string) $mmm_product_factor ) . '" placeholder="'
+			. esc_attr__( 'as ingredient', 'mixmymeals' ) . '">'
+			. '</label>';
 
 		echo '<label class="mmm-products__field mmm-products__field--source">'
 			. '<span>'

@@ -358,6 +358,52 @@ class Mixmymeals_Product {
 	}
 
 	/**
+	 * Cooking factor of this packet: cooked weight per gram as bought.
+	 *
+	 * A brand property where it differs from the ingredient's — quick-cook rice
+	 * takes up less water than ordinary rice, fresh pasta far less than dry.
+	 * Null means the packet says nothing and the ingredient's factor stands
+	 * (Mixmymeals_Ingredient::get_cooking_factor_pinned()).
+	 *
+	 * @var string
+	 */
+	const META_COOKING_FACTOR = '_mmm_product_cooking_factor';
+
+	/**
+	 * The product's own cooking factor, or null.
+	 *
+	 * @return float|null
+	 */
+	public function get_cooking_factor(): ?float {
+
+		return $this->is_valid()
+			? Mixmymeals_Ingredient::normalise_cooking_factor( get_post_meta( $this->post_id, self::META_COOKING_FACTOR, true ) )
+			: null;
+	}
+
+	/**
+	 * Stores the cooking factor; null (or anything invalid) clears it.
+	 *
+	 * @param float|null $factor Cooked weight per gram as bought.
+	 * @return void
+	 */
+	public function set_cooking_factor( ?float $factor ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		$factor = Mixmymeals_Ingredient::normalise_cooking_factor( $factor );
+
+		if ( null === $factor ) {
+			delete_post_meta( $this->post_id, self::META_COOKING_FACTOR );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_COOKING_FACTOR, $factor );
+	}
+
+	/**
 	 * Brand, or '' when none is recorded.
 	 *
 	 * @return string

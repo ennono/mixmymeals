@@ -567,6 +567,7 @@ const TOOLS = [
         diet_type:    { type: "string", description: "Slug einer Ernaehrungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter) oder leer. Leer loescht die Einstufung ganz — Terme und die alte Meta-Zeile. Ein fehlender Schluessel aendert nichts." },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
+        own_cooking_factor: { type: ["number", "null"], description: "Eigener Garfaktor der Zutat: Gewicht gegart je Gramm roh, z. B. 2.4 fuer trockene Nudeln, 2.7 fuer Reis, 0.75 fuer Hackfleisch, 0.3 fuer Spinat. Aendert keine Naehrwertsumme (Wasser hat keine), nur das Portionsgewicht und alle Werte pro 100 g samt Ampel. Weglassen = unveraendert, null loescht (= keine Korrektur). Ein Produkt mit eigenem Faktor geht vor." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" }, description: "mmm_ingredient_category Term-IDs" },
         nutrition: {
@@ -600,6 +601,7 @@ const TOOLS = [
         diet_type:    { type: "string", description: "Slug einer Ernaehrungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter) oder leer. Leer loescht die Einstufung ganz — Terme und die alte Meta-Zeile. Ein fehlender Schluessel aendert nichts." },
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
+        own_cooking_factor: { type: ["number", "null"], description: "Eigener Garfaktor der Zutat: Gewicht gegart je Gramm roh, z. B. 2.4 fuer trockene Nudeln, 2.7 fuer Reis, 0.75 fuer Hackfleisch, 0.3 fuer Spinat. Aendert keine Naehrwertsumme (Wasser hat keine), nur das Portionsgewicht und alle Werte pro 100 g samt Ampel. Weglassen = unveraendert, null loescht (= keine Korrektur). Ein Produkt mit eigenem Faktor geht vor." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" } },
         own_price_per_100g: { type: ["number", "null"], description: "Eigener Preis der Zutat je 100 g. null oder 0 löscht ihn. Hat die Zutat ein Referenzprodukt mit Packungspreis und -gewicht, gilt dessen Preis und dieser nur als Rückfall." },
@@ -718,6 +720,7 @@ const TOOLS = [
         brand:          { type: "string", description: "Marke oder Hersteller. Pflicht — zwei Produkte einer Zutat unterscheiden sich oft nur darüber, und ohne Marke laesst sich im Laden nichts wiederfinden." },
         package_weight: { type: "number", description: "Gewicht einer Packung in Gramm" },
         price:          { type: ["number", "null"], description: "Preis einer Packung in der Shop-Währung. Der Preis je 100 g ergibt sich daraus und aus package_weight — ohne Packungsgewicht wirkt der Preis nicht. Ist das Produkt die Referenz, ersetzt er den Preis der Zutat in allen Kostenrechnungen. null löscht ihn." },
+        cooking_factor: { type: ["number", "null"], description: "Garfaktor dieses Artikels (gegart je Gramm wie gekauft), wo er von dem der Zutat abweicht — Schnellkochreis quillt weniger, frische Nudeln kaum. null/leer: es gilt der Faktor der Zutat." },
         source:         { type: "string", description: "Woher die Angaben stammen, z. B. 'Packung, 08/2026'. Diese Werte veralten — ohne Quelle unterscheidet später niemand eine aktuelle von einer alten Angabe." },
         nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, saturates, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
         diet_type:      { type: "string", description: "Slug einer Ernaehrungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Einstufung dieses Artikels. Leer = nicht geprüft, dann gilt die Einstufung der Zutat. Sobald gesetzt, überschreibt sie diese — Nudeln mit Ei sind nicht vegan, auch wenn die Zutat es ist. Wirkt nur über die Referenz." },
@@ -738,6 +741,7 @@ const TOOLS = [
         brand:          { type: "string" },
         package_weight: { type: "number" },
         price:          { type: ["number", "null"], description: "Preis einer Packung. Wirkt nur zusammen mit package_weight und nur, wenn das Produkt die Referenz ist. null löscht ihn." },
+        cooking_factor: { type: ["number", "null"], description: "Garfaktor dieses Artikels (gegart je Gramm wie gekauft), wo er von dem der Zutat abweicht — Schnellkochreis quillt weniger, frische Nudeln kaum. null/leer: es gilt der Faktor der Zutat." },
         source:         { type: "string" },
         nutrition:      { type: "object", description: "Nährwerte je 100 g als Objekt, z. B. { calories_100: 131, fat: 10 }. Erlaubte Schlüssel: calories_100, fat, saturates, carbs, protein, sugar, fiber, salt. Nur mitgesendete Schlüssel werden angefasst; null löscht einen Wert. Weglassen, was die Packung nicht angibt — leer ist NICHT dasselbe wie 0, und die Zutat liefert für fehlende Werte weiterhin ihre eigenen." },
         diet_type:      { type: "string", description: "Slug einer Ernaehrungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Einstufung dieses Artikels. Leer loescht sie ganz — Terme und die alte Meta-Zeile —, dann gilt die der Zutat. Ein fehlender Schluessel aendert nichts." },
@@ -1460,8 +1464,9 @@ async function handleTool(name, args) {
       return mmm("GET", `/ingredients/${args.id}`);
 
     case "mmm_create_ingredient": {
-      const { title, status = "publish", diet_type, shelf_life_days, storage_type, default_unit, categories, nutrition } = args;
+      const { title, status = "publish", diet_type, shelf_life_days, storage_type, own_cooking_factor, default_unit, categories, nutrition } = args;
       const body = { title, status };
+      if (own_cooking_factor !== undefined) body.own_cooking_factor = own_cooking_factor;
       if (diet_type    !== undefined) body.diet_type    = diet_type;
       if (shelf_life_days !== undefined) body.shelf_life_days = shelf_life_days;
       if (storage_type !== undefined) body.storage_type = storage_type;
@@ -1472,8 +1477,9 @@ async function handleTool(name, args) {
     }
 
     case "mmm_update_ingredient": {
-      const { id, title, diet_type, shelf_life_days, storage_type, default_unit, categories, nutrition, own_price_per_100g } = args;
+      const { id, title, diet_type, shelf_life_days, storage_type, own_cooking_factor, default_unit, categories, nutrition, own_price_per_100g } = args;
       const body = {};
+      if (own_cooking_factor !== undefined) body.own_cooking_factor = own_cooking_factor;
       if (own_price_per_100g !== undefined) body.own_price_per_100g = own_price_per_100g;
       if (title        !== undefined) body.title        = title;
       if (diet_type    !== undefined) body.diet_type    = diet_type;
@@ -1507,8 +1513,9 @@ async function handleTool(name, args) {
       return mmm("GET", `/products/${args.id}`);
 
     case "mmm_create_product": {
-      const { ingredient_id, title, brand, package_weight, price, source, diet_type, nutrition, is_reference } = args;
+      const { ingredient_id, title, brand, package_weight, price, cooking_factor, source, diet_type, nutrition, is_reference } = args;
       const body = { ingredient_id, title };
+      if (cooking_factor !== undefined) body.cooking_factor = cooking_factor;
       if (brand !== undefined)          body.brand = brand;
       if (package_weight !== undefined) body.package_weight = package_weight;
       if (price !== undefined)          body.price = price;
@@ -1520,8 +1527,9 @@ async function handleTool(name, args) {
     }
 
     case "mmm_update_product": {
-      const { id, title, brand, package_weight, price, source, diet_type, nutrition, is_reference } = args;
+      const { id, title, brand, package_weight, price, cooking_factor, source, diet_type, nutrition, is_reference } = args;
       const body = {};
+      if (cooking_factor !== undefined) body.cooking_factor = cooking_factor;
       if (title !== undefined)          body.title = title;
       if (brand !== undefined)          body.brand = brand;
       if (package_weight !== undefined) body.package_weight = package_weight;

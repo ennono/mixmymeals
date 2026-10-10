@@ -7091,3 +7091,20 @@ msgstr "Die Schwellenwerte stehen unter Einstellungen → Zutaten. Wird die Ampe
 #: includes/lib/class-mixmymeals-nutrition-table.php
 msgid "Avg. per 100 g"
 msgstr "Ø pro 100 g"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Cooking factor"
+msgstr "Garfaktor"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Cooked weight per gram raw, e.g. 2.4 for dry pasta, 0.75 for minced meat. Used only for figures per 100 g and the serving weight; empty means no correction. A product with its own factor overrides this one."
+msgstr "Gewicht gegart je Gramm roh, z. B. 2,4 für trockene Nudeln, 0,75 für Hackfleisch. Wirkt nur auf die Werte pro 100 g und das Portionsgewicht; leer heißt keine Korrektur. Ein Produkt mit eigenem Faktor geht vor."
+
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "Currently set by the product %1$s: %2$s."
+msgstr "Derzeit vom Produkt %1$s festgelegt: %2$s."
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "as ingredient"
+msgstr "wie Zutat"

@@ -2027,14 +2027,16 @@ class Mixmymeals_Shortcodes {
 			}
 
 			// The packet this row is made of, where it names one.
-			$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
+			$pinned    = (int) ( $ing['product_id'] ?? 0 );
+			$nutrition = $ingredient_obj->get_nutrition_pinned( $pinned );
 			$weight    = floatval( $ing['weight_g'] );
 
 			if ( $weight <= 0 ) {
 				continue;
 			}
 
-			$totals['weight'] += $weight;
+			// Cooked weight for what the portion weighs, raw for its nutrients.
+			$totals['weight'] += $ingredient_obj->cooked_weight( $weight, $pinned );
 
 			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
 				$totals[ $sum_key ] += (float) ( $nutrition[ $own_key ] ?? 0 ) * $weight / 100;
@@ -10869,13 +10871,15 @@ class Mixmymeals_Shortcodes {
 			}
 
 			// The packet this row is made of, where it names one.
-			$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
+			$pinned    = (int) ( $ing['product_id'] ?? 0 );
+			$nutrition = $ingredient_obj->get_nutrition_pinned( $pinned );
 			$weight    = floatval( $ing['weight_g'] );
 			if ( $weight <= 0 ) {
 				continue;
 			}
 
-			$totals['weight']   += $weight;
+			// The grams on the plate are the cooked ones; the nutrients stay raw.
+			$totals['weight']   += $ingredient_obj->cooked_weight( $weight, $pinned );
 			$totals['calories'] += (float) ( $nutrition['calories_100'] ?? 0 ) * $weight / 100;
 			$totals['protein']  += (float) ( $nutrition['protein'] ?? 0 ) * $weight / 100;
 			$totals['carbs']    += (float) ( $nutrition['carbs'] ?? 0 ) * $weight / 100;

@@ -1111,6 +1111,148 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * Cooking factor: what 1 g of this ingredient weighs once cooked.
+	 *
+	 * Dry pasta takes up water (about 2.4), minced meat loses it (about 0.75),
+	 * spinach collapses (about 0.3). Water carries no nutrients, so the factor
+	 * never changes how much energy, fat or salt a dish holds — only what it
+	 * weighs on the plate, and therefore every figure *per 100 g* and the
+	 * traffic light drawn from it. Summing raw weights put a pasta dish a
+	 * traffic-light step too high, because the water the pasta absorbs was
+	 * nowhere in the sum.
+	 *
+	 * Null when nobody has said, which means "no correction" — not 1.0 written
+	 * down, which is a statement (the weight does not change) and is kept as one.
+	 *
+	 * @var string
+	 */
+	const META_COOKING_FACTOR = '_mmm_cooking_factor';
+
+	/**
+	 * Upper bound for a cooking factor. Dried mushrooms and seaweed reach about
+	 * 8–10; anything far beyond that is a typo, and a typo here would multiply
+	 * a dish's weight without a single warning.
+	 */
+	const COOKING_FACTOR_MAX = 20.0;
+
+	/**
+	 * Reads a cooking factor from a form or a stored row: a decimal comma is
+	 * accepted, empty, zero, negative and absurd values become null.
+	 *
+	 * @param mixed $raw Value.
+	 * @return float|null
+	 */
+	public static function normalise_cooking_factor( $raw ): ?float {
+
+		if ( null === $raw || is_array( $raw ) ) {
+			return null;
+		}
+
+		$raw = str_replace( ',', '.', trim( (string) $raw ) );
+
+		if ( '' === $raw || ! is_numeric( $raw ) ) {
+			return null;
+		}
+
+		$factor = (float) $raw;
+
+		return $factor > 0 && $factor <= self::COOKING_FACTOR_MAX ? round( $factor, 3 ) : null;
+	}
+
+	/**
+	 * The factor the ingredient itself states, before any product.
+	 *
+	 * @return float|null
+	 */
+	public function get_own_cooking_factor(): ?float {
+
+		return $this->is_valid()
+			? self::normalise_cooking_factor( get_post_meta( $this->post_id, self::META_COOKING_FACTOR, true ) )
+			: null;
+	}
+
+	/**
+	 * Stores the ingredient's own factor; null (or anything invalid) clears it.
+	 *
+	 * @param float|null $factor Cooked weight per gram raw.
+	 * @return void
+	 */
+	public function set_cooking_factor( ?float $factor ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		$factor = self::normalise_cooking_factor( $factor );
+
+		if ( null === $factor ) {
+			delete_post_meta( $this->post_id, self::META_COOKING_FACTOR );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_COOKING_FACTOR, $factor );
+	}
+
+	/**
+	 * The cooking factor in force for one recipe row.
+	 *
+	 * The product that supplies the row's figures (pinned, else the reference —
+	 * effective_product_id(), the same decision as nutrition and price) wins
+	 * where it states a factor; a product that does not falls through to the
+	 * ingredient's own, and an ingredient without one means no correction.
+	 *
+	 * @param int $pinned Product ID from the recipe row, 0 when none.
+	 * @return float|null
+	 */
+	public function get_cooking_factor_pinned( int $pinned ): ?float {
+
+		if ( ! $this->is_valid() ) {
+			return null;
+		}
+
+		$product_id = self::effective_product_id( $this->post_id, $pinned );
+
+		if ( $product_id ) {
+			$factor = ( new Mixmymeals_Product( $product_id ) )->get_cooking_factor();
+
+			if ( null !== $factor ) {
+				return $factor;
+			}
+		}
+
+		return $this->get_own_cooking_factor();
+	}
+
+	/**
+	 * The factor in force without a recipe row, i.e. through the reference.
+	 *
+	 * @return float|null
+	 */
+	public function get_cooking_factor(): ?float {
+		return $this->get_cooking_factor_pinned( 0 );
+	}
+
+	/**
+	 * What a raw amount of this ingredient weighs once cooked.
+	 *
+	 * The one place a raw weight becomes a cooked one, so the recipe, the meal
+	 * and the plan cannot disagree about how heavy a portion is. Only weights
+	 * that something is divided *by* go through here; the nutrients are still
+	 * computed from the raw weight, because the figures per 100 g describe
+	 * the ingredient as bought.
+	 *
+	 * @param float $raw    Raw weight in grams.
+	 * @param int   $pinned Product ID from the recipe row, 0 when none.
+	 * @return float
+	 */
+	public function cooked_weight( float $raw, int $pinned = 0 ): float {
+
+		$factor = $this->get_cooking_factor_pinned( $pinned );
+
+		return null === $factor ? $raw : $raw * $factor;
+	}
+
+	/**
 	 * Price per 100 g, resolved through the reference product.
 	 *
 	 * The single read path for what an ingredient costs, exactly as

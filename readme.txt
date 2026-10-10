@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.55.1
+Stable tag: 3.56.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.56.0 =
+
+Added:
+* Cooking factor on ingredients and products: what one gram weighs once
+  cooked (dry pasta about 2.4, minced meat about 0.75). It corrects the
+  serving weight and every figure per 100 g — and with them the traffic
+  light — for water taken up or boiled off. Nutrition per serving, per day
+  and the reference-intake shares do not change: water carries no
+  nutrients. A product's factor wins; without one the ingredient's applies;
+  without either nothing is corrected. Over REST and MCP as
+  `cooking_factor` on products; ingredients read `cooking_factor` and
+  read/write `own_cooking_factor`.
 
 = 3.55.1 =
 

@@ -1197,12 +1197,18 @@ class Mixmymeals_Recipe {
 			 * are the ones the dish actually has. Nothing pinned resolves to
 			 * the ingredient's reference exactly as before.
 			 */
-			$nutrition = $ingredient_obj->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) );
+			$pinned    = (int) ( $ing['product_id'] ?? 0 );
+			$nutrition = $ingredient_obj->get_nutrition_pinned( $pinned );
 			$weight = floatval($ing['weight_g']);
 
 			if ($weight <= 0) continue;
 
-			$total_weight += $weight;
+			/*
+			 * The nutrients come from the raw weight, the dish's weight from the
+			 * cooked one: water taken up or boiled off carries no nutrients, but
+			 * it is on the plate, and everything per 100 g divides by it.
+			 */
+			$total_weight += $ingredient_obj->cooked_weight( $weight, $pinned );
 
 			// Zweiter Gürtel: get_nutrition() liefert bereits float|null, aber
 			// diese Rechnung darf unter keinen Umständen fatal werden — sie
