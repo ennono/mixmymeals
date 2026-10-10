@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.58.0
+Stable tag: 3.58.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.58.1 =
+
+Changed:
+* The cooking note names each factor beside its ingredient: "… (cooking
+  factor for Macaroni: 2.5)", several separated by semicolons, since a
+  factor carries a decimal comma in German.
 
 = 3.58.0 =
 

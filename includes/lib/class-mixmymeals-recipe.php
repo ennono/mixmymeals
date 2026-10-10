@@ -55,7 +55,7 @@ class Mixmymeals_Recipe {
 	 * so the note under a table cannot name a different set than the one the
 	 * figures were computed from.
 	 *
-	 * @var array<int, string[]>
+	 * @var array<int, array<int, array{name:string, factor:float}>>
 	 */
 	private static $cooked_cache = array();
 
@@ -1228,7 +1228,14 @@ class Mixmymeals_Recipe {
 
 			// Only a factor that moved the weight: a stated 1.0 corrects nothing.
 			if ( abs( $cooked_weight - $weight ) > 0.0001 ) {
-				$cooked[ (int) $ing['id'] ] = get_the_title( (int) $ing['id'] );
+				$mmm_factor = (float) $ingredient_obj->get_cooking_factor_pinned( $pinned );
+
+				// By ingredient and factor: one ingredient pinned to two
+				// packets in two steps can carry two factors, and each is named.
+				$cooked[ (int) $ing['id'] . '|' . $mmm_factor ] = array(
+					'name'   => get_the_title( (int) $ing['id'] ),
+					'factor' => $mmm_factor,
+				);
 			}
 
 			// Zweiter Gürtel: get_nutrition() liefert bereits float|null, aber
@@ -1243,10 +1250,11 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
-	 * The ingredients whose cooking factor changed this recipe's weight, by
-	 * name, in recipe order; empty when the weight is the raw sum.
+	 * The ingredients whose cooking factor changed this recipe's weight, with
+	 * the factor that did it, in recipe order; empty when the weight is the
+	 * raw sum.
 	 *
-	 * @return string[]
+	 * @return array<int, array{name:string, factor:float}>
 	 */
 	public function get_cooked_ingredients(): array {
 

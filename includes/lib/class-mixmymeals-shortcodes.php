@@ -1993,7 +1993,7 @@ class Mixmymeals_Shortcodes {
 	 * traffic light, so the two cannot rate different numbers.
 	 *
 	 * @param Mixmymeals_Meal $meal The meal.
-	 * @return array{per_serving:array<string,float>, per_100g:array<string,float>, weight_per_serving:float, cooked:string[]}|null
+	 * @return array{per_serving:array<string,float>, per_100g:array<string,float>, weight_per_serving:float, cooked:array<int, array{name:string, factor:float}>}|null
 	 *         Null when the recipe has no ingredients.
 	 */
 	private function meal_nutrition_figures( Mixmymeals_Meal $meal ): ?array {
@@ -2041,7 +2041,14 @@ class Mixmymeals_Shortcodes {
 			$totals['weight'] += $cooked_weight;
 
 			if ( abs( $cooked_weight - $weight ) > 0.0001 ) {
-				$cooked[ (int) $ing['id'] ] = get_the_title( (int) $ing['id'] );
+				$mmm_factor = (float) $ingredient_obj->get_cooking_factor_pinned( $pinned );
+
+				// By ingredient and factor: one ingredient pinned to two
+				// packets in two steps can carry two factors, and each is named.
+				$cooked[ (int) $ing['id'] . '|' . $mmm_factor ] = array(
+					'name'   => get_the_title( (int) $ing['id'] ),
+					'factor' => $mmm_factor,
+				);
 			}
 
 			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
@@ -2076,7 +2083,7 @@ class Mixmymeals_Shortcodes {
 			'per_serving'        => $per_serving,
 			'per_100g'           => $per_100g,
 			'weight_per_serving' => $weight_per_serving,
-			// Ingredients whose cooking factor moved the weight, by name.
+			// Ingredients whose cooking factor moved the weight, with the factor.
 			'cooked'             => array_values( $cooked ),
 		);
 	}
@@ -2231,9 +2238,9 @@ class Mixmymeals_Shortcodes {
 	 *                                                         figure; null prints a dash.
 	 * @param array<string,mixed>                     $args    `tokens` for headings, `lights`
 	 *                                                         from traffic_light_figures(),
-	 *                                                         `cooked`: names of the
-	 *                                                         ingredients whose cooking
-	 *                                                         factor moved the weight.
+	 *                                                         `cooked`: the ingredients
+	 *                                                         whose cooking factor moved
+	 *                                                         the weight, as name and factor.
 	 * @return string '' when the site has switched every column off.
 	 */
 	private function render_nutrition_table( string $context, array $data, array $args = array() ): string {

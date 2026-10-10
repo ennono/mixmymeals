@@ -7112,7 +7112,15 @@ msgstr "wie Zutat"
 #: includes/lib/class-mixmymeals-nutrition-table.php
 #, php-format
 msgid "Weight and figures per 100 g refer to the cooked dish (cooking factor for %s)."
-msgstr "Gewicht und Werte pro 100 g beziehen sich auf das gegarte Gericht (Garfaktor für %s)."
+msgid_plural "Weight and figures per 100 g refer to the cooked dish (cooking factors for %s)."
+msgstr[0] "Gewicht und Werte pro 100 g beziehen sich auf das gegarte Gericht (Garfaktor für %s)."
+msgstr[1] "Gewicht und Werte pro 100 g beziehen sich auf das gegarte Gericht (Garfaktoren für %s)."
+
+#: includes/lib/class-mixmymeals-nutrition-table.php
+#, php-format
+msgctxt "ingredient with its cooking factor"
+msgid "%1$s: %2$s"
+msgstr "%1$s: %2$s"
 
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgctxt "serving weight"

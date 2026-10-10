@@ -307,31 +307,82 @@ final class Mixmymeals_Nutrition_Table {
 	/**
 	 * The note under a table whose weight rests on cooking factors, or ''.
 	 *
-	 * Names the ingredients, because "cooked" alone does not say which part of
-	 * the dish was corrected, and the reader comparing two recipes needs to
-	 * know why the same pasta weighs differently in each.
+	 * Names each ingredient with its factor, because "cooked" alone does not
+	 * say which part of the dish was corrected or by how much — and a reader
+	 * comparing two recipes needs to see why the same pasta weighs differently
+	 * in each, and to check the number if it looks wrong.
 	 *
-	 * @param string[] $names Ingredient names with a factor that changed the weight.
+	 * Items are separated by semicolons: a factor carries a decimal comma in
+	 * German, and "Makkaroni: 2,5, Hack: 0,75" no longer reads as two items.
+	 *
+	 * @param array $cooked Items as array{name:string, factor:float}; a bare
+	 *                      string is read as a name without a factor.
 	 * @return string Plain text.
 	 */
-	public static function cooked_note( array $names ): string {
+	public static function cooked_note( array $cooked ): string {
 
-		$names = array_values( array_unique( array_filter( array_map( 'strval', $names ) ) ) );
+		$items = array();
 
-		if ( ! $names ) {
+		foreach ( $cooked as $entry ) {
+
+			$name   = is_array( $entry ) ? (string) ( $entry['name'] ?? '' ) : (string) $entry;
+			$factor = is_array( $entry ) && isset( $entry['factor'] ) ? (float) $entry['factor'] : null;
+
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$item = null === $factor
+				? $name
+				: sprintf(
+					/* translators: 1: ingredient name, 2: cooking factor, e.g. "Macaroni: 2.5". */
+					_x( '%1$s: %2$s', 'ingredient with its cooking factor', 'mixmymeals' ),
+					$name,
+					self::format_factor( $factor )
+				);
+
+			$items[ $item ] = $item;
+		}
+
+		if ( ! $items ) {
 			return '';
 		}
 
 		// A plan can name dozens; the first few say what kind of correction it is.
-		$more  = count( $names ) > 6;
-		$names = array_slice( $names, 0, 6 );
-		$list  = implode( ', ', $names ) . ( $more ? ' …' : '' );
+		$count = count( $items );
+		$more  = $count > 6;
+		$list  = implode( '; ', array_slice( array_values( $items ), 0, 6 ) ) . ( $more ? '; …' : '' );
 
 		return sprintf(
-			/* translators: %s: comma-separated ingredient names. */
-			__( 'Weight and figures per 100 g refer to the cooked dish (cooking factor for %s).', 'mixmymeals' ),
+			/* translators: %s: semicolon-separated ingredients with their cooking factors, e.g. "Macaroni: 2.5; Minced meat: 0.75". */
+			_n(
+				'Weight and figures per 100 g refer to the cooked dish (cooking factor for %s).',
+				'Weight and figures per 100 g refer to the cooked dish (cooking factors for %s).',
+				$count,
+				'mixmymeals'
+			),
 			$list
 		);
+	}
+
+	/**
+	 * A cooking factor as a reader expects it: localised decimal mark, no
+	 * trailing zeros ("2,5", "0,75", "3").
+	 *
+	 * @param float $factor Factor.
+	 * @return string
+	 */
+	public static function format_factor( float $factor ): string {
+
+		$decimals = 0;
+
+		while ( $decimals < 3 && abs( round( $factor, $decimals ) - $factor ) > 0.0001 ) {
+			++$decimals;
+		}
+
+		return function_exists( 'number_format_i18n' )
+			? number_format_i18n( $factor, $decimals )
+			: number_format( $factor, $decimals );
 	}
 
 	/**

@@ -182,7 +182,8 @@ try {
 	 */
 	mmm_cf_assert( 1 === preg_match( '/\(450 g [^)]+\)\*</u', $table ), 'Rezept: Portionsspalte trägt das Zeichen des Garhinweises' );
 	mmm_cf_assert( 1 === preg_match( '/mmm-nutri-note--cooked">\s*\* /u', $table ), 'Rezept: Garhinweis beginnt mit genau einem *' );
-	mmm_cf_assert( array( 'ZZ Nudeln' ) === $r->get_cooked_ingredients(), 'Rezept: genau die Zutat mit Faktor, nicht die Sauce' );
+	mmm_cf_assert( array( array( 'name' => 'ZZ Nudeln', 'factor' => 2.5 ) ) === $r->get_cooked_ingredients(), 'Rezept: genau die Zutat mit Faktor, nicht die Sauce, mit dem Faktor' );
+	mmm_cf_assert( false !== strpos( $table, 'ZZ Nudeln: ' . number_format_i18n( 2.5, 1 ) ), 'Rezept: Hinweis nennt den Faktor hinter der Zutat' );
 
 	$table = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan . '"]' );
 	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ), 'Plan: Hinweis vorhanden' );
