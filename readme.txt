@@ -133,7 +133,8 @@ Added:
   rule, and the reference intake behind the day rating.
 * The planner shows each day's own figures per person in a small row
   under the day, with that day's rating — an average hides a single
-  salty day. It replaces the kcal total that stood there.
+  salty day. It sits in the day's frame, together with its recipes, and
+  replaces the kcal total that stood there.
 
 Changed:
 * The traffic light on recipes and meals follows the FSA's portion rule:

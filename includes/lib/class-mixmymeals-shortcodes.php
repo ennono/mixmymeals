@@ -4458,6 +4458,17 @@ class Mixmymeals_Shortcodes {
                             <span><?php esc_html_e( 'Start day', 'mixmymeals' ); ?></span>
                         </label>
 
+                        <?php
+                        /*
+                         * One frame around the day's recipes and its figures:
+                         * the row under the list belongs to that day, and
+                         * standing outside the list's frame it read as a note
+                         * about the whole planner. The list stays the drop
+                         * target; the box only draws the frame.
+                         */
+                        ?>
+                        <div class="mmm-plan-day-box">
+
                         <ul class="mmm-plan-day-list"
                             data-day-list="<?php echo esc_attr( $day_key ); ?>">
 
@@ -4510,6 +4521,8 @@ class Mixmymeals_Shortcodes {
                         ?>
                         <div class="mmm-plan-day-nutrition" data-day-nutrition="<?php echo esc_attr( (string) $day_key ); ?>"<?php echo '' === $mmm_day_row ? ' hidden' : ''; ?>>
                             <?php echo $mmm_day_row; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+                        </div>
+
                         </div>
 
                     </div>
