@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.58.2, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.59.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -174,7 +174,7 @@ It belongs to the shelf life beside it: "keeps 3 days" is not an answer without 
 
 **The nutrition traffic light rates a figure per 100 g — and, on a dish, its serving.** `Mixmymeals_Ingredient::traffic_light( $key, ?float $per_100g, ?float $per_serving = null )` returns the `amount` (`low` up to the low threshold, `high` above the high one, `medium` between), the `colour`, which follows `nutrition_direction()` (for a `target` high is green, for everything else red), and the `basis` (`100g` or `serving`). Thresholds are one option per figure, `mixmymeals_traffic_light_<key>` holding `low`/`high`, set on the **Ingredients** tab under *Traffic light per 100 g* (`Mixmymeals_Settings::traffic_light_fields()`, the `traffic_light` case in `display_field()`). A never-saved option falls back to `TRAFFIC_LIGHT_DEFAULTS` — the FSA values for the four figures the light is meant for (`TRAFFIC_LIGHT_KEYS`: fat, saturates, sugars, salt); energy, carbohydrate, protein and fibre keep fields with a description saying a per-100 g light says little there. One saved empty is the site switching that light off, told apart by `false`. Inverted thresholds switch the light off rather than drawing it wrong. Filter `mixmymeals_traffic_light_thresholds`.
 
-Three rules came out of a nutritionist's review of stopfnicht.de (3.58.2), where a pumpkin soup carrying 86 % of a day's saturates per serving and a Bolognese at 71 % of the salt both read "mittel":
+Three rules came out of a nutritionist's review of stopfnicht.de (3.59.0), where a pumpkin soup carrying 86 % of a day's saturates per serving and a Bolognese at 71 % of the salt both read "mittel":
 
 - **The FSA's portion rule.** Given a serving, an upper-guide (`limit`) figure whose serving provides more than `traffic_light_portion_share()` of the reference intake (option `mixmymeals_light_portion_share`, default `PORTION_SHARE_DEFAULT` 30, saved empty = off, filter `mixmymeals_traffic_light_portion_share`) is high and red whatever its density, with `basis => 'serving'` and the word "hoch pro Portion" (`traffic_light_label( $amount, $basis )`). Only upward, only for recipes and meals — a plan has no serving, an ingredient no portion. The share is compared as whole per cent, the way the RI column prints it.
 - **Rated as printed.** The value is rounded by `Mixmymeals_Meal_Plan::round_nutrition_value()` — the one rounding `format_nutrition_value()` uses too (`nutrition_decimals()`: 0 for energy, 2 for salt, 1 otherwise) — before it meets a threshold, so "3,0 g" against "bis 3 g" reads low.

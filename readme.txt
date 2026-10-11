@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.58.2
+Stable tag: 3.59.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -111,7 +111,7 @@ privacy text under Settings → Privacy after installation.
 
 == Changelog ==
 
-= 3.58.2 =
+= 3.59.0 =
 
 Added:
 * The planner shows the nutrition of the plan being built, live: the eight
