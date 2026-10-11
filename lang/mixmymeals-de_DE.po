@@ -7373,3 +7373,11 @@ msgstr "Ø %s"
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Nutrition of this day per person"
 msgstr "Nährwerte dieses Tages pro Person"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Average nutrition per day and person"
+msgstr "Durchschnittliche Nährwerte pro Tag und Person"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Day total:"
+msgstr "Tagessumme:"

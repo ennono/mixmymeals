@@ -5727,3 +5727,11 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Nutrition of this day per person"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Average nutrition per day and person"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Day total:"
+msgstr ""

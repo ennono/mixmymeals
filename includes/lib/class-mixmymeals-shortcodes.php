@@ -4643,9 +4643,14 @@ class Mixmymeals_Shortcodes {
 	 * saved as a draft: create_pending() only accepts a published plan, so
 	 * the address would be asked for and then go nowhere.
 	 *
+	 * Public since the child theme words the heading above the Save row by
+	 * it ("Plan speichern und abonnieren" only where the fields are there):
+	 * a third place deciding on its own would sooner or later promise a
+	 * subscription the row does not offer.
+	 *
 	 * @return string One of the Mixmymeals_Subscriptions::SAVE_OFFER_* values.
 	 */
-	private static function plan_subscribe_offer_mode(): string {
+	public static function plan_subscribe_offer_mode(): string {
 
 		if ( ! class_exists( 'Mixmymeals_Subscriptions' ) ) {
 			return 'off';
@@ -7554,7 +7559,7 @@ class Mixmymeals_Shortcodes {
 
 		ob_start();
 		?>
-		<h3 class="mmm-planner-nutrition__title"><?php esc_html_e( 'Nutrition per day and person', 'mixmymeals' ); ?></h3>
+		<h3 class="mmm-planner-nutrition__title"><?php esc_html_e( 'Average nutrition per day and person', 'mixmymeals' ); ?></h3>
 		<?php if ( $per_day['days'] < 1 ) : ?>
 			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'Give a recipe a day to see what a day of this plan provides.', 'mixmymeals' ); ?></p>
 		<?php else : ?>
@@ -7627,9 +7632,14 @@ class Mixmymeals_Shortcodes {
 			);
 		}
 
+		// The row's own title, so it is not read as another average: the
+		// tiles above are the plan's mean, this is what the one day adds up to.
+		$title = '<li class="mmm-plan-day-nutrition__title">'
+		         . esc_html__( 'Day total:', 'mixmymeals' ) . '</li>';
+
 		return '<ul class="mmm-plan-day-nutrition__list" aria-label="'
 		       . esc_attr__( 'Nutrition of this day per person', 'mixmymeals' ) . '">'
-		       . $items . '</ul>';
+		       . $title . $items . '</ul>';
 	}
 
 	/**
