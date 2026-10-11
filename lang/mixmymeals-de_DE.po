@@ -7325,3 +7325,51 @@ msgstr "zu wenig unter"
 #: includes/lib/class-mixmymeals-admin-api.php
 msgid "% of the reference intake"
 msgstr "% der Referenzmenge"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s of the maximum"
+msgstr "%s der Höchstmenge"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s of the target"
+msgstr "%s der Zielmenge"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgctxt "day rating exception"
+msgid "%1$s: %2$s"
+msgstr "%1$s: %2$s"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid ""
+"Compared with the daily reference intake of an average adult (2 000 kcal); "
+"your own needs may differ."
+msgstr ""
+"Verglichen mit der Referenzmenge pro Tag für einen durchschnittlichen "
+"Erwachsenen (2 000 kcal); dein Bedarf kann abweichen."
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "\"Too much\" means more than %s."
+msgstr "„Zu viel“ heißt: mehr als %s."
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid ""
+"\"Too little\" means less than %s and only appears for days with breakfast, "
+"lunch and dinner."
+msgstr ""
+"„Zu wenig“ heißt: weniger als %s – nur bei Tagen mit Frühstück, Mittag- und "
+"Abendessen."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+#, php-format
+msgctxt "average"
+msgid "Ø %s"
+msgstr "Ø %s"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Nutrition of this day per person"
+msgstr "Nährwerte dieses Tages pro Person"

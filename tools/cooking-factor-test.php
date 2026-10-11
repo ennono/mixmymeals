@@ -187,8 +187,10 @@ try {
 
 	$table = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan . '"]' );
 	mmm_cf_assert( false !== strpos( $table, 'mmm-nutri-note--cooked' ), 'Plan: Hinweis vorhanden' );
-	// Beim Plan steht die RM-Spalte standardmäßig: sie bekommt *, der Garhinweis **.
-	mmm_cf_assert( 1 === preg_match( '/mmm-nutri-note--ri">\s*\* /u', $table ) && 1 === preg_match( '/mmm-nutri-note--cooked">\s*\*\* /u', $table ), 'Plan: * für die Referenzmenge, ** für das Garen' );
+	// Beim Plan steht die RM-Spalte standardmäßig und trägt die Tagesbewertung;
+	// deren Fußnote ersetzt die zur Referenzmenge und bekommt *, das Garen **.
+	mmm_cf_assert( 1 === preg_match( '/mmm-nutri-note--rating">\s*\* /u', $table ) && 1 === preg_match( '/mmm-nutri-note--cooked">\s*\*\* /u', $table ), 'Plan: * für die Bewertung (statt Referenzmenge), ** für das Garen' );
+	mmm_cf_assert( false === strpos( $table, 'mmm-nutri-note--ri"' ), 'Plan: keine zweite Fußnote zur Referenzmenge' );
 
 	$mmm_cf_option = get_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', false );
 	update_option( Mixmymeals_Nutrition_Table::OPTION_PREFIX . 'recipe', Mixmymeals_Nutrition_Table::sanitize( 'recipe', array( 'columns' => array( 'serving' => array( 'show' => '1' ) ) ) ) );

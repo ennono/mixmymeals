@@ -987,12 +987,13 @@ class Mixmymeals_Meal_Plan {
 	/**
 	 * One percentage, with what its 100 % would mean.
 	 *
-	 * "75 % · max." and "60 % · min." rather than a sentence per cell: these
-	 * sit in a table column eight rows deep, in the PDF and in a mail, and a
-	 * clause repeated eight times is read once and then skipped. The marker is
-	 * short enough to survive that and distinct enough to ask about —
-	 * reference_intake_note(), which every one of those three places prints
-	 * under the figures, is what answers.
+	 * "75 % der Höchstmenge" and "60 % der Zielmenge": the cell says itself
+	 * which way the figure points, because a percentage alone reads as
+	 * "complete" — and 100 % of the salt guide is a limit reached, not a
+	 * target met (see NUTRITION_DIRECTIONS). Until 3.59.0 this was
+	 * "75 % · max." with a footnote explaining the abbreviation; readers did
+	 * not get that far. A neutral reference (energy, carbohydrate) stays a
+	 * bare percentage.
 	 *
 	 * @param string $key     Nutrition key.
 	 * @param float  $percent The percentage, as nutrition_percentages() gives it.
@@ -1005,12 +1006,12 @@ class Mixmymeals_Meal_Plan {
 		switch ( self::nutrition_direction( $key ) ) {
 
 			case 'limit':
-				/* translators: %s: a percentage, e.g. "75 %". The figure it refers to is an upper guide. */
-				return sprintf( __( '%s · max.', 'mixmymeals' ), $value );
+				/* translators: %s: a percentage, e.g. "75 %". The figure it refers to is an upper guide: 100 % is the most a day should hold. */
+				return sprintf( __( '%s of the maximum', 'mixmymeals' ), $value );
 
 			case 'target':
-				/* translators: %s: a percentage, e.g. "60 %". The figure it refers to is a lower guide. */
-				return sprintf( __( '%s · min.', 'mixmymeals' ), $value );
+				/* translators: %s: a percentage, e.g. "60 %". The figure it refers to is a lower guide: 100 % is what a day should reach. */
+				return sprintf( __( '%s of the target', 'mixmymeals' ), $value );
 
 			default:
 				return $value;
@@ -1021,47 +1022,15 @@ class Mixmymeals_Meal_Plan {
 	 * The wording that has to accompany any percentage of the reference intake,
 	 * so a number never reads as personal dietary advice.
 	 *
-	 * It now has a second job: saying which way the percentages point. Without
-	 * that, "100 % salt" reads as an achievement — see NUTRITION_DIRECTIONS.
-	 * The keys are named through nutrition_labels() rather than written out, so
-	 * the sentence cannot name a figure differently from the table above it.
+	 * Only that, since 3.59.0: which way a percentage points is said in the
+	 * cell itself (format_nutrition_percentage()), so the note no longer has
+	 * to explain an abbreviation.
 	 *
 	 * @return string
 	 */
 	public static function reference_intake_note(): string {
 
-		$labels = self::nutrition_labels();
-		$named  = array(
-			'limit'  => array(),
-			'target' => array(),
-		);
-
-		foreach ( self::NUTRITION_KEYS as $key ) {
-
-			$direction = self::nutrition_direction( $key );
-
-			if ( isset( $named[ $direction ] ) ) {
-				$named[ $direction ][] = Mixmymeals_Ingredient::nutrition_label( $key );
-			}
-		}
-
 		$note = __( 'Percentages refer to the reference intake of an average adult (2 000 kcal). Your own needs may differ.', 'mixmymeals' );
-
-		if ( $named['limit'] ) {
-			$note .= ' ' . sprintf(
-				/* translators: %s: comma-separated list of nutrition figures, e.g. "Fat, Saturates, Sugars, Salt". */
-				__( 'Figures marked "max." are upper guides (%s): 100 %% is a day\'s limit reached, not a target met.', 'mixmymeals' ),
-				implode( ', ', $named['limit'] )
-			);
-		}
-
-		if ( $named['target'] ) {
-			$note .= ' ' . sprintf(
-				/* translators: %s: comma-separated list of nutrition figures, e.g. "Fibre, Protein". */
-				__( 'Figures marked "min." are lower guides (%s).', 'mixmymeals' ),
-				implode( ', ', $named['target'] )
-			);
-		}
 
 		return (string) apply_filters( 'mixmymeals_reference_intake_note', $note );
 	}
@@ -1349,27 +1318,58 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public function covers_whole_days(): bool {
 
-		$types = array();
-
-		foreach ( $this->get_meal_rows() as $row ) {
-			if ( ! empty( $row['day'] ) && in_array( (int) $row['day'], $this->get_day_range(), true ) ) {
-				$types[ (int) $row['day'] ][ $row['type'] ] = true;
-			}
-		}
+		$types = $this->meal_types_by_day();
 
 		if ( ! $types ) {
 			return false;
 		}
 
-		foreach ( $types as $present ) {
-			foreach ( self::WHOLE_DAY_MEAL_TYPES as $type ) {
-				if ( empty( $present[ $type ] ) ) {
-					return false;
-				}
+		foreach ( array_keys( $types ) as $day ) {
+			if ( ! $this->is_whole_day( $day ) ) {
+				return false;
 			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * Whether one day carries breakfast, lunch and dinner.
+	 *
+	 * @param int $day Weekday, 1-7.
+	 * @return bool
+	 */
+	public function is_whole_day( int $day ): bool {
+
+		$present = $this->meal_types_by_day()[ $day ] ?? array();
+
+		foreach ( self::WHOLE_DAY_MEAL_TYPES as $type ) {
+			if ( empty( $present[ $type ] ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * The meal types planned on each day of the plan's range that carries
+	 * meals.
+	 *
+	 * @return array<int, array<string,bool>> Day => type => true.
+	 */
+	private function meal_types_by_day(): array {
+
+		$types = array();
+		$range = $this->get_day_range();
+
+		foreach ( $this->get_meal_rows() as $row ) {
+			if ( ! empty( $row['day'] ) && in_array( (int) $row['day'], $range, true ) ) {
+				$types[ (int) $row['day'] ][ $row['type'] ] = true;
+			}
+		}
+
+		return $types;
 	}
 
 	/**
@@ -1573,6 +1573,51 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * Each day's own figures and rating, for the planner's day columns.
+	 *
+	 * The same rate_day() as the plan's average, applied to one day: "too
+	 * little" only where that day carries breakfast, lunch and dinner, and
+	 * not for a figure that day's recipes lack data for. An average hides a
+	 * single salty day; this is where it shows.
+	 *
+	 * @return array<int, array{figures:array<string,float>, ratings:array<string,string>, whole_day:bool}>
+	 *         Keyed by weekday; only days that carry meals.
+	 */
+	public function calc_day_ratings(): array {
+
+		$recipes = array();
+
+		foreach ( $this->get_meal_rows() as $row ) {
+			if ( ! empty( $row['day'] ) ) {
+				$recipes[ (int) $row['day'] ][] = (int) $row['recipe_id'];
+			}
+		}
+
+		$out = array();
+
+		foreach ( $this->calc_nutrition_by_day() as $day => $figures ) {
+
+			if ( empty( $figures['meals'] ) ) {
+				continue;
+			}
+
+			$whole = $this->is_whole_day( (int) $day );
+
+			$out[ (int) $day ] = array(
+				'figures'   => $figures['per_person'],
+				'ratings'   => self::rate_day(
+					$figures['per_person'],
+					$whole,
+					Mixmymeals_Recipe::unreliable_nutrition_keys( $recipes[ (int) $day ] ?? array() )
+				),
+				'whole_day' => $whole,
+			);
+		}
+
+		return $out;
+	}
+
+	/**
 	 * The word for a day rating, like the traffic light's: the colour is the
 	 * theme's, the statement is this.
 	 *
@@ -1593,8 +1638,15 @@ class Mixmymeals_Meal_Plan {
 
 	/**
 	 * The footnote under a day rating, built like reference_intake_note():
-	 * names the figures and limits from the settings in force, and says when
-	 * "too little" is held back, so its absence is not read as "enough".
+	 * the limits come from the settings in force, so the sentence cannot
+	 * promise one the rating does not use.
+	 *
+	 * Kept short on purpose. It names one limit per verdict — the one most
+	 * figures share — and only the figures that differ from it in brackets,
+	 * rather than every figure with its percentage: the first version listed
+	 * them all and nobody could read it. It also carries the reference
+	 * intake's own caveat, so a table with ratings needs no second note for
+	 * that (see Mixmymeals_Nutrition_Table::footnotes()).
 	 *
 	 * @return string '' when nothing is rated.
 	 */
@@ -1606,36 +1658,61 @@ class Mixmymeals_Meal_Plan {
 			return '';
 		}
 
-		$groups = array(
+		$by_end = array(
 			'over'  => array(),
 			'under' => array(),
 		);
 
 		foreach ( $thresholds as $key => $ends ) {
 			foreach ( $ends as $end => $percent ) {
-				$groups[ $end ][ number_format_i18n( $percent ) . ' %' ][] = Mixmymeals_Ingredient::nutrition_label( $key );
+				$by_end[ $end ][ (string) $percent ][] = $key;
 			}
 		}
 
-		$phrase = static function ( array $by_percent ): string {
-			$parts = array();
-			foreach ( $by_percent as $percent => $labels ) {
-				/* translators: 1: comma-separated nutrition figures, 2: percentage, e.g. "100 %". */
-				$parts[] = sprintf( _x( '%1$s %2$s', 'day rating limit', 'mixmymeals' ), implode( ', ', $labels ), $percent );
+		/*
+		 * "100 % (Energie: 110 %)": the percentage most figures share, then
+		 * the exceptions by name.
+		 */
+		$limit = static function ( array $by_percent ): string {
+
+			uasort(
+				$by_percent,
+				static function ( array $a, array $b ): int {
+					return count( $b ) <=> count( $a );
+				}
+			);
+
+			$main       = (string) array_key_first( $by_percent );
+			$exceptions = array();
+
+			foreach ( $by_percent as $percent => $keys ) {
+				if ( (string) $percent === $main ) {
+					continue;
+				}
+				foreach ( $keys as $key ) {
+					$exceptions[] = sprintf(
+						/* translators: 1: nutrition figure, e.g. "Energy", 2: percentage, e.g. "110 %". */
+						_x( '%1$s: %2$s', 'day rating exception', 'mixmymeals' ),
+						Mixmymeals_Ingredient::nutrition_label( $key ),
+						number_format_i18n( (float) $percent ) . ' %'
+					);
+				}
 			}
-			return implode( '; ', $parts );
+
+			return number_format_i18n( (float) $main ) . ' %'
+				. ( $exceptions ? ' (' . implode( ', ', $exceptions ) . ')' : '' );
 		};
 
-		$note = __( 'Rating per day and person against the reference intake of an average adult (2 000 kcal).', 'mixmymeals' );
+		$note = __( 'Compared with the daily reference intake of an average adult (2 000 kcal); your own needs may differ.', 'mixmymeals' );
 
-		if ( $groups['over'] ) {
-			/* translators: %s: figures with their limits, e.g. "Fat, Salt 100 %; Energy 110 %". */
-			$note .= ' ' . sprintf( __( '"Too much" above: %s.', 'mixmymeals' ), $phrase( $groups['over'] ) );
+		if ( $by_end['over'] ) {
+			/* translators: %s: a percentage with exceptions, e.g. "100 % (Energy: 110 %)". */
+			$note .= ' ' . sprintf( __( '"Too much" means more than %s.', 'mixmymeals' ), $limit( $by_end['over'] ) );
 		}
 
-		if ( $groups['under'] ) {
-			/* translators: %s: figures with their limits, e.g. "Protein, Fibre 80 %; Energy 90 %". */
-			$note .= ' ' . sprintf( __( '"Too little" below: %s — shown only when every planned day has breakfast, lunch and dinner.', 'mixmymeals' ), $phrase( $groups['under'] ) );
+		if ( $by_end['under'] ) {
+			/* translators: %s: a percentage with exceptions, e.g. "80 % (Energy: 90 %)". */
+			$note .= ' ' . sprintf( __( '"Too little" means less than %s and only appears for days with breakfast, lunch and dinner.', 'mixmymeals' ), $limit( $by_end['under'] ) );
 		}
 
 		return (string) apply_filters( 'mixmymeals_day_rating_note', $note );

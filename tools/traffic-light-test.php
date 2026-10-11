@@ -379,6 +379,16 @@ try {
 	Mixmymeals_Meal_Plan::flush_meals_cache( $plan3 );
 	mmm_tl_assert( ! ( new Mixmymeals_Meal_Plan( $plan3 ) )->covers_whole_days(), 'ein zweiter Tag mit nur Abendessen: keine ganzen Tage mehr' );
 
+	$per_day = ( new Mixmymeals_Meal_Plan( $plan3 ) )->calc_day_ratings();
+	mmm_tl_assert( array( 1, 2 ) === array_keys( $per_day ), 'Bewertung pro Tag: genau die Tage mit Mahlzeiten' );
+	mmm_tl_assert( $per_day[1]['whole_day'] && 'under' === ( $per_day[1]['ratings']['protein'] ?? '' ), 'Tag 1 ist ganz: dort „zu wenig“ Eiweiß' );
+	mmm_tl_assert( ! $per_day[2]['whole_day'] && ! in_array( 'under', $per_day[2]['ratings'], true ), 'Tag 2 nur Abendessen: kein „zu wenig“' );
+	mmm_tl_assert( 'over' === ( $per_day[1]['ratings']['salt'] ?? '' ), 'Tag 1: dreimal 4,5 g Salz sind zu viel' );
+
+	$note = Mixmymeals_Meal_Plan::day_rating_note();
+	mmm_tl_assert( false !== strpos( $note, '100 %' ) && false !== strpos( $note, '110 %' ), 'die Fußnote nennt die Grenzen' );
+	mmm_tl_assert( false === strpos( $note, Mixmymeals_Ingredient::nutrition_label( 'saturates' ) ), 'aber nur die Ausnahmen beim Namen, nicht jeden Wert' );
+
 	$table = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan3 . '"]' );
 	mmm_tl_assert( false !== strpos( $table, 'mmm-day-rating--over' ), 'die Plantabelle zeigt „zu viel“ in der Spalte der Referenzmenge' );
 	mmm_tl_assert( false !== strpos( $table, 'mmm-nutri-note--rating' ), 'mit der Fußnote zur Bewertung' );
@@ -437,7 +447,19 @@ try {
 	Mixmymeals_Meal_Plan::flush_meals_cache( $plan4 );
 	$saved = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan4 . '"]' );
 
-	mmm_tl_assert( '' !== (string) ( $json['data']['table'] ?? '' ) && $saved === $json['data']['table'], 'die Tabelle des Planers ist Zeichen für Zeichen die des gespeicherten Plans' );
+	mmm_tl_assert( '' !== (string) ( $json['data']['table'] ?? '' ) && false !== strpos( $saved, $json['data']['table'] ), 'die Tabelle des Planers ist Zeichen für Zeichen die des gespeicherten Plans' );
+	mmm_tl_assert( false === strpos( (string) ( $json['data']['html'] ?? '' ), 'mmm-nutri-stats' ), 'aufgeklappt nur die Tabelle, ohne die Kacheln der Planseite' );
+	mmm_tl_assert( false !== strpos( (string) ( $json['data']['html'] ?? '' ), 'Ø ' ), 'die Kacheln tragen das Durchschnittszeichen' );
+
+	$days = (array) ( $json['data']['days'] ?? array() );
+	mmm_tl_assert( false !== strpos( (string) ( $days[1] ?? '' ), 'mmm-plan-day-nutrition__list' ), 'Tag 1 bekommt seine eigene Nährwertzeile' );
+	mmm_tl_assert( '' === (string) ( $days[2] ?? 'x' ), 'Tag 2 ohne Mahlzeiten: keine Zeile' );
+	mmm_tl_assert( false !== strpos( (string) ( $days[1] ?? '' ), 'mmm-day-rating--over' ), 'Tag 1 (zweimal Eintopf): zu viel Salz an diesem Tag' );
+	mmm_tl_assert( false === strpos( (string) ( $days[3] ?? '' ), 'mmm-day-rating--under' ), 'Tag 3 hat nur Abendessen: kein „zu wenig“' );
+
+	$builder = do_shortcode( '[mmm_meal_plan_builder]' );
+	mmm_tl_assert( 1 === preg_match( '/data-day-nutrition="1">\s*<ul class="mmm-plan-day-nutrition__list"/', $builder ), 'der Planer rendert die Tageszeile schon beim ersten Laden' );
+	mmm_tl_assert( false !== strpos( $builder, 'data-day-nutrition="2" hidden' ), 'ein leerer Tag bleibt verborgen' );
 	mmm_tl_assert( false !== strpos( (string) ( $json['data']['html'] ?? '' ), 'mmm-planner-nutrition__summary' ), 'dazu die kompakte Tagesübersicht' );
 	mmm_tl_assert( false !== strpos( (string) ( $json['data']['html'] ?? '' ), 'mmm-day-rating--over' ), 'mit Bewertung' );
 	mmm_tl_assert( empty( $json['data']['empty'] ), 'und nicht leer' );

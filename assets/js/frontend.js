@@ -589,39 +589,6 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
-       PLANNER DAY TOTALS (summed kcal per person)
-       ========================================================== */
-    function mmmUpdatePlannerTotals() {
-        const $builder = $('.mmm-plan-builder');
-        if (!$builder.length) return;
-
-        // The whole pattern, not just the unit: where the number goes is part
-        // of the wording the site configured.
-        const pattern = String($builder.data('kcal-pattern') || '{kcal} kcal');
-
-        $builder.find('.mmm-plan-day').each(function () {
-            const $day = $(this);
-            let sum = 0;
-            $day.find('.mmm-plan-item').each(function () {
-                sum += parseInt(this.getAttribute('data-kcal'), 10) || 0;
-            });
-
-            const $total = $day.find('.mmm-plan-day-total');
-            const $value = $total.find('[data-day-total]');
-
-            if (sum > 0) {
-                $value.text('≈ ' + pattern.replace('{kcal}', sum.toLocaleString()));
-                $total.prop('hidden', false);
-            } else {
-                $value.text('');
-                $total.prop('hidden', true);
-            }
-        });
-    }
-
-    mmmUpdatePlannerTotals();
-
-    /* ==========================================================
        PLANNER NUTRITION (live, from the cart)
 
        [mmm_planner_nutrition] renders the first answer; from then on
@@ -636,7 +603,8 @@ jQuery(function ($) {
 
     function mmmRefreshPlannerNutrition() {
         const $box = $('[data-planner-nutrition]');
-        if (!$box.length) return;
+        const $days = $('[data-day-nutrition]');
+        if (!$box.length && !$days.length) return;
 
         clearTimeout(mmmNutritionTimer);
         mmmNutritionTimer = setTimeout(function () {
@@ -647,7 +615,7 @@ jQuery(function ($) {
                 mmmNutritionRequest.abort();
             }
 
-            $box.attr('aria-busy', 'true');
+            $box.add($days).attr('aria-busy', 'true');
 
             mmmNutritionRequest = mmmPost('mmm_planner_nutrition', {})
                 .done(function (response) {
@@ -662,9 +630,16 @@ jQuery(function ($) {
                     if (open) {
                         $box.find('.mmm-planner-nutrition__details').prop('open', true);
                     }
+
+                    // The row under each day: that day's own figures.
+                    const days = response.data.days || {};
+                    $days.each(function () {
+                        const html = days[this.getAttribute('data-day-nutrition')] || '';
+                        $(this).html(html).prop('hidden', !html);
+                    });
                 })
                 .always(function () {
-                    $box.removeAttr('aria-busy');
+                    $box.add($days).removeAttr('aria-busy');
                 });
         }, 400);
     }
@@ -725,7 +700,6 @@ jQuery(function ($) {
             value: newDay
         }).always(mmmRefreshPlannerNutrition);
 
-        mmmUpdatePlannerTotals();
     }
 
     $(document).on('drop', '.mmm-plan-day-list, .mmm-plan-item', function (e) {
@@ -798,7 +772,6 @@ jQuery(function ($) {
                     item.slideUp(200, function () {
                         item.remove();
                         mmmUpdateCartBadge();
-                        mmmUpdatePlannerTotals();
                     });
                     mmmRefreshPlannerNutrition();
                     return;
@@ -835,7 +808,7 @@ jQuery(function ($) {
                     mmmUpdateCartBadge();
                     $('.mmm-plan-item').slideUp(200, function () {
                         $(this).remove();
-                    }).promise().done(mmmUpdatePlannerTotals);
+                    });
                     mmmRefreshPlannerNutrition();
                     return;
                 }

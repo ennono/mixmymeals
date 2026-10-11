@@ -4196,7 +4196,6 @@ class Mixmymeals_Shortcodes {
 		<li class="mmm-plan-item"
 			data-index="<?php echo esc_attr( (string) $index ); ?>"
 			data-recipe-id="<?php echo esc_attr( (string) $recipe_id ); ?>"
-			data-kcal="<?php echo esc_attr( (string) $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
 			draggable="true">
 
 			<div class="mmm-plan-item-drag" aria-hidden="true">&#9776;</div>
@@ -4313,10 +4312,13 @@ class Mixmymeals_Shortcodes {
 			$days_with_items[ intval( $item['day'] ?? 0 ) ] = true;
 		}
 
+		// The cart as a plan, for the figures under each day.
+		$mmm_day_ratings = Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_day_ratings();
+
 		ob_start();
 		?>
 
-        <div class="mmm-plan-builder" data-kcal-pattern="<?php echo esc_attr( self::chip_text_pattern( 'energy' ) ); ?>">
+        <div class="mmm-plan-builder">
 
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
@@ -4495,9 +4497,19 @@ class Mixmymeals_Shortcodes {
 
                         </ul>
 
-                        <div class="mmm-plan-day-total" hidden>
-                            <span class="mmm-plan-day-total__label"><?php esc_html_e( 'Day total', 'mixmymeals' ); ?></span>
-                            <span class="mmm-plan-day-total__value" data-day-total></span>
+                        <?php
+                        /*
+                         * The day's figures per person, with its rating.
+                         * Rendered here for the first paint and replaced by
+                         * frontend.js from the `mmm_planner_nutrition`
+                         * answer whenever the planner changes. It replaces
+                         * the kcal total the script used to add up itself:
+                         * that was the energy row of this, computed twice.
+                         */
+                        $mmm_day_row = $this->render_planner_day_nutrition( $mmm_day_ratings, (int) $day_key );
+                        ?>
+                        <div class="mmm-plan-day-nutrition" data-day-nutrition="<?php echo esc_attr( (string) $day_key ); ?>"<?php echo '' === $mmm_day_row ? ' hidden' : ''; ?>>
+                            <?php echo $mmm_day_row; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
                         </div>
 
                     </div>
@@ -5356,28 +5368,6 @@ class Mixmymeals_Shortcodes {
 		// Through the energy chip's wording: it states the same fact, and two
 		// wordings for one fact on one page is what this registry removes.
 		return self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) );
-	}
-
-	/**
-	 * Per-serving (per-person) calories of a recipe, rounded. Used to feed the
-	 * planner's live day totals via a data attribute.
-	 *
-	 * @param int $recipe_id Recipe post ID.
-	 * @return int
-	 */
-	private function recipe_kcal_per_serving( int $recipe_id ): int {
-
-		if ( $recipe_id <= 0 ) {
-			return 0;
-		}
-
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
-		if ( ! $recipe->is_valid() ) {
-			return 0;
-		}
-
-		$nutrition = $recipe->calculate_nutrition_per_serving();
-		return (int) round( $nutrition['calories'] ?? 0 );
 	}
 
 	/**
@@ -7361,14 +7351,14 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * The plan's nutrition overview — stat cards and table — for a saved plan
-	 * and for the planner's live view alike (Mixmymeals_Meal_Plan::from_meal_rows()).
-	 * One renderer, so what the planner shows is what the saved plan will.
+	 * The plan's nutrition table, for a saved plan and for the planner's live
+	 * view alike (Mixmymeals_Meal_Plan::from_meal_rows()). One renderer, so
+	 * what the planner shows is what the saved plan will.
 	 *
 	 * @param Mixmymeals_Meal_Plan $plan Plan, saved or not.
 	 * @return string
 	 */
-	private function render_plan_nutrition_overview( Mixmymeals_Meal_Plan $plan ): string {
+	private function render_plan_nutrition_table( Mixmymeals_Meal_Plan $plan ): string {
 
 		$keys = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
 		$rows = $plan->get_meal_rows();
@@ -7413,6 +7403,37 @@ class Mixmymeals_Shortcodes {
 			}
 		}
 
+		/*
+		 * Which columns show, and under what heading, is the site's choice
+		 * (Settings → Meal Plans). "Total / person" is not on offer any more:
+		 * summed over the plan's whole length it is a number nobody eats.
+		 */
+		return $this->render_nutrition_table(
+			'plan',
+			array(
+				'day'      => $this->format_nutrition_column( $person_day ),
+				'ri'       => $this->format_nutrition_ri_column( $person_day ),
+				'meal'     => $this->format_nutrition_column( $person_meal ),
+				'per_100g' => $this->format_nutrition_column( $per_100g ),
+			),
+			array(
+				'lights'  => $lights,
+				'ratings' => $plan->calc_day_rating()['ratings'],
+				'cooked'  => $mmm_plan_cooked,
+			)
+		);
+	}
+
+	/**
+	 * The plan page's nutrition overview: four stat cards above the table.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * @return string
+	 */
+	private function render_plan_nutrition_overview( Mixmymeals_Meal_Plan $plan ): string {
+
+		$person_day = $plan->calc_nutrition_per_day_person()['average'];
+
 		$stat_cards = [
 			'calories' => __( 'Ø Energy / day / person', 'mixmymeals' ),
 			'protein'  => __( 'Ø Protein / day / person', 'mixmymeals' ),
@@ -7434,27 +7455,7 @@ class Mixmymeals_Shortcodes {
 				<?php endforeach; ?>
             </div>
 
-			<?php
-			/*
-			 * Which columns show, and under what heading, is the site's choice
-			 * (Settings → Meal Plans). "Total / person" is not on offer any more:
-			 * summed over the plan's whole length it is a number nobody eats.
-			 */
-			echo $this->render_nutrition_table( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
-				'plan',
-				array(
-					'day'      => $this->format_nutrition_column( $person_day ),
-					'ri'       => $this->format_nutrition_ri_column( $person_day ),
-					'meal'     => $this->format_nutrition_column( $person_meal ),
-					'per_100g' => $this->format_nutrition_column( $per_100g ),
-				),
-				array(
-					'lights'  => $lights,
-					'ratings' => $plan->calc_day_rating()['ratings'],
-					'cooked'  => $mmm_plan_cooked,
-				)
-			);
-			?>
+			<?php echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
         </div>
 		<?php
 
@@ -7492,7 +7493,7 @@ class Mixmymeals_Shortcodes {
 	 * the same methods the saved plan uses, through
 	 * Mixmymeals_Meal_Plan::from_meal_rows(). `table` is exactly what the
 	 * plan page will print once the planner is saved; `html` is the compact
-	 * view around it.
+	 * view around it, `days` the row under each day of the builder.
 	 *
 	 * @return void
 	 */
@@ -7503,11 +7504,19 @@ class Mixmymeals_Shortcodes {
 		$items = ( new Mixmymeals_Cart() )->get_items();
 		$plan  = Mixmymeals_Meal_Plan::from_meal_rows( $items );
 
+		$days    = array();
+		$ratings = $plan->calc_day_ratings();
+
+		foreach ( range( 1, 7 ) as $day ) {
+			$days[ $day ] = $this->render_planner_day_nutrition( $ratings, $day );
+		}
+
 		wp_send_json_success(
 			array(
 				'empty' => ! $plan->get_meal_rows(),
 				'html'  => $this->render_planner_nutrition( $plan ),
-				'table' => $plan->get_meal_rows() ? $this->render_plan_nutrition_overview( $plan ) : '',
+				'table' => $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : '',
+				'days'  => $days,
 			)
 		);
 	}
@@ -7540,7 +7549,10 @@ class Mixmymeals_Shortcodes {
 				<?php foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $key => $label ) : ?>
 					<?php $mmm_verdict = (string) ( $rating['ratings'][ $key ] ?? '' ); ?>
 					<li class="mmm-planner-nutrition__item<?php echo '' === $mmm_verdict ? '' : ' mmm-planner-nutrition__item--' . esc_attr( $mmm_verdict ); ?>" data-key="<?php echo esc_attr( $key ); ?>">
-						<span class="mmm-planner-nutrition__label"><?php echo esc_html( Mixmymeals_Ingredient::nutrition_label( $key ) ); ?></span>
+						<span class="mmm-planner-nutrition__label"><?php
+							/* translators: %s: nutrition figure, e.g. "Energy". Ø marks an average. */
+							echo esc_html( sprintf( _x( 'Ø %s', 'average', 'mixmymeals' ), Mixmymeals_Ingredient::nutrition_label( $key ) ) );
+						?></span>
 						<span class="mmm-planner-nutrition__value"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $per_day['average'][ $key ] ) ); ?></span>
 						<span class="mmm-planner-nutrition__share"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ); ?></span>
 						<?php echo $this->day_rating_markup( $mmm_verdict ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
@@ -7556,11 +7568,55 @@ class Mixmymeals_Shortcodes {
 		<?php endif; ?>
 		<details class="mmm-planner-nutrition__details">
 			<summary><?php esc_html_e( 'Show nutrition table', 'mixmymeals' ); ?></summary>
-			<?php echo $this->render_plan_nutrition_overview( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+			<?php
+			// The table alone: the stat cards of the plan page would repeat
+			// the tiles above.
+			echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+			?>
 		</details>
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * One day's figures per person, small and in one row, for the builder's
+	 * day column — with that day's own rating
+	 * (Mixmymeals_Meal_Plan::calc_day_ratings()), which is where a single
+	 * salty day shows that the plan's average hides.
+	 *
+	 * @param array $ratings From Mixmymeals_Meal_Plan::calc_day_ratings(),
+	 *                       computed once for all seven days.
+	 * @param int   $day     Weekday, 1-7.
+	 * @return string '' for a day without meals.
+	 */
+	private function render_planner_day_nutrition( array $ratings, int $day ): string {
+
+		$info = $ratings[ $day ] ?? null;
+
+		if ( ! $info ) {
+			return '';
+		}
+
+		$items = '';
+
+		foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $key => $label ) {
+
+			$verdict = (string) ( $info['ratings'][ $key ] ?? '' );
+
+			$items .= sprintf(
+				'<li class="mmm-plan-day-nutrition__item%1$s" data-key="%2$s"><span class="mmm-plan-day-nutrition__label">%3$s</span> <span class="mmm-plan-day-nutrition__value">%4$s</span>%5$s</li>',
+				'' === $verdict ? '' : ' mmm-plan-day-nutrition__item--' . esc_attr( $verdict ),
+				esc_attr( $key ),
+				esc_html( Mixmymeals_Ingredient::nutrition_label( $key ) ),
+				esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) ( $info['figures'][ $key ] ?? 0.0 ) ) ),
+				'' === $verdict ? '' : ' ' . $this->day_rating_markup( $verdict )
+			);
+		}
+
+		return '<ul class="mmm-plan-day-nutrition__list" aria-label="'
+		       . esc_attr__( 'Nutrition of this day per person', 'mixmymeals' ) . '">'
+		       . $items . '</ul>';
 	}
 
 	/**

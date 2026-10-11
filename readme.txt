@@ -118,7 +118,8 @@ Added:
   figures per day and person with their share of the reference intake and
   a rating, the full plan table behind a disclosure. Computed on the server
   from the cart by the same methods the saved plan uses, refreshed after
-  every add, remove, move and change of servings or meal type. Shortcode
+  every add, remove, move and change of servings or meal type; the tiles
+  are marked as averages (Ø). Shortcode
   [mmm_planner_nutrition]; the child theme places it between the board and
   the Save row.
 * Plan rating per day and person against the reference intake: "too much"
@@ -130,6 +131,9 @@ Added:
 * Footnotes under every light and rating saying what they rest on: the
   per-100 g thresholds (named FSA while they are the FSA's), the portion
   rule, and the reference intake behind the day rating.
+* The planner shows each day's own figures per person in a small row
+  under the day, with that day's rating — an average hides a single
+  salty day. It replaces the kcal total that stood there.
 
 Changed:
 * The traffic light on recipes and meals follows the FSA's portion rule:
@@ -141,6 +145,10 @@ Changed:
 * A stored 0 g of saturates beside more than 3 g fat counts as missing:
   no light for saturates on that ingredient, or on any recipe, meal or plan
   using it.
+* Shares of the reference intake say which way they point in words —
+  "75 % der Höchstmenge", "60 % der Zielmenge" — instead of "· max." and
+  "· min." with a footnote explaining them. Where a table carries day
+  ratings, their short note replaces the reference-intake note.
 * Settings: the light's section is "Traffic light per 100 g" and says which
   figures it is meant for; energy, carbohydrate, protein and fibre keep
   their fields with a note on why they are off.
