@@ -36,6 +36,88 @@ class Mixmymeals_Meal_Plan {
 		$this->post_id = $post_id;
 	}
 
+	/**
+	 * Meals handed in rather than read from the database — see from_meal_rows().
+	 * Null for every plan that exists as a post.
+	 *
+	 * @var array<int, array{recipe_id:int, servings:int, day:int|null, type:string}>|null
+	 */
+	private $rows = null;
+
+	/**
+	 * A plan that exists only as a list of meals: what the planner holds
+	 * before anybody saves it.
+	 *
+	 * Every nutrition figure of a plan is computed from the same four facts per
+	 * meal — recipe, servings, day, type — and those are all the cart holds. So
+	 * rather than a second calculation for the planner, which would sooner or
+	 * later disagree with the plan it turns into, the calculation takes its
+	 * meals from here when they are given and from the plan's posts when not.
+	 * The span is the whole week: days without meals do not count anywhere,
+	 * so the plan's eventual start and end change none of the figures.
+	 *
+	 * @param array $rows Each with recipe_id, servings, day (1-7 or empty), type.
+	 * @return self
+	 */
+	public static function from_meal_rows( array $rows ): self {
+
+		$plan       = new self( 0 );
+		$plan->rows = array();
+
+		foreach ( $rows as $row ) {
+
+			$recipe_id = (int) ( $row['recipe_id'] ?? 0 );
+
+			if ( $recipe_id <= 0 || 'mmm_recipe' !== get_post_type( $recipe_id ) ) {
+				continue;
+			}
+
+			$day  = (int) ( $row['day'] ?? 0 );
+			$type = (string) ( $row['type'] ?? '' );
+
+			$plan->rows[] = array(
+				'recipe_id' => $recipe_id,
+				// Mixmymeals_Meal::get_servings() floors at 1; so does this.
+				'servings'  => max( 1, (int) ( $row['servings'] ?? 1 ) ),
+				'day'       => ( $day >= 1 && $day <= 7 ) ? $day : null,
+				'type'      => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
+			);
+		}
+
+		return $plan;
+	}
+
+	/**
+	 * The plan's meals as the four facts its nutrition is computed from.
+	 *
+	 * The one place the nutrition methods read meals: from the posts for a
+	 * saved plan, from the given rows for one built by from_meal_rows().
+	 *
+	 * @return array<int, array{recipe_id:int, servings:int, day:int|null, type:string}>
+	 */
+	public function get_meal_rows(): array {
+
+		if ( null !== $this->rows ) {
+			return $this->rows;
+		}
+
+		$rows = array();
+
+		foreach ( $this->get_meals() as $meal_post ) {
+
+			$meal = new Mixmymeals_Meal( $meal_post->ID );
+
+			$rows[] = array(
+				'recipe_id' => (int) $meal->get_recipe_id(),
+				'servings'  => (int) $meal->get_servings(),
+				'day'       => $meal->get_day(),
+				'type'      => (string) $meal->get_type(),
+			);
+		}
+
+		return $rows;
+	}
+
 	public function get_id(): int {
 		return $this->post_id;
 	}
@@ -134,6 +216,11 @@ class Mixmymeals_Meal_Plan {
 	 * @return int The start day.
 	 */
 	public function get_start_day(): int {
+
+		if ( null !== $this->rows ) {
+			return 1;
+		}
+
 		$day = get_post_meta( $this->post_id, 'start_day', true );
 
 		return $day ? absint( $day ) : 1; // Default: Monday
@@ -147,6 +234,11 @@ class Mixmymeals_Meal_Plan {
 	 * @return int The end day.
 	 */
 	public function get_end_day(): int {
+
+		if ( null !== $this->rows ) {
+			return 7;
+		}
+
 		$day = get_post_meta( $this->post_id, 'end_day', true );
 
 		return $day ? absint( $day ) : 7; // Default: Sunday
@@ -492,6 +584,12 @@ class Mixmymeals_Meal_Plan {
 		 * of /meal-plans/build and of the cart, and without that it answered
 		 * from the list it had loaded before the meals existed.
 		 */
+		// A plan made of rows has no posts, and post_parent 0 would match
+		// every orphaned meal on the site.
+		if ( null !== $this->rows || $this->post_id <= 0 ) {
+			return array();
+		}
+
 		if ( isset( self::$meals_cache[ $this->post_id ] ) ) {
 			return self::$meals_cache[ $this->post_id ];
 		}
@@ -1024,15 +1122,47 @@ class Mixmymeals_Meal_Plan {
 			return sprintf(
 				/* translators: %s: kilocalories. */
 				__( '%s kcal', 'mixmymeals' ),
-				number_format_i18n( round( $value ) )
+				number_format_i18n( self::round_nutrition_value( $key, $value ) )
 			);
 		}
 
 		return sprintf(
 			/* translators: %s: an amount in grams. */
 			__( '%s g', 'mixmymeals' ),
-			number_format_i18n( $value, 'salt' === $key ? 2 : 1 )
+			number_format_i18n( self::round_nutrition_value( $key, $value ), self::nutrition_decimals( $key ) )
 		);
+	}
+
+	/**
+	 * How many decimals a figure is printed with: none for energy, two for
+	 * salt, one for everything else.
+	 *
+	 * @param string $key Nutrition key.
+	 * @return int
+	 */
+	public static function nutrition_decimals( string $key ): int {
+
+		if ( 'calories' === $key ) {
+			return 0;
+		}
+
+		return 'salt' === $key ? 2 : 1;
+	}
+
+	/**
+	 * A figure rounded the way format_nutrition_value() prints it.
+	 *
+	 * Anything that judges a figure — the traffic light — judges this, not
+	 * the raw float: "3,0 g" with a threshold of "up to 3 g" must read low,
+	 * and a 3.04 that rounds to it is, as far as any reader can tell, 3.
+	 *
+	 * @param string $key   Nutrition key.
+	 * @param float  $value Figure.
+	 * @return float
+	 */
+	public static function round_nutrition_value( string $key, float $value ): float {
+
+		return round( $value, self::nutrition_decimals( $key ) );
 	}
 
 	/**
@@ -1063,22 +1193,20 @@ class Mixmymeals_Meal_Plan {
 			'meals'         => 0,
 		);
 
-		foreach ( $this->get_meals() as $meal_post ) {
+		foreach ( $this->get_meal_rows() as $row ) {
 
-			$meal = new Mixmymeals_Meal( $meal_post->ID );
-
-			if ( null !== $day && (int) $meal->get_day() !== $day ) {
+			if ( null !== $day && (int) $row['day'] !== $day ) {
 				continue;
 			}
 
-			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+			$recipe = new Mixmymeals_Recipe( $row['recipe_id'] );
 
 			if ( ! $recipe->is_valid() ) {
 				continue;
 			}
 
 			$per_serving   = $recipe->calculate_nutrition_per_serving();
-			$meal_servings = max( 0.01, (float) $meal->get_servings() );
+			$meal_servings = max( 0.01, (float) $row['servings'] );
 
 			$result['servings']      += $meal_servings;
 			$result['weight_person'] += (float) ( $per_serving['weight_per_serving'] ?? 0.0 );
@@ -1201,6 +1329,319 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * The meal types that make a whole day. A day planned with these three
+	 * says what somebody eats that day; a day with one dinner says what they
+	 * eat for dinner, and its protein is not a day's protein.
+	 *
+	 * @var string[]
+	 */
+	const WHOLE_DAY_MEAL_TYPES = array( 'breakfast', 'lunch', 'dinner' );
+
+	/**
+	 * Whether every day that carries meals carries a whole day's: breakfast,
+	 * lunch and dinner. False while no day carries any.
+	 *
+	 * This is what decides whether "too little" may be said. A plan of
+	 * dinners only is short of protein and fibre by construction, and calling
+	 * that a shortfall would be a verdict on meals nobody planned.
+	 *
+	 * @return bool
+	 */
+	public function covers_whole_days(): bool {
+
+		$types = array();
+
+		foreach ( $this->get_meal_rows() as $row ) {
+			if ( ! empty( $row['day'] ) && in_array( (int) $row['day'], $this->get_day_range(), true ) ) {
+				$types[ (int) $row['day'] ][ $row['type'] ] = true;
+			}
+		}
+
+		if ( ! $types ) {
+			return false;
+		}
+
+		foreach ( $types as $present ) {
+			foreach ( self::WHOLE_DAY_MEAL_TYPES as $type ) {
+				if ( empty( $present[ $type ] ) ) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Option prefix of the day rating, one option per figure:
+	 * `mixmymeals_day_rating_salt` and so on, holding `over` and/or `under`
+	 * in per cent of the reference intake.
+	 */
+	const DAY_RATING_OPTION_PREFIX = 'mixmymeals_day_rating_';
+
+	/**
+	 * Where a day's average starts to be too much or too little, in per cent
+	 * of the reference intake, before a site sets its own.
+	 *
+	 * The upper guides at their own 100 %: that is what the reference intake
+	 * of fat, saturates, sugars and salt is. Energy gets ten per cent either
+	 * way, because 2 000 kcal is an average adult, not the reader. Protein and
+	 * fibre count as too little below 80 %, which leaves room for a day that
+	 * is light without being short. Carbohydrate is neither.
+	 *
+	 * @var array<string, array{over?:float, under?:float}>
+	 */
+	const DAY_RATING_DEFAULTS = array(
+		'calories'  => array(
+			'over'  => 110.0,
+			'under' => 90.0,
+		),
+		'fat'       => array( 'over' => 100.0 ),
+		'saturates' => array( 'over' => 100.0 ),
+		'sugar'     => array( 'over' => 100.0 ),
+		'salt'      => array( 'over' => 100.0 ),
+		'protein'   => array( 'under' => 80.0 ),
+		'fiber'     => array( 'under' => 80.0 ),
+	);
+
+	/**
+	 * Which ends a figure can be rated at, from its direction — the one
+	 * source for which way a figure points: an upper guide can be too much,
+	 * a lower guide too little, a neutral reference either.
+	 *
+	 * @param string $key Nutrition key.
+	 * @return string[] Some of `over`, `under`.
+	 */
+	public static function day_rating_ends( string $key ): array {
+
+		switch ( self::nutrition_direction( $key ) ) {
+
+			case 'limit':
+				return array( 'over' );
+
+			case 'target':
+				return array( 'under' );
+
+			default:
+				return array( 'over', 'under' );
+		}
+	}
+
+	/**
+	 * The day-rating thresholds in force, keyed by nutrition key; a figure or
+	 * an end is missing when it is not rated.
+	 *
+	 * A never-saved option falls back to DAY_RATING_DEFAULTS, one saved empty
+	 * is the site switching that end off — told apart by `false`, as the
+	 * traffic light's options are.
+	 *
+	 * @return array<string, array{over?:float, under?:float}>
+	 */
+	public static function day_rating_thresholds(): array {
+
+		$out = array();
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+
+			$stored = get_option( self::DAY_RATING_OPTION_PREFIX . $key, false );
+			$pair   = false === $stored ? ( self::DAY_RATING_DEFAULTS[ $key ] ?? array() ) : ( is_array( $stored ) ? $stored : array() );
+
+			foreach ( self::day_rating_ends( $key ) as $end ) {
+
+				$value = $pair[ $end ] ?? '';
+
+				if ( is_numeric( $value ) && (float) $value > 0 ) {
+					$out[ $key ][ $end ] = (float) $value;
+				}
+			}
+		}
+
+		return (array) apply_filters( 'mixmymeals_day_rating_thresholds', $out );
+	}
+
+	/**
+	 * Sanitiser for one day-rating option: both ends as strings, empty for
+	 * off, so an emptied field survives the save as "off".
+	 *
+	 * @param mixed $input Posted value.
+	 * @return array{over:string, under:string}
+	 */
+	public static function sanitize_day_rating( $input ): array {
+
+		$input = is_array( $input ) ? $input : array();
+		$out   = array();
+
+		foreach ( array( 'over', 'under' ) as $end ) {
+			$raw         = str_replace( ',', '.', trim( (string) ( $input[ $end ] ?? '' ) ) );
+			$out[ $end ] = ( '' !== $raw && is_numeric( $raw ) && (float) $raw > 0 ) ? (string) (float) $raw : '';
+		}
+
+		if ( '' !== $out['over'] && '' !== $out['under'] && (float) $out['over'] <= (float) $out['under'] ) {
+			add_settings_error(
+				'mixmymeals_day_rating',
+				'mixmymeals_day_rating_order',
+				__( 'A day-rating limit for "too much" is not above the one for "too little"; a day can now be rated both ways.', 'mixmymeals' )
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Rates a day's figures against the reference intake.
+	 *
+	 * "Too much" is said whenever a figure goes above its limit: a day of
+	 * dinners only that is already over the salt guide is over it, and adding
+	 * a breakfast will not bring it down.
+	 *
+	 * "Too little" only where the plan covers whole days
+	 * (covers_whole_days()), and only for a figure the plan has data for
+	 * throughout — a missing fibre value lowers the sum silently, and a
+	 * shortfall the data invented is not a shortfall.
+	 *
+	 * Compared on whole per cent, as the reference-intake column prints it.
+	 *
+	 * @param array<string,float> $per_day    Figures per day and person.
+	 * @param bool                $whole_days Whether "too little" may be said.
+	 * @param string[]            $unreliable Keys some meal has no data for.
+	 * @return array<string,string> Key => `over` or `under`; a figure in range
+	 *                              or not rated is absent.
+	 */
+	public static function rate_day( array $per_day, bool $whole_days, array $unreliable = array() ): array {
+
+		$percentages = self::nutrition_percentages( $per_day );
+		$out         = array();
+
+		foreach ( self::day_rating_thresholds() as $key => $ends ) {
+
+			if ( ! isset( $percentages[ $key ] ) ) {
+				continue;
+			}
+
+			if ( isset( $ends['over'] ) && $percentages[ $key ] > $ends['over'] ) {
+				$out[ $key ] = 'over';
+			} elseif (
+				$whole_days
+				&& isset( $ends['under'] )
+				&& $percentages[ $key ] < $ends['under']
+				&& ! in_array( $key, $unreliable, true )
+			) {
+				$out[ $key ] = 'under';
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * This plan's day rating: rate_day() on calc_nutrition_per_day_person(),
+	 * with the plan's own whole-day test and data gaps. Empty while no day
+	 * carries meals — there is no day to rate.
+	 *
+	 * @return array{ratings:array<string,string>, whole_days:bool, days:int}
+	 */
+	public function calc_day_rating(): array {
+
+		$per_day    = $this->calc_nutrition_per_day_person();
+		$whole_days = $this->covers_whole_days();
+
+		if ( $per_day['days'] < 1 ) {
+			return array(
+				'ratings'    => array(),
+				'whole_days' => $whole_days,
+				'days'       => 0,
+			);
+		}
+
+		$recipe_ids = array();
+
+		foreach ( $this->get_meal_rows() as $row ) {
+			if ( ! empty( $row['day'] ) ) {
+				$recipe_ids[] = (int) $row['recipe_id'];
+			}
+		}
+
+		return array(
+			'ratings'    => self::rate_day(
+				$per_day['average'],
+				$whole_days,
+				Mixmymeals_Recipe::unreliable_nutrition_keys( $recipe_ids )
+			),
+			'whole_days' => $whole_days,
+			'days'       => (int) $per_day['days'],
+		);
+	}
+
+	/**
+	 * The word for a day rating, like the traffic light's: the colour is the
+	 * theme's, the statement is this.
+	 *
+	 * @param string $verdict over or under.
+	 * @return string
+	 */
+	public static function day_rating_label( string $verdict ): string {
+
+		$labels = array(
+			/* translators: Day rating: the day's average is above the limit set for this figure. */
+			'over'  => _x( 'too much', 'day rating', 'mixmymeals' ),
+			/* translators: Day rating: the day's average is below the level set for this figure. */
+			'under' => _x( 'too little', 'day rating', 'mixmymeals' ),
+		);
+
+		return $labels[ $verdict ] ?? '';
+	}
+
+	/**
+	 * The footnote under a day rating, built like reference_intake_note():
+	 * names the figures and limits from the settings in force, and says when
+	 * "too little" is held back, so its absence is not read as "enough".
+	 *
+	 * @return string '' when nothing is rated.
+	 */
+	public static function day_rating_note(): string {
+
+		$thresholds = self::day_rating_thresholds();
+
+		if ( ! $thresholds ) {
+			return '';
+		}
+
+		$groups = array(
+			'over'  => array(),
+			'under' => array(),
+		);
+
+		foreach ( $thresholds as $key => $ends ) {
+			foreach ( $ends as $end => $percent ) {
+				$groups[ $end ][ number_format_i18n( $percent ) . ' %' ][] = Mixmymeals_Ingredient::nutrition_label( $key );
+			}
+		}
+
+		$phrase = static function ( array $by_percent ): string {
+			$parts = array();
+			foreach ( $by_percent as $percent => $labels ) {
+				/* translators: 1: comma-separated nutrition figures, 2: percentage, e.g. "100 %". */
+				$parts[] = sprintf( _x( '%1$s %2$s', 'day rating limit', 'mixmymeals' ), implode( ', ', $labels ), $percent );
+			}
+			return implode( '; ', $parts );
+		};
+
+		$note = __( 'Rating per day and person against the reference intake of an average adult (2 000 kcal).', 'mixmymeals' );
+
+		if ( $groups['over'] ) {
+			/* translators: %s: figures with their limits, e.g. "Fat, Salt 100 %; Energy 110 %". */
+			$note .= ' ' . sprintf( __( '"Too much" above: %s.', 'mixmymeals' ), $phrase( $groups['over'] ) );
+		}
+
+		if ( $groups['under'] ) {
+			/* translators: %s: figures with their limits, e.g. "Protein, Fibre 80 %; Energy 90 %". */
+			$note .= ' ' . sprintf( __( '"Too little" below: %s — shown only when every planned day has breakfast, lunch and dinner.', 'mixmymeals' ), $phrase( $groups['under'] ) );
+		}
+
+		return (string) apply_filters( 'mixmymeals_day_rating_note', $note );
+	}
+
+	/**
 	 * How much of each ingredient one person eats over the whole plan, in grams.
 	 *
 	 * Built the way calc_nutrition() builds its per_person figures — one
@@ -1217,10 +1658,9 @@ class Mixmymeals_Meal_Plan {
 
 		$weights = array();
 
-		foreach ( $this->get_meals() as $meal_post ) {
+		foreach ( $this->get_meal_rows() as $row ) {
 
-			$meal   = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+			$recipe = new Mixmymeals_Recipe( $row['recipe_id'] );
 
 			if ( ! $recipe->is_valid() ) {
 				continue;

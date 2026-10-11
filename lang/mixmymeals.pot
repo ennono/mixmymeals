@@ -5525,3 +5525,161 @@ msgstr ""
 #: includes/class-mixmymeals-settings.php
 msgid "Same text, in a Note section as on recipe pages."
 msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+msgctxt "traffic light"
+msgid "high per serving"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid "%1$s up to %2$s / above %3$s"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid ""
+"Traffic light: rated per 100 g as low, medium or high against the thresholds"
+" of the UK Food Standards Agency (%s)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid ""
+"Traffic light: rated per 100 g as low, medium or high against these "
+"thresholds: %s."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-ingredient.php
+#, php-format
+msgid ""
+"Where one serving provides more than %1$s of the reference intake, the light"
+" reads \"high per serving\" regardless (%2$s)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid ""
+"A day-rating limit for \"too much\" is not above the one for \"too little\";"
+" a day can now be rated both ways."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgctxt "day rating"
+msgid "too much"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgctxt "day rating"
+msgid "too little"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgctxt "day rating limit"
+msgid "%1$s %2$s"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid ""
+"Rating per day and person against the reference intake of an average adult "
+"(2 000 kcal)."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "\"Too much\" above: %s."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid ""
+"\"Too little\" below: %s — shown only when every planned day has breakfast, "
+"lunch and dinner."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Nutrition of this plan"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Nutrition per day and person"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Give a recipe a day to see what a day of this plan provides."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Show nutrition table"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Rates fat, saturates, sugars and salt per 100 g as low, medium or high on "
+"ingredients, recipes, meals and plans; empty both fields of a figure to "
+"switch its light off."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Preset with the UK Food Standards Agency's values; change them only if you "
+"follow another scheme."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Off by default: per 100 g this figure says little about a healthy diet, "
+"which is what the plan rating covers."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "High per serving above"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"On recipes and meals, a serving providing more than this share of the "
+"reference intake of fat, saturates, sugars or salt turns that light red; "
+"empty switches the rule off."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Plan rating"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Rates a plan's average per day and person against the reference intake of an"
+" average adult, beside the percentages in the plan's nutrition table and in "
+"the planner."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"\"Too much\" shows whenever the day's average goes above this; raise it only"
+" for an audience with higher needs."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"\"Too little\" shows below this, and only when every planned day has "
+"breakfast, lunch and dinner; lower it for light eaters."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Too much above the first value, too little below the second (only for whole "
+"days); empty either to leave it out."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "too much above"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "too little below"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid "% of the reference intake"
+msgstr ""

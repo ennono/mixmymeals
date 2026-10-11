@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.58.1
+Stable tag: 3.58.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,45 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.58.2 =
+
+Added:
+* The planner shows the nutrition of the plan being built, live: the eight
+  figures per day and person with their share of the reference intake and
+  a rating, the full plan table behind a disclosure. Computed on the server
+  from the cart by the same methods the saved plan uses, refreshed after
+  every add, remove, move and change of servings or meal type. Shortcode
+  [mmm_planner_nutrition]; the child theme places it between the board and
+  the Save row.
+* Plan rating per day and person against the reference intake: "too much"
+  for fat, saturates, sugars and salt above 100 % and energy above 110 %,
+  "too little" for protein and fibre below 80 % and energy below 90 % —
+  the latter only where every planned day has breakfast, lunch and dinner.
+  Shown in the reference-intake column of the plan's table. Limits under
+  Settings → Meal Plans → Plan rating.
+* Footnotes under every light and rating saying what they rest on: the
+  per-100 g thresholds (named FSA while they are the FSA's), the portion
+  rule, and the reference intake behind the day rating.
+
+Changed:
+* The traffic light on recipes and meals follows the FSA's portion rule:
+  red ("high per serving") when one serving provides more than 30 % of the
+  reference intake of fat, saturates, sugars or salt, however it rates per
+  100 g. Share adjustable under Settings → Ingredients.
+* The light rates the figure as printed: "3,0 g" against "up to 3 g" is
+  low, never medium on a digit nobody can see.
+* A stored 0 g of saturates beside more than 3 g fat counts as missing:
+  no light for saturates on that ingredient, or on any recipe, meal or plan
+  using it.
+* Settings: the light's section is "Traffic light per 100 g" and says which
+  figures it is meant for; energy, carbohydrate, protein and fibre keep
+  their fields with a note on why they are off.
+
+Fixed:
+* Removing a recipe in the planner left the items after it pointing one
+  place too far in the cart, so the next change to any of them — servings,
+  day, another removal — went to its neighbour or failed.
 
 = 3.58.1 =
 
