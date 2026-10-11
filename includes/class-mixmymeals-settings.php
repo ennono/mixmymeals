@@ -867,6 +867,7 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 				...$this->nutrition_table_fields( array( 'meal', 'plan' ) ),
+				...$this->day_rating_fields(),
 			),
 		);
 
@@ -1182,8 +1183,8 @@ class Mixmymeals_Settings {
 			array(
 				'id'          => 'ingredients_group_traffic_light',
 				'type'        => 'heading',
-				'label'       => __( 'Nutrition traffic light', 'mixmymeals' ),
-				'description' => __( 'Rates each figure per 100 g as low, medium or high — on ingredients, recipes, meals and plans alike. Up to "low" counts as low, above "high" as high. Leave both fields of a figure empty to show no light for it. The defaults are the UK Food Standards Agency\'s values for foods.', 'mixmymeals' ),
+				'label'       => __( 'Traffic light per 100 g', 'mixmymeals' ),
+				'description' => __( 'Rates fat, saturates, sugars and salt per 100 g as low, medium or high on ingredients, recipes, meals and plans; empty both fields of a figure to switch its light off.', 'mixmymeals' ),
 			),
 		);
 
@@ -1191,18 +1192,76 @@ class Mixmymeals_Settings {
 
 			$default = Mixmymeals_Ingredient::TRAFFIC_LIGHT_DEFAULTS[ $key ] ?? array( '', '' );
 
+			if ( in_array( $key, Mixmymeals_Ingredient::TRAFFIC_LIGHT_KEYS, true ) ) {
+				$description = __( 'Preset with the UK Food Standards Agency\'s values; change them only if you follow another scheme.', 'mixmymeals' );
+			} else {
+				$description = __( 'Off by default: per 100 g this figure says little about a healthy diet, which is what the plan rating covers.', 'mixmymeals' );
+			}
+
 			$fields[] = array(
 				'id'          => 'traffic_light_' . $key,
 				'label'       => Mixmymeals_Ingredient::nutrition_label( $key ),
-				'description' => 'target' === Mixmymeals_Meal_Plan::nutrition_direction( $key )
-					? __( 'Lower guide: a high amount is green, a low one red.', 'mixmymeals' )
-					: __( 'A low amount is green, a high one red.', 'mixmymeals' ),
+				'description' => $description,
 				'unit'        => 'calories' === $key ? __( 'kcal', 'mixmymeals' ) : __( 'g', 'mixmymeals' ),
 				'default'     => array(
 					'low'  => '' === $default[0] ? '' : (string) $default[0],
 					'high' => '' === $default[1] ? '' : (string) $default[1],
 				),
 				'callback'    => array( Mixmymeals_Ingredient::class, 'sanitize_traffic_light' ),
+			);
+		}
+
+		$fields[] = array(
+			'id'          => 'light_portion_share',
+			'label'       => __( 'High per serving above', 'mixmymeals' ),
+			'description' => __( 'On recipes and meals, a serving providing more than this share of the reference intake of fat, saturates, sugars or salt turns that light red; empty switches the rule off.', 'mixmymeals' ),
+			'default'     => (string) Mixmymeals_Ingredient::PORTION_SHARE_DEFAULT,
+			'callback'    => array( Mixmymeals_Ingredient::class, 'sanitize_portion_share' ),
+		);
+
+		return $fields;
+	}
+
+	/**
+	 * The day rating on the Meal Plans tab: one field per figure, each with
+	 * the ends its direction allows (Mixmymeals_Meal_Plan::day_rating_ends()).
+	 *
+	 * @return array[]
+	 */
+	private function day_rating_fields(): array {
+
+		$fields = array(
+			array(
+				'id'          => 'mealplans_group_day_rating',
+				'type'        => 'heading',
+				'label'       => __( 'Plan rating', 'mixmymeals' ),
+				'description' => __( 'Rates a plan\'s average per day and person against the reference intake of an average adult, beside the percentages in the plan\'s nutrition table and in the planner.', 'mixmymeals' ),
+			),
+		);
+
+		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+
+			$ends    = Mixmymeals_Meal_Plan::day_rating_ends( $key );
+			$default = Mixmymeals_Meal_Plan::DAY_RATING_DEFAULTS[ $key ] ?? array();
+
+			if ( array( 'over' ) === $ends ) {
+				$description = __( '"Too much" shows whenever the day\'s average goes above this; raise it only for an audience with higher needs.', 'mixmymeals' );
+			} elseif ( array( 'under' ) === $ends ) {
+				$description = __( '"Too little" shows below this, and only when every planned day has breakfast, lunch and dinner; lower it for light eaters.', 'mixmymeals' );
+			} else {
+				$description = __( 'Too much above the first value, too little below the second (only for whole days); empty either to leave it out.', 'mixmymeals' );
+			}
+
+			$fields[] = array(
+				'id'          => 'day_rating_' . $key,
+				'label'       => Mixmymeals_Ingredient::nutrition_label( $key ),
+				'description' => $description,
+				'ends'        => $ends,
+				'default'     => array(
+					'over'  => isset( $default['over'] ) ? (string) $default['over'] : '',
+					'under' => isset( $default['under'] ) ? (string) $default['under'] : '',
+				),
+				'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_day_rating' ),
 			);
 		}
 

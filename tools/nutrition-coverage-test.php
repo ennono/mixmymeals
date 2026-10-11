@@ -472,13 +472,17 @@ mmm_nc_is( 'Ballaststoffe sind ein Mindestwert', 'target', Mixmymeals_Meal_Plan:
 mmm_nc_is( 'Energie ist keins von beidem', 'reference', Mixmymeals_Meal_Plan::nutrition_direction( 'calories' ) );
 mmm_nc_is( 'ein unbekannter Schlüssel behauptet am wenigsten', 'reference', Mixmymeals_Meal_Plan::nutrition_direction( 'zzz' ) );
 
-mmm_nc_assert(
-	false !== strpos( Mixmymeals_Meal_Plan::format_nutrition_percentage( 'salt', 100.0 ), 'max' ),
-	'100 % Salz wird als Höchstwert ausgewiesen'
+// Seit 3.59.0 steht die Richtung ausgeschrieben in der Zelle, nicht mehr
+// als „max."/„min." mit einer Fußnote, die das Kürzel erklärt.
+mmm_nc_is(
+	'100 % Salz ist ein Anteil der Höchstmenge',
+	sprintf( __( '%s of the maximum', 'mixmymeals' ), '100 %' ),
+	Mixmymeals_Meal_Plan::format_nutrition_percentage( 'salt', 100.0 )
 );
-mmm_nc_assert(
-	false !== strpos( Mixmymeals_Meal_Plan::format_nutrition_percentage( 'fiber', 60.0 ), 'min' ),
-	'60 % Ballaststoffe als Mindestwert'
+mmm_nc_is(
+	'60 % Ballaststoffe sind ein Anteil der Zielmenge',
+	sprintf( __( '%s of the target', 'mixmymeals' ), '60 %' ),
+	Mixmymeals_Meal_Plan::format_nutrition_percentage( 'fiber', 60.0 )
 );
 mmm_nc_is(
 	'Energie bleibt eine nackte Prozentzahl',
@@ -486,8 +490,8 @@ mmm_nc_is(
 	Mixmymeals_Meal_Plan::format_nutrition_percentage( 'calories', 93.0 )
 );
 mmm_nc_assert(
-	false !== strpos( Mixmymeals_Meal_Plan::reference_intake_note(), 'max' ),
-	'und die Fußnote erklärt, was die Markierungen bedeuten'
+	false === strpos( Mixmymeals_Meal_Plan::reference_intake_note(), 'max.' ),
+	'und die Fußnote muss kein Kürzel mehr erklären'
 );
 
 echo "\n=== 10. Plausibilität ===\n";

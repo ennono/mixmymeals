@@ -306,6 +306,8 @@ class Mixmymeals_Shortcodes {
 
 		add_shortcode( 'mmm_meal_plan_builder',
 			[ $this, 'mmm_meal_plan_builder_callback' ] );
+		add_shortcode( 'mmm_planner_nutrition',
+			[ $this, 'mmm_planner_nutrition_callback' ] );
 
 		add_shortcode( 'mmm_clear_cart',
 			[ $this, 'mmm_clear_cart_callback' ] );
@@ -396,6 +398,12 @@ class Mixmymeals_Shortcodes {
 
 
 
+		// The planner's live nutrition: read-only, for guests as much as for
+		// anybody, from the visitor's own cart.
+		add_action( 'wp_ajax_mmm_planner_nutrition',
+			[ $this, 'mmm_planner_nutrition_ajax_callback' ] );
+		add_action( 'wp_ajax_nopriv_mmm_planner_nutrition',
+			[ $this, 'mmm_planner_nutrition_ajax_callback' ] );
 		add_action( 'wp_ajax_mmm_create_meal_plan',
 			array( $this, 'mmm_create_meal_plan_ajax_callback' ) );
 		add_action( 'wp_ajax_nopriv_mmm_create_meal_plan',
@@ -2094,17 +2102,17 @@ class Mixmymeals_Shortcodes {
 	 * Ingredients resolve through their product like every other read; a
 	 * recipe, a meal and a plan sum those. A figure comes back **null**, and
 	 * gets no light, when part of the dish has no value for it
-	 * (Mixmymeals_Recipe::nutrition_coverage()): a missing salt figure lowers
-	 * the sum silently, and a green light on a sum that is short of its salt
-	 * is the most misleading thing this could print.
+	 * (Mixmymeals_Recipe::unreliable_nutrition_keys()): a missing salt figure
+	 * lowers the sum silently, and a green light on a sum that is short of its
+	 * salt is the most misleading thing this could print. A stored 0 g of
+	 * saturates beside more than 3 g fat counts as missing too — on the
+	 * ingredient itself and in every dish that uses it.
 	 *
 	 * @param int $post_id Ingredient, recipe, meal or plan.
 	 * @return array<string,float|null> Keyed by Mixmymeals_Meal_Plan::NUTRITION_KEYS;
 	 *                                  empty for anything else.
 	 */
 	private function traffic_light_figures( int $post_id ): array {
-
-		$keys = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
 
 		switch ( get_post_type( $post_id ) ) {
 
@@ -2115,6 +2123,10 @@ class Mixmymeals_Shortcodes {
 				foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
 					$value           = $nutrition[ $own_key ] ?? null;
 					$out[ $sum_key ] = is_numeric( $value ) ? (float) $value : null;
+				}
+
+				if ( Mixmymeals_Ingredient::saturates_zero_is_gap( $nutrition ) ) {
+					$out['saturates'] = null;
 				}
 
 				return $out;
@@ -2139,21 +2151,43 @@ class Mixmymeals_Shortcodes {
 				break;
 
 			case 'mmm_meal_plan':
-				$plan    = new Mixmymeals_Meal_Plan( $post_id );
-				$recipes = array();
-
-				foreach ( $plan->get_meals() as $meal_post ) {
-					$recipes[] = (int) ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id();
-				}
-
-				$figures = $plan->calc_nutrition_per_100g();
-				break;
+				return $this->plan_traffic_light_figures( new Mixmymeals_Meal_Plan( $post_id ) );
 
 			default:
 				return array();
 		}
 
-		$out = array_fill_keys( $keys, null );
+		return $this->reliable_figures( $figures, $recipes );
+	}
+
+	/**
+	 * The figures traffic_light_figures() rates, for a plan object — which may
+	 * exist only as the planner's list of meals
+	 * (Mixmymeals_Meal_Plan::from_meal_rows()).
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * @return array<string,float|null>
+	 */
+	private function plan_traffic_light_figures( Mixmymeals_Meal_Plan $plan ): array {
+
+		return $this->reliable_figures(
+			$plan->calc_nutrition_per_100g(),
+			array_column( $plan->get_meal_rows(), 'recipe_id' )
+		);
+	}
+
+	/**
+	 * Figures with every key nulled that some of the recipes behind them
+	 * cannot be trusted for.
+	 *
+	 * @param array $figures Sum key => figure.
+	 * @param int[] $recipes Recipe IDs the figures were summed from.
+	 * @return array<string,float|null>
+	 */
+	private function reliable_figures( array $figures, array $recipes ): array {
+
+		$keys = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
+		$out  = array_fill_keys( $keys, null );
 
 		if ( empty( $figures ) ) {
 			return $out;
@@ -2163,15 +2197,62 @@ class Mixmymeals_Shortcodes {
 			$out[ $key ] = isset( $figures[ $key ] ) ? (float) $figures[ $key ] : null;
 		}
 
-		// A figure the dish is short of anywhere gets no light at all.
-		foreach ( array_unique( array_filter( $recipes ) ) as $recipe_id ) {
+		foreach ( Mixmymeals_Recipe::unreliable_nutrition_keys( $recipes ) as $key ) {
+			$out[ $key ] = null;
+		}
 
-			$coverage = ( new Mixmymeals_Recipe( $recipe_id ) )->nutrition_coverage();
+		return $out;
+	}
 
-			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
-				if ( empty( $coverage['keys'][ $own_key ]['complete'] ) ) {
-					$out[ $sum_key ] = null;
-				}
+	/**
+	 * The lights themselves, per figure: traffic_light_figures() rated, with
+	 * the portion rule wherever there is a serving — a recipe's, or a meal's
+	 * at its own number of servings.
+	 *
+	 * @param int $post_id Ingredient, recipe, meal or plan.
+	 * @return array<string, array{amount:string, colour:string, basis:string}>
+	 *         Only figures that have a light.
+	 */
+	private function traffic_lights( int $post_id ): array {
+
+		$serving = array();
+
+		switch ( get_post_type( $post_id ) ) {
+
+			case 'mmm_recipe':
+				$recipe  = new Mixmymeals_Recipe( $post_id );
+				$serving = $recipe->is_valid() ? $recipe->calculate_nutrition_per_serving() : array();
+				break;
+
+			case 'mmm_meal':
+				$serving = (array) ( $this->meal_nutrition_figures( new Mixmymeals_Meal( $post_id ) )['per_serving'] ?? array() );
+				break;
+		}
+
+		return $this->rate_lights( $this->traffic_light_figures( $post_id ), $serving );
+	}
+
+	/**
+	 * Rates figures per 100 g, with the portion rule where a serving is given.
+	 *
+	 * @param array<string,float|null> $per_100g From traffic_light_figures().
+	 * @param array<string,float>      $serving  Figures per serving, or empty.
+	 * @return array<string, array{amount:string, colour:string, basis:string}>
+	 */
+	private function rate_lights( array $per_100g, array $serving = array() ): array {
+
+		$out = array();
+
+		foreach ( $per_100g as $key => $value ) {
+
+			$light = Mixmymeals_Ingredient::traffic_light(
+				$key,
+				$value,
+				isset( $serving[ $key ] ) ? (float) $serving[ $key ] : null
+			);
+
+			if ( $light ) {
+				$out[ $key ] = $light;
 			}
 		}
 
@@ -2183,41 +2264,49 @@ class Mixmymeals_Shortcodes {
 	 *
 	 * The word is the content and the colour a modifier class: the plugin says
 	 * "high", the theme decides what high looks like. `data-amount` carries the
-	 * same fact unlocalised, for a theme that wants to select on it.
+	 * same fact unlocalised, for a theme that wants to select on it, and
+	 * `data-basis` whether the portion rule decided it.
 	 *
-	 * @param string     $key      Sum key.
-	 * @param float|null $per_100g Figure per 100 g, null when unknown.
-	 * @return string '' when the figure has no light.
+	 * @param array $light From Mixmymeals_Ingredient::traffic_light(); empty for none.
+	 * @return string '' when there is no light.
 	 */
-	private function traffic_light_markup( string $key, ?float $per_100g ): string {
-
-		$light = Mixmymeals_Ingredient::traffic_light( $key, $per_100g );
+	private function traffic_light_markup( array $light ): string {
 
 		if ( ! $light ) {
 			return '';
 		}
 
+		$basis = (string) ( $light['basis'] ?? '100g' );
+
 		return sprintf(
-			'<span class="mmm-traffic-light mmm-traffic-light--%1$s" data-amount="%2$s">%3$s</span>',
+			'<span class="mmm-traffic-light mmm-traffic-light--%1$s" data-amount="%2$s" data-basis="%3$s">%4$s</span>',
 			esc_attr( $light['colour'] ),
 			esc_attr( $light['amount'] ),
-			esc_html( Mixmymeals_Ingredient::traffic_light_label( $light['amount'] ) )
+			esc_attr( $basis ),
+			esc_html( Mixmymeals_Ingredient::traffic_light_label( $light['amount'], $basis ) )
 		);
 	}
 
 	/**
-	 * The light behind a figure in a per-100 g table cell, with the space that
-	 * separates it from the number; '' when the figure has none.
+	 * One day rating, as plain markup in the traffic light's shape: the word,
+	 * and the verdict as a modifier for the theme.
 	 *
-	 * @param string $key    Sum key.
-	 * @param array  $lights From traffic_light_figures().
-	 * @return string
+	 * @param string $verdict over, under or ''.
+	 * @return string '' for none.
 	 */
-	private function traffic_light_cell_suffix( string $key, array $lights ): string {
+	private function day_rating_markup( string $verdict ): string {
 
-		$light = $this->traffic_light_markup( $key, $lights[ $key ] ?? null );
+		$label = Mixmymeals_Meal_Plan::day_rating_label( $verdict );
 
-		return '' === $light ? '' : ' ' . $light;
+		if ( '' === $label ) {
+			return '';
+		}
+
+		return sprintf(
+			'<span class="mmm-day-rating mmm-day-rating--%1$s" data-rating="%1$s">%2$s</span>',
+			esc_attr( $verdict ),
+			esc_html( $label )
+		);
 	}
 
 	/**
@@ -2234,7 +2323,12 @@ class Mixmymeals_Shortcodes {
 	 * @param array<string,array<string,string|null>> $data    Column → nutrient key → printed
 	 *                                                         figure; null prints a dash.
 	 * @param array<string,mixed>                     $args    `tokens` for headings, `lights`
-	 *                                                         from traffic_light_figures(),
+	 *                                                         from traffic_lights(),
+	 *                                                         `ratings` from
+	 *                                                         Mixmymeals_Meal_Plan::calc_day_rating()
+	 *                                                         (plan only; set even when
+	 *                                                         empty, since the note then
+	 *                                                         says why nothing is rated),
 	 *                                                         `cooked`: the ingredients
 	 *                                                         whose cooking factor moved
 	 *                                                         the weight, as name and factor.
@@ -2256,9 +2350,25 @@ class Mixmymeals_Shortcodes {
 
 		$lights = ( $config['light'] && ! empty( $args['lights'] ) ) ? (array) $args['lights'] : array();
 
+		// The plan's verdict per day, beside the share it is a verdict on.
+		$ratings = isset( $args['ratings'] ) && isset( $config['columns']['ri'] ) ? (array) $args['ratings'] : null;
+
+		// The notes explaining the light and the rating, only where either
+		// actually shows: a light note under a table without a light would
+		// explain nothing.
+		$explain = array();
+
+		if ( $lights && isset( $config['columns']['per_100g'] ) ) {
+			$explain['light'] = Mixmymeals_Ingredient::traffic_light_note( in_array( $context, array( 'recipe', 'meal' ), true ) );
+		}
+
+		if ( null !== $ratings ) {
+			$explain['rating'] = Mixmymeals_Meal_Plan::day_rating_note();
+		}
+
 		// The marks go onto the headings here, once, so the cell labels the
 		// phone layout prints from data-label carry them too.
-		$footnotes = Mixmymeals_Nutrition_Table::footnotes( $config, $cooked );
+		$footnotes = Mixmymeals_Nutrition_Table::footnotes( $config, $cooked, $explain );
 
 		foreach ( $footnotes['marks'] as $mmm_col => $mmm_mark ) {
 			$config['columns'][ $mmm_col ] .= $mmm_mark;
@@ -2283,8 +2393,11 @@ class Mixmymeals_Shortcodes {
 						<td class="mmm-nutri-table__col--<?php echo esc_attr( $col ); ?>" data-label="<?php echo esc_attr( $title ); ?>"><?php
 							$printed = $data[ $col ][ $key ] ?? null;
 							echo esc_html( null === $printed ? '–' : $printed );
-							if ( 'per_100g' === $col ) {
-								echo $this->traffic_light_cell_suffix( $key, $lights ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+							if ( 'per_100g' === $col && isset( $lights[ $key ] ) ) {
+								echo ' ' . $this->traffic_light_markup( $lights[ $key ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+							}
+							if ( 'ri' === $col && ! empty( $ratings[ $key ] ) ) {
+								echo ' ' . $this->day_rating_markup( (string) $ratings[ $key ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 							}
 						?></td>
 					<?php endforeach; ?>
@@ -2375,11 +2488,12 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$figures = $this->traffic_light_figures( $post_id );
+		$lights  = $this->traffic_lights( $post_id );
 		$items   = '';
 
 		foreach ( $figures as $key => $value ) {
 
-			$light = $this->traffic_light_markup( $key, $value );
+			$light = $this->traffic_light_markup( $lights[ $key ] ?? array() );
 
 			if ( '' === $light ) {
 				continue;
@@ -2397,9 +2511,12 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
+		$note = Mixmymeals_Ingredient::traffic_light_note( in_array( $context, array( 'recipe', 'meal' ), true ) );
+
 		return '<ul class="mmm-traffic-lights" aria-label="'
 		       . esc_attr__( 'Traffic light per 100 g', 'mixmymeals' ) . '">'
-		       . $items . '</ul>';
+		       . $items . '</ul>'
+		       . ( '' === $note ? '' : '<p class="mmm-nutri-note mmm-nutri-note--light">' . esc_html( $note ) . '</p>' );
 	}
 
 	/**
@@ -2439,7 +2556,7 @@ class Mixmymeals_Shortcodes {
 		$per_serving        = $figures['per_serving'];
 		$per_100g           = $figures['per_100g'];
 		$weight_per_serving = $figures['weight_per_serving'];
-		$lights             = $this->traffic_light_figures( $post_id );
+		$lights             = $this->traffic_lights( $post_id );
 
 		/*
 		 * Labels, order and formatting are the shared ones: this table printed
@@ -3597,7 +3714,7 @@ class Mixmymeals_Shortcodes {
 
 		$nutrition_per_serving = $recipe->calculate_nutrition_per_serving();
 		$nutrition_per_100g    = $recipe->calculate_nutrition_per_100g();
-		$lights                = $this->traffic_light_figures( $post_id );
+		$lights                = $this->traffic_lights( $post_id );
 
 		/*
 		 * Labels, order and formatting come from Mixmymeals_Meal_Plan, the same
@@ -3949,7 +4066,6 @@ class Mixmymeals_Shortcodes {
 		<li class="mmm-plan-item"
 			data-index="<?php echo esc_attr( (string) $index ); ?>"
 			data-recipe-id="<?php echo esc_attr( (string) $recipe_id ); ?>"
-			data-kcal="<?php echo esc_attr( (string) $this->recipe_kcal_per_serving( $recipe_id ) ); ?>"
 			draggable="true">
 
 			<div class="mmm-plan-item-drag" aria-hidden="true">&#9776;</div>
@@ -4066,10 +4182,13 @@ class Mixmymeals_Shortcodes {
 			$days_with_items[ intval( $item['day'] ?? 0 ) ] = true;
 		}
 
+		// The cart as a plan, for the figures under each day.
+		$mmm_day_ratings = Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_day_ratings();
+
 		ob_start();
 		?>
 
-        <div class="mmm-plan-builder" data-kcal-pattern="<?php echo esc_attr( self::chip_text_pattern( 'energy' ) ); ?>">
+        <div class="mmm-plan-builder">
 
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
@@ -4209,6 +4328,17 @@ class Mixmymeals_Shortcodes {
                             <span><?php esc_html_e( 'Start day', 'mixmymeals' ); ?></span>
                         </label>
 
+                        <?php
+                        /*
+                         * One frame around the day's recipes and its figures:
+                         * the row under the list belongs to that day, and
+                         * standing outside the list's frame it read as a note
+                         * about the whole planner. The list stays the drop
+                         * target; the box only draws the frame.
+                         */
+                        ?>
+                        <div class="mmm-plan-day-box">
+
                         <ul class="mmm-plan-day-list"
                             data-day-list="<?php echo esc_attr( $day_key ); ?>">
 
@@ -4248,9 +4378,21 @@ class Mixmymeals_Shortcodes {
 
                         </ul>
 
-                        <div class="mmm-plan-day-total" hidden>
-                            <span class="mmm-plan-day-total__label"><?php esc_html_e( 'Day total', 'mixmymeals' ); ?></span>
-                            <span class="mmm-plan-day-total__value" data-day-total></span>
+                        <?php
+                        /*
+                         * The day's figures per person, with its rating.
+                         * Rendered here for the first paint and replaced by
+                         * frontend.js from the `mmm_planner_nutrition`
+                         * answer whenever the planner changes. It replaces
+                         * the kcal total the script used to add up itself:
+                         * that was the energy row of this, computed twice.
+                         */
+                        $mmm_day_row = $this->render_planner_day_nutrition( $mmm_day_ratings, (int) $day_key );
+                        ?>
+                        <div class="mmm-plan-day-nutrition" data-day-nutrition="<?php echo esc_attr( (string) $day_key ); ?>"<?php echo '' === $mmm_day_row ? ' hidden' : ''; ?>>
+                            <?php echo $mmm_day_row; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+                        </div>
+
                         </div>
 
                     </div>
@@ -4371,9 +4513,14 @@ class Mixmymeals_Shortcodes {
 	 * saved as a draft: create_pending() only accepts a published plan, so
 	 * the address would be asked for and then go nowhere.
 	 *
+	 * Public since the child theme words the heading above the Save row by
+	 * it ("Plan speichern und abonnieren" only where the fields are there):
+	 * a third place deciding on its own would sooner or later promise a
+	 * subscription the row does not offer.
+	 *
 	 * @return string One of the Mixmymeals_Subscriptions::SAVE_OFFER_* values.
 	 */
-	private static function plan_subscribe_offer_mode(): string {
+	public static function plan_subscribe_offer_mode(): string {
 
 		if ( ! class_exists( 'Mixmymeals_Subscriptions' ) ) {
 			return 'off';
@@ -5109,28 +5256,6 @@ class Mixmymeals_Shortcodes {
 		// Through the energy chip's wording: it states the same fact, and two
 		// wordings for one fact on one page is what this registry removes.
 		return self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) );
-	}
-
-	/**
-	 * Per-serving (per-person) calories of a recipe, rounded. Used to feed the
-	 * planner's live day totals via a data attribute.
-	 *
-	 * @param int $recipe_id Recipe post ID.
-	 * @return int
-	 */
-	private function recipe_kcal_per_serving( int $recipe_id ): int {
-
-		if ( $recipe_id <= 0 ) {
-			return 0;
-		}
-
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
-		if ( ! $recipe->is_valid() ) {
-			return 0;
-		}
-
-		$nutrition = $recipe->calculate_nutrition_per_serving();
-		return (int) round( $nutrition['calories'] ?? 0 );
 	}
 
 	/**
@@ -7104,14 +7229,27 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No valid meal plan found.', 'mixmymeals' ) . '</p>';
 		}
 
-		$plan  = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$meals = $plan->get_meals();
+		$plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
 
-		if ( empty( $meals ) ) {
+		if ( ! $plan->get_meal_rows() ) {
 			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
 		}
 
+		return $this->render_plan_nutrition_overview( $plan );
+	}
+
+	/**
+	 * The plan's nutrition table, for a saved plan and for the planner's live
+	 * view alike (Mixmymeals_Meal_Plan::from_meal_rows()). One renderer, so
+	 * what the planner shows is what the saved plan will.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan, saved or not.
+	 * @return string
+	 */
+	private function render_plan_nutrition_table( Mixmymeals_Meal_Plan $plan ): string {
+
 		$keys = Mixmymeals_Meal_Plan::NUTRITION_KEYS;
+		$rows = $plan->get_meal_rows();
 
 		/*
 		 * Built on calc_nutrition() rather than on a servings-weighted average
@@ -7129,7 +7267,7 @@ class Mixmymeals_Shortcodes {
 		// the four cannot drift apart.
 		$person_day = $plan->calc_nutrition_per_day_person()['average'];
 
-		$num_meals   = max( 1, count( $meals ) );
+		$num_meals   = max( 1, count( $rows ) );
 		$person_meal = [];
 
 		foreach ( $keys as $key ) {
@@ -7139,19 +7277,50 @@ class Mixmymeals_Shortcodes {
 		// Per 100 g of what is eaten: the only column a traffic light can be
 		// read against, since a day's total depends on how much is eaten.
 		$per_100g = $plan->calc_nutrition_per_100g();
-		$lights   = $this->traffic_light_figures( $meal_plan_id );
+		$lights   = $this->rate_lights( $this->plan_traffic_light_figures( $plan ) );
 
 		// Every dish on the plan whose weight a cooking factor moved: the
 		// per-100 g column is a mix of their cooked weights.
 		$mmm_plan_cooked = array();
 
-		foreach ( $meals as $mmm_meal_post ) {
-			$mmm_recipe = new Mixmymeals_Recipe( (int) ( new Mixmymeals_Meal( $mmm_meal_post->ID ) )->get_recipe_id() );
+		foreach ( $rows as $mmm_row ) {
+			$mmm_recipe = new Mixmymeals_Recipe( (int) $mmm_row['recipe_id'] );
 
 			if ( $mmm_recipe->is_valid() ) {
 				$mmm_plan_cooked = array_merge( $mmm_plan_cooked, $mmm_recipe->get_cooked_ingredients() );
 			}
 		}
+
+		/*
+		 * Which columns show, and under what heading, is the site's choice
+		 * (Settings → Meal Plans). "Total / person" is not on offer any more:
+		 * summed over the plan's whole length it is a number nobody eats.
+		 */
+		return $this->render_nutrition_table(
+			'plan',
+			array(
+				'day'      => $this->format_nutrition_column( $person_day ),
+				'ri'       => $this->format_nutrition_ri_column( $person_day ),
+				'meal'     => $this->format_nutrition_column( $person_meal ),
+				'per_100g' => $this->format_nutrition_column( $per_100g ),
+			),
+			array(
+				'lights'  => $lights,
+				'ratings' => $plan->calc_day_rating()['ratings'],
+				'cooked'  => $mmm_plan_cooked,
+			)
+		);
+	}
+
+	/**
+	 * The plan page's nutrition overview: four stat cards above the table.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * @return string
+	 */
+	private function render_plan_nutrition_overview( Mixmymeals_Meal_Plan $plan ): string {
+
+		$person_day = $plan->calc_nutrition_per_day_person()['average'];
 
 		$stat_cards = [
 			'calories' => __( 'Ø Energy / day / person', 'mixmymeals' ),
@@ -7174,30 +7343,173 @@ class Mixmymeals_Shortcodes {
 				<?php endforeach; ?>
             </div>
 
-			<?php
-			/*
-			 * Which columns show, and under what heading, is the site's choice
-			 * (Settings → Meal Plans). "Total / person" is not on offer any more:
-			 * summed over the plan's whole length it is a number nobody eats.
-			 */
-			echo $this->render_nutrition_table( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
-				'plan',
-				array(
-					'day'      => $this->format_nutrition_column( $person_day ),
-					'ri'       => $this->format_nutrition_ri_column( $person_day ),
-					'meal'     => $this->format_nutrition_column( $person_meal ),
-					'per_100g' => $this->format_nutrition_column( $per_100g ),
-				),
-				array(
-					'lights' => $lights,
-					'cooked' => $mmm_plan_cooked,
-				)
-			);
-			?>
+			<?php echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
         </div>
 		<?php
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_planner_nutrition].
+	 *
+	 * The place the planner's live nutrition goes: an empty container the
+	 * theme puts where it wants it, filled by frontend.js from the
+	 * `mmm_planner_nutrition` AJAX answer whenever the planner changes. The
+	 * builder itself stays as it was, and a page without this shortcode
+	 * simply does not ask.
+	 *
+	 * @return string
+	 */
+	public function mmm_planner_nutrition_callback(): string {
+
+		$items = ( new Mixmymeals_Cart() )->get_items();
+
+		// The first answer is rendered here, so the figures stand on first
+		// paint rather than after a round trip; frontend.js refreshes them.
+		return '<section class="mmm-planner-nutrition" data-planner-nutrition aria-label="'
+		       . esc_attr__( 'Nutrition of this plan', 'mixmymeals' ) . '"'
+		       . ( $items ? '' : ' hidden' ) . '>'
+		       . $this->render_planner_nutrition( Mixmymeals_Meal_Plan::from_meal_rows( $items ) )
+		       . '</section>';
+	}
+
+	/**
+	 * AJAX: the planner's nutrition as it stands, for frontend.js.
+	 *
+	 * Computed from the cart — recipe, servings, day and type per item — by
+	 * the same methods the saved plan uses, through
+	 * Mixmymeals_Meal_Plan::from_meal_rows(). `table` is exactly what the
+	 * plan page will print once the planner is saved; `html` is the compact
+	 * view around it, `days` the row under each day of the builder.
+	 *
+	 * @return void
+	 */
+	public function mmm_planner_nutrition_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$items = ( new Mixmymeals_Cart() )->get_items();
+		$plan  = Mixmymeals_Meal_Plan::from_meal_rows( $items );
+
+		$days    = array();
+		$ratings = $plan->calc_day_ratings();
+
+		foreach ( range( 1, 7 ) as $day ) {
+			$days[ $day ] = $this->render_planner_day_nutrition( $ratings, $day );
+		}
+
+		wp_send_json_success(
+			array(
+				'empty' => ! $plan->get_meal_rows(),
+				'html'  => $this->render_planner_nutrition( $plan ),
+				'table' => $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : '',
+				'days'  => $days,
+			)
+		);
+	}
+
+	/**
+	 * The planner's compact nutrition view: the eight figures per day and
+	 * person, each with its share of the reference intake and its rating,
+	 * and the full plan table behind a disclosure.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan built from the cart.
+	 * @return string '' when the planner is empty.
+	 */
+	private function render_planner_nutrition( Mixmymeals_Meal_Plan $plan ): string {
+
+		if ( ! $plan->get_meal_rows() ) {
+			return '';
+		}
+
+		$per_day     = $plan->calc_nutrition_per_day_person();
+		$rating      = $plan->calc_day_rating();
+		$percentages = Mixmymeals_Meal_Plan::nutrition_percentages( $per_day['average'] );
+
+		ob_start();
+		?>
+		<h3 class="mmm-planner-nutrition__title"><?php esc_html_e( 'Average nutrition per day and person', 'mixmymeals' ); ?></h3>
+		<?php if ( $per_day['days'] < 1 ) : ?>
+			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'Give a recipe a day to see what a day of this plan provides.', 'mixmymeals' ); ?></p>
+		<?php else : ?>
+			<ul class="mmm-planner-nutrition__summary">
+				<?php foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $key => $label ) : ?>
+					<?php $mmm_verdict = (string) ( $rating['ratings'][ $key ] ?? '' ); ?>
+					<li class="mmm-planner-nutrition__item<?php echo '' === $mmm_verdict ? '' : ' mmm-planner-nutrition__item--' . esc_attr( $mmm_verdict ); ?>" data-key="<?php echo esc_attr( $key ); ?>">
+						<span class="mmm-planner-nutrition__label"><?php
+							/* translators: %s: nutrition figure, e.g. "Energy". Ø marks an average. */
+							echo esc_html( sprintf( _x( 'Ø %s', 'average', 'mixmymeals' ), Mixmymeals_Ingredient::nutrition_label( $key ) ) );
+						?></span>
+						<span class="mmm-planner-nutrition__value"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $per_day['average'][ $key ] ) ); ?></span>
+						<span class="mmm-planner-nutrition__share"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_percentage( $key, (float) $percentages[ $key ] ) ); ?></span>
+						<?php echo $this->day_rating_markup( $mmm_verdict ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+			<?php
+			$mmm_rating_note = Mixmymeals_Meal_Plan::day_rating_note();
+			if ( '' !== $mmm_rating_note ) :
+				?>
+				<p class="mmm-nutri-note mmm-nutri-note--rating"><?php echo esc_html( $mmm_rating_note ); ?></p>
+			<?php endif; ?>
+		<?php endif; ?>
+		<details class="mmm-planner-nutrition__details">
+			<summary><?php esc_html_e( 'Show nutrition table', 'mixmymeals' ); ?></summary>
+			<?php
+			// The table alone: the stat cards of the plan page would repeat
+			// the tiles above.
+			echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+			?>
+		</details>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * One day's figures per person, small and in one row, for the builder's
+	 * day column — with that day's own rating
+	 * (Mixmymeals_Meal_Plan::calc_day_ratings()), which is where a single
+	 * salty day shows that the plan's average hides.
+	 *
+	 * @param array $ratings From Mixmymeals_Meal_Plan::calc_day_ratings(),
+	 *                       computed once for all seven days.
+	 * @param int   $day     Weekday, 1-7.
+	 * @return string '' for a day without meals.
+	 */
+	private function render_planner_day_nutrition( array $ratings, int $day ): string {
+
+		$info = $ratings[ $day ] ?? null;
+
+		if ( ! $info ) {
+			return '';
+		}
+
+		$items = '';
+
+		foreach ( Mixmymeals_Meal_Plan::nutrition_labels() as $key => $label ) {
+
+			$verdict = (string) ( $info['ratings'][ $key ] ?? '' );
+
+			$items .= sprintf(
+				'<li class="mmm-plan-day-nutrition__item%1$s" data-key="%2$s"><span class="mmm-plan-day-nutrition__label">%3$s</span> <span class="mmm-plan-day-nutrition__value">%4$s</span>%5$s</li>',
+				'' === $verdict ? '' : ' mmm-plan-day-nutrition__item--' . esc_attr( $verdict ),
+				esc_attr( $key ),
+				esc_html( Mixmymeals_Ingredient::nutrition_label( $key ) ),
+				esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) ( $info['figures'][ $key ] ?? 0.0 ) ) ),
+				'' === $verdict ? '' : ' ' . $this->day_rating_markup( $verdict )
+			);
+		}
+
+		// The row's own title, so it is not read as another average: the
+		// tiles above are the plan's mean, this is what the one day adds up to.
+		$title = '<li class="mmm-plan-day-nutrition__title">'
+		         . esc_html__( 'Day total:', 'mixmymeals' ) . '</li>';
+
+		return '<ul class="mmm-plan-day-nutrition__list" aria-label="'
+		       . esc_attr__( 'Nutrition of this day per person', 'mixmymeals' ) . '">'
+		       . $title . $items . '</ul>';
 	}
 
 	/**
@@ -9713,7 +10025,7 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return $this->render_ingredient_nutrition_table( $ingredient->get_nutrition(), $this->traffic_light_figures( $ingredient_id ) );
+		return $this->render_ingredient_nutrition_table( $ingredient->get_nutrition(), $this->traffic_lights( $ingredient_id ) );
 	}
 
 	/**
@@ -9721,7 +10033,7 @@ class Mixmymeals_Shortcodes {
 	 * are no values.
 	 *
 	 * @param array $nutri  Nutrition data from Mixmymeals_Ingredient::get_nutrition().
-	 * @param array $lights Figures for the traffic light, from traffic_light_figures().
+	 * @param array $lights The traffic lights, from traffic_lights().
 	 * @return string
 	 */
 	private function render_ingredient_nutrition_table( array $nutri, array $lights = array() ): string {

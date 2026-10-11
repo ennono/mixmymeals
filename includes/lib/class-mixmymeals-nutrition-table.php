@@ -257,20 +257,39 @@ final class Mixmymeals_Nutrition_Table {
 	 * heading above. A note whose columns are all switched off is not printed:
 	 * a footnote nothing refers to explains nothing.
 	 *
-	 * - Reference intake: the `ri` column, when shown and its note is on.
+	 * - Reference intake: the `ri` column, when shown and its note is on —
+	 *   or, where that column carries day ratings, the rating note instead.
 	 * - Cooking factor: the `serving` column (its weight) and `per_100g` (its
 	 *   figures), when a factor moved the weight and that note is on.
+	 * - Traffic light: the `per_100g` column, where the lights stand.
 	 *
-	 * @param array    $config From config().
-	 * @param string[] $cooked Ingredient names whose cooking factor moved the weight.
+	 * The rating and light notes are not switchable: they say what a
+	 * judgement printed on the page rests on, and a verdict without its
+	 * grounds is the thing a nutritionist reviewing the site objected to.
+	 *
+	 * @param array                $config  From config().
+	 * @param string[]             $cooked  Ingredient names whose cooking factor moved the weight.
+	 * @param array<string,string> $explain `rating` and/or `light` note texts,
+	 *                                      given by the caller only where the
+	 *                                      table carries ratings or lights.
 	 * @return array{notes:array<int,array{mark:string,kind:string,text:string}>, marks:array<string,string>}
 	 */
-	public static function footnotes( array $config, array $cooked = array() ): array {
+	public static function footnotes( array $config, array $cooked = array(), array $explain = array() ): array {
 
 		$columns = (array) ( $config['columns'] ?? array() );
 		$wanted  = array();
 
-		if ( ! empty( $config['ri_note'] ) && isset( $columns['ri'] ) ) {
+		$rating = isset( $columns['ri'] ) ? (string) ( $explain['rating'] ?? '' ) : '';
+
+		/*
+		 * Where the column carries ratings, their note says everything the
+		 * reference-intake note does (an average adult, 2 000 kcal, own needs
+		 * differ) and stands in its place: two notes on one column, the second
+		 * repeating the first, is what made readers skip both.
+		 */
+		if ( '' !== $rating ) {
+			$wanted[] = array( 'rating', $rating, array( 'ri' ) );
+		} elseif ( ! empty( $config['ri_note'] ) && isset( $columns['ri'] ) ) {
 			$wanted[] = array( 'ri', Mixmymeals_Meal_Plan::reference_intake_note(), array( 'ri' ) );
 		}
 
@@ -279,6 +298,11 @@ final class Mixmymeals_Nutrition_Table {
 
 		if ( '' !== $cooked_text && $cooked_columns ) {
 			$wanted[] = array( 'cooked', $cooked_text, $cooked_columns );
+		}
+
+		// After the older two, so the marks they carry stay where they were.
+		if ( '' !== (string) ( $explain['light'] ?? '' ) && isset( $columns['per_100g'] ) ) {
+			$wanted[] = array( 'light', (string) $explain['light'], array( 'per_100g' ) );
 		}
 
 		$notes = array();

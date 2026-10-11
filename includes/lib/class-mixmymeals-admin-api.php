@@ -113,6 +113,11 @@ class Mixmymeals_Admin_API {
 			$field_id = 'traffic_light';
 		}
 
+		// And for the plan's day rating.
+		if ( str_starts_with( $field['id'], 'day_rating_' ) ) {
+			$field_id = 'day_rating';
+		}
+
 		// One field per subject (ingredient, recipe, meal, plan), same idea.
 		if ( str_starts_with( $field['id'], Mixmymeals_Nutrition_Table::FIELD_PREFIX ) ) {
 			$field_id = 'nutrition_table';
@@ -228,6 +233,42 @@ class Mixmymeals_Admin_API {
 				}
 
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			// The plan's day rating: the ends a figure's direction allows,
+			// in per cent of the reference intake, stored as one option.
+			case 'day_rating':
+				$pair = is_array( $data ) ? $data : array();
+
+				foreach (
+					array(
+						'over'  => __( 'too much above', 'mixmymeals' ),
+						'under' => __( 'too little below', 'mixmymeals' ),
+					) as $end => $end_label
+				) {
+					if ( ! in_array( $end, (array) ( $field['ends'] ?? array() ), true ) ) {
+						continue;
+					}
+
+					$html .= '<label class="mmm-traffic-light-field">'
+					         . esc_html( $end_label ) . ' '
+					         . '<input class="small-text" type="number" min="0" step="any" name="'
+					         . esc_attr( $option_name . '[' . $end . ']' ) . '" value="'
+					         . esc_attr( (string) ( $pair[ $end ] ?? '' ) ) . '" /> %'
+					         . '</label> ';
+				}
+
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'light_portion_share':
+				$html .= '<label class="mmm-traffic-light-field">'
+				         . '<input class="small-text" type="number" min="0" max="100" step="any" name="'
+				         . esc_attr( $option_name ) . '" id="' . esc_attr( $field['id'] ) . '" value="'
+				         . esc_attr( (string) $data ) . '" /> '
+				         . esc_html__( '% of the reference intake', 'mixmymeals' )
+				         . '</label>'
+				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
 			// Columns of a nutrition table: show / heading per column, the

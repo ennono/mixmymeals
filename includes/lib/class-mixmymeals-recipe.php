@@ -1266,6 +1266,86 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
+	 * Whether a row of this dish states 0 g saturates beside more than 3 g
+	 * fat — through the row's product, as the totals read it. See
+	 * Mixmymeals_Ingredient::SATURATES_GAP_FAT.
+	 *
+	 * A gap that nutrition_coverage() cannot see, because it treats only an
+	 * absent figure as one; there a stored 0 is an answer, and must stay one
+	 * for /audit and the recipe list. The traffic light and the day rating
+	 * are stricter, because a zero that is really a blank is exactly what
+	 * would turn them green.
+	 *
+	 * @return bool
+	 */
+	public function has_saturates_gap(): bool {
+
+		if ( ! $this->is_valid() ) {
+			return false;
+		}
+
+		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ing ) {
+
+			if ( (float) ( $ing['weight_g'] ?? 0 ) <= 0 ) {
+				continue;
+			}
+
+			$ingredient = new Mixmymeals_Ingredient( (int) $ing['id'] );
+
+			if (
+				$ingredient->is_valid()
+				&& Mixmymeals_Ingredient::saturates_zero_is_gap(
+					$ingredient->get_nutrition_pinned( (int) ( $ing['product_id'] ?? 0 ) )
+				)
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The figures (sum keys) that some of these recipes cannot be trusted
+	 * for: short of data beyond NUTRITION_TOLERANCE, or — for saturates — a
+	 * stored 0 that is really a blank (has_saturates_gap()).
+	 *
+	 * The one answer to "may this sum be judged", asked by the traffic light
+	 * and by the plan's "too little": a sum that is low because data is
+	 * missing must get neither a green light nor a shortfall.
+	 *
+	 * @param int[] $recipe_ids Recipe IDs; duplicates and non-recipes are fine.
+	 * @return string[] Keys of Mixmymeals_Meal_Plan::NUTRITION_KEYS.
+	 */
+	public static function unreliable_nutrition_keys( array $recipe_ids ): array {
+
+		$out = array();
+
+		foreach ( array_unique( array_filter( array_map( 'intval', $recipe_ids ) ) ) as $recipe_id ) {
+
+			$recipe = new self( $recipe_id );
+
+			if ( ! $recipe->is_valid() ) {
+				continue;
+			}
+
+			$coverage = $recipe->nutrition_coverage();
+
+			foreach ( Mixmymeals_Ingredient::NUTRITION_KEY_MAP as $sum_key => $own_key ) {
+				if ( empty( $coverage['keys'][ $own_key ]['complete'] ) ) {
+					$out[ $sum_key ] = true;
+				}
+			}
+
+			if ( ! isset( $out['saturates'] ) && $recipe->has_saturates_gap() ) {
+				$out['saturates'] = true;
+			}
+		}
+
+		return array_keys( $out );
+	}
+
+	/**
 	 * How much of this dish the nutrition figures actually describe.
 	 *
 	 * _calculate_total_nutrition() reads a missing value as 0 — it has to, the

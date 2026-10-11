@@ -438,6 +438,95 @@ class Mixmymeals_Ingredient {
 	);
 
 	/**
+	 * The four figures the light is meant for. The FSA's scheme rates these
+	 * and nothing else; energy, carbohydrate, protein and fibre can still be
+	 * given thresholds, but per 100 g they say little — a dense food is not a
+	 * large portion, and fibre or protein worth having depends on the day.
+	 *
+	 * @var string[]
+	 */
+	const TRAFFIC_LIGHT_KEYS = array( 'fat', 'saturates', 'sugar', 'salt' );
+
+	/**
+	 * Option holding the portion rule: a serving providing more than this
+	 * share of the reference intake of an upper-guide figure is rated high,
+	 * whatever its density. Never saved means PORTION_SHARE_DEFAULT; saved
+	 * empty or 0 switches the rule off.
+	 */
+	const PORTION_SHARE_OPTION = 'mixmymeals_light_portion_share';
+
+	/**
+	 * The FSA's own portion rule for front-of-pack labels: red above 30 % of
+	 * the reference intake per portion. Without it the light rates density
+	 * only, and a 600 g bowl of soup at "medium" per 100 g can carry most of a
+	 * day's saturates — the case a nutritionist found on the live site.
+	 */
+	const PORTION_SHARE_DEFAULT = 30.0;
+
+	/**
+	 * Above this much fat per 100 g, a stated 0 g of saturates is read as a
+	 * field nobody filled in rather than as a fact: the pre-3.52.0 save wrote
+	 * 0 into every blank field, and saturates was added to an existing
+	 * catalogue in 3.52.0. Fat without any saturates exists — but not in
+	 * amounts above 3 g, where it would earn a green light it never earned.
+	 */
+	const SATURATES_GAP_FAT = 3.0;
+
+	/**
+	 * Whether a set of figures states 0 g saturates beside more than 3 g fat —
+	 * a gap that looks like a value. See SATURATES_GAP_FAT.
+	 *
+	 * @param array $nutrition Ingredient figures per 100 g (own keys).
+	 * @return bool
+	 */
+	public static function saturates_zero_is_gap( array $nutrition ): bool {
+
+		$saturates = $nutrition['saturates'] ?? null;
+		$fat       = $nutrition['fat'] ?? null;
+
+		return is_numeric( $saturates ) && 0.0 === (float) $saturates
+			&& is_numeric( $fat ) && (float) $fat > self::SATURATES_GAP_FAT;
+	}
+
+	/**
+	 * The portion rule's share of the reference intake, in per cent; 0 when
+	 * the site switched it off.
+	 *
+	 * @return float
+	 */
+	public static function traffic_light_portion_share(): float {
+
+		$stored = get_option( self::PORTION_SHARE_OPTION, false );
+
+		if ( false === $stored ) {
+			$share = self::PORTION_SHARE_DEFAULT;
+		} else {
+			$share = is_numeric( $stored ) ? (float) $stored : 0.0;
+		}
+
+		return max( 0.0, (float) apply_filters( 'mixmymeals_traffic_light_portion_share', $share ) );
+	}
+
+	/**
+	 * Sanitiser for the portion share: a percentage from 1 to 100, or '' for
+	 * off. Stored as a string so an emptied field survives as "off" rather
+	 * than as `false`, which would bring the default back.
+	 *
+	 * @param mixed $input Posted value.
+	 * @return string
+	 */
+	public static function sanitize_portion_share( $input ): string {
+
+		$raw = str_replace( ',', '.', trim( (string) $input ) );
+
+		if ( '' === $raw || ! is_numeric( $raw ) || (float) $raw <= 0 ) {
+			return '';
+		}
+
+		return (string) min( 100.0, (float) $raw );
+	}
+
+	/**
 	 * The thresholds in force, keyed by sum key (`calories`, not
 	 * `calories_100`). A figure is missing from the result when it has no
 	 * light — no thresholds, or thresholds that contradict each other.
@@ -494,15 +583,29 @@ class Mixmymeals_Ingredient {
 	 * includes energy and carbohydrate, whose direction is neutral: a site
 	 * that gives them thresholds rates density, where less is the lighter food.
 	 *
+	 * **Rated on the figure as printed.** The value is rounded the way
+	 * Mixmymeals_Meal_Plan::format_nutrition_value() rounds it before it is
+	 * compared, so "3,0 g" beside a threshold of "up to 3 g" reads low, and
+	 * never "medium" on the strength of a digit nobody can see.
+	 *
+	 * **The portion rule.** Given what one serving carries, an upper-guide
+	 * figure (`limit`) whose serving provides more than
+	 * traffic_light_portion_share() of the reference intake is high and red
+	 * whatever its density — `basis` then says `serving`. Only upward: a small
+	 * portion of a salty food stays as salty as it is.
+	 *
 	 * Null is not zero. A figure nobody stated gets no light, never a green
 	 * one — the light would otherwise be most reassuring exactly where least
 	 * is known.
 	 *
-	 * @param string     $key      Sum key, as in Mixmymeals_Meal_Plan::NUTRITION_KEYS.
-	 * @param float|null $per_100g The figure per 100 g.
-	 * @return array{amount:string, colour:string}|array{} Empty when there is no light.
+	 * @param string     $key         Sum key, as in Mixmymeals_Meal_Plan::NUTRITION_KEYS.
+	 * @param float|null $per_100g    The figure per 100 g.
+	 * @param float|null $per_serving The figure per serving, for the portion
+	 *                                rule; null where there is no serving
+	 *                                (an ingredient, a plan's mix).
+	 * @return array{amount:string, colour:string, basis:string}|array{} Empty when there is no light.
 	 */
-	public static function traffic_light( string $key, ?float $per_100g ): array {
+	public static function traffic_light( string $key, ?float $per_100g, ?float $per_serving = null ): array {
 
 		if ( null === $per_100g ) {
 			return array();
@@ -514,12 +617,32 @@ class Mixmymeals_Ingredient {
 			return array();
 		}
 
-		if ( $per_100g <= $thresholds['low'] ) {
+		$value = Mixmymeals_Meal_Plan::round_nutrition_value( $key, $per_100g );
+
+		if ( $value <= $thresholds['low'] ) {
 			$amount = 'low';
-		} elseif ( $per_100g > $thresholds['high'] ) {
+		} elseif ( $value > $thresholds['high'] ) {
 			$amount = 'high';
 		} else {
 			$amount = 'medium';
+		}
+
+		$basis = '100g';
+		$share = self::traffic_light_portion_share();
+
+		if (
+			'high' !== $amount
+			&& null !== $per_serving
+			&& $share > 0
+			&& 'limit' === Mixmymeals_Meal_Plan::nutrition_direction( $key )
+		) {
+			// The share as the reference-intake column prints it: whole per cent.
+			$percent = Mixmymeals_Meal_Plan::nutrition_percentages( array( $key => $per_serving ) )[ $key ];
+
+			if ( $percent > $share ) {
+				$amount = 'high';
+				$basis  = 'serving';
+			}
 		}
 
 		$colour = 'amber';
@@ -532,6 +655,7 @@ class Mixmymeals_Ingredient {
 		return array(
 			'amount' => $amount,
 			'colour' => $colour,
+			'basis'  => $basis,
 		);
 	}
 
@@ -540,9 +664,17 @@ class Mixmymeals_Ingredient {
 	 * alone is lost on a screen reader, a printout and one reader in twelve.
 	 *
 	 * @param string $amount low, medium or high.
+	 * @param string $basis  `serving` when the portion rule made it high:
+	 *                       the per-100 g figure beside it may well read
+	 *                       medium, and the word has to say why it does not.
 	 * @return string
 	 */
-	public static function traffic_light_label( string $amount ): string {
+	public static function traffic_light_label( string $amount, string $basis = '100g' ): string {
+
+		if ( 'high' === $amount && 'serving' === $basis ) {
+			/* translators: Nutrition traffic light: one serving provides a large share of the reference intake. */
+			return _x( 'high per serving', 'traffic light', 'mixmymeals' );
+		}
 
 		$labels = array(
 			/* translators: Nutrition traffic light: the amount per 100 g is low. */
@@ -554,6 +686,88 @@ class Mixmymeals_Ingredient {
 		);
 
 		return $labels[ $amount ] ?? '';
+	}
+
+	/**
+	 * The footnote that explains the light, built like
+	 * Mixmymeals_Meal_Plan::reference_intake_note(): every figure it names
+	 * comes from the setting in force, so the sentence cannot promise a
+	 * threshold the light does not use.
+	 *
+	 * Says "FSA" only while the thresholds are the FSA's; a site that set its
+	 * own is told its own back, unattributed.
+	 *
+	 * @param bool $portion Whether the light beside it can follow the
+	 *                      portion rule (recipe and meal, not ingredient or
+	 *                      plan).
+	 * @return string '' when no figure has a light.
+	 */
+	public static function traffic_light_note( bool $portion = false ): string {
+
+		$thresholds = self::traffic_light_thresholds();
+
+		if ( ! $thresholds ) {
+			return '';
+		}
+
+		$parts  = array();
+		$is_fsa = true;
+
+		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+
+			if ( ! isset( $thresholds[ $key ] ) ) {
+				if ( isset( self::TRAFFIC_LIGHT_DEFAULTS[ $key ] ) ) {
+					$is_fsa = false;
+				}
+				continue;
+			}
+
+			$default = self::TRAFFIC_LIGHT_DEFAULTS[ $key ] ?? null;
+			$is_fsa  = $is_fsa && $default
+				&& abs( $default[0] - $thresholds[ $key ]['low'] ) < 0.0001
+				&& abs( $default[1] - $thresholds[ $key ]['high'] ) < 0.0001;
+
+			$parts[] = sprintf(
+				/* translators: 1: nutrition figure, e.g. "Salt", 2: low threshold, e.g. "0,3 g", 3: high threshold, e.g. "1,5 g". */
+				__( '%1$s up to %2$s / above %3$s', 'mixmymeals' ),
+				self::nutrition_label( $key ),
+				Mixmymeals_Meal_Plan::format_nutrition_value( $key, $thresholds[ $key ]['low'] ),
+				Mixmymeals_Meal_Plan::format_nutrition_value( $key, $thresholds[ $key ]['high'] )
+			);
+		}
+
+		$note = sprintf(
+			$is_fsa
+				/* translators: %s: semicolon-separated thresholds, e.g. "Fat up to 3,0 g / above 17,5 g; Salt up to 0,30 g / above 1,50 g". */
+				? __( 'Traffic light: rated per 100 g as low, medium or high against the thresholds of the UK Food Standards Agency (%s).', 'mixmymeals' )
+				/* translators: %s: semicolon-separated thresholds, e.g. "Fat up to 3,0 g / above 17,5 g; Salt up to 0,30 g / above 1,50 g". */
+				: __( 'Traffic light: rated per 100 g as low, medium or high against these thresholds: %s.', 'mixmymeals' ),
+			implode( '; ', $parts )
+		);
+
+		$share = self::traffic_light_portion_share();
+
+		if ( $portion && $share > 0 ) {
+
+			$limits = array();
+
+			foreach ( array_keys( $thresholds ) as $key ) {
+				if ( 'limit' === Mixmymeals_Meal_Plan::nutrition_direction( $key ) ) {
+					$limits[] = self::nutrition_label( $key );
+				}
+			}
+
+			if ( $limits ) {
+				$note .= ' ' . sprintf(
+					/* translators: 1: percentage, e.g. "30 %", 2: comma-separated nutrition figures. */
+					__( 'Where one serving provides more than %1$s of the reference intake, the light reads "high per serving" regardless (%2$s).', 'mixmymeals' ),
+					sprintf( '%s %%', number_format_i18n( $share ) ),
+					implode( ', ', $limits )
+				);
+			}
+		}
+
+		return (string) apply_filters( 'mixmymeals_traffic_light_note', $note, $portion );
 	}
 
 	/**

@@ -589,37 +589,60 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
-       PLANNER DAY TOTALS (summed kcal per person)
+       PLANNER NUTRITION (live, from the cart)
+
+       [mmm_planner_nutrition] renders the first answer; from then on
+       every change to the planner asks the server again. The figures
+       are computed there, from the cart, by the same methods a saved
+       plan uses — a second calculation here would disagree with the
+       plan the moment it is saved. Debounced, because a drag and a
+       servings spinner fire several changes in quick succession.
        ========================================================== */
-    function mmmUpdatePlannerTotals() {
-        const $builder = $('.mmm-plan-builder');
-        if (!$builder.length) return;
+    let mmmNutritionTimer = null;
+    let mmmNutritionRequest = null;
 
-        // The whole pattern, not just the unit: where the number goes is part
-        // of the wording the site configured.
-        const pattern = String($builder.data('kcal-pattern') || '{kcal} kcal');
+    function mmmRefreshPlannerNutrition() {
+        const $box = $('[data-planner-nutrition]');
+        const $days = $('[data-day-nutrition]');
+        if (!$box.length && !$days.length) return;
 
-        $builder.find('.mmm-plan-day').each(function () {
-            const $day = $(this);
-            let sum = 0;
-            $day.find('.mmm-plan-item').each(function () {
-                sum += parseInt(this.getAttribute('data-kcal'), 10) || 0;
-            });
+        clearTimeout(mmmNutritionTimer);
+        mmmNutritionTimer = setTimeout(function () {
 
-            const $total = $day.find('.mmm-plan-day-total');
-            const $value = $total.find('[data-day-total]');
-
-            if (sum > 0) {
-                $value.text('≈ ' + pattern.replace('{kcal}', sum.toLocaleString()));
-                $total.prop('hidden', false);
-            } else {
-                $value.text('');
-                $total.prop('hidden', true);
+            // Only the latest answer counts; an older one arriving late
+            // would show a plan that no longer exists.
+            if (mmmNutritionRequest && mmmNutritionRequest.abort) {
+                mmmNutritionRequest.abort();
             }
-        });
-    }
 
-    mmmUpdatePlannerTotals();
+            $box.add($days).attr('aria-busy', 'true');
+
+            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', {})
+                .done(function (response) {
+                    if (!response || !response.success || !response.data) return;
+
+                    // Keep the table open across refreshes if it was open.
+                    const open = $box.find('.mmm-planner-nutrition__details').prop('open');
+
+                    $box.html(response.data.html || '');
+                    $box.prop('hidden', !!response.data.empty);
+
+                    if (open) {
+                        $box.find('.mmm-planner-nutrition__details').prop('open', true);
+                    }
+
+                    // The row under each day: that day's own figures.
+                    const days = response.data.days || {};
+                    $days.each(function () {
+                        const html = days[this.getAttribute('data-day-nutrition')] || '';
+                        $(this).html(html).prop('hidden', !html);
+                    });
+                })
+                .always(function () {
+                    $box.add($days).removeAttr('aria-busy');
+                });
+        }, 400);
+    }
 
     /* ==========================================================
        DRAG & DROP
@@ -670,13 +693,13 @@ jQuery(function ($) {
         // Keep the select in step when the move came from a drag.
         item.find('.mmm-plan-item-day').val(String(newDay));
 
+        // The figures follow once the cart has the new day, not before.
         mmmSavePlanChange({
             index: item.data('index'),
             field: 'day',
             value: newDay
-        });
+        }).always(mmmRefreshPlannerNutrition);
 
-        mmmUpdatePlannerTotals();
     }
 
     $(document).on('drop', '.mmm-plan-day-list, .mmm-plan-item', function (e) {
@@ -699,6 +722,26 @@ jQuery(function ($) {
         mmmMoveItemToDay(item, parseInt($(this).val(), 10) || 0);
     });
 
+    /* Servings and meal type of a planner item. Saved as they change, so
+       the cart — which the live nutrition is computed from — knows them
+       before the plan is saved; the plan itself still reads them from
+       the item when it is created. */
+    $(document).on('change', '.mmm-plan-item-servings, .mmm-plan-item-type', function () {
+        const $field = $(this);
+        const item = $field.closest('.mmm-plan-item');
+        let value = $field.val();
+
+        if ($field.hasClass('mmm-plan-item-servings')) {
+            value = Math.max(1, parseInt(value, 10) || 1);
+        }
+
+        mmmSavePlanChange({
+            index: item.data('index'),
+            field: $field.data('field'),
+            value: value
+        }).always(mmmRefreshPlannerNutrition);
+    });
+
     /* ==========================================================
        REMOVE CART ITEM
        ========================================================== */
@@ -715,11 +758,22 @@ jQuery(function ($) {
         mmmPost('mmm_remove_cart_item', { index: index })
             .done(function (response) {
                 if (response && response.success) {
+                    // The server closes the gap (array_values), so every item
+                    // after this one now sits one index lower. Without this,
+                    // the next change to any of them — servings, day, another
+                    // removal — went to its neighbour or to nothing, and the
+                    // live nutrition read a cart the page did not show.
+                    $('.mmm-plan-item').not(item).each(function () {
+                        const i = parseInt($(this).attr('data-index'), 10);
+                        if (i > index) {
+                            $(this).attr('data-index', i - 1).data('index', i - 1);
+                        }
+                    });
                     item.slideUp(200, function () {
                         item.remove();
                         mmmUpdateCartBadge();
-                        mmmUpdatePlannerTotals();
                     });
+                    mmmRefreshPlannerNutrition();
                     return;
                 }
 
@@ -754,7 +808,8 @@ jQuery(function ($) {
                     mmmUpdateCartBadge();
                     $('.mmm-plan-item').slideUp(200, function () {
                         $(this).remove();
-                    }).promise().done(mmmUpdatePlannerTotals);
+                    });
+                    mmmRefreshPlannerNutrition();
                     return;
                 }
 
@@ -1088,7 +1143,7 @@ jQuery(function ($) {
         const payload = { index: change.index };
         payload[change.field] = change.value;
 
-        mmmPost('mmm_update_cart_item', payload)
+        return mmmPost('mmm_update_cart_item', payload)
             .done(function (response) {
                 if (!response || !response.success) {
                     console.warn('Failed to save cart change', response);

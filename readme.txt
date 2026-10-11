@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.59.0
+Stable tag: 3.60.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -111,13 +111,61 @@ privacy text under Settings → Privacy after installation.
 
 == Changelog ==
 
-= 3.59.0 =
+= 3.60.0 =
 
 Removed:
 * The admin panel on recipe and meal plan pages (`[mmm_admin_actions]`), its
   script and styles, and the `mixmymeals_admin_board_services` filter. Posting,
   status changes and trashing are done in wp-admin. Remove the shortcode from
   any template that still prints it.
+
+= 3.59.0 =
+
+Added:
+* The planner shows the nutrition of the plan being built, live: the eight
+  figures per day and person with their share of the reference intake and
+  a rating, the full plan table behind a disclosure. Computed on the server
+  from the cart by the same methods the saved plan uses, refreshed after
+  every add, remove, move and change of servings or meal type; the tiles
+  are marked as averages (Ø). Shortcode
+  [mmm_planner_nutrition]; the child theme places it between the board and
+  the Save row.
+* Plan rating per day and person against the reference intake: "too much"
+  for fat, saturates, sugars and salt above 100 % and energy above 110 %,
+  "too little" for protein and fibre below 80 % and energy below 90 % —
+  the latter only where every planned day has breakfast, lunch and dinner.
+  Shown in the reference-intake column of the plan's table. Limits under
+  Settings → Meal Plans → Plan rating.
+* Footnotes under every light and rating saying what they rest on: the
+  per-100 g thresholds (named FSA while they are the FSA's), the portion
+  rule, and the reference intake behind the day rating.
+* The planner shows each day's own figures per person in a small row
+  under the day, with that day's rating — an average hides a single
+  salty day. It sits in the day's frame, together with its recipes, and
+  replaces the kcal total that stood there.
+
+Changed:
+* The traffic light on recipes and meals follows the FSA's portion rule:
+  red ("high per serving") when one serving provides more than 30 % of the
+  reference intake of fat, saturates, sugars or salt, however it rates per
+  100 g. Share adjustable under Settings → Ingredients.
+* The light rates the figure as printed: "3,0 g" against "up to 3 g" is
+  low, never medium on a digit nobody can see.
+* A stored 0 g of saturates beside more than 3 g fat counts as missing:
+  no light for saturates on that ingredient, or on any recipe, meal or plan
+  using it.
+* Shares of the reference intake say which way they point in words —
+  "75 % der Höchstmenge", "60 % der Zielmenge" — instead of "· max." and
+  "· min." with a footnote explaining them. Where a table carries day
+  ratings, their short note replaces the reference-intake note.
+* Settings: the light's section is "Traffic light per 100 g" and says which
+  figures it is meant for; energy, carbohydrate, protein and fibre keep
+  their fields with a note on why they are off.
+
+Fixed:
+* Removing a recipe in the planner left the items after it pointing one
+  place too far in the cart, so the next change to any of them — servings,
+  day, another removal — went to its neighbour or failed.
 
 = 3.58.1 =
 
