@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.58.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.59.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -542,16 +542,17 @@ Cleanup does not only happen here, though: `Mixmymeals_Mail_Log::prune()` and `M
 
 ### Add-on extension points
 
-Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-social`), which depends on this one but is not known to it. Four hooks carry everything it contributes — anything else an add-on needs should become a fifth rather than a reference back into the host:
+Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-social`), which depends on this one but is not known to it. Three hooks carry everything it contributes — anything else an add-on needs should become a fourth rather than a reference back into the host:
 
 | Hook | Purpose |
 |---|---|
 | `mixmymeals_settings_fields` | Adds a settings tab. Options keep the host's `mixmymeals_` prefix, so a tab can move between plugins without touching stored values. |
 | `mixmymeals_render_settings_field` | Renders a field the host's id-switch in `Mixmymeals_Admin_API::display_field()` does not know. Return non-null to take over; that switch cannot be extended otherwise. |
-| `mixmymeals_admin_board_services` | Contributes a publishing target to `[mmm_admin_actions]`. The board itself only knows WordPress status and trash. |
 | `mixmymeals_cleanup_tally_line` | Supplies the wording for a key reported via `Mixmymeals_Cleanup::record()`. |
 
-The add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server and `admin-board.js` address those paths, and a separate namespace would break both for no gain.
+The add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server addresses those paths, and a separate namespace would break it for no gain.
+
+The frontend admin panel (`[mmm_admin_actions]`, `admin-board.js`, the `mixmymeals_admin_board_services` filter) was removed in 3.59.0. Publishing, status changes and trashing happen in wp-admin; a theme still printing the shortcode now shows its literal text, so remove it from templates.
 
 ### Chip wording
 

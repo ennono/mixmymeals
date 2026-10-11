@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.58.1
+Stable tag: 3.59.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,6 +110,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.59.0 =
+
+Removed:
+* The admin panel on recipe and meal plan pages (`[mmm_admin_actions]`), its
+  script and styles, and the `mixmymeals_admin_board_services` filter. Posting,
+  status changes and trashing are done in wp-admin. Remove the shortcode from
+  any template that still prints it.
 
 = 3.58.1 =
 
