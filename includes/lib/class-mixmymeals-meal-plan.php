@@ -1019,6 +1019,56 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * What a bar beside a share of the reference intake draws.
+	 *
+	 * For a target or a neutral figure, the share itself: more bar is closer
+	 * to the reference. For a maximum (fat, saturates, sugars, salt) a bar
+	 * filling up reads as progress — 69 % of the day's salt looked like an
+	 * achievement — so it draws the room left up to the limit instead, and a
+	 * limit that is exceeded gets the whole track, marked over. That way a
+	 * long bar means the same thing in every row. The rule the PDF of
+	 * MixMyMeals Printer introduced (2.0.1), here so the planner and the plan
+	 * page draw the same bar.
+	 *
+	 * @param string $key     Nutrition key.
+	 * @param float  $percent The share, as nutrition_percentages() gives it.
+	 * @return array{fill:int, over:bool, room:int|null} `fill` is the width in
+	 *               per cent; `room` the share still free below a maximum
+	 *               (null for every other figure, and once it is exceeded).
+	 */
+	public static function nutrition_bar( string $key, float $percent ): array {
+
+		$percent = (int) round( $percent );
+
+		if ( 'limit' !== self::nutrition_direction( $key ) ) {
+			return array(
+				'fill' => min( 100, max( 0, $percent ) ),
+				'over' => false,
+				'room' => null,
+			);
+		}
+
+		$over = $percent > 100;
+		$room = max( 0, 100 - $percent );
+
+		return array(
+			'fill' => $over ? 100 : $room,
+			'over' => $over,
+			'room' => $over ? null : $room,
+		);
+	}
+
+	/**
+	 * The sentence that explains the inverted bars, wherever a maximum has one.
+	 *
+	 * @return string
+	 */
+	public static function nutrition_bar_note(): string {
+
+		return __( 'For maximum amounts the bar shows how much is left up to the limit; once the limit is exceeded, the bar is full and highlighted.', 'mixmymeals' );
+	}
+
+	/**
 	 * The wording that has to accompany any percentage of the reference intake,
 	 * so a number never reads as personal dietary advice.
 	 *

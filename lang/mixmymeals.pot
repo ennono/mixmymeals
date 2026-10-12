@@ -5735,3 +5735,13 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Day total:"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "For maximum amounts the bar shows how much is left up to the limit; once the limit is exceeded, the bar is full and highlighted."
+msgstr ""
+
+#. translators: 1: share of a daily maximum, e.g. "69 % of the maximum"; 2: per cent of it still unused.
+#: includes/lib/class-mixmymeals-shortcodes.php
+#, php-format
+msgid "%1$s · %2$d %% left"
+msgstr ""

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.61.1
+Stable tag: 3.62.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.62.0 =
+
+Added:
+* The nutrition tiles in the planner carry a bar per figure, drawn the way
+  the PDF draws it: for a maximum (fat, saturates, sugars, salt) the room
+  left up to the limit ("69 % der Höchstmenge · noch 31 % frei"), full and
+  red once it is exceeded; for every other figure the share itself.
+* A saved plan's page shows the same eight tiles above its nutrition table,
+  in place of the four stat cards for energy, protein, carbohydrate and fat.
 
 = 3.61.1 =
 

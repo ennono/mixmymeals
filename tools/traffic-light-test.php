@@ -469,6 +469,18 @@ try {
 	mmm_tl_assert( $virtual->calc_nutrition_per_day_person() == $real->calc_nutrition_per_day_person(), 'Tageswerte: identisch' );
 	mmm_tl_assert( $virtual->covers_whole_days() === $real->covers_whole_days() && ! $real->covers_whole_days(), 'ganze Tage: identisch (Tag 3 hat nur Abendessen)' );
 
+	// Balken wie im PDF: bei Höchstmengen der Rest bis zur Grenze.
+	mmm_tl_assert( array( 'fill' => 31, 'over' => false, 'room' => 31 ) === Mixmymeals_Meal_Plan::nutrition_bar( 'salt', 69.0 ), 'Balken Salz 69 %: 31 % frei' );
+	mmm_tl_assert( array( 'fill' => 100, 'over' => true, 'room' => null ) === Mixmymeals_Meal_Plan::nutrition_bar( 'salt', 130.0 ), 'Balken Salz 130 %: voll, über der Grenze' );
+	mmm_tl_assert( array( 'fill' => 60, 'over' => false, 'room' => null ) === Mixmymeals_Meal_Plan::nutrition_bar( 'protein', 60.0 ), 'Balken Eiweiß 60 %: der Anteil selbst' );
+	mmm_tl_assert( 100 === Mixmymeals_Meal_Plan::nutrition_bar( 'calories', 120.0 )['fill'], 'Balken Energie 120 %: gekappt bei 100' );
+	mmm_tl_assert( false !== strpos( (string) ( $json['data']['html'] ?? '' ), 'mmm-nutri-bar__fill--over' ), 'Planer: Kachel mit vollem roten Balken' );
+	mmm_tl_assert( false !== strpos( (string) ( $json['data']['html'] ?? '' ), 'mmm-nutri-note--bars' ), 'Planer: Hinweis zu den Balken' );
+
+	$plan_page = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $plan4 . '"]' );
+	mmm_tl_assert( false !== strpos( $plan_page, 'mmm-planner-nutrition__summary' ) && false !== strpos( $plan_page, 'mmm-nutri-bar__fill' ), 'Planseite: dieselben Kacheln mit Balken' );
+	mmm_tl_assert( false === strpos( $plan_page, 'mmm-nutri-stats' ), 'Planseite: die vier alten Kacheln sind weg' );
+
 	( new Mixmymeals_Cart() )->save_items( array() );
 	// check_ajax_referer() liest $_REQUEST, nicht $_POST.
 	$_POST    = array( 'nonce' => wp_create_nonce( 'mmm_frontend_nonce' ) );
