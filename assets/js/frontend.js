@@ -1124,19 +1124,6 @@ jQuery(function ($) {
     });
 
     /* ==========================================================
-       PDF BUTTON
-       ========================================================== */
-    $(document).on('click', '.mmm-meal-plan-actions__item--print', function (e) {
-        e.preventDefault();
-
-        const mealPlanId = $(this).data('meal-plan-id');
-        if (!mealPlanId) return;
-
-        const url = mixmymeals.ajax_url + '?action=mmm_generate_pdf&meal_plan_id=' + mealPlanId;
-        window.open(url, '_blank');
-    });
-
-    /* ==========================================================
        HELPER FUNCTIONS
        ========================================================== */
     function mmmSavePlanChange(change) {

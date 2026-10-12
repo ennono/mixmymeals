@@ -385,8 +385,8 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * AJAX endpoints that are not shortcodes. Cart and PDF endpoints
-	 * live in their own classes.
+	 * AJAX endpoints that are not shortcodes. The cart endpoints live in
+	 * their own class.
 	 */
 	private function register_ajax(): void {
 
@@ -5153,7 +5153,8 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_meal_plan_actions].
-	 * Renders an action bar (PDF download, load into cart) for the current meal plan.
+	 * Renders an action bar (e-mail, Bring!, load into cart, plus whatever
+	 * add-ons contribute) for the current meal plan.
 	 *
 	 * @param array|string $atts Shortcode attributes: cart_url.
 	 * @return string
@@ -5175,58 +5176,113 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$title = get_the_title( $meal_plan_id );
-		$url   = get_permalink( $meal_plan_id );
+		$html = '';
+		foreach ( self::meal_plan_action_items( (int) $meal_plan_id, (string) $atts['cart_url'] ) as $key => $item ) {
 
-		// Mailto vorbereiten
+			$class = 'mmm-meal-plan-actions__item mmm-meal-plan-actions__item--' . $key;
+
+			// An action without an address is a script's job, as "Adjust"
+			// always was: a span, so nothing navigates before the script runs.
+			if ( '' === $item['url'] ) {
+				$html .= '<span class="' . esc_attr( $class ) . '"' . $item['attrs'] . '>'
+					. esc_html( $item['label'] ) . '</span>';
+				continue;
+			}
+
+			$html .= '<a href="' . esc_url( $item['url'] ) . '" class="' . esc_attr( $class ) . '"'
+				. ( $item['new_tab'] ? ' target="_blank" rel="noopener noreferrer"' : '' )
+				. $item['attrs'] . '>' . esc_html( $item['label'] ) . '</a>';
+		}
+
+		return '<div class="mmm-meal-plan-actions">' . $html . '</div>';
+	}
+
+	/**
+	 * The actions offered for one meal plan, as both action rows print them —
+	 * [mmm_meal_plan_actions] and the buttons in [mmm_meal_plan_hero].
+	 *
+	 * One list for both, so an action an add-on contributes appears in either
+	 * place the theme uses. The PDF download moved into the MixMyMeals
+	 * Printer add-on (3.61.0) and comes back through the filter below.
+	 *
+	 * @param int    $plan_id  Meal plan post ID.
+	 * @param string $cart_url Where "Adjust" leads after loading the plan.
+	 * @return array<string,array{label:string,icon:string,url:string,new_tab:bool,attrs:string}>
+	 *         Keyed by action; `attrs` is a ready, escaped attribute string.
+	 */
+	public static function meal_plan_action_items( int $plan_id, string $cart_url = '' ): array {
+
+		$title = get_the_title( $plan_id );
+		$url   = get_permalink( $plan_id );
+
 		/* translators: %s: title of the meal plan. */
 		$mail_subject = sprintf( __( 'Meal Plan: %s', 'mixmymeals' ), $title );
 		/* translators: %s: public URL of the meal plan. */
-		$mail_body    = sprintf( __( "My Meal Plan:\n\n%s", 'mixmymeals' ), $url );
+		$mail_body = sprintf( __( "My Meal Plan:\n\n%s", 'mixmymeals' ), $url );
 
-		$mailto_link = sprintf(
-			'mailto:?subject=%s&body=%s',
-			rawurlencode( $mail_subject ),
-			rawurlencode( $mail_body )
+		$items = array(
+			'mail'           => array(
+				'label' => __( 'Send via Email', 'mixmymeals' ),
+				'icon'  => 'envelope',
+				'url'   => sprintf( 'mailto:?subject=%s&body=%s', rawurlencode( $mail_subject ), rawurlencode( $mail_body ) ),
+			),
+			// Points at the plan's import view, see Mixmymeals_Meal_Plan::bring_deeplink().
+			'bring'          => array(
+				'label'   => __( 'Export to Bring!', 'mixmymeals' ),
+				'icon'    => 'paper-plane',
+				'url'     => Mixmymeals_Meal_Plan::bring_deeplink( $plan_id ),
+				'new_tab' => true,
+			),
+			'load-into-cart' => array(
+				'label' => __( 'Adjust', 'mixmymeals' ),
+				'icon'  => 'pen-to-square',
+				'data'  => array(
+					'meal-plan-id' => (string) $plan_id,
+					'redirect-url' => $cart_url,
+				),
+			),
 		);
 
-		// Bring! Deep Link vorbereiten (zeigt auf die Import-Ansicht des Plans)
-		$bring_link = Mixmymeals_Meal_Plan::bring_deeplink( $meal_plan_id );
+		/**
+		 * Filters the actions offered for a meal plan.
+		 *
+		 * Each item is keyed by a short name (it becomes the modifier class
+		 * `mmm-meal-plan-actions__item--<key>`) and carries `label`, and
+		 * optionally `icon` (a Font Awesome solid icon name without `fa-`),
+		 * `url` (empty for an action a script handles), `new_tab` and `data`
+		 * (data attributes without the `data-` prefix). Order is print order.
+		 *
+		 * @param array $items   Actions so far.
+		 * @param int   $plan_id Meal plan post ID.
+		 */
+		$items = (array) apply_filters( 'mixmymeals_meal_plan_actions', $items, $plan_id );
 
-		ob_start();
-		?>
+		$clean = array();
+		foreach ( $items as $key => $item ) {
 
-        <div class="mmm-meal-plan-actions">
-        <span
-                class="mmm-meal-plan-actions__item mmm-meal-plan-actions__item--print"
-                data-meal-plan-id="<?php echo esc_attr( $meal_plan_id ); ?>">
-            <?php esc_html_e( 'Print to PDF', 'mixmymeals' ); ?>
-        </span>
+			$key = sanitize_html_class( (string) $key );
+			if ( '' === $key || ! is_array( $item ) || '' === (string) ( $item['label'] ?? '' ) ) {
+				continue;
+			}
 
-            <a
-                    href="<?php echo esc_url( $mailto_link ); ?>"
-                    class="mmm-meal-plan-actions__item mmm-meal-plan-actions__item--mail">
-				<?php esc_html_e( 'Send via Email', 'mixmymeals' ); ?>
-            </a>
+			$attrs = '';
+			foreach ( (array) ( $item['data'] ?? array() ) as $name => $value ) {
+				$name = sanitize_key( (string) $name );
+				if ( '' !== $name ) {
+					$attrs .= ' data-' . $name . '="' . esc_attr( (string) $value ) . '"';
+				}
+			}
 
-            <a
-                    href="<?php echo esc_url( $bring_link ); ?>"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="mmm-meal-plan-actions__item mmm-meal-plan-actions__item--bring">
-				<?php esc_html_e( 'Export to Bring!', 'mixmymeals' ); ?>
-            </a>
+			$clean[ $key ] = array(
+				'label'   => (string) $item['label'],
+				'icon'    => sanitize_html_class( (string) ( $item['icon'] ?? '' ) ),
+				'url'     => (string) ( $item['url'] ?? '' ),
+				'new_tab' => ! empty( $item['new_tab'] ),
+				'attrs'   => $attrs,
+			);
+		}
 
-            <span
-                    class="mmm-meal-plan-actions__item mmm-meal-plan-actions__item--load-into-cart"
-                    data-meal-plan-id="<?php echo esc_attr( $meal_plan_id ); ?>"
-                    data-redirect-url="<?php echo esc_attr( $atts['cart_url'] ); ?>">
-				<?php esc_html_e( 'Adjust', 'mixmymeals' ); ?>
-            </span>
-        </div>
-
-		<?php
-		return ob_get_clean();
+		return $clean;
 	}
 
 	/**
@@ -5332,7 +5388,6 @@ class Mixmymeals_Shortcodes {
 
 		$plan  = new Mixmymeals_Meal_Plan( $plan_id );
 		$title = get_the_title( $plan_id );
-		$url   = get_permalink( $plan_id );
 
 		// Chip-Daten
 		$num_of_days          = $plan->count_days();
@@ -5341,17 +5396,8 @@ class Mixmymeals_Shortcodes {
 		$avg_cost             = $plan->calculate_avg_cost_per_serving();
 		$currency             = get_option( 'mixmymeals_currency', '€' );
 
-		// Aktionen (Logik identisch zu mmm_meal_plan_actions)
-		/* translators: %s: title of the meal plan. */
-		$mail_subject = sprintf( __( 'Meal Plan: %s', 'mixmymeals' ), $title );
-		/* translators: %s: public URL of the meal plan. */
-		$mail_body    = sprintf( __( "My Meal Plan:\n\n%s", 'mixmymeals' ), $url );
-		$mailto_link  = sprintf(
-			'mailto:?subject=%s&body=%s',
-			rawurlencode( $mail_subject ),
-			rawurlencode( $mail_body )
-		);
-		$bring_link   = Mixmymeals_Meal_Plan::bring_deeplink( $plan_id );
+		// The same actions as [mmm_meal_plan_actions], add-ons' included.
+		$actions = self::meal_plan_action_items( $plan_id, (string) $atts['cart_url'] );
 
 		ob_start();
 		?>
@@ -5415,25 +5461,15 @@ class Mixmymeals_Shortcodes {
 				<?php endif; ?>
 
             <div class="mmm-plan-hero__actions">
-                <a href="#"
-                   class="mmm-btn mmm-btn--ghost mmm-meal-plan-actions__item--print"
-                   data-meal-plan-id="<?php echo esc_attr( $plan_id ); ?>">
-                    <i class="mmm-icon fa-solid fa-print" aria-hidden="true"></i><?php esc_html_e( 'Print to PDF', 'mixmymeals' ); ?>
+				<?php foreach ( $actions as $key => $action ) : ?>
+                <a href="<?php echo esc_url( '' !== $action['url'] ? $action['url'] : '#' ); ?>"
+                   class="mmm-btn mmm-btn--ghost mmm-meal-plan-actions__item--<?php echo esc_attr( $key ); ?>"<?php
+					echo $action['new_tab'] ? ' target="_blank" rel="noopener noreferrer"' : '';
+					echo $action['attrs']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in meal_plan_action_items().
+					?>>
+					<?php if ( '' !== $action['icon'] ) : ?><i class="mmm-icon fa-solid fa-<?php echo esc_attr( $action['icon'] ); ?>" aria-hidden="true"></i><?php endif; ?><?php echo esc_html( $action['label'] ); ?>
                 </a>
-                <a href="<?php echo esc_url( $mailto_link ); ?>"
-                   class="mmm-btn mmm-btn--ghost">
-                    <i class="mmm-icon fa-solid fa-envelope" aria-hidden="true"></i><?php esc_html_e( 'Send via Email', 'mixmymeals' ); ?>
-                </a>
-                <a href="<?php echo esc_url( $bring_link ); ?>" target="_blank" rel="noopener noreferrer"
-                   class="mmm-btn mmm-btn--ghost">
-                    <i class="mmm-icon fa-solid fa-paper-plane" aria-hidden="true"></i><?php esc_html_e( 'Export to Bring!', 'mixmymeals' ); ?>
-                </a>
-                <a href="#"
-                   class="mmm-btn mmm-btn--ghost mmm-meal-plan-actions__item--load-into-cart"
-                   data-meal-plan-id="<?php echo esc_attr( $plan_id ); ?>"
-                   data-redirect-url="<?php echo esc_attr( $atts['cart_url'] ); ?>">
-                    <i class="mmm-icon fa-solid fa-pen-to-square" aria-hidden="true"></i><?php esc_html_e( 'Adjust', 'mixmymeals' ); ?>
-                </a>
+				<?php endforeach; ?>
             </div>
         </section>
 		<?php

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.60.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social` and reaches this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.61.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -417,11 +417,15 @@ On login, the guest cart merges into the user's cart. The max cart size is set v
 
 All shortcodes live in `Mixmymeals_Shortcodes` and are prefixed `mmm_`. AJAX handlers are also registered there (not as shortcodes). Frontend JS is localized as `mixmymeals` (ajaxurl, nonce). Admin JS is localized as `mixmymealsAdmin` (ajaxurl, nonce), `mixmymealsRecipes` (full recipe list), and `MixMyMealsAmounts` (nonces for ingredient unit CRUD).
 
-### PDF export
+### PDF export — in the add-on MixMyMeals Printer
 
-`Mixmymeals_PDF_Builder` wraps dompdf (vendored at `includes/lib/dompdf/3.1.4/`). Build a PDF by adding HTML pages with `add_page()` and calling `render()`.
+**Not in this plugin since 3.61.0.** The PDF of a meal plan (endpoint `mmm_generate_pdf`, the dompdf wrapper, `pdf.css` and the 12 MB of vendored dompdf) moved into `mixmymeals-printer` (`ennono/mixmymeals-printer`), unchanged in behaviour: still nonce-free, still only published plans, still 5 per IP and minute. The action name and the button's class `mmm-meal-plan-actions__item--print` were kept, so links and theme styles survive the move.
 
-The public PDF download endpoint (`mmm_generate_pdf`, admin-ajax) is **intentionally nonce-free**: PDFs of published plans must be shareable/cacheable by anonymous visitors. Protection: only published plans are served, plus a per-IP rate limit (5/min).
+It reaches this plugin through `mixmymeals_meal_plan_actions` (the button) and `mixmymeals_privacy_policy_items` (the sentence about its rate-limit counter), and reads plans through the public methods every other channel uses — `calc_nutrition_per_day_person()`, `calc_nutrition_by_day()`, `calc_shopping_list()`, `get_ingredients_scaled()`, `get_nutrition_pinned()`, `format_nutrition_value()`, `format_nutrition_percentage()`, `reference_intake_note()`, `build_needed_amount_string()`, `weekday_name()`. **Those are now an add-on's API**: renaming or narrowing one breaks the PDF without an error in this plugin. Where this file still says "the PDF" about a figure or a footnote, it means the add-on's rendering of these methods.
+
+Without the add-on the button is simply absent: nothing in this plugin knows a PDF exists.
+
+Since Printer 2.0.0 the PDF is built from templates (cover, week overview, nutrition, shopping list, recipes; backgrounds, photos, brand fonts) — see that repository's CLAUDE.md and `templates/README.md`. Its context class is the one place there that reads this plugin, so the list of methods above is what to check before changing a signature.
 
 ### Structured data, social tags and Bring!
 
@@ -532,7 +536,7 @@ Where a pill row already exists, the label joins it rather than floating above i
 
 Browse cards have no pill row, so they keep `disclosure_pill()`: the bare label above the card title, without the sponsor name. It is wired into `render_recipe_browse_cards()` and `render_meal_plan_browse_cards()` (which `render_related_recipe_cards()` reuses).
 
-Still missing: schema.org `sponsor`, REST/MCP exposure, and the PDF/e-mail/social channels.
+Still missing: schema.org `sponsor`, REST/MCP exposure, and the e-mail/social channels. The PDF prints it since MixMyMeals Printer 2.0.0, from `disclosure_label_for()` like every other rendering.
 
 ### Images over REST
 
@@ -552,15 +556,17 @@ Cleanup does not only happen here, though: `Mixmymeals_Mail_Log::prune()` and `M
 
 ### Add-on extension points
 
-Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-social`), which depends on this one but is not known to it. Three hooks carry everything it contributes — anything else an add-on needs should become a fourth rather than a reference back into the host:
+Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-social`), the PDF export in another (`mixmymeals-printer`); both depend on this one but are not known to it. These hooks carry everything they contribute — anything else an add-on needs should become another hook rather than a reference back into the host:
 
 | Hook | Purpose |
 |---|---|
 | `mixmymeals_settings_fields` | Adds a settings tab. Options keep the host's `mixmymeals_` prefix, so a tab can move between plugins without touching stored values. |
 | `mixmymeals_render_settings_field` | Renders a field the host's id-switch in `Mixmymeals_Admin_API::display_field()` does not know. Return non-null to take over; that switch cannot be extended otherwise. |
 | `mixmymeals_cleanup_tally_line` | Supplies the wording for a key reported via `Mixmymeals_Cleanup::record()`. |
+| `mixmymeals_privacy_policy_items` | Adds a plain-text item to the generated privacy-policy section (Social: pin images; Printer: the PDF rate-limit counter). |
+| `mixmymeals_meal_plan_actions` | The actions of a meal plan, keyed (`label`, `icon`, `url`, `new_tab`, `data`), rendered by `Mixmymeals_Shortcodes::meal_plan_action_items()` into both `[mmm_meal_plan_actions]` and the hero's buttons. Printer adds `print` first. |
 
-The add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server addresses those paths, and a separate namespace would break it for no gain.
+The Social add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server addresses those paths, and a separate namespace would break it for no gain.
 
 The frontend admin panel (`[mmm_admin_actions]`, `admin-board.js`, the `mixmymeals_admin_board_services` filter) was removed in 3.60.0. Publishing, status changes and trashing happen in wp-admin; a theme still printing the shortcode now shows its literal text, so remove it from templates.
 

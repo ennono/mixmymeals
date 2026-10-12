@@ -120,6 +120,7 @@ update_option( 'mixmymeals_photos_auto_approve', 'on' );
 mmm_ppt_assert( $has( 'without prior review' ) && ! $has( 'reviewed editorially' ), 'Sofortfreigabe an: sagt, dass nicht geprüft wird' );
 
 mmm_ppt_assert( ! $has( 'saves a meal plan' ), 'ohne Stundenlimit kein Zähler beim Speichern' );
+mmm_ppt_assert( class_exists( 'Mixmymeals_Printer' ) || ! $has( 'PDF' ), 'ohne Printer-Add-on kein PDF im Text — der Export liegt seit 3.61.0 dort' );
 update_option( 'mixmymeals_public_mode', 'on' );
 update_option( 'mixmymeals_published_meal_plans_per_hour_limit', 3 );
 mmm_ppt_assert( $has( 'saves a meal plan' ), 'mit Limit und öffentlichem Modus: der Zähler wird genannt' );
