@@ -5461,9 +5461,25 @@ class Mixmymeals_Shortcodes {
 				<?php endif; ?>
 
             <div class="mmm-plan-hero__actions">
-				<?php foreach ( $actions as $key => $action ) : ?>
+				<?php
+				foreach ( $actions as $key => $action ) :
+					/*
+					 * Own modifier, not the action bar's. The child theme puts a
+					 * Font Awesome glyph before `.mmm-meal-plan-actions__item--mail`
+					 * and `--bring` through ::before, meant for the bar, which has
+					 * no icons of its own; on these buttons, which have an <i>,
+					 * it drew a second one as an empty box (3.61.0). Only an
+					 * action a script handles keeps the shared class, since that
+					 * is what the script finds it by — "Adjust" carried it here
+					 * before 3.61.0 too.
+					 */
+					$class = 'mmm-btn mmm-btn--ghost mmm-plan-hero__action mmm-plan-hero__action--' . $key;
+					if ( '' === $action['url'] ) {
+						$class .= ' mmm-meal-plan-actions__item--' . $key;
+					}
+					?>
                 <a href="<?php echo esc_url( '' !== $action['url'] ? $action['url'] : '#' ); ?>"
-                   class="mmm-btn mmm-btn--ghost mmm-meal-plan-actions__item--<?php echo esc_attr( $key ); ?>"<?php
+                   class="<?php echo esc_attr( $class ); ?>"<?php
 					echo $action['new_tab'] ? ' target="_blank" rel="noopener noreferrer"' : '';
 					echo $action['attrs']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in meal_plan_action_items().
 					?>>
