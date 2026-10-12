@@ -899,7 +899,9 @@ class Mixmymeals_Meal_Plan {
 	 * them: actual needs vary with age, sex, weight and activity. Anything
 	 * rendering them has to say so — see
 	 * Mixmymeals_Meal_Plan::reference_intake_note(). Sites with a specific
-	 * audience should set their own via the filter below.
+	 * audience set their own on the Meal Plans tab (options
+	 * mixmymeals_reference_intake_<key>, empty = this default) or via the
+	 * filter below, which sees the settings already applied.
 	 *
 	 * @var array<string,float>
 	 */
@@ -915,6 +917,13 @@ class Mixmymeals_Meal_Plan {
 	);
 
 	/**
+	 * Option prefix of the site's own reference intakes, one per key.
+	 *
+	 * @var string
+	 */
+	const REFERENCE_INTAKE_OPTION_PREFIX = 'mixmymeals_reference_intake_';
+
+	/**
 	 * The reference intakes, filterable so a site aimed at a specific audience
 	 * (sports nutrition, children's catering) can set its own.
 	 *
@@ -922,7 +931,17 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function reference_intake(): array {
 
-		$values = (array) apply_filters( 'mixmymeals_reference_intake', self::REFERENCE_INTAKE );
+		$values = self::REFERENCE_INTAKE;
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+			$stored = (float) get_option( self::REFERENCE_INTAKE_OPTION_PREFIX . $key, '' );
+
+			if ( $stored > 0 ) {
+				$values[ $key ] = $stored;
+			}
+		}
+
+		$values = (array) apply_filters( 'mixmymeals_reference_intake', $values );
 
 		// A filter returning nonsense must not turn into a division by zero
 		// wherever a percentage is worked out.
@@ -933,6 +952,41 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		return $values;
+	}
+
+	/**
+	 * Whether the intakes in force are the EU's for an average adult. Only
+	 * then may a note call them that: a site that set 2 500 kcal or more
+	 * protein compares with its own figures, and "an average adult
+	 * (2 000 kcal)" beside them would be untrue.
+	 *
+	 * @return bool
+	 */
+	public static function reference_intake_is_default(): bool {
+
+		$values = self::reference_intake();
+
+		foreach ( self::NUTRITION_KEYS as $key ) {
+			if ( abs( (float) $values[ $key ] - self::REFERENCE_INTAKE[ $key ] ) > 0.0001 ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Sanitises one reference-intake setting: a positive number, or '' for
+	 * the default. A decimal comma is accepted.
+	 *
+	 * @param mixed $input Posted value.
+	 * @return string
+	 */
+	public static function sanitize_reference_intake( $input ): string {
+
+		$raw = str_replace( ',', '.', trim( (string) $input ) );
+
+		return ( '' !== $raw && is_numeric( $raw ) && (float) $raw > 0 ) ? (string) (float) $raw : '';
 	}
 
 	/**
@@ -985,15 +1039,18 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * One percentage, with what its 100 % would mean.
+	 * A share of the reference intake as a cell prints it: the percentage and
+	 * what it is a share of, with the direction in it — "23 % von max. 70 g",
+	 * "40 % von Ziel 30 g", "20 % von 2.000 kcal".
 	 *
-	 * "75 % der Höchstmenge" and "60 % der Zielmenge": the cell says itself
-	 * which way the figure points, because a percentage alone reads as
-	 * "complete" — and 100 % of the salt guide is a limit reached, not a
-	 * target met (see NUTRITION_DIRECTIONS). Until 3.59.0 this was
-	 * "75 % · max." with a footnote explaining the abbreviation; readers did
-	 * not get that far. A neutral reference (energy, carbohydrate) stays a
-	 * bare percentage.
+	 * The cell says itself which way the figure points, because a percentage
+	 * alone reads as "complete" — and 100 % of the salt guide is a limit
+	 * reached, not a target met (see NUTRITION_DIRECTIONS). Until 3.59.0 this
+	 * was "75 % · max." with a footnote explaining the abbreviation; readers
+	 * did not get that far. 3.59.0 to 3.62 said "75 % der Höchstmenge", which
+	 * was clear and too long for a tile; naming the reference figure itself
+	 * is shorter and says more, and it follows the site's own intakes
+	 * (reference_intake()).
 	 *
 	 * @param string $key     Nutrition key.
 	 * @param float  $percent The percentage, as nutrition_percentages() gives it.
@@ -1001,21 +1058,50 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function format_nutrition_percentage( string $key, float $percent ): string {
 
-		$value = sprintf( '%d %%', (int) round( $percent ) );
+		$value     = sprintf( '%d %%', (int) round( $percent ) );
+		$reference = self::format_reference_value( $key, self::reference_intake()[ $key ] ?? 0.0 );
 
 		switch ( self::nutrition_direction( $key ) ) {
 
 			case 'limit':
-				/* translators: %s: a percentage, e.g. "75 %". The figure it refers to is an upper guide: 100 % is the most a day should hold. */
-				return sprintf( __( '%s of the maximum', 'mixmymeals' ), $value );
+				/* translators: 1: a percentage, e.g. "75 %"; 2: the daily maximum it is a share of, e.g. "70 g". */
+				return sprintf( __( '%1$s of max. %2$s', 'mixmymeals' ), $value, $reference );
 
 			case 'target':
-				/* translators: %s: a percentage, e.g. "60 %". The figure it refers to is a lower guide: 100 % is what a day should reach. */
-				return sprintf( __( '%s of the target', 'mixmymeals' ), $value );
+				/* translators: 1: a percentage, e.g. "60 %"; 2: the daily target it is a share of, e.g. "30 g". */
+				return sprintf( __( '%1$s of target %2$s', 'mixmymeals' ), $value, $reference );
 
 			default:
-				return $value;
+				/* translators: 1: a percentage, e.g. "93 %"; 2: the daily reference it is a share of, e.g. "2,000 kcal". */
+				return sprintf( _x( '%1$s of %2$s', 'share of the reference intake', 'mixmymeals' ), $value, $reference );
 		}
+	}
+
+	/**
+	 * An amount as a reference figure reads: with its unit and without
+	 * trailing zeros — "70 g", "2,5 g", "2.000 kcal" — since "70,0 g" next to
+	 * a percentage looks like a measurement rather than a guide.
+	 *
+	 * @param string $key   Nutrition key.
+	 * @param float  $value Amount in g, or kcal for energy.
+	 * @return string
+	 */
+	public static function format_reference_value( string $key, float $value ): string {
+
+		$max      = 'calories' === $key ? 0 : self::nutrition_decimals( $key );
+		$decimals = 0;
+
+		while ( $decimals < $max && round( $value, $decimals ) !== round( $value, $max ) ) {
+			++$decimals;
+		}
+
+		$number = number_format_i18n( round( $value, $max ), $decimals );
+
+		return 'calories' === $key
+			/* translators: %s: kilocalories. */
+			? sprintf( __( '%s kcal', 'mixmymeals' ), $number )
+			/* translators: %s: an amount in grams. */
+			: sprintf( __( '%s g', 'mixmymeals' ), $number );
 	}
 
 	/**
@@ -1080,7 +1166,10 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function reference_intake_note(): string {
 
-		$note = __( 'Percentages refer to the reference intake of an average adult (2 000 kcal). Your own needs may differ.', 'mixmymeals' );
+		$note = self::reference_intake_is_default()
+			? __( 'Percentages refer to the reference intake of an average adult (2 000 kcal). Your own needs may differ.', 'mixmymeals' )
+			/* translators: %s: energy of the reference intake per day, e.g. "2.500". */
+			: sprintf( __( 'Percentages refer to a reference intake of %s kcal per day. Your own needs may differ.', 'mixmymeals' ), number_format_i18n( self::reference_intake()['calories'] ) );
 
 		return (string) apply_filters( 'mixmymeals_reference_intake_note', $note );
 	}
@@ -1753,7 +1842,10 @@ class Mixmymeals_Meal_Plan {
 				. ( $exceptions ? ' (' . implode( ', ', $exceptions ) . ')' : '' );
 		};
 
-		$note = __( 'Compared with the daily reference intake of an average adult (2 000 kcal); your own needs may differ.', 'mixmymeals' );
+		$note = self::reference_intake_is_default()
+			? __( 'Compared with the daily reference intake of an average adult (2 000 kcal); your own needs may differ.', 'mixmymeals' )
+			/* translators: %s: energy of the reference intake per day, e.g. "2.500". */
+			: sprintf( __( 'Compared with a daily reference intake of %s kcal; your own needs may differ.', 'mixmymeals' ), number_format_i18n( self::reference_intake()['calories'] ) );
 
 		if ( $by_end['over'] ) {
 			/* translators: %s: a percentage with exceptions, e.g. "100 % (Energy: 110 %)". */

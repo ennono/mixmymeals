@@ -7425,9 +7425,12 @@ class Mixmymeals_Shortcodes {
 					$has_room = true;
 				}
 
+				// What the bar draws for a maximum, in the figure's own unit.
+				$mmm_room = '';
 				if ( null !== $mmm_bar['room'] ) {
-					/* translators: 1: share of a daily maximum, e.g. "69 % of the maximum"; 2: per cent of it still unused. */
-					$mmm_share = sprintf( __( '%1$s · %2$d %% left', 'mixmymeals' ), $mmm_share, $mmm_bar['room'] );
+					$mmm_left = max( 0.0, (float) Mixmymeals_Meal_Plan::reference_intake()[ $key ] - (float) $average[ $key ] );
+					/* translators: %s: amount still unused below a daily maximum, e.g. "53,6 g". */
+					$mmm_room = sprintf( __( '%s left', 'mixmymeals' ), Mixmymeals_Meal_Plan::format_nutrition_value( $key, $mmm_left ) );
 				}
 				?>
 				<li class="mmm-planner-nutrition__item<?php echo '' === $mmm_verdict ? '' : ' mmm-planner-nutrition__item--' . esc_attr( $mmm_verdict ); ?>" data-key="<?php echo esc_attr( $key ); ?>">
@@ -7438,6 +7441,9 @@ class Mixmymeals_Shortcodes {
 					<span class="mmm-planner-nutrition__value"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, (float) $average[ $key ] ) ); ?></span>
 					<span class="mmm-nutri-bar mmm-nutri-bar--<?php echo esc_attr( Mixmymeals_Meal_Plan::nutrition_direction( $key ) ); ?>" aria-hidden="true"><span class="mmm-nutri-bar__fill<?php echo '' === $mmm_tone ? '' : ' mmm-nutri-bar__fill--' . esc_attr( $mmm_tone ); ?>" style="width:<?php echo esc_attr( (string) $mmm_bar['fill'] ); ?>%"></span></span>
 					<span class="mmm-planner-nutrition__share"><?php echo esc_html( $mmm_share ); ?></span>
+					<?php if ( '' !== $mmm_room ) : ?>
+						<span class="mmm-planner-nutrition__room"><?php echo esc_html( $mmm_room ); ?></span>
+					<?php endif; ?>
 					<?php echo $this->day_rating_markup( $mmm_verdict ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 				</li>
 			<?php endforeach; ?>

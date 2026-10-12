@@ -867,6 +867,7 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
 				),
 				...$this->nutrition_table_fields( array( 'meal', 'plan' ) ),
+				...$this->reference_intake_fields(),
 				...$this->day_rating_fields(),
 			),
 		);
@@ -1218,6 +1219,52 @@ class Mixmymeals_Settings {
 			'default'     => (string) Mixmymeals_Ingredient::PORTION_SHARE_DEFAULT,
 			'callback'    => array( Mixmymeals_Ingredient::class, 'sanitize_portion_share' ),
 		);
+
+		return $fields;
+	}
+
+	/**
+	 * The reference intakes per day on the Meal Plans tab: one field per
+	 * figure, empty for the EU's value for an average adult. Every share of
+	 * the reference intake follows — tables, tiles, bars, the plan rating,
+	 * the portion rule of the traffic light, mails and the PDF.
+	 *
+	 * @return array[]
+	 */
+	private function reference_intake_fields(): array {
+
+		$fields = array(
+			array(
+				'id'          => 'mealplans_group_reference_intake',
+				'type'        => 'heading',
+				'label'       => __( 'Reference intake', 'mixmymeals' ),
+				'description' => __( 'What one day should hold, the basis of every percentage: in the nutrition tables, the tiles and bars, the plan rating, mails and the PDF. Empty fields use the EU reference intake of an average adult. Set your own only for an audience whose needs differ; the notes under the tables then name your energy figure instead of the average adult.', 'mixmymeals' ),
+			),
+		);
+
+		foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+
+			switch ( Mixmymeals_Meal_Plan::nutrition_direction( $key ) ) {
+				case 'limit':
+					$description = __( 'Maximum per day.', 'mixmymeals' );
+					break;
+				case 'target':
+					$description = __( 'Target per day.', 'mixmymeals' );
+					break;
+				default:
+					$description = __( 'Reference per day.', 'mixmymeals' );
+			}
+
+			$fields[] = array(
+				'id'          => 'reference_intake_' . $key,
+				'label'       => Mixmymeals_Ingredient::nutrition_label( $key ),
+				'description' => $description,
+				'unit'        => 'calories' === $key ? __( 'kcal', 'mixmymeals' ) : __( 'g', 'mixmymeals' ),
+				'placeholder' => number_format_i18n( Mixmymeals_Meal_Plan::REFERENCE_INTAKE[ $key ] ),
+				'default'     => '',
+				'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_reference_intake' ),
+			);
+		}
 
 		return $fields;
 	}

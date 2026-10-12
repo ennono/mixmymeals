@@ -118,6 +118,11 @@ class Mixmymeals_Admin_API {
 			$field_id = 'day_rating';
 		}
 
+		// And for the reference intakes.
+		if ( str_starts_with( $field['id'], 'reference_intake_' ) ) {
+			$field_id = 'reference_intake';
+		}
+
 		// One field per subject (ingredient, recipe, meal, plan), same idea.
 		if ( str_starts_with( $field['id'], Mixmymeals_Nutrition_Table::FIELD_PREFIX ) ) {
 			$field_id = 'nutrition_table';
@@ -233,6 +238,19 @@ class Mixmymeals_Admin_API {
 				}
 
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			// One reference intake per figure; empty means the EU default,
+			// which the placeholder shows.
+			case 'reference_intake':
+				$html .= '<label class="mmm-traffic-light-field">'
+				         . '<input class="small-text" type="number" min="0" step="any" name="'
+				         . esc_attr( $option_name ) . '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
+				         . esc_attr( (string) ( $field['placeholder'] ?? '' ) ) . '" value="'
+				         . esc_attr( (string) $data ) . '" /> '
+				         . esc_html( (string) ( $field['unit'] ?? '' ) )
+				         . '</label>'
+				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
 			// The plan's day rating: the ends a figure's direction allows,

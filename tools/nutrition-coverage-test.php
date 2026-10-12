@@ -472,23 +472,25 @@ mmm_nc_is( 'Ballaststoffe sind ein Mindestwert', 'target', Mixmymeals_Meal_Plan:
 mmm_nc_is( 'Energie ist keins von beidem', 'reference', Mixmymeals_Meal_Plan::nutrition_direction( 'calories' ) );
 mmm_nc_is( 'ein unbekannter Schlüssel behauptet am wenigsten', 'reference', Mixmymeals_Meal_Plan::nutrition_direction( 'zzz' ) );
 
-// Seit 3.59.0 steht die Richtung ausgeschrieben in der Zelle, nicht mehr
-// als „max."/„min." mit einer Fußnote, die das Kürzel erklärt.
+// Die Richtung steht in der Zelle, seit 3.63.0 mit der Referenzmenge als
+// Zahl: kürzer als „der Höchstmenge“ und ohne Fußnote verständlich.
 mmm_nc_is(
-	'100 % Salz ist ein Anteil der Höchstmenge',
-	sprintf( __( '%s of the maximum', 'mixmymeals' ), '100 %' ),
+	'100 % Salz: Anteil der Höchstmenge, mit Zahl',
+	sprintf( __( '%1$s of max. %2$s', 'mixmymeals' ), '100 %', sprintf( __( '%s g', 'mixmymeals' ), '6' ) ),
 	Mixmymeals_Meal_Plan::format_nutrition_percentage( 'salt', 100.0 )
 );
 mmm_nc_is(
-	'60 % Ballaststoffe sind ein Anteil der Zielmenge',
-	sprintf( __( '%s of the target', 'mixmymeals' ), '60 %' ),
+	'60 % Ballaststoffe: Anteil der Zielmenge, mit Zahl',
+	sprintf( __( '%1$s of target %2$s', 'mixmymeals' ), '60 %', sprintf( __( '%s g', 'mixmymeals' ), '30' ) ),
 	Mixmymeals_Meal_Plan::format_nutrition_percentage( 'fiber', 60.0 )
 );
 mmm_nc_is(
-	'Energie bleibt eine nackte Prozentzahl',
-	'93 %',
+	'Energie: Anteil am Bezugswert, mit Zahl',
+	sprintf( _x( '%1$s of %2$s', 'share of the reference intake', 'mixmymeals' ), '93 %', sprintf( __( '%s kcal', 'mixmymeals' ), number_format_i18n( 2000 ) ) ),
 	Mixmymeals_Meal_Plan::format_nutrition_percentage( 'calories', 93.0 )
 );
+mmm_nc_is( 'Referenzwert ohne Nullen: 2,5 g', sprintf( __( '%s g', 'mixmymeals' ), number_format_i18n( 2.5, 1 ) ), Mixmymeals_Meal_Plan::format_reference_value( 'salt', 2.5 ) );
+mmm_nc_is( 'Referenzwert ohne Nullen: 2,25 g', sprintf( __( '%s g', 'mixmymeals' ), number_format_i18n( 2.25, 2 ) ), Mixmymeals_Meal_Plan::format_reference_value( 'salt', 2.25 ) );
 mmm_nc_assert(
 	false === strpos( Mixmymeals_Meal_Plan::reference_intake_note(), 'max.' ),
 	'und die Fußnote muss kein Kürzel mehr erklären'

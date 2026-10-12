@@ -5679,15 +5679,7 @@ msgstr ""
 msgid "% of the reference intake"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php
-#, php-format
-msgid "%s of the maximum"
-msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php
-#, php-format
-msgid "%s of the target"
-msgstr ""
 
 #: includes/lib/class-mixmymeals-meal-plan.php
 #, php-format
@@ -5735,8 +5727,60 @@ msgstr ""
 msgid "For maximum amounts the bar shows how much is left up to the limit; once the limit is exceeded, the bar is full and highlighted."
 msgstr ""
 
-#. translators: 1: share of a daily maximum, e.g. "69 % of the maximum"; 2: per cent of it still unused.
+
+#. translators: %s: energy of the reference intake per day, e.g. "2.500".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Percentages refer to a reference intake of %s kcal per day. Your own needs may differ."
+msgstr ""
+
+#. translators: %s: energy of the reference intake per day, e.g. "2.500".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Compared with a daily reference intake of %s kcal; your own needs may differ."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Reference intake"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "What one day should hold, the basis of every percentage: in the nutrition tables, the tiles and bars, the plan rating, mails and the PDF. Empty fields use the EU reference intake of an average adult. Set your own only for an audience whose needs differ; the notes under the tables then name your energy figure instead of the average adult."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Maximum per day."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Target per day."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Reference per day."
+msgstr ""
+
+#. translators: 1: a percentage, e.g. "75 %"; 2: the daily maximum it is a share of, e.g. "70 g".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%1$s of max. %2$s"
+msgstr ""
+
+#. translators: 1: a percentage, e.g. "60 %"; 2: the daily target it is a share of, e.g. "30 g".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%1$s of target %2$s"
+msgstr ""
+
+#. translators: 1: a percentage, e.g. "93 %"; 2: the daily reference it is a share of, e.g. "2,000 kcal".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgctxt "share of the reference intake"
+msgid "%1$s of %2$s"
+msgstr ""
+
+#. translators: amount still unused below a daily maximum, e.g. "53,6 g".
 #: includes/lib/class-mixmymeals-shortcodes.php
 #, php-format
-msgid "%1$s · %2$d %% left"
+msgid "%s left"
 msgstr ""

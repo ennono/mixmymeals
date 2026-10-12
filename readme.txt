@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.62.1
+Stable tag: 3.63.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,25 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.63.0 =
+
+Added:
+* The reference intakes per day are settings now (Meal Plans tab, "Reference
+  intake"): one field per figure, empty for the EU value of an average adult.
+  Every percentage follows — nutrition tables, tiles and bars, plan rating,
+  the traffic light's portion rule, mails and the PDF. Once a value differs,
+  the notes under the tables name the site's energy figure instead of "an
+  average adult (2 000 kcal)". The `mixmymeals_reference_intake` filter still
+  applies, on top of the settings.
+
+Changed:
+* Shares of the reference intake name the figure they are measured against
+  and are shorter: "57 % von max. 70 g", "40 % von Ziel 30 g",
+  "40 % von 2.000 kcal" instead of "57 % der Höchstmenge". In tables, tiles,
+  mails and the PDF alike.
+* The tiles state the room left below a maximum in grams ("noch 30,0 g
+  frei") on a line of its own instead of "· noch 43 % frei".
 
 = 3.62.1 =
 
