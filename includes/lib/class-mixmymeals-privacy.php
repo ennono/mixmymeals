@@ -555,14 +555,15 @@ class Mixmymeals_Privacy {
 		$items['plans'] = $plans;
 
 		// The save counter only exists where visitors may save plans and an
-		// hourly limit is set (mmm_create_meal_plan_ajax_callback()); the PDF
-		// counter always does.
+		// hourly limit is set (mmm_create_meal_plan_ajax_callback()). The PDF
+		// download and its counter moved into the MixMyMeals Printer add-on
+		// (3.61.0), which describes them through the filter below.
 		$save_counter = $public_mode
 			&& (int) get_option( 'mixmymeals_published_meal_plans_per_hour_limit', 0 ) > 0;
 
-		$items['abuse'] = $save_counter
-			? __( 'Abuse protection: when a visitor saves a meal plan or downloads a plan as a PDF, the IP address is stored in hashed (pseudonymised) form as a short-lived counter — about a minute for PDFs, an hour when saving — and then deleted automatically.', 'mixmymeals' )
-			: __( 'PDF export: to limit abuse, the IP address is stored in hashed (pseudonymised) form as a short-lived counter when a plan PDF is downloaded, and deleted automatically after about a minute.', 'mixmymeals' );
+		if ( $save_counter ) {
+			$items['abuse'] = __( 'Abuse protection: when a visitor saves a meal plan, the IP address is stored in hashed (pseudonymised) form as a short-lived counter and deleted automatically after an hour.', 'mixmymeals' );
+		}
 
 		/*
 		 * Two routes, two different records: the comment form of logged-in

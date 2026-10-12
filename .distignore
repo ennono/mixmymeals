@@ -19,8 +19,7 @@
 *.phar
 /wp-cli.phar
 
-# Composer & dev tooling — NOTE: dompdf's runtime vendor lives under
-# includes/lib/dompdf/ and is intentionally NOT matched by the anchored /vendor.
+# Composer & dev tooling
 /vendor
 /composer.json
 /composer.lock

@@ -4,11 +4,11 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.60.0
+Stable tag: 3.61.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Build recipes, plan weekly meals and generate shopping lists — with a frontend planner, nutrition data and PDF export.
+Build recipes, plan weekly meals and generate shopping lists — with a frontend planner and nutrition data.
 
 == Description ==
 
@@ -17,7 +17,8 @@ and ingredient database, assemble weekly meal plans, and automatically generate
 categorised shopping lists.
 
 Visitors can build their own plan in a frontend planner, review the combined
-shopping list and nutrition totals, and export everything as a PDF.
+shopping list and nutrition totals. A PDF of a plan is offered by the
+separate add-on MixMyMeals Printer.
 
 = Features =
 
@@ -48,7 +49,9 @@ shopping list and nutrition totals, and export everything as a PDF.
   portion itself is the unit.
 * **Frontend planner** for logged-in users and (optionally) guests, with a
   server-side cart, live day totals and configurable size limits.
-* **PDF export** of a meal plan: overview, shopping list and all recipes.
+* **PDF export** of a meal plan — overview, shopping list and all recipes —
+  through the add-on MixMyMeals Printer, which hooks its button into the
+  plan's action row (`mixmymeals_meal_plan_actions`).
 * **Meal-plan e-mail subscriptions** with GDPR-friendly double opt-in, and
   placeholders for the day's nutrition, a breakdown per dish and the plan's
   daily average.
@@ -100,7 +103,8 @@ visitor-created plans as drafts and rate-limit them per hour.
 
 = Which third-party libraries are bundled? =
 
-PDF generation uses dompdf (LGPL-2.1), bundled under `includes/lib/dompdf/`.
+None since 3.61.0. dompdf, which the PDF export needs, moved into the
+MixMyMeals Printer add-on together with the export.
 
 = Is it GDPR-compliant? =
 
@@ -110,6 +114,24 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.61.0 =
+
+Removed:
+* The PDF export of meal plans, its endpoint (`mmm_generate_pdf`), its
+  stylesheet and the bundled dompdf (about 12 MB). It lives on, unchanged,
+  in the new add-on MixMyMeals Printer; install that to keep the
+  "Print to PDF" button. Without it the button is simply not shown.
+
+Added:
+* Filter `mixmymeals_meal_plan_actions`: the actions offered for a meal plan
+  in `[mmm_meal_plan_actions]` and in the buttons of `[mmm_meal_plan_hero]`,
+  one list for both. The Printer add-on adds its PDF button through it.
+
+Changed:
+* The privacy-policy section mentions the PDF counter only when the Printer
+  add-on is active (it contributes that item itself); the abuse-protection
+  item now appears only where the save counter exists.
 
 = 3.60.0 =
 

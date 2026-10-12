@@ -26,10 +26,10 @@ msgstr "MixMyMeals"
 #: mixmymeals.php
 msgid ""
 "Build recipes, plan weekly meals and generate shopping lists — with a "
-"frontend planner, nutrition data and PDF export."
+"frontend planner and nutrition data."
 msgstr ""
 "Rezepte anlegen, Wochenpläne erstellen und Einkaufslisten erzeugen — mit "
-"Planer im Frontend, Nährwerten und PDF-Export."
+"Planer im Frontend und Nährwerten."
 
 #. Author of the plugin
 #: mixmymeals.php
@@ -3889,15 +3889,13 @@ msgstr "Gespeicherte Pläne bleiben erhalten, bis ihre Löschung verlangt wird."
 
 #: includes/lib/class-mixmymeals-privacy.php:564
 msgid ""
-"Abuse protection: when a visitor saves a meal plan or downloads a plan as a "
-"PDF, the IP address is stored in hashed (pseudonymised) form as a short-"
-"lived counter — about a minute for PDFs, an hour when saving — and then "
-"deleted automatically."
+"Abuse protection: when a visitor saves a meal plan, the IP address is stored"
+" in hashed (pseudonymised) form as a short-lived counter and deleted "
+"automatically after an hour."
 msgstr ""
-"Missbrauchsschutz: Speichert ein Besucher einen Essensplan oder ruft er ein "
-"Plan-PDF ab, wird die IP-Adresse in gehashter (pseudonymisierter) Form als "
-"kurzlebiger Zähler gespeichert — beim PDF etwa eine Minute, beim Speichern "
-"eine Stunde — und danach automatisch gelöscht."
+"Missbrauchsschutz: Speichert ein Besucher einen Essensplan, wird die IP-"
+"Adresse in gehashter (pseudonymisierter) Form als kurzlebiger Zähler "
+"gespeichert und nach einer Stunde automatisch gelöscht."
 
 #: includes/lib/class-mixmymeals-privacy.php:565
 msgid ""
