@@ -110,7 +110,7 @@ final class Mixmymeals_Nutrition_Table {
 						'note'  => __( 'Add {weight} to the heading to print the weight of a serving in grams, and {cooked} for the word marking it as cooked; without them the default heading carries both in brackets.', 'mixmymeals' ),
 					),
 					'ri'       => array(
-						'title' => __( 'of RI*', 'mixmymeals' ),
+						'title' => __( 'of RI', 'mixmymeals' ),
 						'on'    => false,
 						'note'  => __( 'Share of the reference intake that one serving covers.', 'mixmymeals' ),
 					),
@@ -126,7 +126,7 @@ final class Mixmymeals_Nutrition_Table {
 						'note'  => __( 'Averaged over the days that carry meals.', 'mixmymeals' ),
 					),
 					'ri'       => array(
-						'title' => __( 'of RI*', 'mixmymeals' ),
+						'title' => __( 'of RI', 'mixmymeals' ),
 						'on'    => true,
 						'note'  => __( 'Share of the reference intake that the daily average covers.', 'mixmymeals' ),
 					),
@@ -229,8 +229,9 @@ final class Mixmymeals_Nutrition_Table {
 
 			/*
 			 * Footnote marks are assigned by footnotes(), never typed: a
-			 * heading carrying its own "*" (the translated "der RM*", or one a
-			 * site wrote) would point at whichever note happens to come first.
+			 * heading carrying its own "*" (one a site wrote, or the "der RM*"
+			 * the default was until 3.62.1 and a stored option may still
+			 * hold) would point at whichever note happens to come first.
 			 */
 			$title = rtrim( rtrim( $title, '*' ) );
 

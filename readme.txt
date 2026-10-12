@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.62.0
+Stable tag: 3.62.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.62.1 =
+
+Fixed:
+* The default heading of the reference-intake column was "der RM*" with the
+  footnote star typed into the wording, so the settings screen showed it as
+  part of the heading. It is now "der RM"; the star is added when the table
+  is printed, matching the footnote that actually appears below it.
 
 = 3.62.0 =
 

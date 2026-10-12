@@ -2143,11 +2143,6 @@ msgstr "Nährwerte"
 msgid "Avg. per day / person"
 msgstr "Ø pro Tag / Person"
 
-#: includes/lib/class-mixmymeals-meal-plan-pdf.php:388
-#: includes/lib/class-mixmymeals-shortcodes.php:7006
-#: includes/lib/class-mixmymeals-shortcodes.php:7016
-msgid "of RI*"
-msgstr "der RM*"
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:424
 #: includes/lib/class-mixmymeals-post-types.php:481

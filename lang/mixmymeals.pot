@@ -1768,11 +1768,6 @@ msgstr ""
 msgid "Avg. per day / person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan-pdf.php:388
-#: includes/lib/class-mixmymeals-shortcodes.php:7006
-#: includes/lib/class-mixmymeals-shortcodes.php:7016
-msgid "of RI*"
-msgstr ""
 
 #: includes/lib/class-mixmymeals-meal-plan-pdf.php:424
 #: includes/lib/class-mixmymeals-post-types.php:481
