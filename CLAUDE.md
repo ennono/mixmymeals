@@ -425,6 +425,8 @@ It reaches this plugin through `mixmymeals_meal_plan_actions` (the button) and `
 
 Without the add-on the button is simply absent: nothing in this plugin knows a PDF exists.
 
+Since Printer 2.0.0 the PDF is built from templates (cover, week overview, nutrition, shopping list, recipes; backgrounds, photos, brand fonts) — see that repository's CLAUDE.md and `templates/README.md`. Its context class is the one place there that reads this plugin, so the list of methods above is what to check before changing a signature.
+
 ### Structured data, social tags and Bring!
 
 There is no SEO class — each structure is built by the post type that owns it, and only the *printing* is central:
@@ -534,7 +536,7 @@ Where a pill row already exists, the label joins it rather than floating above i
 
 Browse cards have no pill row, so they keep `disclosure_pill()`: the bare label above the card title, without the sponsor name. It is wired into `render_recipe_browse_cards()` and `render_meal_plan_browse_cards()` (which `render_related_recipe_cards()` reuses).
 
-Still missing: schema.org `sponsor`, REST/MCP exposure, and the PDF/e-mail/social channels.
+Still missing: schema.org `sponsor`, REST/MCP exposure, and the e-mail/social channels. The PDF prints it since MixMyMeals Printer 2.0.0, from `disclosure_label_for()` like every other rendering.
 
 ### Images over REST
 
