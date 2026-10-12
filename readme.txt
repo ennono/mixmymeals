@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.61.0
+Stable tag: 3.61.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.61.1 =
+
+Fixed:
+* The "Send via Email" and "Export to Bring!" buttons on a plan page showed
+  an empty box before their icon. The hero's buttons had taken on the action
+  bar's classes, to which the child theme adds an icon of its own; they now
+  carry their own (`mmm-plan-hero__action--<key>`).
 
 = 3.61.0 =
 
