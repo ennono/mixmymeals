@@ -122,6 +122,7 @@ $html       = $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'mea
 $ok( 'the plan page carries the notes', 3 === substr_count( $html, 'class="mmm-prep-note"' ) );
 $ok( 'in the site owner\'s wording', false !== strpos( $html, esc_html( sprintf( __( 'Preparation for %s:', 'mixmymeals' ), get_the_title( $chili->get_id() ) ) ) ) );
 $ok( 'no section of its own', false === strpos( $html, 'mmm-rail-day--before' ) );
+$ok( 'headed like a meal type, once per day carrying notes', 3 === substr_count( $html, 'mmm-rail-day__sub--prep' ) );
 $sat = strpos( $html, esc_html( Mixmymeals_Meal_Plan::weekday_name( 6 ) ) );
 $mon = strpos( $html, esc_html( Mixmymeals_Meal_Plan::weekday_name( 1 ) ) );
 $ok( 'Saturday, outside a Mon–Fri plan, stands ahead of the week', false !== $sat && false !== $mon && $sat < $mon );

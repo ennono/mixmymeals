@@ -7464,3 +7464,7 @@ msgstr "Vorarbeit · %s"
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Preparation for %s:"
 msgstr "Vorarbeiten für %s:"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Preparations"
+msgstr "Vorbereitungen"

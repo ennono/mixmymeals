@@ -274,7 +274,8 @@
 /* === Vorarbeit ========================================================== */
 
 /* Eine Zeile: Häkchen, dann Zahl und Einheit. Die Zeitfelder sind nur
-   bedienbar, solange das Häkchen gesetzt ist — sonst grau. */
+   bedienbar, solange das Häkchen gesetzt ist — sonst grau. Ein gesetztes
+   Häkchen färbt die Zeile nicht ein. */
 .mixmymeals-step-prep {
     display: flex;
     flex-wrap: wrap;
@@ -285,11 +286,6 @@
     background: var(--mmm-ad-bg);
     border: 1px solid var(--mmm-ad-line-2);
     border-radius: var(--mmm-ad-r);
-}
-
-.mixmymeals-step-prep.is-prep {
-    background: var(--mmm-ad-notice);
-    border-color: var(--mmm-ad-warn);
 }
 
 .mixmymeals-step-prep-switch {

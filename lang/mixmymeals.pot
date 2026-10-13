@@ -5820,3 +5820,7 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Preparation for %s:"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Preparations"
+msgstr ""

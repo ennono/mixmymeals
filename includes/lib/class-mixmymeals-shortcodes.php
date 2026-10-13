@@ -2814,7 +2814,20 @@ class Mixmymeals_Shortcodes {
 						<?php endif; ?>
                     </div>
 
-					<?php echo $this->render_prep_notes( $prep_by_section[ $day_number ] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<?php if ( ! empty( $prep_by_section[ $day_number ] ) ) : ?>
+						<?php
+						/*
+						 * A group of its own under the day, headed like the
+						 * meal types below it: what is to be done that day
+						 * ahead of other meals reads as one more kind of entry
+						 * of the day, not as a note about the first meal.
+						 */
+						?>
+                        <div class="mmm-rail-day__sub mmm-rail-day__sub--prep">
+                            <span class="mmm-rail-day__meal"><?php esc_html_e( 'Preparations', 'mixmymeals' ); ?></span>
+                        </div>
+						<?php echo $this->render_prep_notes( $prep_by_section[ $day_number ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<?php endif; ?>
 
 					<?php foreach ( $day_groups as $day_group ) : ?>
 
