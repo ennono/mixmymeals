@@ -187,6 +187,16 @@ jQuery(document).ready(function ($) {
                 <label>Title</label><br>
                 <input name="mmm_recipe_steps[${index}][title]" class="regular-text">
             </p>
+            <p class="mixmymeals-step-prep">
+                <label class="mixmymeals-step-prep-switch"><input type="checkbox" name="mmm_recipe_steps[${index}][prep]" value="1" class="mixmymeals-step-prep-toggle"> Preparation ahead</label>
+                <span class="mixmymeals-step-prep-timing">
+                    <input type="number" min="1" step="1" value="1" name="mmm_recipe_steps[${index}][prep_amount]" class="small-text mixmymeals-step-prep-amount" disabled>
+                    <select name="mmm_recipe_steps[${index}][prep_unit]" class="mixmymeals-step-prep-unit" disabled>
+                        <option value="days">days before</option>
+                        <option value="hours">hours before</option>
+                    </select>
+                </span>
+            </p>
             <p>
                 <label>Description</label><br>
                 <textarea name="mmm_recipe_steps[${index}][description]" class="large-text mmm-step-description"></textarea>
@@ -203,6 +213,12 @@ jQuery(document).ready(function ($) {
         $clone.attr("data-step", index);
         $clone.find("h3").text(`Step ${index + 1}`);
         $clone.find("input, textarea").val("");
+        // The prep box: unticked, timing back to its defaults and disabled.
+        // The .val("") above also emptied the checkbox's value.
+        $clone.find(".mixmymeals-step-prep").removeClass("is-prep");
+        $clone.find(".mixmymeals-step-prep-toggle").val("1").prop("checked", false);
+        $clone.find(".mixmymeals-step-prep-amount").val("1").prop("disabled", true);
+        $clone.find(".mixmymeals-step-prep-unit").val("days").prop("disabled", true);
         $clone.find(".mixmymeals-step-ingredients").empty();
 
         $clone.find("input, textarea, select").each(function () {
@@ -294,6 +310,8 @@ jQuery(document).ready(function ($) {
                 $stepsContainer.find(".mmm-step-description").each(function () {
                     mmmInitStepEditor(this);
                 });
+                // A step dragged above the preparation goes back below it.
+                mmmSortPrepSteps();
             }
         });
     }
@@ -358,6 +376,76 @@ jQuery(document).ready(function ($) {
         if (window.tinymce) {
             window.tinymce.triggerSave();
         }
+    });
+
+    /* ===========================
+       PREPARATION STEPS
+
+       A step marked as preparation ("2 days before") belongs at the top,
+       the longest lead time first — the same order set_steps() stores. The
+       row moves as soon as the marking is complete, so what the author sees
+       is what will be saved.
+    ============================ */
+    function mmmStepPrepHours($row) {
+        if (!$row.find(".mixmymeals-step-prep-toggle").prop("checked")) return 0;
+        const amount = parseInt($row.find(".mixmymeals-step-prep-amount").val(), 10);
+        const unit = $row.find(".mixmymeals-step-prep-unit").val();
+        if (!(amount >= 1) || (unit !== "days" && unit !== "hours")) return 0;
+        return unit === "days" ? amount * 24 : amount;
+    }
+
+    function mmmSortPrepSteps() {
+        const $container = $(".mixmymeals-recipe-steps");
+        const rows = $container.children(".mixmymeals-step-row").get();
+        const prep = [];
+        const other = [];
+
+        rows.forEach(function (row, i) {
+            const hours = mmmStepPrepHours($(row));
+            if (hours > 0) {
+                prep.push({ row: row, hours: hours, i: i });
+            } else {
+                other.push(row);
+            }
+        });
+
+        prep.sort(function (a, b) {
+            return (b.hours - a.hours) || (a.i - b.i);
+        });
+
+        const sorted = prep.map(function (p) { return p.row; }).concat(other);
+
+        if (sorted.every(function (row, i) { return row === rows[i]; })) {
+            return;
+        }
+
+        // Moving a row breaks its TinyMCE iframe: tear down, move, rebuild.
+        $container.find(".mmm-step-description").each(function () {
+            mmmRemoveStepEditor(this);
+        });
+        sorted.forEach(function (row) { $container.append(row); });
+        reindexSteps();
+        $container.find(".mmm-step-description").each(function () {
+            mmmInitStepEditor(this);
+        });
+    }
+
+    // The box switches the timing on and off; disabled fields post nothing,
+    // which is what makes the step an ordinary one again on save.
+    $(document).on("change", ".mixmymeals-step-prep-toggle", function () {
+        const on = this.checked;
+        const $wrap = $(this).closest(".mixmymeals-step-prep");
+        const $amount = $wrap.find(".mixmymeals-step-prep-amount");
+        $wrap.toggleClass("is-prep", on);
+        $wrap.find(".mixmymeals-step-prep-amount, .mixmymeals-step-prep-unit").prop("disabled", !on);
+        if (on && !(parseInt($amount.val(), 10) >= 1)) $amount.val("1");
+        mmmSortPrepSteps();
+        showShoppingListSaveNotice();
+    });
+
+    $(document).on("change", ".mixmymeals-step-prep-amount, .mixmymeals-step-prep-unit", function () {
+        mmmSortPrepSteps();
+        showShoppingListSaveNotice();
     });
 
     /* Reindex nach Sortierung */

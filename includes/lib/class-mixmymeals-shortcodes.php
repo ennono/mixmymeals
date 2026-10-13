@@ -1869,9 +1869,11 @@ class Mixmymeals_Shortcodes {
 		?>
         <div class="mmm-recipe-steps scaled">
 			<?php foreach ( $steps as $index => $step ) : ?>
-                <div class="mmm-step">
+				<?php $mmm_prep = Mixmymeals_Recipe::step_prep( (array) $step ); ?>
+                <div class="mmm-step<?php echo $mmm_prep ? ' mmm-step--prep' : ''; ?>" id="<?php echo esc_attr( self::step_anchor( (int) $index ) ); ?>">
 
                     <div class="mmm-step-header">
+						<?php echo self::step_prep_badge( $mmm_prep ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 						<?php if ( ! empty( $step['title'] ) ) : ?>
                             <h3 class="mmm-step-title">
 								<?php
@@ -2697,6 +2699,37 @@ class Mixmymeals_Shortcodes {
 			);
 		}
 
+		/*
+		 * Preparation, on the weekday it is due rather than on the day of the
+		 * meal it is for: soaking on Saturday for a Monday dinner stands
+		 * under Saturday. Where that weekday is one of the plan's days the
+		 * note joins it; where it is not — only work due before the plan's
+		 * first day can land there — the weekday gets a section of its own
+		 * ahead of the week, as an ordinary day carrying only that note.
+		 */
+		$mmm_tasks       = $meal_plan->calc_prep_tasks();
+		$prep_by_section = self::group_prep_tasks( $mmm_tasks );
+		$extra_days      = array();
+
+		foreach ( $mmm_tasks as $mmm_task ) {
+			$mmm_day = (int) $mmm_task['day'];
+			if ( ! in_array( $mmm_day, $days, true ) && ( ! isset( $extra_days[ $mmm_day ] ) || $mmm_task['position'] < $extra_days[ $mmm_day ] ) ) {
+				$extra_days[ $mmm_day ] = (int) $mmm_task['position'];
+			}
+		}
+
+		asort( $extra_days );
+
+		$mmm_extra_sections = array();
+		foreach ( array_keys( $extra_days ) as $mmm_day ) {
+			$mmm_extra_sections[] = array(
+				'key'      => $mmm_day,
+				'label'    => $weekday_labels[ $mmm_day ] ?? '',
+				'is_today' => $mmm_day === $today,
+			);
+		}
+		$sections = array_merge( $mmm_extra_sections, $sections );
+
 		$show_undated = '' === (string) $atts['show_undated']
 			? Mixmymeals_Meal_Plan::undated_meals_shown()
 			: filter_var( $atts['show_undated'], FILTER_VALIDATE_BOOLEAN );
@@ -2729,7 +2762,7 @@ class Mixmymeals_Shortcodes {
 				$day_number = (int) $mmm_section['key'];
 				$is_today   = ! empty( $mmm_section['is_today'] );
 
-				if ( empty( $grouped_meals[ $day_number ] ) ) {
+				if ( empty( $grouped_meals[ $day_number ] ) && empty( $prep_by_section[ $day_number ] ) ) {
 					continue;
 				}
 				?>
@@ -2768,7 +2801,7 @@ class Mixmymeals_Shortcodes {
 				$day_head_info = $this->get_meals_head_info( $day_meals );
 				?>
 
-                <div class="mmm-rail-day<?php echo $is_today ? ' mmm-rail-day--today' : ''; ?><?php echo 0 === $day_number ? ' mmm-rail-day--undated' : ''; ?>">
+                <div class="mmm-rail-day<?php echo $is_today ? ' mmm-rail-day--today' : ''; ?><?php echo 0 === $day_number ? ' mmm-rail-day--undated' : ''; ?><?php echo empty( $grouped_meals[ $day_number ] ) ? ' mmm-rail-day--prep-only' : ''; ?>">
                     <span class="mmm-rail-day__dot"></span>
 
                     <div class="mmm-rail-day__head">
@@ -2780,6 +2813,21 @@ class Mixmymeals_Shortcodes {
                             <span class="mmm-rail-day__kcal mmm-rail-day__kcal--day"><?php echo esc_html( $day_head_info ); ?></span>
 						<?php endif; ?>
                     </div>
+
+					<?php if ( ! empty( $prep_by_section[ $day_number ] ) ) : ?>
+						<?php
+						/*
+						 * A group of its own under the day, headed like the
+						 * meal types below it: what is to be done that day
+						 * ahead of other meals reads as one more kind of entry
+						 * of the day, not as a note about the first meal.
+						 */
+						?>
+                        <div class="mmm-rail-day__sub mmm-rail-day__sub--prep">
+                            <span class="mmm-rail-day__meal"><?php esc_html_e( 'Preparations', 'mixmymeals' ); ?></span>
+                        </div>
+						<?php echo $this->render_prep_notes( $prep_by_section[ $day_number ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<?php endif; ?>
 
 					<?php foreach ( $day_groups as $day_group ) : ?>
 
@@ -3518,8 +3566,11 @@ class Mixmymeals_Shortcodes {
 		?>
         <div class="mmm-recipe-steps">
 			<?php foreach ( $steps as $index => $step ) : ?>
-                <div class="mmm-step">
+				<?php $mmm_prep = Mixmymeals_Recipe::step_prep( (array) $step ); ?>
+                <div class="mmm-step<?php echo $mmm_prep ? ' mmm-step--prep' : ''; ?>" id="<?php echo esc_attr( self::step_anchor( (int) $index ) ); ?>">
+
                     <div class="mmm-step-header">
+						<?php echo self::step_prep_badge( $mmm_prep ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 						<?php if ( ! empty( $step['title'] ) ) : ?>
                             <h3 class="mmm-step-title">
 								<?php
@@ -4185,6 +4236,9 @@ class Mixmymeals_Shortcodes {
 		// The cart as a plan, for the figures under each day.
 		$mmm_day_ratings = Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_day_ratings();
 
+		// …and for the preparation due on each weekday.
+		$mmm_prep = $this->planner_prep_notes( $items );
+
 		ob_start();
 		?>
 
@@ -4338,6 +4392,10 @@ class Mixmymeals_Shortcodes {
                          */
                         ?>
                         <div class="mmm-plan-day-box">
+
+                        <div class="mmm-plan-day-prep" data-day-prep="<?php echo esc_attr( (string) $day_key ); ?>"<?php echo '' === $mmm_prep[ $day_key ] ? ' hidden' : ''; ?>>
+                            <?php echo $mmm_prep[ $day_key ]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+                        </div>
 
                         <ul class="mmm-plan-day-list"
                             data-day-list="<?php echo esc_attr( $day_key ); ?>">
@@ -5283,6 +5341,117 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return $clean;
+	}
+
+	/**
+	 * The anchor a recipe step carries on the recipe and the meal page —
+	 * what a preparation note links to.
+	 *
+	 * @param int $index Position in Mixmymeals_Recipe::get_steps(), from 0.
+	 * @return string
+	 */
+	public static function step_anchor( int $index ): string {
+		return 'mmm-step-' . ( $index + 1 );
+	}
+
+	/**
+	 * "Preparation · 2 days before", in a step's header.
+	 *
+	 * @param array|null $prep From Mixmymeals_Recipe::step_prep().
+	 * @return string '' for an ordinary step.
+	 */
+	public static function step_prep_badge( ?array $prep ): string {
+
+		if ( ! $prep ) {
+			return '';
+		}
+
+		return '<span class="mmm-step-prep"><i class="mmm-icon fa-solid fa-hourglass-half" aria-hidden="true"></i>'
+		       . esc_html(
+				   sprintf(
+					   /* translators: %s: lead time, e.g. "2 days before". */
+					   __( 'Preparation · %s', 'mixmymeals' ),
+					   Mixmymeals_Recipe::prep_label( $prep )
+				   )
+			   )
+		       . '</span>';
+	}
+
+	/**
+	 * Mixmymeals_Meal_Plan::calc_prep_tasks() grouped by the weekday the
+	 * work is due, each day in the order of the hour it is due at — a
+	 * Saturday note for next Monday and one for this Sunday share a day, and
+	 * the time of day is what orders them there.
+	 *
+	 * @param array $tasks From calc_prep_tasks().
+	 * @return array<int, array> Weekday (1-7) => tasks.
+	 */
+	private static function group_prep_tasks( array $tasks ): array {
+
+		$grouped = array();
+
+		foreach ( $tasks as $task ) {
+			$grouped[ (int) $task['day'] ][] = $task;
+		}
+
+		foreach ( $grouped as &$day_tasks ) {
+			usort(
+				$day_tasks,
+				static fn( $a, $b ) => array( ( ( $a['at'] % 24 ) + 24 ) % 24, $a['at'] ) <=> array( ( ( $b['at'] % 24 ) + 24 ) % 24, $b['at'] )
+			);
+		}
+		unset( $day_tasks );
+
+		return $grouped;
+	}
+
+	/**
+	 * The preparation due on one day of a plan or of the planner:
+	 * "Vorarbeiten für <meal>: <step>", one line per step.
+	 *
+	 * Each note links to the step it names: on the meal's page where the
+	 * plan has one, on the recipe's page in the planner, where no meal
+	 * exists yet.
+	 *
+	 * @param array $tasks Tasks due that day.
+	 * @return string '' without tasks.
+	 */
+	private function render_prep_notes( array $tasks ): string {
+
+		if ( ! $tasks ) {
+			return '';
+		}
+
+		$html = '<ul class="mmm-prep-notes">';
+
+		foreach ( $tasks as $task ) {
+
+			$url = $task['meal_id'] > 0 ? get_permalink( $task['meal_id'] ) : get_permalink( $task['recipe_id'] );
+			$url = $url ? $url . '#' . self::step_anchor( (int) $task['step_index'] ) : '';
+
+			$step_title = '' !== $task['step_title']
+				? $task['step_title']
+				/* translators: %d: position of the step, starting at 1. */
+				: sprintf( __( 'Step %d', 'mixmymeals' ), (int) $task['step_index'] + 1 );
+
+			$meal_title = get_the_title( $task['meal_id'] > 0 ? $task['meal_id'] : $task['recipe_id'] );
+
+			$step_html = $url
+				? '<a class="mmm-prep-note__task" href="' . esc_url( $url ) . '">' . esc_html( $step_title ) . '</a>'
+				: '<span class="mmm-prep-note__task">' . esc_html( $step_title ) . '</span>';
+
+			// Only the step is the link: it is what the link leads to, and a
+			// whole line of link read louder than a note should.
+			$html .= '<li class="mmm-prep-note">'
+			         . '<i class="mmm-icon fa-solid fa-hourglass-half" aria-hidden="true"></i> '
+			         . '<span class="mmm-prep-note__label">'
+			         /* translators: %s: title of the meal the preparation is for. */
+			         . esc_html( sprintf( __( 'Preparation for %s:', 'mixmymeals' ), $meal_title ) )
+			         . '</span> ' . $step_html
+			         . '</li>';
+		}
+
+		return $html . '</ul>';
 	}
 
 	/**
@@ -7511,8 +7680,31 @@ class Mixmymeals_Shortcodes {
 				'html'  => $this->render_planner_nutrition( $plan ),
 				'table' => $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : '',
 				'days'  => $days,
+				'prep'  => $this->planner_prep_notes( $items ),
 			)
 		);
+	}
+
+	/**
+	 * The planner's preparation notes, one block per weekday (1-7), '' where
+	 * nothing is due. The planner is a week of weekdays, so work due before
+	 * the meal's day simply lands on the weekday it falls on — Saturday for
+	 * a Monday meal two days ahead — computed from the cart by the method
+	 * the saved plan uses.
+	 *
+	 * @param array $items Cart items.
+	 * @return array<int, string>
+	 */
+	private function planner_prep_notes( array $items ): array {
+
+		$grouped = self::group_prep_tasks( Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_prep_tasks() );
+		$out     = array();
+
+		foreach ( range( 1, 7 ) as $day ) {
+			$out[ $day ] = $this->render_prep_notes( $grouped[ $day ] ?? array() );
+		}
+
+		return $out;
 	}
 
 	/**

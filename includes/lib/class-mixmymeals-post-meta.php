@@ -352,6 +352,35 @@ class Mixmymeals_Post_Meta {
 			. absint( $index ) . '][title]" value="' . esc_attr( $title )
 			. '"></p>';
 
+		/*
+		 * Preparation: a step done ahead of the meal ("soak the beans", two
+		 * days before). The box switches the timing on; while it is off the
+		 * timing fields are disabled and post nothing, which is the ordinary
+		 * step. Set, the step moves to the front on save, sorted by how far
+		 * ahead it is. The classes are what admin.js reads.
+		 */
+		$prep        = Mixmymeals_Recipe::step_prep( $step );
+		$prep_amount = $prep ? (string) $prep['amount'] : '1';
+		$prep_unit   = $prep ? $prep['unit'] : 'days';
+		$disabled    = $prep ? '' : ' disabled';
+
+		echo '<p class="mixmymeals-step-prep' . ( $prep ? ' is-prep' : '' ) . '">';
+		echo '<label class="mixmymeals-step-prep-switch"><input type="checkbox" class="mixmymeals-step-prep-toggle" name="mmm_recipe_steps['
+			. absint( $index ) . '][prep]" value="1"' . checked( (bool) $prep, true, false ) . '> '
+			. esc_html__( 'Preparation ahead', 'mixmymeals' ) . '</label> ';
+		echo '<span class="mixmymeals-step-prep-timing">';
+		echo '<input type="number" min="1" step="1" class="small-text mixmymeals-step-prep-amount" name="mmm_recipe_steps['
+			. absint( $index ) . '][prep_amount]" value="' . esc_attr( $prep_amount ) . '"' . $disabled . '> ';
+		echo '<select class="mixmymeals-step-prep-unit" name="mmm_recipe_steps[' . absint( $index ) . '][prep_unit]"' . $disabled . '>';
+		foreach ( array(
+			'days'  => __( 'days before', 'mixmymeals' ),
+			'hours' => __( 'hours before', 'mixmymeals' ),
+		) as $value => $label ) {
+			echo '<option value="' . esc_attr( $value ) . '"' . selected( $prep_unit, $value, false ) . '>'
+				. esc_html( $label ) . '</option>';
+		}
+		echo '</select></span></p>';
+
 		// Description. A slim TinyMCE editor is attached to this textarea in
 		// admin.js via the wp.editor API. The id must be unique (one editor per
 		// step) and the marker class lets the JS find the step editors.
@@ -869,6 +898,15 @@ class Mixmymeals_Post_Meta {
 						'image'       => isset( $step['image'] )
 							? intval( wp_unslash( $step['image'] ) )
 							: 0,
+						// Preparation timing, only while the step's box is
+						// ticked; set_steps() decides whether the pair makes
+						// the step a preparation step.
+						'prep_amount' => ! empty( $step['prep'] ) && isset( $step['prep_amount'] )
+							? intval( wp_unslash( $step['prep_amount'] ) )
+							: 0,
+						'prep_unit'   => ! empty( $step['prep'] ) && isset( $step['prep_unit'] )
+							? sanitize_key( wp_unslash( $step['prep_unit'] ) )
+							: '',
 						'ingredients' => array_map(
 							function ( $ingredient ) {
 								return array(

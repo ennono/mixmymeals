@@ -431,6 +431,8 @@ const TOOLS = [
               title:       { type: "string" },
               description: { type: "string" },
               image:       { type: "number", default: 0, description: "Attachment-ID oder 0" },
+              prep_amount: { type: "number", default: 0, description: "Vorarbeit: wie viele Tage bzw. Stunden VOR der Mahlzeit dieser Schritt erledigt werden muss (z. B. 2 fuer \"Bohnen 2 Tage zuvor einweichen\"). Nur zusammen mit prep_unit wirksam; 0 = normaler Schritt. Vorarbeiten stehen nach dem Speichern immer am Anfang der Schrittliste, die frueheste zuerst, und erscheinen auf Plan-Seiten und im Planer als Hinweis an dem Tag, an dem sie faellig sind." },
+              prep_unit:   { type: "string", enum: ["", "days", "hours"], default: "", description: "Einheit zu prep_amount: days = Tage zuvor, hours = Stunden zuvor, leer = keine Vorarbeit." },
               ingredients: {
                 type: "array",
                 items: {
@@ -485,6 +487,8 @@ const TOOLS = [
               title:       { type: "string" },
               description: { type: "string" },
               image:       { type: "number", default: 0 },
+              prep_amount: { type: "number", default: 0, description: "Vorarbeit: Tage/Stunden vor der Mahlzeit (mit prep_unit)." },
+              prep_unit:   { type: "string", enum: ["", "days", "hours"], default: "" },
               ingredients: {
                 type: "array",
                 items: {

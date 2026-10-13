@@ -187,6 +187,10 @@ class Mixmymeals_Rest_Api {
 					'title'       => array( 'type' => 'string' ),
 					'description' => array( 'type' => 'string' ),
 					'image'       => array( 'type' => 'integer' ),
+					// Preparation ahead: both set (amount >= 1) or the step is
+					// an ordinary one. See Mixmymeals_Recipe::step_prep().
+					'prep_amount' => array( 'type' => 'integer', 'minimum' => 0 ),
+					'prep_unit'   => array( 'type' => 'string', 'enum' => array( '', 'days', 'hours' ) ),
 					'ingredients' => array( 'type' => 'array', 'items' => array(
 						'type'                 => 'object',
 						'additionalProperties' => true,

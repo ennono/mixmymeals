@@ -468,3 +468,29 @@ body.mmm-cook-mode-open {
 .mmm-product-impact__brand {
     display: block;
 }
+
+/* Preparation notes — on the plan page's day rail and in the planner's day
+   boxes, from Mixmymeals_Meal_Plan::calc_prep_tasks(). Structural only; the
+   design is the theme's. [hidden] is pinned because a theme rule giving the
+   container a display would otherwise beat the browser's own [hidden] rule. */
+.mmm-plan-day-prep[hidden] {
+    display: none;
+}
+
+.mmm-prep-notes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mmm-prep-note__task {
+    font-weight: 600;
+}
+
+/* A preparation step on the recipe and meal page. */
+.mmm-step-prep {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-size: 0.85em;
+}
