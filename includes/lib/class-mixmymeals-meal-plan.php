@@ -2135,6 +2135,59 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * calc_prep_tasks() on the days they fall on, in reading order — the one
+	 * answer to "what is to be prepared when" for the plan page, the planner
+	 * and the PDF.
+	 *
+	 * Keyed by weekday. A weekday the plan does not have (only work due
+	 * before its first day can land there) comes first, earliest first; the
+	 * plan's own days follow in the plan's order. Within a day the tasks are
+	 * ordered by the hour they are due, so a Saturday note for next Monday
+	 * and one for this Sunday sort by time of day. A plan built from planner
+	 * rows spans the whole week and therefore never has a day ahead of it.
+	 *
+	 * @param int|null $start_day See calc_prep_tasks().
+	 * @return array<int, array> Weekday (1-7) => tasks, days without tasks left out.
+	 */
+	public function calc_prep_by_day( ?int $start_day = null ): array {
+
+		$grouped = array();
+		$first   = array();
+
+		foreach ( $this->calc_prep_tasks( $start_day ) as $task ) {
+			$day               = (int) $task['day'];
+			$grouped[ $day ][] = $task;
+			$first[ $day ]     = isset( $first[ $day ] ) ? min( $first[ $day ], (int) $task['position'] ) : (int) $task['position'];
+		}
+
+		foreach ( $grouped as &$day_tasks ) {
+			usort(
+				$day_tasks,
+				static fn( $a, $b ) => array( ( ( $a['at'] % 24 ) + 24 ) % 24, $a['at'] ) <=> array( ( ( $b['at'] % 24 ) + 24 ) % 24, $b['at'] )
+			);
+		}
+		unset( $day_tasks );
+
+		$range = null !== $this->rows ? range( 1, 7 ) : array_map( 'intval', $this->get_day_range() );
+		$extra = array_diff_key( $first, array_flip( $range ) );
+		asort( $extra );
+
+		$out = array();
+
+		foreach ( array_keys( $extra ) as $day ) {
+			$out[ $day ] = $grouped[ $day ];
+		}
+
+		foreach ( $range as $day ) {
+			if ( isset( $grouped[ $day ] ) ) {
+				$out[ $day ] = $grouped[ $day ];
+			}
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Aggregates the plan's ingredient needs, grouped by category.
 	 *
 	 * @param bool     $sort_by_category Group the result by ingredient category.

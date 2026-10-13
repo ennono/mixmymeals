@@ -2707,21 +2707,11 @@ class Mixmymeals_Shortcodes {
 		 * first day can land there — the weekday gets a section of its own
 		 * ahead of the week, as an ordinary day carrying only that note.
 		 */
-		$mmm_tasks       = $meal_plan->calc_prep_tasks();
-		$prep_by_section = self::group_prep_tasks( $mmm_tasks );
-		$extra_days      = array();
-
-		foreach ( $mmm_tasks as $mmm_task ) {
-			$mmm_day = (int) $mmm_task['day'];
-			if ( ! in_array( $mmm_day, $days, true ) && ( ! isset( $extra_days[ $mmm_day ] ) || $mmm_task['position'] < $extra_days[ $mmm_day ] ) ) {
-				$extra_days[ $mmm_day ] = (int) $mmm_task['position'];
-			}
-		}
-
-		asort( $extra_days );
+		$prep_by_section = $meal_plan->calc_prep_by_day();
+		$extra_days      = array_diff( array_keys( $prep_by_section ), $days );
 
 		$mmm_extra_sections = array();
-		foreach ( array_keys( $extra_days ) as $mmm_day ) {
+		foreach ( $extra_days as $mmm_day ) {
 			$mmm_extra_sections[] = array(
 				'key'      => $mmm_day,
 				'label'    => $weekday_labels[ $mmm_day ] ?? '',
@@ -5378,34 +5368,6 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Mixmymeals_Meal_Plan::calc_prep_tasks() grouped by the weekday the
-	 * work is due, each day in the order of the hour it is due at — a
-	 * Saturday note for next Monday and one for this Sunday share a day, and
-	 * the time of day is what orders them there.
-	 *
-	 * @param array $tasks From calc_prep_tasks().
-	 * @return array<int, array> Weekday (1-7) => tasks.
-	 */
-	private static function group_prep_tasks( array $tasks ): array {
-
-		$grouped = array();
-
-		foreach ( $tasks as $task ) {
-			$grouped[ (int) $task['day'] ][] = $task;
-		}
-
-		foreach ( $grouped as &$day_tasks ) {
-			usort(
-				$day_tasks,
-				static fn( $a, $b ) => array( ( ( $a['at'] % 24 ) + 24 ) % 24, $a['at'] ) <=> array( ( ( $b['at'] % 24 ) + 24 ) % 24, $b['at'] )
-			);
-		}
-		unset( $day_tasks );
-
-		return $grouped;
-	}
-
-	/**
 	 * The preparation due on one day of a plan or of the planner:
 	 * "Vorarbeiten für <meal>: <step>", one line per step.
 	 *
@@ -7697,7 +7659,7 @@ class Mixmymeals_Shortcodes {
 	 */
 	private function planner_prep_notes( array $items ): array {
 
-		$grouped = self::group_prep_tasks( Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_prep_tasks() );
+		$grouped = Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_prep_by_day();
 		$out     = array();
 
 		foreach ( range( 1, 7 ) as $day ) {
