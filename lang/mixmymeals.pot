@@ -5804,10 +5804,6 @@ msgid "Preparation ahead"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php
-msgid "— not a preparation step —"
-msgstr ""
-
-#: includes/lib/class-mixmymeals-post-meta.php
 msgid "days before"
 msgstr ""
 
@@ -5815,29 +5811,12 @@ msgstr ""
 msgid "hours before"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-post-meta.php
-msgid "Work that has to be done ahead of the meal, such as soaking or marinating. Preparation steps move to the top, the earliest first, and meal plans show them on the day they are due."
-msgstr ""
-
 #. translators: %s: lead time, e.g. "2 days before".
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Preparation · %s"
 msgstr ""
 
+#. translators: %s: title of the meal the preparation is for.
 #: includes/lib/class-mixmymeals-shortcodes.php
-msgid "Preparation"
-msgstr ""
-
-#: includes/lib/class-mixmymeals-shortcodes.php
-msgid "Before the plan starts"
-msgstr ""
-
-#. translators: 1: recipe title, 2: meal type ("Dinner"), 3: weekday of the meal.
-#: includes/lib/class-mixmymeals-shortcodes.php
-msgid "for %1$s, %2$s on %3$s"
-msgstr ""
-
-#. translators: 1: recipe title, 2: weekday of the meal.
-#: includes/lib/class-mixmymeals-shortcodes.php
-msgid "for %1$s on %2$s"
+msgid "Preparation for %s:"
 msgstr ""

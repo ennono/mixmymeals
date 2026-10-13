@@ -586,8 +586,6 @@ jQuery(function ($) {
 
     $(document).on('change', 'input[name="mmm-plan-startday"]', function () {
         mmmApplyStartDay(parseInt(this.value, 10) || 0);
-        // Preparation due "before the plan" depends on where it starts.
-        mmmRefreshPlannerNutrition();
     });
 
     /* ==========================================================
@@ -620,9 +618,7 @@ jQuery(function ($) {
 
             $box.add($days).add($prep).attr('aria-busy', 'true');
 
-            const startDay = parseInt($('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
-
-            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', { start_day: startDay })
+            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', {})
                 .done(function (response) {
                     if (!response || !response.success || !response.data) return;
 
@@ -643,7 +639,7 @@ jQuery(function ($) {
                         $(this).html(html).prop('hidden', !html);
                     });
 
-                    // Preparation due on each day, and before the first.
+                    // Preparation due on each weekday.
                     const prep = response.data.prep || {};
                     $prep.each(function () {
                         const html = prep[this.getAttribute('data-day-prep')] || '';

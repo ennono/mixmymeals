@@ -118,17 +118,17 @@ privacy text under Settings → Privacy after installation.
 = 3.64.0 =
 
 Added:
-* Preparation steps. A recipe step can be marked as preparation, "X days
-  before" or "X hours before" the meal (soaking, marinating, a dough that
-  rests overnight). Marked steps move to the top of the step list, the
+* Preparation steps. A recipe step can be ticked as preparation and timed
+  "X days before" or "X hours before" the meal (soaking, marinating, a dough
+  that rests overnight). Marked steps move to the top of the step list, the
   earliest first, and carry a "Preparation · 2 days before" label on the
   recipe and the meal page.
-* Meal plan pages show each preparation as a note on the day it is due,
-  linked to the step on the meal's page; work due before the plan's first
-  day gets a section of its own above it. Hours are counted back from an
-  assumed meal time per type (filter `mixmymeals_meal_type_hours`).
-* The planner shows the same notes live under each day, and above the week
-  for work due before it, following the chosen start day.
+* Meal plan pages and the planner show each preparation as a note on the
+  weekday it is due — "Vorarbeiten für <meal>: <step>", linked to the step.
+  A Monday meal with work two days ahead puts the note under Saturday; on a
+  plan without a Saturday, that day is shown ahead of the week for it.
+  Hours are counted back from an assumed meal time per type (filter
+  `mixmymeals_meal_type_hours`).
 * REST and MCP: `prep_amount` and `prep_unit` on recipe steps.
 
 = 3.63.0 =

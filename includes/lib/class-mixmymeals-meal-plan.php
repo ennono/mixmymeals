@@ -2047,11 +2047,12 @@ class Mixmymeals_Meal_Plan {
 	 * breakfast lands on the evening before and twelve before dinner on the
 	 * same morning.
 	 *
-	 * Positions count from the plan's first day (0). Work due before it
-	 * gets a negative position and `before_start` — the plan page and the
-	 * planner show it ahead of the first day rather than dropping it, since
-	 * soaking on Sunday for a Monday meal is the case this exists for.
-	 * Meals without a day have nothing to count back from and give nothing.
+	 * `day` is the weekday the work falls on — what the plan page and the
+	 * planner show the note under: soaking two days before a Monday meal is
+	 * Saturday. Positions count from the plan's first day (0); work due
+	 * before it gets a negative position and `before_start`, which the plan
+	 * page uses to put a weekday it does not otherwise have ahead of the
+	 * week. Meals without a day have nothing to count back from.
 	 *
 	 * Saved plans and planner rows go through the same rows, so the planner
 	 * shows what the saved plan will show.

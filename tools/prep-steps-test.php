@@ -54,7 +54,9 @@ $_POST = array(
 	'mmm_servings'                    => '4',
 	'mmm_recipe_steps'                => array(
 		array( 'title' => 'Kochen', 'description' => 'Alles zusammen kochen.' ),
-		array( 'title' => 'Bohnen einweichen', 'prep_amount' => '2', 'prep_unit' => 'days' ),
+		array( 'title' => 'Bohnen einweichen', 'prep' => '1', 'prep_amount' => '2', 'prep_unit' => 'days' ),
+		// Box not ticked: the timing still posted must not count.
+		array( 'title' => 'Abschmecken', 'prep_amount' => '5', 'prep_unit' => 'hours' ),
 	),
 );
 $meta->save_recipe_steps_meta_box( $recipe_id );
@@ -62,12 +64,15 @@ $_POST = array();
 $steps = $recipe->get_steps();
 $ok( 'the callback keeps the marking', 2 === (int) $steps[0]['prep_amount'] && 'days' === $steps[0]['prep_unit'] );
 $ok( 'and the step moved to the front', 'Bohnen einweichen' === $steps[0]['title'] );
+$ok( 'without the box ticked a step stays ordinary', null === Mixmymeals_Recipe::step_prep( $steps[2] ) );
 
 ob_start();
 $meta->render_recipe_steps_meta_box_content( get_post( $recipe_id ) );
 $html = ob_get_clean();
-$ok( 'the editor shows the fields', false !== strpos( $html, 'name="mmm_recipe_steps[0][prep_unit]"' ) );
-$ok( 'with the stored unit selected', (bool) preg_match( '/value="days"\s+selected/', $html ) );
+$ok( 'the editor shows the box', false !== strpos( $html, 'name="mmm_recipe_steps[0][prep]"' ) );
+$ok( 'ticked for the preparation step', (bool) preg_match( '/name="mmm_recipe_steps\[0\]\[prep\]" value="1"\s+checked/', $html ) );
+$ok( 'and its timing enabled', (bool) preg_match( '/name="mmm_recipe_steps\[0\]\[prep_amount\]" value="2">/', $html ) );
+$ok( 'an ordinary step has its timing disabled', (bool) preg_match( '/name="mmm_recipe_steps\[1\]\[prep_amount\]" value="1" disabled/', $html ) );
 
 echo '-- 3. REST' . PHP_EOL;
 $api = new Mixmymeals_REST_API();
@@ -108,30 +113,28 @@ foreach ( $tasks as $task ) {
 	$by[ $task['meal_id'] ] = $task;
 }
 $ok( 'three tasks', 3 === count( $tasks ) );
-$ok( 'days keep counting back: Wednesday − 2 = Monday', 1 === $by[ $chili->get_id() ]['day'] && ! $by[ $chili->get_id() ]['before_start'] );
-$ok( 'before the first day is before the plan', $by[ $early->get_id() ]['before_start'] && 6 === $by[ $early->get_id() ]['day'] );
+$ok( 'days keep counting back: Wednesday − 2 = Monday', 1 === $by[ $chili->get_id() ]['day'] );
+$ok( 'Monday − 2 days is Saturday', 6 === $by[ $early->get_id() ]['day'] && $by[ $early->get_id() ]['before_start'] );
 $ok( 'hours before breakfast reach the evening before', 3 === $by[ $toast->get_id() ]['day'] );
-$ok( 'sorted by when the work is due', $early->get_id() === $tasks[0]['meal_id'] );
 
 $shortcodes = new Mixmymeals_Shortcodes();
 $html       = $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'meal_plan_id' => $plan_id ) );
 $ok( 'the plan page carries the notes', 3 === substr_count( $html, 'class="mmm-prep-note"' ) );
-$ok( 'a section before the first day', false !== strpos( $html, 'mmm-rail-day--before' ) );
+$ok( 'in the site owner\'s wording', false !== strpos( $html, esc_html( sprintf( __( 'Preparation for %s:', 'mixmymeals' ), get_the_title( $chili->get_id() ) ) ) ) );
+$ok( 'no section of its own', false === strpos( $html, 'mmm-rail-day--before' ) );
+$sat = strpos( $html, esc_html( Mixmymeals_Meal_Plan::weekday_name( 6 ) ) );
+$mon = strpos( $html, esc_html( Mixmymeals_Meal_Plan::weekday_name( 1 ) ) );
+$ok( 'Saturday, outside a Mon–Fri plan, stands ahead of the week', false !== $sat && false !== $mon && $sat < $mon );
 $ok( 'each linked to its meal and step', false !== strpos( $html, esc_url( get_permalink( $chili->get_id() ) . '#mmm-step-1' ) ) );
 
-$meal_html = do_shortcode( '[mmm_recipe_steps_for_a_single_recipe post_id="' . $recipe_id . '"]' );
-$ok( 'the step carries the anchor', false !== strpos( $meal_html, 'id="mmm-step-1"' ) || 'on' !== get_option( 'mixmymeals_show_recipe_steps', 'on' ) );
-
-echo '-- 5. The planner says what the plan will say' . PHP_EOL;
-$rows = array(
-	array( 'recipe_id' => $recipe_id, 'servings' => 2, 'day' => 3, 'type' => 'dinner' ),
+echo '-- 5. The planner: on the weekday, whatever the start' . PHP_EOL;
+$rows  = array(
+	array( 'recipe_id' => $recipe_id, 'servings' => 2, 'day' => 1, 'type' => 'dinner' ),
 	array( 'recipe_id' => $bread_id, 'servings' => 2, 'day' => 4, 'type' => 'breakfast' ),
 );
-$auto = Mixmymeals_Meal_Plan::from_meal_rows( $rows )->calc_prep_tasks();
-$ok( 'automatic start is the earliest day: soaking falls before it', $auto[0]['before_start'] && 1 === $auto[0]['day'] );
-$fixed = Mixmymeals_Meal_Plan::from_meal_rows( $rows )->calc_prep_tasks( 1 );
-$ok( 'a chosen start day moves it into the plan', ! $fixed[0]['before_start'] && 1 === $fixed[0]['day'] );
-$ok( 'no meal post: the link goes to the recipe', 0 === $fixed[0]['meal_id'] );
+$tasks = Mixmymeals_Meal_Plan::from_meal_rows( $rows )->calc_prep_tasks();
+$ok( 'Monday dinner, two days ahead: Saturday', 6 === $tasks[0]['day'] );
+$ok( 'no meal post: the link goes to the recipe', 0 === $tasks[0]['meal_id'] );
 
 // Clean up.
 foreach ( get_posts( array( 'post_type' => 'mmm_meal', 'post_parent' => $plan_id, 'posts_per_page' => -1, 'post_status' => 'any', 'fields' => 'ids' ) ) as $id ) {

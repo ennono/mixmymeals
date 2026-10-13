@@ -469,16 +469,15 @@ body.mmm-cook-mode-open {
     display: block;
 }
 
-/* Preparation notes — on the plan page's day rail and in the planner, from
-   Mixmymeals_Meal_Plan::calc_prep_tasks(). Structural only; the design is the
-   theme's. [hidden] is pinned because a theme rule giving the container a
-   display would otherwise beat the browser's own [hidden] rule. */
-.mmm-plan-day-prep[hidden],
-.mmm-plan-prep-before[hidden] {
+/* Preparation notes — on the plan page's day rail and in the planner's day
+   boxes, from Mixmymeals_Meal_Plan::calc_prep_tasks(). Structural only; the
+   design is the theme's. [hidden] is pinned because a theme rule giving the
+   container a display would otherwise beat the browser's own [hidden] rule. */
+.mmm-plan-day-prep[hidden] {
     display: none;
 }
 
-.mmm-prep-notes__list {
+.mmm-prep-notes {
     margin: 0;
     padding: 0;
     list-style: none;

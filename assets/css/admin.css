@@ -271,6 +271,54 @@
     margin-top: 3px;
 }
 
+/* === Vorarbeit ========================================================== */
+
+/* Eine Zeile: Häkchen, dann Zahl und Einheit. Die Zeitfelder sind nur
+   bedienbar, solange das Häkchen gesetzt ist — sonst grau. */
+.mixmymeals-step-prep {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin: 8px 0;
+    padding: 6px 10px;
+    background: var(--mmm-ad-bg);
+    border: 1px solid var(--mmm-ad-line-2);
+    border-radius: var(--mmm-ad-r);
+}
+
+.mixmymeals-step-prep.is-prep {
+    background: var(--mmm-ad-notice);
+    border-color: var(--mmm-ad-warn);
+}
+
+.mixmymeals-step-prep-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.mixmymeals-step-prep-timing {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mixmymeals-step-row .mixmymeals-step-prep-timing select,
+.mixmymeals-step-row .mixmymeals-step-prep-timing input {
+    width: auto;
+    margin-top: 0;
+}
+
+.mixmymeals-step-row .mixmymeals-step-prep-timing input {
+    width: 4.5em;
+}
+
+.mixmymeals-step-prep:not(.is-prep) .mixmymeals-step-prep-timing {
+    opacity: .5;
+}
+
 /* === Ingredients ======================================================== */
 
 .mixmymeals-step-ingredients-wrapper {
