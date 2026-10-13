@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.64.0
+Stable tag: 3.64.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,15 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.64.1 =
+
+Fixed:
+* MixMyMeals Printer printed no preparation notes in the PDF's week
+  overview: the grouping it reads, `Mixmymeals_Meal_Plan::calc_prep_by_day()`,
+  was missing from 3.64.0. The plan page and the planner now use the same
+  method, so all three show the same days in the same order — including
+  days that carry only preparation.
 
 = 3.64.0 =
 
