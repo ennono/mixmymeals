@@ -526,7 +526,7 @@ jQuery(function ($) {
                 .replace('%1$s', current + 1)
                 .replace('%2$s', total);
             overlay.find('.mmm-cook-mode-progress').text(progress);
-            overlay.find('.mmm-cook-mode-step').empty().append($(steps[current]).clone());
+            overlay.find('.mmm-cook-mode-step').empty().append($(steps[current]).clone().removeAttr('id'));
             overlay.find('.mmm-cook-mode-prev').prop('disabled', current === 0);
             overlay.find('.mmm-cook-mode-next').text(
                 current === total - 1 ? (labels.done || '') : (labels.next || '')
@@ -586,6 +586,8 @@ jQuery(function ($) {
 
     $(document).on('change', 'input[name="mmm-plan-startday"]', function () {
         mmmApplyStartDay(parseInt(this.value, 10) || 0);
+        // Preparation due "before the plan" depends on where it starts.
+        mmmRefreshPlannerNutrition();
     });
 
     /* ==========================================================
@@ -604,7 +606,8 @@ jQuery(function ($) {
     function mmmRefreshPlannerNutrition() {
         const $box = $('[data-planner-nutrition]');
         const $days = $('[data-day-nutrition]');
-        if (!$box.length && !$days.length) return;
+        const $prep = $('[data-day-prep]');
+        if (!$box.length && !$days.length && !$prep.length) return;
 
         clearTimeout(mmmNutritionTimer);
         mmmNutritionTimer = setTimeout(function () {
@@ -617,7 +620,9 @@ jQuery(function ($) {
 
             $box.add($days).attr('aria-busy', 'true');
 
-            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', {})
+            const startDay = parseInt($('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
+
+            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', { start_day: startDay })
                 .done(function (response) {
                     if (!response || !response.success || !response.data) return;
 
@@ -635,6 +640,13 @@ jQuery(function ($) {
                     const days = response.data.days || {};
                     $days.each(function () {
                         const html = days[this.getAttribute('data-day-nutrition')] || '';
+                        $(this).html(html).prop('hidden', !html);
+                    });
+
+                    // Preparation due on each day, and before the first.
+                    const prep = response.data.prep || {};
+                    $prep.each(function () {
+                        const html = prep[this.getAttribute('data-day-prep')] || '';
                         $(this).html(html).prop('hidden', !html);
                     });
                 })

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.63.0
+Stable tag: 3.64.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,22 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.64.0 =
+
+Added:
+* Preparation steps. A recipe step can be marked as preparation, "X days
+  before" or "X hours before" the meal (soaking, marinating, a dough that
+  rests overnight). Marked steps move to the top of the step list, the
+  earliest first, and carry a "Preparation · 2 days before" label on the
+  recipe and the meal page.
+* Meal plan pages show each preparation as a note on the day it is due,
+  linked to the step on the meal's page; work due before the plan's first
+  day gets a section of its own above it. Hours are counted back from an
+  assumed meal time per type (filter `mixmymeals_meal_type_hours`).
+* The planner shows the same notes live under each day, and above the week
+  for work due before it, following the chosen start day.
+* REST and MCP: `prep_amount` and `prep_unit` on recipe steps.
 
 = 3.63.0 =
 

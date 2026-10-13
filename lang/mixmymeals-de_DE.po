@@ -7428,3 +7428,60 @@ msgstr "%1$s von %2$s"
 #, php-format
 msgid "%s left"
 msgstr "noch %s frei"
+
+#. translators: %s: number of days a preparation step is done before the meal.
+#: includes/lib/class-mixmymeals-recipe.php
+msgid "%s day before"
+msgid_plural "%s days before"
+msgstr[0] "%s Tag zuvor"
+msgstr[1] "%s Tage zuvor"
+
+#. translators: %s: number of hours a preparation step is done before the meal.
+#: includes/lib/class-mixmymeals-recipe.php
+msgid "%s hour before"
+msgid_plural "%s hours before"
+msgstr[0] "%s Stunde zuvor"
+msgstr[1] "%s Stunden zuvor"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Preparation ahead"
+msgstr "Vorarbeit"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "— not a preparation step —"
+msgstr "— keine Vorarbeit —"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "days before"
+msgstr "Tage zuvor"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "hours before"
+msgstr "Stunden zuvor"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Work that has to be done ahead of the meal, such as soaking or marinating. Preparation steps move to the top, the earliest first, and meal plans show them on the day they are due."
+msgstr "Arbeit, die vor der Mahlzeit erledigt sein muss, etwa Einweichen oder Marinieren. Vorarbeiten rücken an den Anfang, die früheste zuerst, und Essenspläne zeigen sie an dem Tag, an dem sie fällig sind."
+
+#. translators: %s: lead time, e.g. "2 days before".
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Preparation · %s"
+msgstr "Vorarbeit · %s"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Preparation"
+msgstr "Vorarbeit"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Before the plan starts"
+msgstr "Vor Planbeginn"
+
+#. translators: 1: recipe title, 2: meal type ("Dinner"), 3: weekday of the meal.
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "for %1$s, %2$s on %3$s"
+msgstr "für %1$s, %2$s am %3$s"
+
+#. translators: 1: recipe title, 2: weekday of the meal.
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "for %1$s on %2$s"
+msgstr "für %1$s am %2$s"

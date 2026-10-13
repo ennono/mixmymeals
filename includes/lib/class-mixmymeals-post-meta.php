@@ -352,6 +352,33 @@ class Mixmymeals_Post_Meta {
 			. absint( $index ) . '][title]" value="' . esc_attr( $title )
 			. '"></p>';
 
+		/*
+		 * Preparation: a step done ahead of the meal ("soak the beans", two
+		 * days before). Set, the step moves to the front on save — sorted by
+		 * how far ahead it is — and the plan names it on the day it is due.
+		 * The classes are what admin.js reads to move the row at once.
+		 */
+		$prep        = Mixmymeals_Recipe::step_prep( $step );
+		$prep_amount = $prep ? (string) $prep['amount'] : '';
+		$prep_unit   = $prep ? $prep['unit'] : '';
+
+		echo '<p class="mixmymeals-step-prep"><label>' . esc_html__( 'Preparation ahead', 'mixmymeals' )
+			. '</label><br>';
+		echo '<input type="number" min="1" step="1" class="small-text mixmymeals-step-prep-amount" name="mmm_recipe_steps['
+			. absint( $index ) . '][prep_amount]" value="' . esc_attr( $prep_amount ) . '"> ';
+		echo '<select class="mixmymeals-step-prep-unit" name="mmm_recipe_steps[' . absint( $index ) . '][prep_unit]">';
+		foreach ( array(
+			''      => __( '— not a preparation step —', 'mixmymeals' ),
+			'days'  => __( 'days before', 'mixmymeals' ),
+			'hours' => __( 'hours before', 'mixmymeals' ),
+		) as $value => $label ) {
+			echo '<option value="' . esc_attr( $value ) . '"' . selected( $prep_unit, $value, false ) . '>'
+				. esc_html( $label ) . '</option>';
+		}
+		echo '</select><br><span class="description">'
+			. esc_html__( 'Work that has to be done ahead of the meal, such as soaking or marinating. Preparation steps move to the top, the earliest first, and meal plans show them on the day they are due.', 'mixmymeals' )
+			. '</span></p>';
+
 		// Description. A slim TinyMCE editor is attached to this textarea in
 		// admin.js via the wp.editor API. The id must be unique (one editor per
 		// step) and the marker class lets the JS find the step editors.
@@ -869,6 +896,14 @@ class Mixmymeals_Post_Meta {
 						'image'       => isset( $step['image'] )
 							? intval( wp_unslash( $step['image'] ) )
 							: 0,
+						// Preparation timing; set_steps() decides whether the
+						// pair makes the step a preparation step.
+						'prep_amount' => isset( $step['prep_amount'] )
+							? intval( wp_unslash( $step['prep_amount'] ) )
+							: 0,
+						'prep_unit'   => isset( $step['prep_unit'] )
+							? sanitize_key( wp_unslash( $step['prep_unit'] ) )
+							: '',
 						'ingredients' => array_map(
 							function ( $ingredient ) {
 								return array(

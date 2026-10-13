@@ -76,6 +76,7 @@ class Mixmymeals_Meal_Plan {
 			$type = (string) ( $row['type'] ?? '' );
 
 			$plan->rows[] = array(
+				'meal_id'   => 0,
 				'recipe_id' => $recipe_id,
 				// Mixmymeals_Meal::get_servings() floors at 1; so does this.
 				'servings'  => max( 1, (int) ( $row['servings'] ?? 1 ) ),
@@ -93,7 +94,7 @@ class Mixmymeals_Meal_Plan {
 	 * The one place the nutrition methods read meals: from the posts for a
 	 * saved plan, from the given rows for one built by from_meal_rows().
 	 *
-	 * @return array<int, array{recipe_id:int, servings:int, day:int|null, type:string}>
+	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string}>
 	 */
 	public function get_meal_rows(): array {
 
@@ -108,6 +109,7 @@ class Mixmymeals_Meal_Plan {
 			$meal = new Mixmymeals_Meal( $meal_post->ID );
 
 			$rows[] = array(
+				'meal_id'   => (int) $meal_post->ID,
 				'recipe_id' => (int) $meal->get_recipe_id(),
 				'servings'  => (int) $meal->get_servings(),
 				'day'       => $meal->get_day(),
@@ -2032,6 +2034,103 @@ class Mixmymeals_Meal_Plan {
 		$name = (string) $wp_locale->get_weekday( $day % 7 ); // get_weekday: 0 = Sunday.
 
 		return $abbrev ? (string) $wp_locale->get_weekday_abbrev( $name ) : $name;
+	}
+
+	/**
+	 * The preparation the plan's meals need, each on the day it is due.
+	 *
+	 * A recipe step marked "2 days before" or "8 hours before" (see
+	 * Mixmymeals_Recipe::step_prep()) is counted back from the meal it
+	 * belongs to. Days keep the time of day; hours are counted from the
+	 * hour the meal's type is assumed to be eaten at
+	 * (Mixmymeals_Recipe::meal_type_hours()), so twelve hours before
+	 * breakfast lands on the evening before and twelve before dinner on the
+	 * same morning.
+	 *
+	 * Positions count from the plan's first day (0). Work due before it
+	 * gets a negative position and `before_start` — the plan page and the
+	 * planner show it ahead of the first day rather than dropping it, since
+	 * soaking on Sunday for a Monday meal is the case this exists for.
+	 * Meals without a day have nothing to count back from and give nothing.
+	 *
+	 * Saved plans and planner rows go through the same rows, so the planner
+	 * shows what the saved plan will show.
+	 *
+	 * @param int|null $start_day The first day of the plan, 1-7. Null: the
+	 *                            plan's own; for planner rows the earliest
+	 *                            day carrying a meal, as saving does.
+	 * @return array<int, array{position:int, day:int, before_start:bool, at:int, meal_id:int, recipe_id:int, meal_day:int, meal_type:string, step_index:int, step_title:string, prep:array}>
+	 *         Sorted by when the work is due.
+	 */
+	public function calc_prep_tasks( ?int $start_day = null ): array {
+
+		$rows = $this->get_meal_rows();
+
+		if ( null === $start_day || $start_day < 1 || $start_day > 7 ) {
+
+			if ( null !== $this->rows ) {
+				$used      = array_filter( array_map( 'intval', array_column( $rows, 'day' ) ) );
+				$start_day = $used ? min( $used ) : 1;
+			} else {
+				$start_day = $this->get_start_day();
+			}
+		}
+
+		$hours   = Mixmymeals_Recipe::meal_type_hours();
+		$recipes = array();
+		$tasks   = array();
+
+		foreach ( $rows as $order => $row ) {
+
+			$day = (int) ( $row['day'] ?? 0 );
+
+			if ( $day < 1 || $day > 7 ) {
+				continue;
+			}
+
+			$recipe_id = (int) $row['recipe_id'];
+
+			if ( ! isset( $recipes[ $recipe_id ] ) ) {
+				$recipe                = new Mixmymeals_Recipe( $recipe_id );
+				$recipes[ $recipe_id ] = $recipe->is_valid() ? $recipe->get_prep_steps() : array();
+			}
+
+			if ( ! $recipes[ $recipe_id ] ) {
+				continue;
+			}
+
+			$type      = (string) ( $row['type'] ?? '' );
+			$meal_hour = $hours[ '' !== $type ? $type : 'other' ] ?? 12;
+			$meal_at   = ( ( $day - $start_day + 7 ) % 7 ) * 24 + $meal_hour;
+
+			foreach ( $recipes[ $recipe_id ] as $prep_step ) {
+
+				$at       = $meal_at - (int) $prep_step['prep']['hours'];
+				$position = (int) floor( $at / 24 );
+
+				$tasks[] = array(
+					'position'     => $position,
+					'day'          => ( ( ( $start_day - 1 + $position ) % 7 ) + 7 ) % 7 + 1,
+					'before_start' => $position < 0,
+					'at'           => $at,
+					'order'        => $order,
+					'meal_id'      => (int) ( $row['meal_id'] ?? 0 ),
+					'recipe_id'    => $recipe_id,
+					'meal_day'     => $day,
+					'meal_type'    => $type,
+					'step_index'   => (int) $prep_step['index'],
+					'step_title'   => (string) $prep_step['title'],
+					'prep'         => $prep_step['prep'],
+				);
+			}
+		}
+
+		usort(
+			$tasks,
+			static fn( $a, $b ) => array( $a['at'], $a['order'], $a['step_index'] ) <=> array( $b['at'], $b['order'], $b['step_index'] )
+		);
+
+		return $tasks;
 	}
 
 	/**

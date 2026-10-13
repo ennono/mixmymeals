@@ -997,10 +997,14 @@ class Mixmymeals_Recipe {
 				continue;
 			}
 
+			$prep = self::normalise_step_prep( $step['prep_amount'] ?? 0, $step['prep_unit'] ?? '' );
+
 			$new_step = array(
 				'title'       => $title,
 				'description' => $desc,
 				'image'       => $image,
+				'prep_amount' => $prep ? $prep['amount'] : 0,
+				'prep_unit'   => $prep ? $prep['unit'] : '',
 				'ingredients' => array(),
 			);
 
@@ -1066,9 +1070,155 @@ class Mixmymeals_Recipe {
 			$cleaned[] = $new_step;
 		}
 
-		update_post_meta( $this->post_id, '_rmm_steps', $cleaned );
+		update_post_meta( $this->post_id, '_rmm_steps', self::sort_steps( $cleaned ) );
 
 		return true;
+	}
+
+	/**
+	 * Units a preparation step may be timed in: "X days before", "X hours
+	 * before" the meal.
+	 */
+	const PREP_UNITS = array( 'days', 'hours' );
+
+	/**
+	 * Where a step's timing is not stated, a meal is assumed to be eaten at
+	 * these hours. Only "hours before" needs it: twelve hours before dinner
+	 * is the same morning, twelve hours before breakfast the evening before.
+	 * Filter `mixmymeals_meal_type_hours`.
+	 *
+	 * @return array<string, int> Meal type => hour of the day (0-23).
+	 */
+	public static function meal_type_hours(): array {
+
+		$hours = (array) apply_filters(
+			'mixmymeals_meal_type_hours',
+			array(
+				'breakfast' => 8,
+				'lunch'     => 12,
+				'snack'     => 15,
+				'dinner'    => 18,
+				'other'     => 12,
+			)
+		);
+
+		return array_map( static fn( $h ) => max( 0, min( 23, (int) $h ) ), $hours );
+	}
+
+	/**
+	 * The one rule for what makes a step preparation: a whole number of at
+	 * least one and a known unit. Anything else is an ordinary step — "0 hours
+	 * before" is the cooking itself.
+	 *
+	 * @param mixed $amount Posted or stored amount.
+	 * @param mixed $unit   'days' or 'hours'.
+	 * @return array{amount:int, unit:string, hours:int}|null
+	 */
+	public static function normalise_step_prep( $amount, $unit ): ?array {
+
+		$unit   = is_string( $unit ) ? $unit : '';
+		$amount = is_numeric( $amount ) ? (int) $amount : 0;
+
+		if ( $amount < 1 || ! in_array( $unit, self::PREP_UNITS, true ) ) {
+			return null;
+		}
+
+		// A year is the limit of anything worth planning ahead.
+		$amount = min( $amount, 'days' === $unit ? 365 : 24 * 365 );
+
+		return array(
+			'amount' => $amount,
+			'unit'   => $unit,
+			'hours'  => 'days' === $unit ? $amount * 24 : $amount,
+		);
+	}
+
+	/**
+	 * A stored step's preparation timing, or null for an ordinary step.
+	 *
+	 * @param array $step One entry of _rmm_steps.
+	 * @return array{amount:int, unit:string, hours:int}|null
+	 */
+	public static function step_prep( array $step ): ?array {
+		return self::normalise_step_prep( $step['prep_amount'] ?? 0, $step['prep_unit'] ?? '' );
+	}
+
+	/**
+	 * Preparation first, in the order it has to be done — the longest lead
+	 * time first — then the ordinary steps in their own order. Stable, so
+	 * two steps with the same lead time keep the order the author gave them.
+	 *
+	 * @param array $steps Steps as stored.
+	 * @return array Reindexed.
+	 */
+	public static function sort_steps( array $steps ): array {
+
+		$prep  = array();
+		$other = array();
+
+		foreach ( array_values( $steps ) as $i => $step ) {
+
+			$timing = is_array( $step ) ? self::step_prep( $step ) : null;
+
+			if ( $timing ) {
+				$prep[] = array( $timing['hours'], $i, $step );
+			} else {
+				$other[] = $step;
+			}
+		}
+
+		usort( $prep, static fn( $a, $b ) => array( $b[0], $a[1] ) <=> array( $a[0], $b[1] ) );
+
+		return array_merge( array_column( $prep, 2 ), $other );
+	}
+
+	/**
+	 * "2 days before", "1 hour before" — the label a preparation step
+	 * carries wherever it is shown.
+	 *
+	 * @param array $prep From step_prep().
+	 * @return string
+	 */
+	public static function prep_label( array $prep ): string {
+
+		$amount = (int) $prep['amount'];
+
+		if ( 'days' === $prep['unit'] ) {
+			/* translators: %s: number of days a preparation step is done before the meal. */
+			return sprintf( _n( '%s day before', '%s days before', $amount, 'mixmymeals' ), number_format_i18n( $amount ) );
+		}
+
+		/* translators: %s: number of hours a preparation step is done before the meal. */
+		return sprintf( _n( '%s hour before', '%s hours before', $amount, 'mixmymeals' ), number_format_i18n( $amount ) );
+	}
+
+	/**
+	 * The recipe's preparation steps, each with its position in get_steps()
+	 * — which is also the anchor (`#mmm-step-<n>`, counted from 1) the step
+	 * carries on the recipe and the meal page.
+	 *
+	 * @return array<int, array{index:int, title:string, prep:array}>
+	 */
+	public function get_prep_steps(): array {
+
+		$out = array();
+
+		foreach ( $this->get_steps() as $index => $step ) {
+
+			$prep = self::step_prep( (array) $step );
+
+			if ( ! $prep ) {
+				continue;
+			}
+
+			$out[] = array(
+				'index' => (int) $index,
+				'title' => (string) ( $step['title'] ?? '' ),
+				'prep'  => $prep,
+			);
+		}
+
+		return $out;
 	}
 
 	public function purge_steps(): bool {
@@ -1519,7 +1669,12 @@ class Mixmymeals_Recipe {
 
 		$steps = get_post_meta( $this->post_id, '_rmm_steps', true );
 
-		return is_array( $steps ) ? $steps : array();
+		/*
+		 * Sorted on read as well as on write: the core meta route can store
+		 * steps without passing set_steps(), and preparation standing after
+		 * the cooking would be read too late to be of any use.
+		 */
+		return is_array( $steps ) ? self::sort_steps( $steps ) : array();
 	}
 
 	public function get_servings(): float {
