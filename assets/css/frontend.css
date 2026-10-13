@@ -483,10 +483,6 @@ body.mmm-cook-mode-open {
     list-style: none;
 }
 
-.mmm-prep-note__link {
-    display: block;
-}
-
 .mmm-prep-note__task {
     font-weight: 600;
 }

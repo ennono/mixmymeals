@@ -5423,14 +5423,18 @@ class Mixmymeals_Shortcodes {
 
 			$meal_title = get_the_title( $task['meal_id'] > 0 ? $task['meal_id'] : $task['recipe_id'] );
 
-			$inner = '<i class="mmm-icon fa-solid fa-hourglass-half" aria-hidden="true"></i> '
+			$step_html = $url
+				? '<a class="mmm-prep-note__task" href="' . esc_url( $url ) . '">' . esc_html( $step_title ) . '</a>'
+				: '<span class="mmm-prep-note__task">' . esc_html( $step_title ) . '</span>';
+
+			// Only the step is the link: it is what the link leads to, and a
+			// whole line of link read louder than a note should.
+			$html .= '<li class="mmm-prep-note">'
+			         . '<i class="mmm-icon fa-solid fa-hourglass-half" aria-hidden="true"></i> '
 			         . '<span class="mmm-prep-note__label">'
 			         /* translators: %s: title of the meal the preparation is for. */
 			         . esc_html( sprintf( __( 'Preparation for %s:', 'mixmymeals' ), $meal_title ) )
-			         . '</span> <span class="mmm-prep-note__task">' . esc_html( $step_title ) . '</span>';
-
-			$html .= '<li class="mmm-prep-note">'
-			         . ( $url ? '<a class="mmm-prep-note__link" href="' . esc_url( $url ) . '">' . $inner . '</a>' : $inner )
+			         . '</span> ' . $step_html
 			         . '</li>';
 		}
 
