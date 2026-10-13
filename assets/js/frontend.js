@@ -618,7 +618,7 @@ jQuery(function ($) {
                 mmmNutritionRequest.abort();
             }
 
-            $box.add($days).attr('aria-busy', 'true');
+            $box.add($days).add($prep).attr('aria-busy', 'true');
 
             const startDay = parseInt($('input[name="mmm-plan-startday"]:checked').val(), 10) || 0;
 
@@ -651,7 +651,7 @@ jQuery(function ($) {
                     });
                 })
                 .always(function () {
-                    $box.add($days).removeAttr('aria-busy');
+                    $box.add($days).add($prep).removeAttr('aria-busy');
                 });
         }, 400);
     }
