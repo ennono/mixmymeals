@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.64.0
+Stable tag: 3.64.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,31 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.64.2 =
+
+Changed:
+* The product comparison and the plan's per-weekday table now look like
+  every other nutrition table — the same frame, green head and zebra
+  instead of three skins on one page; the per-weekday table had no
+  styling of its own at all. Both keep their table head on phones
+  rather than collapsing into cards, because that head says which
+  product and which weekday a figure belongs to; they scroll sideways
+  instead.
+* Table heads are now uniform: white type on the same green
+  throughout, including everything inside a heading cell — product
+  name, brand, package size, source and the reference pill each
+  carried their own colour for a light background. Columns that are
+  products (comparison and product impact) drop the capitals the
+  single-word columns use; a row label stated as a <th>, which the
+  per-weekday table does, is now aligned and weighted like the first
+  column everywhere else.
+* In the product comparison the "used for the nutrition figures" pill
+  now sits above the product name rather than under it — it qualifies
+  the whole column — and the indented "of which" rows are indented
+  there too. They carried a class of their own, so they were the only
+  ones reading as equals, and saturates had been missing from the rule
+  since the figure was added.
 
 = 3.64.0 =
 

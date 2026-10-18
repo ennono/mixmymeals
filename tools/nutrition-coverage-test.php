@@ -585,6 +585,65 @@ mmm_nc_assert(
 update_option( 'mixmymeals_recipe_disclaimer_text', $mmm_nc_disclaimer_before );
 update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', $mmm_nc_switch_before );
 
+echo "\n=== 12. Eine Optik für alle Tabellen ===\n";
+
+/*
+ * Jede Nährwerttabelle trägt dasselbe Gerüst, damit sie auf einer Seite nicht
+ * als zwei verschiedene Dinge gelesen werden: mmm-nutrition-table,
+ * mmm-nutri-table und den Kontext-Modifier. Produktvergleich und
+ * Wochentagstabelle laufen nicht durch den gemeinsamen Renderer und sind
+ * deshalb die beiden, die es wieder verlieren können.
+ */
+$skin_ing = mmm_nc_ing( 'ZZ Skin Haferflocken', $full );
+
+$skin_a = mmm_nc_trash(
+	(int) wp_insert_post(
+		array( 'post_type' => 'mmm_product', 'post_title' => 'ZZ Marke A', 'post_status' => 'publish', 'post_parent' => $skin_ing )
+	)
+);
+( new Mixmymeals_Product( $skin_a ) )->set_nutrition( array( 'calories_100' => 360, 'fat' => 6 ) );
+Mixmymeals_Product::set_reference_id( $skin_ing, $skin_a );
+
+$skin_recipe = mmm_nc_recipe( 'ZZ Skin Porridge', array( mmm_nc_row( $skin_ing, 160 ) ) );
+
+$skin_plan = mmm_nc_trash(
+	(int) wp_insert_post( array( 'post_type' => 'mmm_meal_plan', 'post_title' => 'ZZ Skin Plan', 'post_status' => 'publish' ) )
+);
+$skin_meal = mmm_nc_trash(
+	(int) wp_insert_post( array( 'post_type' => 'mmm_meal', 'post_title' => 'ZZ Skin M', 'post_status' => 'publish', 'post_parent' => $skin_plan ) )
+);
+$skin_meal_obj = new Mixmymeals_Meal( $skin_meal );
+$skin_meal_obj->set_recipe_id( $skin_recipe );
+$skin_meal_obj->set_day( 1 );
+$skin_meal_obj->set_servings( 2 );
+
+$skin_cases = array(
+	'ingredient' => '[mmm_nutrition_table_for_a_single_ingredient id="' . $skin_ing . '"]',
+	'products'   => '[mmm_ingredient_products id="' . $skin_ing . '"]',
+	'recipe'     => '[mmm_nutrition_table_for_a_single_recipe post_id="' . $skin_recipe . '"]',
+	'plan'       => '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $skin_plan . '"]',
+	'days'       => '[mmm_nutrition_per_day_for_a_single_meal_plan meal_plan_id="' . $skin_plan . '"]',
+);
+
+foreach ( $skin_cases as $skin_context => $skin_shortcode ) {
+
+	$skin_html = do_shortcode( $skin_shortcode );
+
+	if ( ! preg_match( '#<table class="([^"]+)"#', $skin_html, $skin_match ) ) {
+		mmm_nc_assert( false, $skin_context . ': keine Tabelle gerendert' );
+		continue;
+	}
+
+	$skin_classes = $skin_match[1];
+
+	foreach ( array( 'mmm-nutrition-table', 'mmm-nutri-table', 'mmm-nutri-table--' . $skin_context ) as $skin_class ) {
+		mmm_nc_assert(
+			in_array( $skin_class, preg_split( '#\s+#', $skin_classes ), true ),
+			$skin_context . ' trägt ' . $skin_class
+		);
+	}
+}
+
 echo "\n=== Aufräumen ===\n";
 
 foreach ( $GLOBALS['MMM_NC_TRASH'] as $trash_id ) {

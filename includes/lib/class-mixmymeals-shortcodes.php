@@ -7853,7 +7853,9 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
         <div class="mmm-meal-plan-nutrition-days">
-            <table class="mmm-nutri-days-table">
+            <?php /* Shared skeleton, and no card collapse: a weekday row is
+                      four figures wide, which fits a phone as a table. */ ?>
+            <table class="mmm-nutrition-table mmm-nutri-table mmm-nutri-table--days mmm-nutri-days-table">
                 <thead>
                 <tr>
                     <th><?php esc_html_e( 'Day', 'mixmymeals' ); ?></th>
@@ -10431,18 +10433,20 @@ class Mixmymeals_Shortcodes {
 		 * figures as columns push Protein and Salt off the page, which are
 		 * exactly the two a reader compares yoghurts by.
 		 *
-		 * Deliberately without mmm-nutri-table, which the theme collapses into
-		 * one card per row below 544px and hides the table head to do it. Here
-		 * the head carries the brand, the package size and the source, so
-		 * collapsing would drop exactly what tells a reader whose figures these
-		 * are — on phones, where most of them read. It scrolls sideways in its
-		 * wrapper instead, like the ingredient's own nutrition table above it.
+		 * It carries the shared skeleton (mmm-nutrition-table mmm-nutri-table)
+		 * like every other nutrition table, so it is the same object to a
+		 * reader. What it does **not** do is collapse into one card per row on
+		 * a phone: the theme hides the table head to do that, and here the head
+		 * carries the brand, the package size and the source — exactly what
+		 * says whose figures these are. The modifier is what the theme hangs
+		 * that exception on; it scrolls sideways in its wrapper instead, like
+		 * the ingredient's own nutrition table above it.
 		 */
 		ob_start();
 		?>
 		<div class="mmm-ingredient-products">
 			<div class="mmm-ingredient-products__scroll">
-			<table class="mmm-nutrition-table">
+			<table class="mmm-nutrition-table mmm-nutri-table mmm-nutri-table--products">
 				<thead>
 				<tr>
 					<th><?php echo esc_html( $head ); ?></th>
@@ -10458,7 +10462,11 @@ class Mixmymeals_Shortcodes {
 				</thead>
 				<tbody>
 				<?php foreach ( $cols as $mmm_key => $mmm_field ) : ?>
-					<tr<?php echo 'sugar' === $mmm_key ? ' class="mmm-nutrition-table__sub"' : ''; ?>>
+					<?php /* Dieselben Klassen wie die übrigen Nährwerttabellen, sonst
+					         bleiben die „davon"-Zeilen hier als einzige
+					         uneingerückt — und gesättigte Fettsäuren fehlten
+					         seit 3.52.0 ganz. */ ?>
+					<tr<?php echo in_array( $mmm_key, array( 'sugar', 'saturates' ), true ) ? ' class="mmm-nutri-table__sub mmm-nutrition-table__sub"' : ''; ?>>
 						<td data-label="<?php echo esc_attr( $head ); ?>"><?php echo esc_html( $labels[ $mmm_key ] ); ?></td>
 						<?php foreach ( $products as $mmm_product ) : ?>
 							<?php
@@ -10620,9 +10628,7 @@ class Mixmymeals_Shortcodes {
 	 */
 	private function render_product_identity( Mixmymeals_Product $product, int $reference ): string {
 
-		$out = '<div class="mmm-ingredient-products__identity">'
-			. '<div class="mmm-ingredient-products__title">'
-			. esc_html( $product->get_title() ) . '</div>';
+		$out = '<div class="mmm-ingredient-products__identity">';
 
 		/*
 		 * Only the reference gets a chip, and only because it is a claim about
@@ -10630,11 +10636,19 @@ class Mixmymeals_Shortcodes {
 		 * anchors the arithmetic is not a property of the product, and the note
 		 * under the table already names it — as a chip it sat next to a brand
 		 * looking like a distinction the brand had earned.
+		 *
+		 * Above the name, not under it: it qualifies the whole column, and in
+		 * the markup rather than by CSS order, so what a screen reader
+		 * announces is what the column reads as — the claim, then the packet
+		 * it is about.
 		 */
 		if ( $reference > 0 && $reference === $product->get_id() ) {
 			$out .= '<div class="mmm-ingredient-products__flag">'
 				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</div>';
 		}
+
+		$out .= '<div class="mmm-ingredient-products__title">'
+			. esc_html( $product->get_title() ) . '</div>';
 
 		$meta  = array();
 		$brand = $product->get_brand();
