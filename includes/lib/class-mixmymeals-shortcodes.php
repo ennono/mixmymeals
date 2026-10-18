@@ -10642,9 +10642,26 @@ class Mixmymeals_Shortcodes {
 		 * announces is what the column reads as — the claim, then the packet
 		 * it is about.
 		 */
+		$flag = esc_html__( 'Used for the nutrition figures', 'mixmymeals' );
+
 		if ( $reference > 0 && $reference === $product->get_id() ) {
-			$out .= '<div class="mmm-ingredient-products__flag">'
-				. esc_html__( 'Used for the nutrition figures', 'mixmymeals' ) . '</div>';
+			$out .= '<div class="mmm-ingredient-products__flag">' . $flag . '</div>';
+		} else {
+			/*
+			 * The same chip, invisible, in every other column: without it the
+			 * product names sit at different heights across the row — one
+			 * column starts a chip lower than the rest — and the row of names
+			 * is what a reader scans across.
+			 *
+			 * A hidden copy rather than a margin calculated from the chip's
+			 * font size, padding and border: those are four numbers in the
+			 * theme that would have to be kept in step with this one by hand,
+			 * and the first change to the chip's size would silently
+			 * misalign the names again. visibility:hidden keeps the box,
+			 * aria-hidden keeps it out of what is read aloud.
+			 */
+			$out .= '<div class="mmm-ingredient-products__flag mmm-ingredient-products__flag--placeholder" aria-hidden="true">'
+				. $flag . '</div>';
 		}
 
 		$out .= '<div class="mmm-ingredient-products__title">'

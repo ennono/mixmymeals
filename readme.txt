@@ -135,7 +135,8 @@ Changed:
   column everywhere else.
 * In the product comparison the "used for the nutrition figures" pill
   now sits above the product name rather than under it — it qualifies
-  the whole column — and the indented "of which" rows are indented
+  the whole column, and the columns without one hold its space, so the
+  product names still start at the same height — and the indented "of which" rows are indented
   there too. They carried a class of their own, so they were the only
   ones reading as equals, and saturates had been missing from the rule
   since the figure was added.
