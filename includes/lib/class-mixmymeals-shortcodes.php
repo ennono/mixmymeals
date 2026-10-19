@@ -191,6 +191,13 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_recipe_hero',
 			[ $this, 'mmm_recipe_hero_callback' ] );
 
+		// Embeds: one recipe or one plan as a card inside a blog post.
+		add_shortcode( 'mmm_recipe_embed',
+			[ $this, 'mmm_recipe_embed_callback' ] );
+
+		add_shortcode( 'mmm_meal_plan_embed',
+			[ $this, 'mmm_meal_plan_embed_callback' ] );
+
 		add_shortcode( 'mmm_recipe_author_box',
 			[ $this, 'mmm_recipe_author_box_callback' ] );
 
@@ -5500,6 +5507,149 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * The chip row of a meal plan: disclosure, diets, days, recipes, servings
+	 * and price, in that order. Shared by [mmm_meal_plan_hero] and
+	 * [mmm_meal_plan_embed], so a plan teased in a blog post states the same
+	 * figures as the plan page it links to.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string Escaped chips, without a wrapper.
+	 */
+	private static function meal_plan_stat_chips( int $plan_id ): string {
+
+		$plan                 = new Mixmymeals_Meal_Plan( $plan_id );
+		$num_of_days          = $plan->count_days();
+		$num_of_meals         = $plan->count_meals();
+		$serving_range_string = $plan->get_servings_range_string();
+		$avg_cost             = $plan->calculate_avg_cost_per_serving();
+		$currency             = get_option( 'mixmymeals_currency', '€' );
+
+		// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
+		// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
+		$out  = self::disclosure_chip( $plan_id );
+		$out .= self::diet_chips( $plan_id );
+
+		if ( $num_of_days ) {
+			$out .= self::stat_chip(
+				'calendar-days',
+				self::chip_text(
+					'plan_days',
+					array(
+						'count' => number_format_i18n( $num_of_days ),
+						/* translators: the word after a number of days a plan lasts. */
+						'unit'  => _n( 'Day', 'Days', $num_of_days, 'mixmymeals' ),
+					)
+				)
+			);
+		}
+
+		if ( $num_of_meals ) {
+			$out .= self::stat_chip(
+				'book',
+				self::chip_text(
+					'plan_recipes',
+					array(
+						'count' => number_format_i18n( $num_of_meals ),
+						/* translators: the word after a number of recipes on a plan. */
+						'unit'  => _n( 'Recipe', 'Recipes', $num_of_meals, 'mixmymeals' ),
+					)
+				)
+			);
+		}
+
+		if ( $serving_range_string ) {
+			$out .= self::stat_chip( 'users', self::chip_text( 'plan_servings', array( 'range' => $serving_range_string ) ) );
+		}
+
+		if ( $avg_cost > 0 ) {
+			$out .= self::stat_chip(
+				'euro-sign',
+				self::chip_text( 'price', array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency ) ),
+				'mmm-chip--price'
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The chip row of a recipe: disclosure, diets, servings, time, energy,
+	 * price and keeping. Shared by [mmm_recipe_hero] and [mmm_recipe_embed].
+	 *
+	 * @param int $recipe_id Recipe post ID.
+	 * @return string Escaped chips, without a wrapper.
+	 */
+	private static function recipe_stat_chips( int $recipe_id ): string {
+
+		$recipe   = new Mixmymeals_Recipe( $recipe_id );
+		$servings = (int) $recipe->get_servings();
+		$cost     = $recipe->calculate_cost_per_serving();
+		$currency = get_option( 'mixmymeals_currency', '€' );
+
+		$nutrition = $recipe->calculate_nutrition_per_serving();
+		$kcal      = (int) round( $nutrition['calories'] ?? 0 );
+
+		$prep_time_string = self::format_prep_time( $recipe->get_preparation_time() );
+
+		// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
+		// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
+		$out  = self::disclosure_chip( $recipe_id );
+		$out .= self::diet_chips( $recipe_id );
+
+		if ( $servings ) {
+			$out .= self::stat_chip(
+				'users',
+				self::chip_text(
+					'servings',
+					array(
+						'count' => number_format_i18n( absint( $servings ) ),
+						/* translators: the word after a number of servings. */
+						'unit'  => _n( 'Serving', 'Servings', $servings, 'mixmymeals' ),
+					)
+				)
+			);
+		}
+
+		if ( $prep_time_string ) {
+			$out .= self::stat_chip( 'clock', self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) ) );
+		}
+
+		if ( $kcal > 0 ) {
+			$out .= self::stat_chip( 'fire', self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) ) );
+		}
+
+		if ( $cost > 0 ) {
+			$out .= self::stat_chip(
+				'euro-sign',
+				self::chip_text( 'price', array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency ) ),
+				'mmm-chip--price'
+			);
+		}
+
+		// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
+		// Gericht ist, und gehoert damit hinter die Kennzahlen des Essens.
+		$out .= self::keeping_chip( $recipe_id );
+
+		return $out;
+	}
+
+	/**
+	 * One figure chip of a hero row.
+	 *
+	 * @param string $icon     Font Awesome icon name, without the fa- prefix.
+	 * @param string $text     Plain chip text; escaped here.
+	 * @param string $modifier Extra class, e.g. mmm-chip--price.
+	 * @return string
+	 */
+	private static function stat_chip( string $icon, string $text, string $modifier = '' ): string {
+
+		return '<span class="' . esc_attr( trim( 'mmm-chip mmm-chip--stat ' . $modifier ) ) . '">'
+			. '<i class="mmm-icon fa-solid fa-' . esc_attr( $icon ) . '" aria-hidden="true"></i>'
+			. esc_html( $text )
+			. '</span>';
+	}
+
+	/**
 	 * Shortcode [mmm_meal_plan_hero].
 	 * Renders plan title, meta chips and action buttons for
 	 * the current meal plan („Stopf nicht!"-Redesign).
@@ -5517,15 +5667,7 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$plan  = new Mixmymeals_Meal_Plan( $plan_id );
 		$title = get_the_title( $plan_id );
-
-		// Chip-Daten
-		$num_of_days          = $plan->count_days();
-		$num_of_meals         = $plan->count_meals();
-		$serving_range_string = $plan->get_servings_range_string();
-		$avg_cost             = $plan->calculate_avg_cost_per_serving();
-		$currency             = get_option( 'mixmymeals_currency', '€' );
 
 		// The same actions as [mmm_meal_plan_actions], add-ons' included.
 		$actions = self::meal_plan_action_items( $plan_id, (string) $atts['cart_url'] );
@@ -5538,53 +5680,7 @@ class Mixmymeals_Shortcodes {
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
-				<?php
-				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
-				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
-				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
-				echo self::diet_chips( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
-				?>
-				<?php if ( $num_of_days ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-calendar-days" aria-hidden="true"></i><?php
-						echo esc_html(
-							self::chip_text(
-								'plan_days',
-								array(
-									'count' => number_format_i18n( $num_of_days ),
-									/* translators: the word after a number of days a plan lasts. */
-									'unit'  => _n( 'Day', 'Days', $num_of_days, 'mixmymeals' ),
-								)
-							)
-						);
-						?></span>
-				<?php endif; ?>
-				<?php if ( $num_of_meals ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-book" aria-hidden="true"></i><?php
-						echo esc_html(
-							self::chip_text(
-								'plan_recipes',
-								array(
-									'count' => number_format_i18n( $num_of_meals ),
-									/* translators: the word after a number of recipes on a plan. */
-									'unit'  => _n( 'Recipe', 'Recipes', $num_of_meals, 'mixmymeals' ),
-								)
-							)
-						);
-						?></span>
-				<?php endif; ?>
-				<?php if ( $serving_range_string ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'plan_servings', array( 'range' => $serving_range_string ) ) ); ?></span>
-				<?php endif; ?>
-				<?php if ( $avg_cost > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php
-						echo esc_html(
-							self::chip_text(
-								'price',
-								array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
-							)
-						);
-						?></span>
-				<?php endif; ?>
+				<?php echo self::meal_plan_stat_chips( (int) $plan_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
             </div>
 
 				<?php if ( has_excerpt( $plan_id ) ) : ?>
@@ -5647,14 +5743,6 @@ class Mixmymeals_Shortcodes {
 
 		$title    = get_the_title( $recipe_id );
 		$servings = (int) $recipe->get_servings();
-		$cost     = $recipe->calculate_cost_per_serving();
-		$currency = get_option( 'mixmymeals_currency', '€' );
-
-		$nutrition = $recipe->calculate_nutrition_per_serving();
-		$kcal      = (int) round( $nutrition['calories'] ?? 0 );
-
-		$prep_minutes     = $recipe->get_preparation_time();
-		$prep_time_string = self::format_prep_time( $prep_minutes );
 
 		ob_start();
 		?>
@@ -5670,47 +5758,7 @@ class Mixmymeals_Shortcodes {
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
-				<?php
-				// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
-				// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
-				echo self::disclosure_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
-				echo self::diet_chips( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
-				?>
-				<?php if ( $servings ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
-						echo esc_html(
-							self::chip_text(
-								'servings',
-								array(
-									'count' => number_format_i18n( absint( $servings ) ),
-									/* translators: the word after a number of servings. */
-									'unit'  => _n( 'Serving', 'Servings', (int) $servings, 'mixmymeals' ),
-								)
-							)
-						);
-						?></span>
-				<?php endif; ?>
-				<?php if ( $prep_time_string ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-clock" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) ) ); ?></span>
-				<?php endif; ?>
-				<?php if ( $kcal > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) ) ); ?></span>
-				<?php endif; ?>
-				<?php if ( $cost > 0 ) : ?>
-                    <span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php
-						echo esc_html(
-							self::chip_text(
-								'price',
-								array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency )
-							)
-						);
-						?></span>
-				<?php endif; ?>
-				<?php
-				// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
-				// Gericht ist, und gehoert damit hinter die Kennzahlen des Essens.
-				echo self::keeping_chip( (int) get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
-				?>
+				<?php echo self::recipe_stat_chips( (int) $recipe_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
             </div>
 
 			<?php if ( has_excerpt( $recipe_id ) ) : ?>
@@ -5736,6 +5784,304 @@ class Mixmymeals_Shortcodes {
 		<?php
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_embed id=""]: one recipe as a card inside any
+	 * other content — a blog post, a page. Picture, title, the hero's chip
+	 * row, the recipe's excerpt and a link to it, plus "Add to Planner".
+	 *
+	 * Attributes: id (post ID or slug, required), image, excerpt, planner
+	 * (1/0, default 1), heading (h2–h4, default h3), button (link label).
+	 *
+	 * Structure only; the look is the theme's (.mmm-embed).
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_recipe_embed_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'id'      => '',
+				'image'   => '1',
+				'excerpt' => '1',
+				'planner' => '1',
+				'heading' => 'h3',
+				'button'  => '',
+			),
+			$atts,
+			'mmm_recipe_embed'
+		);
+
+		$recipe_id = self::embed_target( (string) $atts['id'], 'mmm_recipe' );
+
+		if ( ! $recipe_id || ! ( new Mixmymeals_Recipe( $recipe_id ) )->is_valid() ) {
+			return self::embed_missing( __( 'Recipe not found or not published.', 'mixmymeals' ) );
+		}
+
+		$media = '';
+		if ( filter_var( $atts['image'], FILTER_VALIDATE_BOOLEAN ) ) {
+			$media = (string) get_the_post_thumbnail(
+				$recipe_id,
+				'medium_large',
+				array(
+					'loading' => 'lazy',
+					'alt'     => '',
+				)
+			);
+		}
+
+		$actions = '';
+		if ( filter_var( $atts['planner'], FILTER_VALIDATE_BOOLEAN ) ) {
+			$actions = $this->render_add_to_planner_button(
+				$recipe_id,
+				array(
+					'element' => 'button',
+					'class'   => 'mmm-btn mmm-btn--ghost mmm-embed__planner',
+				)
+			);
+		}
+
+		return $this->render_embed_card(
+			array(
+				'post_id' => $recipe_id,
+				'type'    => 'recipe',
+				'kicker'  => _x( 'Recipe', 'embed kicker', 'mixmymeals' ),
+				'media'   => $media,
+				'mosaic'  => 0,
+				'rating'  => $this->mmm_recipe_rating_callback(
+					array(
+						'id'         => $recipe_id,
+						'hide_empty' => 1,
+					)
+				),
+				'chips'   => self::recipe_stat_chips( $recipe_id ),
+				'excerpt' => filter_var( $atts['excerpt'], FILTER_VALIDATE_BOOLEAN ),
+				'extra'   => '',
+				'heading' => (string) $atts['heading'],
+				'button'  => '' !== $atts['button'] ? (string) $atts['button'] : __( 'View recipe', 'mixmymeals' ),
+				'actions' => $actions,
+			)
+		);
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plan_embed id=""]: one meal plan as a card inside
+	 * any other content. Picture or mosaic of its dishes, title, the hero's
+	 * chip row, the excerpt, the dishes by name and a link to the plan.
+	 *
+	 * Attributes: id (post ID or slug, required), image, excerpt (1/0),
+	 * recipes (how many dish names to list, 0 = none, default 6),
+	 * heading (h2–h4, default h3), button (link label).
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_meal_plan_embed_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'id'      => '',
+				'image'   => '1',
+				'excerpt' => '1',
+				'recipes' => '6',
+				'heading' => 'h3',
+				'button'  => '',
+			),
+			$atts,
+			'mmm_meal_plan_embed'
+		);
+
+		$plan_id = self::embed_target( (string) $atts['id'], 'mmm_meal_plan' );
+
+		if ( ! $plan_id ) {
+			return self::embed_missing( __( 'Meal plan not found or not published.', 'mixmymeals' ) );
+		}
+
+		$media  = '';
+		$mosaic = 0;
+		if ( filter_var( $atts['image'], FILTER_VALIDATE_BOOLEAN ) ) {
+			// The browse cards' rule: a mosaic from two pictures up, below that
+			// the single image — one tile in a grid for three looks broken.
+			$images = $this->get_meal_plan_card_images( $plan_id, 3, 'medium_large' );
+			if ( count( $images ) >= 2 ) {
+				$mosaic = count( $images );
+				$media  = implode( '', $images );
+			} else {
+				$media = $this->get_meal_plan_card_thumbnail( $plan_id, 'medium_large' );
+			}
+		}
+
+		return $this->render_embed_card(
+			array(
+				'post_id' => $plan_id,
+				'type'    => 'meal-plan',
+				'kicker'  => __( 'Meal Plan', 'mixmymeals' ),
+				'media'   => $media,
+				'mosaic'  => $mosaic,
+				'rating'  => '',
+				'chips'   => self::meal_plan_stat_chips( $plan_id ),
+				'excerpt' => filter_var( $atts['excerpt'], FILTER_VALIDATE_BOOLEAN ),
+				'extra'   => $this->render_embed_dishes( $plan_id, max( 0, (int) $atts['recipes'] ) ),
+				'heading' => (string) $atts['heading'],
+				'button'  => '' !== $atts['button'] ? (string) $atts['button'] : __( 'View meal plan', 'mixmymeals' ),
+				'actions' => '',
+			)
+		);
+	}
+
+	/**
+	 * Resolves the id attribute of an embed: a post ID or a slug, of the given
+	 * type, published and not password protected. Unlisted posts are allowed —
+	 * whoever names one in a post has chosen to show it.
+	 *
+	 * @param string $value     The attribute as written.
+	 * @param string $post_type mmm_recipe or mmm_meal_plan.
+	 * @return int Post ID, or 0.
+	 */
+	private static function embed_target( string $value, string $post_type ): int {
+
+		$value = trim( $value );
+		if ( '' === $value ) {
+			return 0;
+		}
+
+		if ( ctype_digit( $value ) ) {
+			$post = get_post( (int) $value );
+		} else {
+			$post = get_page_by_path( sanitize_title( $value ), OBJECT, $post_type );
+		}
+
+		if ( ! $post instanceof WP_Post
+			|| $post->post_type !== $post_type
+			|| 'publish' !== $post->post_status
+			|| post_password_required( $post ) ) {
+			return 0;
+		}
+
+		return (int) $post->ID;
+	}
+
+	/**
+	 * What an embed prints when its target is gone: nothing for visitors, a
+	 * line for whoever can edit the post, so a broken embed is found in the
+	 * preview rather than by a reader wondering about a gap.
+	 *
+	 * @param string $message Plain text.
+	 * @return string
+	 */
+	private static function embed_missing( string $message ): string {
+
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return '';
+		}
+
+		return '<p class="mmm-embed mmm-embed--missing">' . esc_html( $message ) . '</p>';
+	}
+
+	/**
+	 * The dish names of a plan for its embed: each recipe once, in plan order,
+	 * at most $max, and "and N more" for the rest.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @param int $max     How many names to list; 0 lists none.
+	 * @return string
+	 */
+	private function render_embed_dishes( int $plan_id, int $max ): string {
+
+		if ( $max <= 0 ) {
+			return '';
+		}
+
+		$titles = array();
+		foreach ( ( new Mixmymeals_Meal_Plan( $plan_id ) )->get_meals() as $meal_post ) {
+			$recipe_id = (int) ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id();
+			if ( $recipe_id > 0 && ! isset( $titles[ $recipe_id ] ) && 'publish' === get_post_status( $recipe_id ) ) {
+				$titles[ $recipe_id ] = get_the_title( $recipe_id );
+			}
+		}
+
+		if ( empty( $titles ) ) {
+			return '';
+		}
+
+		$shown = array_slice( $titles, 0, $max );
+		$rest  = count( $titles ) - count( $shown );
+
+		$out = '<ul class="mmm-embed__dishes">';
+		foreach ( $shown as $title ) {
+			$out .= '<li class="mmm-embed__dish">' . esc_html( $title ) . '</li>';
+		}
+		if ( $rest > 0 ) {
+			$out .= '<li class="mmm-embed__dish mmm-embed__dish--more">'
+				/* translators: %s: number of further recipes on the plan. */
+				. esc_html( sprintf( _n( 'and %s more recipe', 'and %s more recipes', $rest, 'mixmymeals' ), number_format_i18n( $rest ) ) )
+				. '</li>';
+		}
+		$out .= '</ul>';
+
+		return $out;
+	}
+
+	/**
+	 * The card both embeds share.
+	 *
+	 * @param array $card post_id, type, kicker, media, mosaic, rating, chips,
+	 *                    excerpt (bool), extra, heading, button, actions.
+	 * @return string
+	 */
+	private function render_embed_card( array $card ): string {
+
+		$post_id   = (int) $card['post_id'];
+		$permalink = (string) get_permalink( $post_id );
+		$heading   = in_array( $card['heading'], array( 'h2', 'h3', 'h4' ), true ) ? $card['heading'] : 'h3';
+		$media     = (string) $card['media'];
+
+		$classes = 'mmm-embed mmm-embed--' . $card['type'] . ( '' === $media ? ' mmm-embed--noimg' : '' );
+
+		$out = '<aside class="' . esc_attr( $classes ) . '">';
+
+		if ( '' !== $media ) {
+			// Out of the tab order and hidden from screen readers: the title
+			// carries the same link, and one link per card is enough to hear.
+			$out .= '<a class="mmm-embed__media" href="' . esc_url( $permalink ) . '" tabindex="-1" aria-hidden="true">';
+			if ( $card['mosaic'] ) {
+				$out .= '<span class="mmm-embed__mosaic mmm-embed__mosaic--' . (int) $card['mosaic'] . '">' . $media . '</span>';
+			} else {
+				$out .= $media;
+			}
+			$out .= '</a>';
+		}
+
+		$out .= '<div class="mmm-embed__body">';
+		$out .= '<p class="mmm-embed__kicker">' . esc_html( $card['kicker'] ) . '</p>';
+		$out .= '<' . $heading . ' class="mmm-embed__title"><a href="' . esc_url( $permalink ) . '">'
+			. esc_html( get_the_title( $post_id ) ) . '</a></' . $heading . '>';
+
+		if ( '' !== $card['rating'] ) {
+			$out .= '<div class="mmm-embed__rating">' . $card['rating'] . '</div>';
+		}
+
+		if ( '' !== $card['chips'] ) {
+			$out .= '<div class="mmm-embed__meta">' . $card['chips'] . '</div>';
+		}
+
+		if ( $card['excerpt'] && has_excerpt( $post_id ) ) {
+			$out .= '<p class="mmm-embed__lead">' . esc_html( get_the_excerpt( $post_id ) ) . '</p>';
+		}
+
+		$out .= $card['extra'];
+
+		$out .= '<div class="mmm-embed__actions">'
+			. '<a class="mmm-btn mmm-btn--primary mmm-embed__link" href="' . esc_url( $permalink ) . '">'
+			. esc_html( $card['button'] ) . '</a>'
+			. $card['actions']
+			. '</div>';
+
+		$out .= '</div></aside>';
+
+		return $out;
 	}
 
 	/**

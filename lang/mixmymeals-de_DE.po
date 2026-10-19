@@ -7468,3 +7468,31 @@ msgstr "Vorarbeiten für %s:"
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Preparations"
 msgstr "Vorbereitungen"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgctxt "embed kicker"
+msgid "Recipe"
+msgstr "Rezept"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Recipe not found or not published."
+msgstr "Rezept nicht gefunden oder nicht veröffentlicht."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Meal plan not found or not published."
+msgstr "Essensplan nicht gefunden oder nicht veröffentlicht."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "View recipe"
+msgstr "Zum Rezept"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "View meal plan"
+msgstr "Zum Essensplan"
+
+#. translators: %s: number of further recipes on the plan.
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "and %s more recipe"
+msgid_plural "and %s more recipes"
+msgstr[0] "und %s weiteres Rezept"
+msgstr[1] "und %s weitere Rezepte"

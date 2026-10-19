@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.64.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.65.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -579,6 +579,14 @@ Instagram and Pinterest publishing lives in a separate plugin (`mixmymeals-socia
 The Social add-on registers its REST routes into this plugin's `mixmymeals/v1` namespace on purpose: the MCP server addresses those paths, and a separate namespace would break it for no gain.
 
 The frontend admin panel (`[mmm_admin_actions]`, `admin-board.js`, the `mixmymeals_admin_board_services` filter) was removed in 3.60.0. Publishing, status changes and trashing happen in wp-admin; a theme still printing the shortcode now shows its literal text, so remove it from templates.
+
+### Embeds in blog posts
+
+`[mmm_recipe_embed id=""]` and `[mmm_meal_plan_embed id=""]` show one recipe or plan as a card inside other content. `id` is a post ID or a slug (`embed_target()`); only published, not password-protected posts resolve, unlisted ones do — naming one in a post is a choice to show it. A miss prints nothing for visitors and `p.mmm-embed--missing` for anyone with `edit_posts` (`embed_missing()`), so a broken embed is found in the preview.
+
+**The chip row is the hero's, not a copy.** `recipe_stat_chips()` and `meal_plan_stat_chips()` were pulled out of `[mmm_recipe_hero]` / `[mmm_meal_plan_hero]` and both heroes and both embeds call them, so a teaser in a blog post cannot state another price or kcal figure than the page it links to — and the disclosure chip comes first in the embed exactly as in the hero, which is what keeps a sponsored recipe labelled wherever it is shown. Pictures follow the browse cards' rule (mosaic from two images up, `get_meal_plan_card_images()`); a plan lists its dishes by name, each once (`render_embed_dishes()`). Both cards come out of `render_embed_card()`.
+
+Markup: `aside.mmm-embed.mmm-embed--{recipe|meal-plan}[.mmm-embed--noimg]` › `a.mmm-embed__media` (out of tab order; the title carries the same link) and `.mmm-embed__body` › `__kicker`, `__title`, `__rating`, `__meta`, `__lead`, `ul.__dishes`, `__actions`. `frontend.css` holds the structure (picture beside the text where the column allows, above it where it does not; mosaic placed by `nth-of-type`), the child theme the look — including turning "Add to Planner", whose filled look the theme enforces with `!important`, into a ghost button beside "View recipe". No schema.org is printed: the recipe page owns that markup, and a second Recipe block on a blog post would be a duplicate.
 
 ### Chip wording
 

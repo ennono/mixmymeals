@@ -494,3 +494,103 @@ body.mmm-cook-mode-open {
     gap: 0.4em;
     font-size: 0.85em;
 }
+
+/* Embeds — [mmm_recipe_embed] and [mmm_meal_plan_embed], one recipe or plan
+   as a card inside a blog post. Structure only: picture beside the text where
+   the column is wide enough, above it where it is not, and a mosaic for a
+   plan with several pictures. Frame, colours and type are the theme's. */
+.mmm-embed {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 1.5em 0;
+    overflow: hidden;
+}
+
+.mmm-embed__media {
+    display: block;
+    flex: 1 1 240px;
+    min-height: 180px;
+    position: relative;
+}
+
+.mmm-embed__media > img,
+.mmm-embed__mosaic img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    margin: 0;
+}
+
+.mmm-embed__media > img {
+    position: absolute;
+    inset: 0;
+}
+
+.mmm-embed__body {
+    display: flex;
+    flex-direction: column;
+    flex: 2 1 300px;
+    min-width: 0;
+    padding: 1em 1.25em;
+}
+
+.mmm-embed__kicker,
+.mmm-embed__title,
+.mmm-embed__lead {
+    margin: 0 0 0.5em;
+}
+
+.mmm-embed__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em;
+    margin: 0 0 0.75em;
+}
+
+.mmm-embed__dishes {
+    margin: 0 0 0.75em;
+    padding: 0;
+    list-style: none;
+}
+
+.mmm-embed__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    margin-top: auto;
+}
+
+/* Placed tile by tile, like the browse cards' mosaic: an image optimiser's
+   <noscript> beside each picture would otherwise take a cell. min-height: 0
+   keeps a tall thumbnail from pushing its row open. */
+.mmm-embed__mosaic {
+    display: grid;
+    position: absolute;
+    inset: 0;
+    gap: 2px;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.mmm-embed__mosaic img {
+    min-height: 0;
+}
+
+.mmm-embed__mosaic img:nth-of-type(1) { grid-column: 1; grid-row: 1 / -1; }
+.mmm-embed__mosaic img:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+.mmm-embed__mosaic img:nth-of-type(3) { grid-column: 2; grid-row: 2; }
+
+.mmm-embed__mosaic--2 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+}
+
+.mmm-embed__mosaic--2 img:nth-of-type(1) { grid-row: 1; }
+
+/* Only editors see this: an embed whose recipe or plan is gone. */
+.mmm-embed--missing {
+    display: block;
+    padding: 0.75em 1em;
+    border: 1px dashed currentColor;
+}

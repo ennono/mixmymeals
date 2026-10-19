@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.64.3
+Stable tag: 3.65.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.65.0 =
+
+Added:
+* `[mmm_recipe_embed id="…"]` and `[mmm_meal_plan_embed id="…"]` put a
+  single recipe or meal plan into a blog post or page as a card:
+  picture (a mosaic of its dishes for a plan), title, the same chips as
+  the recipe or plan page, the excerpt, a link to it and, for a recipe,
+  "Add to Planner". A plan also names its dishes. `id` takes the post ID
+  or the slug; `image`, `excerpt`, `planner` (recipe), `recipes` (plan,
+  how many dish names, 0 = none), `heading` (h2–h4) and `button` (link
+  label) are optional. A recipe or plan that is not published prints
+  nothing for visitors and a notice for editors. The plugin ships the
+  structure; the look comes from the theme (`.mmm-embed`).
 
 = 3.64.3 =
 
