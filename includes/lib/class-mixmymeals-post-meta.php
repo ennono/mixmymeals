@@ -555,11 +555,16 @@ class Mixmymeals_Post_Meta {
 					. esc_html__( 'Not an option here:', 'mixmymeals' ) . '</span> ';
 
 				foreach ( $row_products as $row_product ) {
-					echo '<label><input type="checkbox" name="mmm_recipe_steps['
+					// The product chosen in the select beside it cannot also be
+					// ruled out; admin.js keeps this in step when the pin changes.
+					$mmm_is_pin = (int) $selected_product === (int) $row_product->get_id();
+
+					echo '<label' . ( $mmm_is_pin ? ' class="is-pinned"' : '' ) . '><input type="checkbox" name="mmm_recipe_steps['
 						. absint( $index ) . '][ingredients][' . absint( $i )
 						. '][excluded_products][]" value="'
 						. absint( $row_product->get_id() ) . '" '
-						. checked( in_array( $row_product->get_id(), $blocked, true ), true, false )
+						. checked( ! $mmm_is_pin && in_array( $row_product->get_id(), $blocked, true ), true, false )
+						. disabled( $mmm_is_pin, true, false )
 						. '> ' . esc_html( $row_product->label() ) . '</label> ';
 				}
 			}

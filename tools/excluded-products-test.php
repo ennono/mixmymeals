@@ -298,6 +298,41 @@ mmm_xp_assert(
 	'und tragen ihre Ausschlussliste mit sich'
 );
 
+echo "\n-- 8. Das gewählte Produkt kann nicht zugleich ausgeschlossen sein\n";
+
+$pin_steps = array(
+	array(
+		'title'       => 'Schritt',
+		'description' => 'Text',
+		'ingredients' => array(
+			array(
+				'id'                => $joghurt,
+				'amount'            => 200,
+				'product_id'        => $plain_packet,
+				'excluded_products' => array( $plain_packet, $vegan_packet ),
+			),
+		),
+	),
+);
+
+mmm_xp_post_steps( $recipe_id, $pin_steps );
+$row = ( new Mixmymeals_Recipe( $recipe_id ) )->get_steps()[0]['ingredients'][0] ?? array();
+
+mmm_xp_assert( $plain_packet === (int) ( $row['product_id'] ?? 0 ), 'der Pin bleibt stehen' );
+mmm_xp_assert(
+	array( $vegan_packet ) === array_map( 'intval', $row['excluded_products'] ?? array() ),
+	'sein Ausschluss ist verworfen, der eines anderen Pakets bleibt'
+);
+
+ob_start();
+( new Mixmymeals_Post_Meta() )->render_recipe_steps_meta_box_content( get_post( $recipe_id ) );
+$box = (string) ob_get_clean();
+
+mmm_xp_assert(
+	1 === preg_match( '/<label class="is-pinned"><input[^>]*value="' . $plain_packet . '"[^>]*disabled/', $box ),
+	'im Editor ist das Kästchen des gewählten Produkts gesperrt'
+);
+
 echo "\n=== Aufräumen ===\n";
 
 foreach ( $GLOBALS['MMM_XP_TRASH'] as $trash_id ) {

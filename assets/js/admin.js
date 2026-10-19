@@ -611,7 +611,33 @@ jQuery(document).ready(function ($) {
 
             $box.append($("<label>").append($input).append(" " + product.label)).append(" ");
         });
+
+        syncPinnedExclude($container);
     }
+
+    /**
+     * The product chosen as this row's pin cannot also be ruled out: its box
+     * is unticked and disabled while it is the pin. set_steps() drops such an
+     * exclusion on save as well, so this only keeps the screen from offering
+     * a contradiction.
+     */
+    function syncPinnedExclude($container) {
+        const pinned = String($container.find("select.ingredient-product-select").val() || "0");
+
+        $container.find(".mixmymeals-ingredient-excludes input[type=checkbox]").each(function () {
+            const isPin = pinned !== "0" && String($(this).val()) === pinned;
+
+            if (isPin) {
+                $(this).prop("checked", false);
+            }
+
+            $(this).prop("disabled", isPin).closest("label").toggleClass("is-pinned", isPin);
+        });
+    }
+
+    $(document).on("change", ".mixmymeals-step-ingredient select.ingredient-product-select", function () {
+        syncPinnedExclude($(this).closest(".mixmymeals-step-ingredient"));
+    });
 
     /* ===========================
        DYNAMIC UNIT SELECT (AMOUNTS)

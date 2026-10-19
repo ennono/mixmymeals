@@ -453,6 +453,12 @@
     flex: 0 0 auto;
 }
 
+/* Das als Pin gewählte Paket: gesperrt, weil es nicht zugleich
+   ausgeschlossen sein kann (admin.js, set_steps()). */
+.mixmymeals-ingredient-excludes label.is-pinned {
+    opacity: .5;
+}
+
 /* Add Ingredient Button */
 .mixmymeals-add-ingredient {
     margin-top: 8px;

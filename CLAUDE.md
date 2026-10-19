@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.65.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.65.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -108,7 +108,7 @@ Slugs for public post types and their taxonomy archives are configurable in Sett
 
 **Recipe** — steps stored as a serialized array in post meta `_rmm_steps`. Each step has `title`, `description`, `image`, and an `ingredients` array. Each ingredient entry has `id` (ingredient post ID), `amount` (float), `amount_id` (unit post ID) and `optional` (bool — printed as "(optional)" on the recipe, the shopping list, the PDF and the subscription mails. In the four frontend renderings it is wrapped in `span.mmm-ingredient-optional` so a theme can style it — the child theme sets it in italics; the PDF and the mails print it bare, since neither can reach a theme stylesheet; an unchecked box submits nothing and `set_steps()` reads it with `! empty()`, so absence means required).
 
-**A recipe row may also rule products out**: `_rmm_steps[].ingredients[].excluded_products`, a list of ids of that ingredient's own products, validated on save exactly as the pin is — an id hanging off a different ingredient is dropped rather than stored.
+**A recipe row may also rule products out**: `_rmm_steps[].ingredients[].excluded_products`, a list of ids of that ingredient's own products, validated on save exactly as the pin is — an id hanging off a different ingredient is dropped rather than stored. **The pinned product itself is dropped from the list as well**: a row cannot say "cooked with this packet" and "this packet is not an option" at once, and the pin, being the more explicit statement, wins. `set_steps()` enforces it for every write path; the editor disables that product's box while it is the pin (`syncPinnedExclude()` in `admin.js`, `label.is-pinned`).
 
 **The diet badge is what this is for.** `Mixmymeals_Ingredient::get_diet_suitabilities()` merges the ingredient's diets with those of *every* product it has, so one vegan packet makes the ingredient vegan-capable — that is the point of "capable". But a sweetened soy yoghurt must not make a savoury dish vegan. The method therefore takes an optional `$without` list, passed in per row by `Mixmymeals_Recipe::get_diet_suitabilities()`; the ingredient knows nothing about recipes, so the recipe hands it the exclusion, the same shape as `get_nutrition_pinned()`.
 

@@ -1053,6 +1053,17 @@ class Mixmymeals_Recipe {
 							continue;
 						}
 
+						/*
+						 * Das Paket, mit dem das Gericht gekocht wird, kann
+						 * nicht zugleich ausgeschlossen sein. Der Pin ist die
+						 * ausdrücklichere Aussage und gewinnt; der Ausschluss
+						 * würde sonst die Diät-Aussage um genau das Paket
+						 * kürzen, das im Topf ist.
+						 */
+						if ( $product > 0 && $blocked_id === $product ) {
+							continue;
+						}
+
 						$blocked[] = $blocked_id;
 					}
 
