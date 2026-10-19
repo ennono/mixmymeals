@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.64.2
+Stable tag: 3.64.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,6 +115,15 @@ privacy text under Settings → Privacy after installation.
 
 == Changelog ==
 
+= 3.64.3 =
+
+Fixed:
+* MixMyMeals Printer printed no preparation notes in the PDF's week
+  overview: the grouping it reads, `Mixmymeals_Meal_Plan::calc_prep_by_day()`,
+  was missing from 3.64.0. The plan page and the planner now use the same
+  method, so all three show the same days in the same order — including
+  days that carry only preparation.
+
 = 3.64.2 =
 
 Changed:
@@ -134,12 +143,13 @@ Changed:
   per-weekday table does, is now aligned and weighted like the first
   column everywhere else.
 * In the product comparison the "used for the nutrition figures" pill
-  now sits above the product name rather than under it — it qualifies
-  the whole column, and the columns without one hold its space, so the
-  product names still start at the same height — and the indented "of which" rows are indented
-  there too. They carried a class of their own, so they were the only
-  ones reading as equals, and saturates had been missing from the rule
-  since the figure was added.
+  now sits above the product name rather than under it, since it
+  qualifies the whole column; the columns without one hold its space,
+  so the product names still start at the same height.
+* The indented "of which" rows of that same table are indented too.
+  They carried a class of their own, so they were the only ones reading
+  as equals, and saturates had been missing from the rule since the
+  figure was added.
 
 = 3.64.0 =
 
