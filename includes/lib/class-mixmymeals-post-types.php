@@ -1454,14 +1454,22 @@ class Mixmymeals_Post_Types {
 	 * @return bool
 	 */
 	public static function is_noindex_view(): bool {
-
-		$noindex = is_singular( self::NOINDEX_POST_TYPES );
+		/*
+		 * A plan under ?personen is one reader's shopping question: the same
+		 * plan with other amounts, at as many addresses as there are
+		 * numbers. Any value counts, valid or not — the page exists either
+		 * way. No canonical: the plan page is the one indexed, and `follow`
+		 * leads there.
+		 */
+		$noindex = is_singular( self::NOINDEX_POST_TYPES )
+			|| ( is_singular( 'mmm_meal_plan' ) && Mixmymeals_Meal_Plan::has_servings_param() );
 
 		/**
 		 * Allows forcing the noindex on or off for the current view.
 		 *
 		 * @param bool $noindex Default: true on the singles of
-		 *                      NOINDEX_POST_TYPES.
+		 *                      NOINDEX_POST_TYPES and on a plan carrying
+		 *                      ?personen.
 		 */
 		return (bool) apply_filters( 'mixmymeals_seo_noindex', $noindex );
 	}

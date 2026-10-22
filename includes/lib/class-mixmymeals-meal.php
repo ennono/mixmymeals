@@ -114,6 +114,41 @@ class Mixmymeals_Meal {
 	}
 
 	/**
+	 * The servings the meal page shows: the stored ones, or — under
+	 * ?personen, carried over from the plan page — those of the same meal in
+	 * the plan with that difference applied.
+	 *
+	 * Asks the plan rather than adding the number itself, because the rule
+	 * (at least one, the cap on additions, which values are valid on which
+	 * plan) is Mixmymeals_Meal_Plan::with_servings_offset() and
+	 * parse_servings_value(), and a meal page that applied it on its own
+	 * would sooner or later show another amount than the shopping list.
+	 *
+	 * @return int
+	 */
+	public function get_shown_servings(): int {
+
+		$plan_id = (int) $this->get_parent_plan_id();
+
+		if ( $plan_id <= 0 || ! Mixmymeals_Meal_Plan::has_servings_param() ) {
+			return $this->get_servings();
+		}
+
+		$plan   = new Mixmymeals_Meal_Plan( $plan_id );
+		$offset = $plan->requested_servings_offset();
+
+		if ( 0 !== $offset ) {
+			foreach ( $plan->with_servings_offset( $offset )->get_meal_rows() as $row ) {
+				if ( (int) $row['meal_id'] === $this->post_id ) {
+					return (int) $row['servings'];
+				}
+			}
+		}
+
+		return $this->get_servings();
+	}
+
+	/**
 	 * Sets the number of servings for the meal.
 	 *
 	 * @param int $servings The number of servings to set.

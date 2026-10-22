@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.65.1
+Stable tag: 3.66.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,28 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.66.0 =
+
+Added:
+* Shop for more or fewer people on a meal plan page. A field above the
+  shopping list adds the same number of people to every meal — "For [4]
+  people" where all meals agree, "People: − ±0 + at every meal" with the
+  servings per weekday underneath where they differ. Each meal keeps at
+  least one serving. The shopping list, the Bring! export, the servings in
+  the hero and on the meal cards and the meal pages behind them follow; the
+  figures per day and person, the traffic lights and the day rating do not
+  depend on the number of people and stay as they are. Nothing is saved:
+  the address carries the choice (`?personen=+1`, or `?personen=4` on a
+  plan whose meals agree), so it works without JavaScript and can be
+  shared. Such pages are `noindex, follow`. "Adjust in the planner" next to
+  the field loads the plan with the difference applied.
+* Where a plan's meals differ in servings, each day says how many people
+  it is planned for ("4 people", "2–4 people").
+
+Changed:
+* The shopping list is computed from the plan's meal rows, the way its
+  nutrition already was. A saved plan's list is unchanged.
 
 = 3.65.1 =
 
