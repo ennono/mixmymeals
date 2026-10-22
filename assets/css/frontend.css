@@ -594,3 +594,54 @@ body.mmm-cook-mode-open {
     padding: 0.75em 1em;
     border: 1px dashed currentColor;
 }
+
+/* ==========================================================
+   PLAN SERVINGS — the field above a plan's shopping list
+   (?mmm_persons_to_add). Structure only: one line, − value +, and
+   the planner link beside it where there is room; the look is the
+   theme's. .mmm-servings-delta is the "+1" appended to servings on
+   the rail and in the hero.
+   ========================================================== */
+.mmm-plan-servings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 1em;
+    row-gap: 0.25em;
+}
+
+.mmm-plan-servings__line,
+.mmm-plan-servings__controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35em;
+}
+
+.mmm-plan-servings__step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2em;
+    min-height: 2em;
+    text-decoration: none;
+}
+
+.mmm-plan-servings__step.is-disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.mmm-plan-servings__value {
+    min-width: 1.75em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.mmm-servings-delta[hidden] {
+    display: none;
+}
+
+.mmm-plan-shopping__list[aria-busy="true"] {
+    opacity: 0.6;
+}

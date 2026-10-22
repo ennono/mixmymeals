@@ -411,6 +411,11 @@ class Mixmymeals_Shortcodes {
 			[ $this, 'mmm_planner_nutrition_ajax_callback' ] );
 		add_action( 'wp_ajax_nopriv_mmm_planner_nutrition',
 			[ $this, 'mmm_planner_nutrition_ajax_callback' ] );
+		// The plan page's servings field: read-only, for guests too.
+		add_action( 'wp_ajax_mmm_plan_servings',
+			array( $this, 'mmm_plan_servings_ajax_callback' ) );
+		add_action( 'wp_ajax_nopriv_mmm_plan_servings',
+			array( $this, 'mmm_plan_servings_ajax_callback' ) );
 		add_action( 'wp_ajax_mmm_create_meal_plan',
 			array( $this, 'mmm_create_meal_plan_ajax_callback' ) );
 		add_action( 'wp_ajax_nopriv_mmm_create_meal_plan',
@@ -1861,7 +1866,7 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$recipe_servings = max( 1.0, floatval( $recipe->get_servings() ) );
-		$meal_servings   = max( 1.0, floatval( $meal->get_servings() ) );
+		$meal_servings   = max( 1.0, floatval( $meal->get_shown_servings() ) );
 		$scaling_factor  = $meal_servings / $recipe_servings;
 
 		$ingredients_scaled = $recipe->get_ingredients_scaled( $scaling_factor );
@@ -2016,7 +2021,7 @@ class Mixmymeals_Shortcodes {
 		$recipe = new Mixmymeals_Recipe( $recipe_id );
 
 		$recipe_servings = max( 1.0, floatval( $recipe->get_servings() ) );
-		$meal_servings   = max( 1.0, floatval( $meal->get_servings() ) );
+		$meal_servings   = max( 1.0, floatval( $meal->get_shown_servings() ) );
 		$factor          = $meal_servings / $recipe_servings;
 
 		$ingredients = $recipe->get_ingredients_scaled( $factor );
@@ -2640,6 +2645,17 @@ class Mixmymeals_Shortcodes {
 		$meals     = $meal_plan->get_meals();
 
 		/*
+		 * Under ?mmm_persons_to_add the cards keep the servings the plan
+		 * stores and append what the difference does to them ("3 Portionen
+		 * +1"), and link to meal pages scaled the same way. The servings per
+		 * weekday only where the meals differ: on a plan feeding four
+		 * throughout, the hero's single "4" says it once for every day.
+		 */
+		$mmm_offset     = $meal_plan->requested_servings_offset();
+		$mmm_changes    = $meal_plan->servings_changes( $mmm_offset );
+		$mmm_day_people = 0 === $meal_plan->servings_base() ? $meal_plan->servings_by_day() : array();
+
+		/*
 		 * Plan ohne Mahlzeiten: Der Tages-Rail wäre sonst eine leere Hülle, weil
 		 * jeder Tag ohne Einträge übersprungen wird. Stattdessen ein Hinweis,
 		 * dessen Wortlaut der Aufrufer bestimmt.
@@ -2806,6 +2822,9 @@ class Mixmymeals_Shortcodes {
 						<?php if ( $is_today ) : ?>
                             <span class="mmm-badge"><?php esc_html_e( 'Today', 'mixmymeals' ); ?></span>
 						<?php endif; ?>
+						<?php if ( isset( $mmm_day_people[ $day_number ] ) ) : ?>
+                            <span class="mmm-rail-day__servings" data-plan-servings-day="<?php echo esc_attr( (string) $day_number ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_people( $mmm_day_people[ $day_number ]['min'], $mmm_day_people[ $day_number ]['max'] ) ); ?><?php echo self::servings_delta_html( $mmm_changes['days'][ $day_number ] ?? null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
+						<?php endif; ?>
 						<?php if ( $day_head_info ) : ?>
                             <span class="mmm-rail-day__kcal mmm-rail-day__kcal--day"><?php echo esc_html( $day_head_info ); ?></span>
 						<?php endif; ?>
@@ -2871,7 +2890,7 @@ class Mixmymeals_Shortcodes {
 						$prep_minutes     = $recipe->get_preparation_time();
 						$prep_time_string = self::format_prep_time( $prep_minutes );
 
-						$meal_url   = get_permalink( $meal->get_id() );
+						$meal_url   = $meal_plan->add_servings_arg( (string) get_permalink( $meal->get_id() ), $mmm_offset );
 						$title      = get_the_title( $recipe_id );
 						$categories = $recipe->get_categories();
 						$tags       = get_the_terms( $recipe_id, 'mmm_recipe_tag' );
@@ -2897,8 +2916,10 @@ class Mixmymeals_Shortcodes {
 						 * thumbnail is 124px square, 84px on phones.
 						 */
 						$meal_disclosure = self::disclosure_chip( (int) $meal->get_id() );
+
+						$mmm_card_delta = (int) ( $mmm_changes['meals'][ (int) $meal->get_id() ] ?? 0 );
 						?>
-                        <a class="mmm-recipe-card<?php echo $thumb_id ? '' : ' mmm-recipe-card--noimg'; ?>" href="<?php echo esc_url( $meal_url ); ?>">
+                        <a class="mmm-recipe-card<?php echo $thumb_id ? '' : ' mmm-recipe-card--noimg'; ?>" href="<?php echo esc_url( $meal_url ); ?>" data-meal-id="<?php echo esc_attr( (string) $meal->get_id() ); ?>">
 							<?php if ( $thumb_id ) : ?>
                             <div class="mmm-recipe-card__media">
 								<?php
@@ -2930,18 +2951,7 @@ class Mixmymeals_Shortcodes {
                                 <div class="mmm-recipe-card__meta">
 									<?php echo $meal_disclosure; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 									<?php if ( $meal->get_servings() ) : ?>
-                                        <span class="mmm-chip"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php
-											echo esc_html(
-												self::chip_text(
-													'servings',
-													array(
-														'count' => number_format_i18n( (int) $meal->get_servings() ),
-														/* translators: the word after a number of servings. */
-														'unit'  => _n( 'Serving', 'Servings', (int) $meal->get_servings(), 'mixmymeals' ),
-													)
-												)
-											);
-											?></span>
+                                        <span class="mmm-chip mmm-chip--servings"><i class="mmm-icon fa-solid fa-users" aria-hidden="true"></i><?php echo esc_html( self::meal_servings_chip_text( (int) $meal->get_servings() ) ); ?><?php echo self::servings_delta_html( array( 'min' => $mmm_card_delta, 'max' => $mmm_card_delta ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
 									<?php endif; ?>
 									<?php if ( $prep_time_string ) : ?>
                                         <span class="mmm-chip"><i class="mmm-icon fa-solid fa-clock" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) ) ); ?></span>
@@ -2982,9 +2992,17 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_shopping_list_for_a_single_meal_plan].
-	 * Renders a grouped shopping list for the current or specified meal plan.
+	 * Renders a grouped shopping list for the current or specified meal plan,
+	 * with the servings field above it (see render_servings_control()).
 	 *
-	 * @param array|string $atts Shortcode attributes: show_details, sort_by_category, meal_plan_id.
+	 * The list is for the plan under ?mmm_persons_to_add — the stored plan when the
+	 * address carries none — whether or not the field is shown, so a link
+	 * somebody shared shows the list it was shared for.
+	 *
+	 * @param array|string $atts Shortcode attributes: show_details,
+	 *                           sort_by_category, meal_plan_id,
+	 *                           servings_control (default on), cart_url
+	 *                           (where "change single days" leads).
 	 * @return string
 	 */
 	public function mmm_shopping_list_for_a_single_meal_plan_callback( $atts = []
@@ -2995,6 +3013,8 @@ class Mixmymeals_Shortcodes {
 				'show_details'     => true,
 				'sort_by_category' => true,
 				'meal_plan_id'     => null,
+				'servings_control' => true,
+				'cart_url'         => '',
 			],
 			$atts,
 			'mmm_shopping_list_for_a_single_meal_plan'
@@ -3015,6 +3035,45 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$meal_plan_obj = new Mixmymeals_Meal_Plan( $meal_plan_id );
+		$offset        = $meal_plan_obj->requested_servings_offset();
+		$list          = $this->render_shopping_list(
+			$meal_plan_obj->with_servings_offset( $offset ),
+			$show_details,
+			$sort_by_category
+		);
+
+		$with_control = filter_var( $atts['servings_control'], FILTER_VALIDATE_BOOLEAN )
+			&& 'mmm_meal_plan' === get_post_type( $meal_plan_id )
+			&& $meal_plan_obj->get_meal_rows();
+
+		if ( ! $with_control ) {
+			return $list;
+		}
+
+		/*
+		 * The field and the list in one wrapper, which frontend.js finds and
+		 * refills from the `mmm_plan_servings` answer. The first answer is
+		 * this one, rendered here, so the page works without the script.
+		 */
+		return '<div class="mmm-plan-shopping" data-plan-shopping="' . esc_attr( (string) $meal_plan_id ) . '"'
+			. ' data-show-details="' . ( $show_details ? '1' : '0' ) . '"'
+			. ' data-sort-by-category="' . ( $sort_by_category ? '1' : '0' ) . '">'
+			. $this->render_servings_control( $meal_plan_obj, $offset, (string) $atts['cart_url'] )
+			. '<div class="mmm-plan-shopping__list" data-plan-shopping-list>' . $list . '</div>'
+			. '</div>';
+	}
+
+	/**
+	 * The shopping list of a plan, as [mmm_shopping_list_for_a_single_meal_plan]
+	 * and the `mmm_plan_servings` answer print it.
+	 *
+	 * @param Mixmymeals_Meal_Plan $meal_plan_obj    The plan — saved, or derived by with_servings_offset().
+	 * @param bool                 $show_details     Each line opens to the recipes it comes from.
+	 * @param bool                 $sort_by_category Grouped by ingredient category.
+	 * @return string
+	 */
+	private function render_shopping_list( Mixmymeals_Meal_Plan $meal_plan_obj, bool $show_details, bool $sort_by_category ): string {
+
 		$ingredients_by_cat
 		               = $meal_plan_obj->calc_shopping_list( $sort_by_category );
 
@@ -3132,6 +3191,227 @@ class Mixmymeals_Shortcodes {
 		// (Mixmymeals_Meal_Plan::render_bring_page()).
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * The servings field above a plan's shopping list.
+	 *
+	 * Adds the same number of people to every meal — a difference, never a
+	 * factor (see Mixmymeals_Meal_Plan::with_servings_offset()). One quiet
+	 * line rather than a panel: it is a setting of the list below it, not a
+	 * section of its own. A plan whose meals all agree reads "For − 5 +
+	 * people", the number being the resulting count; a mixed one reads
+	 * "People: − +1 + at every meal", because there no single count exists.
+	 * What the difference does per meal and per day is appended to the
+	 * servings the rail already prints ("3 Portionen +1"), so the field does
+	 * not repeat it.
+	 *
+	 * Built to work without JavaScript: − and + are links to the address of
+	 * the next value. frontend.js takes them over and swaps field and list
+	 * from the `mmm_plan_servings` answer.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan     The saved plan.
+	 * @param int                  $offset   The difference in force.
+	 * @param string               $cart_url Where the planner link leads after loading.
+	 * @return string
+	 */
+	private function render_servings_control( Mixmymeals_Meal_Plan $plan, int $offset, string $cart_url ): string {
+
+		$plan_id = $plan->get_id();
+		$base    = $plan->servings_base();
+		$bounds  = $plan->servings_offset_bounds();
+		$page    = (string) get_permalink( $plan_id );
+		$anchor  = 'mmm-plan-servings-' . $plan_id;
+
+		$step = static function ( int $to, string $dir ) use ( $plan, $bounds, $page, $anchor ): string {
+
+			$class = 'mmm-plan-servings__step mmm-plan-servings__step--' . $dir;
+			$glyph = 'down' === $dir ? "\u{2212}" : '+';
+
+			if ( $to < $bounds['min'] || $to > $bounds['max'] ) {
+				return '<span class="' . esc_attr( $class ) . ' is-disabled" aria-hidden="true">' . esc_html( $glyph ) . '</span>';
+			}
+
+			$label = 'down' === $dir
+				? __( 'One person fewer at every meal', 'mixmymeals' )
+				: __( 'One person more at every meal', 'mixmymeals' );
+
+			return '<a class="' . esc_attr( $class ) . '" rel="nofollow"'
+				. ' href="' . esc_url( $plan->add_servings_arg( $page, $to ) . '#' . $anchor ) . '"'
+				. ' data-persons="' . esc_attr( $plan->servings_query_value( $to ) ) . '"'
+				. ' aria-label="' . esc_attr( $label ) . '">' . esc_html( $glyph ) . '</a>';
+		};
+
+		if ( $base > 0 ) {
+			$count    = max( 1, $base + $offset );
+			$value    = number_format_i18n( $count );
+			/* translators: %s: − the number of people +. Keep the %s. */
+			$sentence = _n( 'For %s person', 'For %s people', $count, 'mixmymeals' );
+		} else {
+			$value    = 0 === $offset ? '±0' : Mixmymeals_Meal_Plan::format_servings_delta( $offset, $offset );
+			/* translators: %s: − the change +. Keep the %s. */
+			$sentence = __( 'People: %s at every meal', 'mixmymeals' );
+		}
+
+		$controls = $step( $offset - 1, 'down' )
+			. '<output class="mmm-plan-servings__value">' . esc_html( $value ) . '</output>'
+			. $step( $offset + 1, 'up' );
+
+		$parts = explode( '%s', $sentence, 2 );
+		$line  = ( '' !== trim( $parts[0] ) ? '<span class="mmm-plan-servings__text">' . esc_html( trim( $parts[0] ) ) . '</span>' : '' )
+			. '<span class="mmm-plan-servings__controls" role="group" aria-label="' . esc_attr__( 'Number of people', 'mixmymeals' ) . '">' . $controls . '</span>'
+			. ( isset( $parts[1] ) && '' !== trim( $parts[1] ) ? '<span class="mmm-plan-servings__text">' . esc_html( trim( $parts[1] ) ) . '</span>' : '' );
+
+		// Changing single days is the planner's job; this hands the plan
+		// over — with the difference applied — through the existing action
+		// and its confirmation, since it replaces the visitor's planner.
+		$planner = '<span class="mmm-plan-servings__planner">'
+			. esc_html__( 'Change single days?', 'mixmymeals' ) . ' '
+			. '<a href="#" class="mmm-meal-plan-actions__item--load-into-cart mmm-plan-servings__planner-link"'
+			. ' data-meal-plan-id="' . esc_attr( (string) $plan_id ) . '"'
+			. ' data-redirect-url="' . esc_attr( esc_url_raw( $cart_url ) ) . '"'
+			. ' data-persons="' . esc_attr( $plan->servings_query_value( $offset ) ) . '">'
+			. esc_html__( 'Adjust in the planner', 'mixmymeals' ) . '</a></span>';
+
+		return '<div class="mmm-plan-servings mmm-plan-servings--' . ( $base > 0 ? 'uniform' : 'mixed' ) . '"'
+			. ' id="' . esc_attr( $anchor ) . '" data-offset="' . esc_attr( (string) $offset ) . '"'
+			. ' data-base="' . esc_attr( (string) $base ) . '"'
+			. ' data-min="' . esc_attr( (string) $bounds['min'] ) . '" data-max="' . esc_attr( (string) $bounds['max'] ) . '">'
+			. '<span class="mmm-plan-servings__line">' . $line . '</span>'
+			. $planner
+			. '</div>';
+	}
+
+	/**
+	 * The change a difference makes, appended to a number of servings:
+	 * "<span class="mmm-servings-delta">+1</span>". Always printed where the
+	 * plan page may need it, hidden while there is nothing to say, so
+	 * frontend.js only has to set its text.
+	 *
+	 * @param array{min:int, max:int}|null $change Lowest and highest change, or null for none.
+	 * @return string
+	 */
+	private static function servings_delta_html( ?array $change ): string {
+
+		$text = $change ? Mixmymeals_Meal_Plan::format_servings_delta( $change['min'], $change['max'] ) : '';
+
+		return ' <span class="mmm-servings-delta"' . ( '' === $text ? ' hidden' : '' ) . '>' . esc_html( $text ) . '</span>';
+	}
+
+	/**
+	 * AJAX: a plan's shopping list for a different number of people.
+	 *
+	 * The page's first answer is rendered by the shortcode; this is every
+	 * later one. `persons_to_add` is checked by the plan exactly as the
+	 * address is (Mixmymeals_Meal_Plan::parse_servings_value()), and
+	 * everything that shows an amount comes back with it: the field, the
+	 * list, the address, the Bring! link, and the change appended to the
+	 * hero's servings chip, to each day's servings and to each meal card,
+	 * with the card's link. The per-person figures — nutrition per
+	 * day and person, the lights, the day rating — do not depend on the
+	 * number of people and are not part of the answer. Read-only, for
+	 * guests too; only published plans answer.
+	 *
+	 * @return void
+	 */
+	public function mmm_plan_servings_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$plan_id = isset( $_POST['meal_plan_id'] ) ? absint( $_POST['meal_plan_id'] ) : 0;
+		$post    = get_post( $plan_id );
+
+		if ( ! $post || 'mmm_meal_plan' !== $post->post_type || 'publish' !== $post->post_status || post_password_required( $post ) ) {
+			wp_send_json_error( array( 'message' => __( 'Meal Plan not found.', 'mixmymeals' ) ), 404 );
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated by parse_servings_value().
+		$raw  = isset( $_POST['persons_to_add'] ) ? wp_unslash( $_POST['persons_to_add'] ) : '';
+		$plan = new Mixmymeals_Meal_Plan( $plan_id );
+
+		$offset  = (int) $plan->parse_servings_value( is_string( $raw ) ? substr( $raw, 0, 8 ) : '' );
+		$shown   = $plan->with_servings_offset( $offset );
+		$changes = $plan->servings_changes( $offset );
+
+		$cart_url = isset( $_POST['cart_url'] ) ? esc_url_raw( wp_unslash( $_POST['cart_url'] ) ) : '';
+
+		$meals = array();
+		foreach ( $changes['meals'] as $meal_id => $delta ) {
+			$meals[ $meal_id ] = array(
+				'url'   => $plan->add_servings_arg( (string) get_permalink( $meal_id ), $offset ),
+				'delta' => Mixmymeals_Meal_Plan::format_servings_delta( $delta, $delta ),
+			);
+		}
+
+		$days = array();
+		foreach ( $changes['days'] as $day => $range ) {
+			$days[ $day ] = Mixmymeals_Meal_Plan::format_servings_delta( $range['min'], $range['max'] );
+		}
+
+		wp_send_json_success(
+			array(
+				'offset'        => $offset,
+				'param'         => Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR,
+				'value'         => $plan->servings_query_value( $offset ),
+				'url'           => $plan->add_servings_arg( (string) get_permalink( $plan_id ), $offset ),
+				'control'       => $this->render_servings_control( $plan, $offset, $cart_url ),
+				'list'          => $this->render_shopping_list(
+					$shown,
+					! empty( $_POST['show_details'] ),
+					! empty( $_POST['sort_by_category'] )
+				),
+				'bring'         => Mixmymeals_Meal_Plan::bring_deeplink( $plan_id, $offset ),
+				'plan_delta'    => Mixmymeals_Meal_Plan::format_servings_delta( $changes['plan']['min'], $changes['plan']['max'] ),
+				'days'          => $days,
+				'meals'         => $meals,
+			)
+		);
+	}
+
+	/**
+	 * A plan's address with the request's ?mmm_persons_to_add kept — for links from a
+	 * meal page back to its plan, so the reader returns to the list they
+	 * left. Invalid values are not carried.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string
+	 */
+	private static function plan_url_with_servings( int $plan_id ): string {
+
+		$plan = new Mixmymeals_Meal_Plan( $plan_id );
+
+		return $plan->add_servings_arg( (string) get_permalink( $plan_id ), $plan->requested_servings_offset() );
+	}
+
+	/**
+	 * The servings chip of one meal: "4 Portionen", in the site's wording.
+	 *
+	 * @param int $servings Servings.
+	 * @return string Plain text.
+	 */
+	private static function meal_servings_chip_text( int $servings ): string {
+
+		return self::chip_text(
+			'servings',
+			array(
+				'count' => number_format_i18n( $servings ),
+				/* translators: the word after a number of servings. */
+				'unit'  => _n( 'Serving', 'Servings', $servings, 'mixmymeals' ),
+			)
+		);
+	}
+
+	/**
+	 * The servings chip of a plan: one number or a range, '' for no meals.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan The plan as stored; a difference is appended, not counted in.
+	 * @return string Plain text.
+	 */
+	private static function plan_servings_chip_text( Mixmymeals_Meal_Plan $plan ): string {
+
+		$range = $plan->get_servings_range_string();
+
+		return '' === $range ? '' : self::chip_text( 'plan_servings', array( 'range' => $range ) );
 	}
 
 	/**
@@ -5015,7 +5295,7 @@ class Mixmymeals_Shortcodes {
 
 		$recipe = new Mixmymeals_Recipe( $recipe_id );
 
-		$meal_servings   = max( 1.0, (float) $meal->get_servings() );
+		$meal_servings   = max( 1.0, (float) $meal->get_shown_servings() );
 		$recipe_servings = max( 1.0, (float) $recipe->get_servings() );
 		$factor          = $meal_servings / $recipe_servings;
 
@@ -5270,6 +5550,10 @@ class Mixmymeals_Shortcodes {
 		$title = get_the_title( $plan_id );
 		$url   = get_permalink( $plan_id );
 
+		// Bring! and the planner get the list the reader is looking at.
+		$mmm_plan   = new Mixmymeals_Meal_Plan( $plan_id );
+		$mmm_offset = $mmm_plan->requested_servings_offset();
+
 		/* translators: %s: title of the meal plan. */
 		$mail_subject = sprintf( __( 'Meal Plan: %s', 'mixmymeals' ), $title );
 		/* translators: %s: public URL of the meal plan. */
@@ -5285,7 +5569,7 @@ class Mixmymeals_Shortcodes {
 			'bring'          => array(
 				'label'   => __( 'Export to Bring!', 'mixmymeals' ),
 				'icon'    => 'paper-plane',
-				'url'     => Mixmymeals_Meal_Plan::bring_deeplink( $plan_id ),
+				'url'     => Mixmymeals_Meal_Plan::bring_deeplink( $plan_id, $mmm_offset ),
 				'new_tab' => true,
 			),
 			'load-into-cart' => array(
@@ -5294,6 +5578,7 @@ class Mixmymeals_Shortcodes {
 				'data'  => array(
 					'meal-plan-id' => (string) $plan_id,
 					'redirect-url' => $cart_url,
+					'persons'      => $mmm_plan->servings_query_value( $mmm_offset ),
 				),
 			),
 		);
@@ -5304,8 +5589,12 @@ class Mixmymeals_Shortcodes {
 		 * Each item is keyed by a short name (it becomes the modifier class
 		 * `mmm-meal-plan-actions__item--<key>`) and carries `label`, and
 		 * optionally `icon` (a Font Awesome solid icon name without `fa-`),
-		 * `url` (empty for an action a script handles), `new_tab` and `data`
-		 * (data attributes without the `data-` prefix). Order is print order.
+		 * `url` (empty for an action a script handles), `new_tab`, `data`
+		 * (data attributes without the `data-` prefix) and `servings` (true:
+		 * the address follows ?mmm_persons_to_add — the host appends the
+		 * request's difference and frontend.js keeps it current, so the
+		 * action gets what the reader is looking at; MixMyMeals Printer sets
+		 * it for the PDF). Order is print order.
 		 *
 		 * @param array $items   Actions so far.
 		 * @param int   $plan_id Meal plan post ID.
@@ -5328,10 +5617,17 @@ class Mixmymeals_Shortcodes {
 				}
 			}
 
+			$url = (string) ( $item['url'] ?? '' );
+
+			if ( '' !== $url && ! empty( $item['servings'] ) ) {
+				$url    = $mmm_plan->add_servings_arg( $url, $mmm_offset );
+				$attrs .= ' data-servings-link';
+			}
+
 			$clean[ $key ] = array(
 				'label'   => (string) $item['label'],
 				'icon'    => sanitize_html_class( (string) ( $item['icon'] ?? '' ) ),
-				'url'     => (string) ( $item['url'] ?? '' ),
+				'url'     => $url,
 				'new_tab' => ! empty( $item['new_tab'] ),
 				'attrs'   => $attrs,
 			);
@@ -5512,15 +5808,22 @@ class Mixmymeals_Shortcodes {
 	 * [mmm_meal_plan_embed], so a plan teased in a blog post states the same
 	 * figures as the plan page it links to.
 	 *
-	 * @param int $plan_id Meal plan post ID.
+	 * The servings chip carries `mmm-chip--servings` so frontend.js can
+	 * restate it when the plan page's servings field changes.
+	 *
+	 * @param int      $plan_id Meal plan post ID.
+	 * @param int|null $offset  People added to every meal (?mmm_persons_to_add):
+	 *                          the hero passes the request's and the chip
+	 *                          appends the change ("3–9 Portionen +1"); an
+	 *                          embed passes nothing and gets the plan as stored.
 	 * @return string Escaped chips, without a wrapper.
 	 */
-	private static function meal_plan_stat_chips( int $plan_id ): string {
+	private static function meal_plan_stat_chips( int $plan_id, ?int $offset = null ): string {
 
 		$plan                 = new Mixmymeals_Meal_Plan( $plan_id );
 		$num_of_days          = $plan->count_days();
 		$num_of_meals         = $plan->count_meals();
-		$serving_range_string = $plan->get_servings_range_string();
+		$servings_text = self::plan_servings_chip_text( $plan );
 		$avg_cost             = $plan->calculate_avg_cost_per_serving();
 		$currency             = get_option( 'mixmymeals_currency', '€' );
 
@@ -5557,8 +5860,13 @@ class Mixmymeals_Shortcodes {
 			);
 		}
 
-		if ( $serving_range_string ) {
-			$out .= self::stat_chip( 'users', self::chip_text( 'plan_servings', array( 'range' => $serving_range_string ) ) );
+		if ( '' !== $servings_text ) {
+			$out .= self::stat_chip(
+				'users',
+				$servings_text,
+				'mmm-chip--servings',
+				null === $offset ? '' : self::servings_delta_html( $plan->servings_changes( $offset )['plan'] )
+			);
 		}
 
 		if ( $avg_cost > 0 ) {
@@ -5639,13 +5947,15 @@ class Mixmymeals_Shortcodes {
 	 * @param string $icon     Font Awesome icon name, without the fa- prefix.
 	 * @param string $text     Plain chip text; escaped here.
 	 * @param string $modifier Extra class, e.g. mmm-chip--price.
+	 * @param string $after    Ready, escaped markup after the text (servings_delta_html()).
 	 * @return string
 	 */
-	private static function stat_chip( string $icon, string $text, string $modifier = '' ): string {
+	private static function stat_chip( string $icon, string $text, string $modifier = '', string $after = '' ): string {
 
 		return '<span class="' . esc_attr( trim( 'mmm-chip mmm-chip--stat ' . $modifier ) ) . '">'
 			. '<i class="mmm-icon fa-solid fa-' . esc_attr( $icon ) . '" aria-hidden="true"></i>'
 			. esc_html( $text )
+			. $after
 			. '</span>';
 	}
 
@@ -5680,7 +5990,7 @@ class Mixmymeals_Shortcodes {
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">
-				<?php echo self::meal_plan_stat_chips( (int) $plan_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+				<?php echo self::meal_plan_stat_chips( (int) $plan_id, ( new Mixmymeals_Meal_Plan( (int) $plan_id ) )->requested_servings_offset() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
             </div>
 
 				<?php if ( has_excerpt( $plan_id ) ) : ?>
@@ -7385,7 +7695,10 @@ class Mixmymeals_Shortcodes {
 		$day_label  = $weekday_labels[ $day ] ?? '';
 		$type_map   = Mixmymeals_Meal::get_plaintext_meal_type_map();
 		$type_label = $type_map[ $meal->get_type() ] ?? '';
-		$servings   = (int) $meal->get_servings();
+		// As on the plan's cards: the stored servings, and what
+		// ?mmm_persons_to_add does to them appended ("3 Portionen +1").
+		$servings       = (int) $meal->get_servings();
+		$servings_delta = (int) $meal->get_shown_servings() - $servings;
 
 		$kcal = 0;
 		if ( $recipe->is_valid() ) {
@@ -7396,7 +7709,7 @@ class Mixmymeals_Shortcodes {
 		$has_steps = $recipe->is_valid() && ! empty( $recipe->get_steps() );
 
 		$plan_id    = (int) wp_get_post_parent_id( $meal_id );
-		$plan_url   = $plan_id ? get_permalink( $plan_id ) : '';
+		$plan_url   = $plan_id ? self::plan_url_with_servings( $plan_id ) : '';
 		$plan_title = $plan_id ? get_the_title( $plan_id ) : '';
 
 		ob_start();
@@ -7436,6 +7749,7 @@ class Mixmymeals_Shortcodes {
 								)
 							)
 						);
+						echo self::servings_delta_html( array( 'min' => $servings_delta, 'max' => $servings_delta ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 						?></span>
 				<?php endif; ?>
 				<?php if ( $kcal > 0 ) : ?>
@@ -7504,7 +7818,7 @@ class Mixmymeals_Shortcodes {
 
 		if ( $parent_plan_id ) {
 			$html .= '<a class="mmm-meal-back-to-meal-plan-link" href="'
-			         . esc_urL( get_permalink( $parent_plan_id ) ) . '">'
+			         . esc_url( self::plan_url_with_servings( (int) $parent_plan_id ) ) . '">'
 			         . esc_html__( 'Back to', 'mixmymeals' ) . ' '
 			         . esc_html( get_the_title( $parent_plan_id ) ) . '</a>';
 		}
@@ -7533,7 +7847,8 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$meal_obj = new Mixmymeals_Meal( $meal_ID );
-		$servings = $meal_obj->get_servings();
+		$servings       = $meal_obj->get_servings();
+		$servings_delta = $meal_obj->get_shown_servings() - $servings;
 
 		$items = [];
 
@@ -7547,6 +7862,7 @@ class Mixmymeals_Shortcodes {
 				           $servings === 1 ? __( 'Serving', 'mixmymeals' )
 					           : __( 'Servings', 'mixmymeals' )
 			           )
+			           . ( 0 !== $servings_delta ? self::servings_delta_html( array( 'min' => $servings_delta, 'max' => $servings_delta ) ) : '' )
 			           . '</span>';
 		}
 
@@ -11693,7 +12009,7 @@ class Mixmymeals_Shortcodes {
 
 		$meal          = new Mixmymeals_Meal( $meal_id );
 		$recipe_id     = $meal->get_recipe_id();
-		$meal_servings = max( 1.0, floatval( $meal->get_servings() ) );
+		$meal_servings = max( 1.0, floatval( $meal->get_shown_servings() ) );
 
 		if ( ! $recipe_id ) {
 			return '<p>No recipe assigned.</p>';

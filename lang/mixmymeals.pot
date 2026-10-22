@@ -5852,3 +5852,47 @@ msgid "and %s more recipe"
 msgid_plural "and %s more recipes"
 msgstr[0] ""
 msgstr[1] ""
+
+#. translators: %s: number of people a meal is planned for.
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "%s person"
+msgid_plural "%s people"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: lowest, 2: highest number of people meals of one day are planned for.
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "%1$s–%2$s people"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "One person fewer at every meal"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "One person more at every meal"
+msgstr ""
+
+#. translators: %s: − the number of people +. Keep the %s.
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "For %s person"
+msgid_plural "For %s people"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: − the change +. Keep the %s.
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "People: %s at every meal"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Number of people"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Change single days?"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Adjust in the planner"
+msgstr ""

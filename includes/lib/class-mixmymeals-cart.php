@@ -584,19 +584,27 @@ class Mixmymeals_Cart {
 			wp_send_json_error( array( 'message' => __( 'Meal Plan not found.', 'mixmymeals' ) ) );
 		}
 
-		$plan  = new Mixmymeals_Meal_Plan( $meal_plan_id );
-		$meals = $plan->get_meals();
+		$plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
+
+		/*
+		 * From the plan page's servings field, where the link next to it was
+		 * used: the planner starts from what the reader was looking at, not
+		 * from the stored plan. Checked by the plan, like everywhere else;
+		 * anything invalid loads the plan as stored.
+		 */
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated by parse_servings_value().
+		$persons = isset( $_POST['persons_to_add'] ) ? wp_unslash( $_POST['persons_to_add'] ) : '';
+		$offset  = (int) $plan->parse_servings_value( is_string( $persons ) ? substr( $persons, 0, 8 ) : '' );
 
 		$cart = new Mixmymeals_Cart();
 		$cart->clear();
 
-		foreach ( $meals as $meal_post ) {
-			$meal = new Mixmymeals_Meal( $meal_post->ID );
+		foreach ( $plan->with_servings_offset( $offset )->get_meal_rows() as $row ) {
 			$cart->add(
-				$meal->get_recipe_id(),
-				$meal->get_servings(),
-				$meal->get_type(),
-				$meal->get_day()
+				(int) $row['recipe_id'],
+				(int) $row['servings'],
+				(string) $row['type'],
+				$row['day']
 			);
 		}
 
