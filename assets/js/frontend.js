@@ -1096,7 +1096,8 @@ jQuery(function ($) {
        and unit divisors are rounded once over the new total there, by
        the calculation every shopping list goes through — so this only
        asks, and swaps in what comes back: the field, the list, the
-       address, the Bring! link, and the change appended to the hero's,
+       address, the Bring! link and every action marked
+       data-servings-link (the PDF), and the change appended to the hero's,
        each day's and each meal card's servings (.mmm-servings-delta,
        "+1"). Without JavaScript the − / + links do the same by
        reloading the page.
@@ -1153,6 +1154,20 @@ jQuery(function ($) {
 
                 $('.mmm-meal-plan-actions__item--load-into-cart[data-meal-plan-id="' + planId + '"]')
                     .attr('data-persons', data.value || '');
+
+                // Actions whose address follows the number (the PDF, from
+                // MixMyMeals Printer): set or drop the parameter.
+                $('a[data-servings-link]').each(function () {
+                    try {
+                        const url = new URL(this.href, window.location.href);
+                        if (data.value) {
+                            url.searchParams.set(data.param, data.value);
+                        } else {
+                            url.searchParams.delete(data.param);
+                        }
+                        this.href = url.toString();
+                    } catch (err) { /* leave an unparsable address alone */ }
+                });
 
                 mmmSetServingsDelta($('.mmm-plan-hero__meta .mmm-chip--servings'), data.plan_delta);
 

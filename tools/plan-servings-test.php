@@ -425,6 +425,18 @@ try {
 
 	$ok( 'Bring! is handed the parameter', false !== strpos( Mixmymeals_Meal_Plan::bring_deeplink( $mixed_id, 1 ), rawurlencode( 'mmm_persons_to_add=1' ) ) );
 
+	// An add-on's action marked `servings` (the Printer's PDF) follows the number; others do not.
+	$mmm_action_filter = static function ( array $items ): array {
+		$items['zz_follow'] = array( 'label' => 'T', 'url' => 'https://example.org/pdf?x=1', 'servings' => true );
+		$items['zz_plain']  = array( 'label' => 'T', 'url' => 'https://example.org/other' );
+		return $items;
+	};
+	add_filter( 'mixmymeals_meal_plan_actions', $mmm_action_filter );
+	$actions = Mixmymeals_Shortcodes::meal_plan_action_items( $mixed_id );
+	remove_filter( 'mixmymeals_meal_plan_actions', $mmm_action_filter );
+	$ok( 'an action marked `servings` gets the parameter', false !== strpos( $actions['zz_follow']['url'], 'mmm_persons_to_add=1' ) && false !== strpos( $actions['zz_follow']['attrs'], 'data-servings-link' ) );
+	$ok( 'an action without it does not', false === strpos( $actions['zz_plain']['url'], 'mmm_persons_to_add' ) && false === strpos( $actions['zz_plain']['attrs'], 'data-servings-link' ) );
+
 	$meals = $mixed->get_meal_rows();
 	$ok( 'a meal page shows its share: 3 → 4', 4 === ( new Mixmymeals_Meal( $meals[0]['meal_id'] ) )->get_shown_servings() );
 	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '-5';

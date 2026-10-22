@@ -3351,6 +3351,7 @@ class Mixmymeals_Shortcodes {
 		wp_send_json_success(
 			array(
 				'offset'        => $offset,
+				'param'         => Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR,
 				'value'         => $plan->servings_query_value( $offset ),
 				'url'           => $plan->add_servings_arg( (string) get_permalink( $plan_id ), $offset ),
 				'control'       => $this->render_servings_control( $plan, $offset, $cart_url ),
@@ -5588,8 +5589,12 @@ class Mixmymeals_Shortcodes {
 		 * Each item is keyed by a short name (it becomes the modifier class
 		 * `mmm-meal-plan-actions__item--<key>`) and carries `label`, and
 		 * optionally `icon` (a Font Awesome solid icon name without `fa-`),
-		 * `url` (empty for an action a script handles), `new_tab` and `data`
-		 * (data attributes without the `data-` prefix). Order is print order.
+		 * `url` (empty for an action a script handles), `new_tab`, `data`
+		 * (data attributes without the `data-` prefix) and `servings` (true:
+		 * the address follows ?mmm_persons_to_add — the host appends the
+		 * request's difference and frontend.js keeps it current, so the
+		 * action gets what the reader is looking at; MixMyMeals Printer sets
+		 * it for the PDF). Order is print order.
 		 *
 		 * @param array $items   Actions so far.
 		 * @param int   $plan_id Meal plan post ID.
@@ -5612,10 +5617,17 @@ class Mixmymeals_Shortcodes {
 				}
 			}
 
+			$url = (string) ( $item['url'] ?? '' );
+
+			if ( '' !== $url && ! empty( $item['servings'] ) ) {
+				$url    = $mmm_plan->add_servings_arg( $url, $mmm_offset );
+				$attrs .= ' data-servings-link';
+			}
+
 			$clean[ $key ] = array(
 				'label'   => (string) $item['label'],
 				'icon'    => sanitize_html_class( (string) ( $item['icon'] ?? '' ) ),
-				'url'     => (string) ( $item['url'] ?? '' ),
+				'url'     => $url,
 				'new_tab' => ! empty( $item['new_tab'] ),
 				'attrs'   => $attrs,
 			);
