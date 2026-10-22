@@ -1123,6 +1123,7 @@ const TOOLS = [
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
               title:     { type: "string", description: "Optional; leer = Rezepttitel." },
               text:      { type: "string", description: "Kurzer Text zu dieser Einplanung; gehört der Mahlzeit, nicht dem Rezept." },
+              diet:      { type: "string", description: "Ernährungsform, als die das Rezept gekocht wird (Diät-Slug, z. B. \"vegan\"): jede Zutat wird dann mit einem passenden Produkt gerechnet und eingekauft. Nur Diäten, für die das Rezept tauglich ist; sonst bleibt es wie geschrieben und eine warning kommt zurück." },
             },
           },
         },
@@ -1151,6 +1152,7 @@ const TOOLS = [
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
               title:     { type: "string" },
               text:      { type: "string", description: "Kurzer Text zu dieser Einplanung; gehört der Mahlzeit, nicht dem Rezept." },
+              diet:      { type: "string", description: "Ernährungsform, als die das Rezept gekocht wird (Diät-Slug, z. B. \"vegan\"): jede Zutat wird dann mit einem passenden Produkt gerechnet und eingekauft. Nur Diäten, für die das Rezept tauglich ist; sonst bleibt es wie geschrieben und eine warning kommt zurück." },
             },
           },
         },
@@ -1205,6 +1207,7 @@ const TOOLS = [
         status:    { type: "string" },
         title:     { type: "string" },
         text:      { type: "string", description: "Kurzer Text zu DIESER Einplanung (z. B. \"Doppelte Menge kochen, Hälfte einfrieren\"). Gehört der Mahlzeit, nicht dem Rezept; leer = nichts gesagt." },
+        diet:      { type: "string", description: "Ernährungsform dieser Einplanung (Diät-Slug, z. B. \"vegan\"); \"\" = wie im Rezept. Die Mahlzeit wird dann mit den passenden Produkten gerechnet, und die Einkaufsliste führt diese Produkte als eigene Zeilen. Möglich ist, was die Antwort unter diet_options nennt; anderes wird verworfen (diet bleibt dann leer)." },
       },
     },
   },
@@ -1744,7 +1747,7 @@ async function handleTool(name, args) {
     case "mmm_update_meal": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["recipe_id", "servings", "type", "day", "status", "title"];
+      const allowed = ["recipe_id", "servings", "type", "day", "status", "title", "text", "diet"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }

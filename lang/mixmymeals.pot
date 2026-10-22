@@ -5896,3 +5896,20 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Adjust in the planner"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "As in the recipe"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid ""
+"Cooks the recipe with the products this diet needs — on the plan, in its "
+"nutrition and on the shopping list."
+msgstr ""
+
+#. translators: %s: diet name, e.g. "Vegan" — the meals a shopping-list line is bought for.
+#: includes/lib/class-mixmymeals-shortcodes.php
+#, php-format
+msgctxt "shopping list line bought for a diet"
+msgid "(%s)"
+msgstr ""

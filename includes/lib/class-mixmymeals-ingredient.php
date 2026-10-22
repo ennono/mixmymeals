@@ -12,6 +12,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Mixmymeals_Ingredient {
 
 	/**
+	 * A row's product_id meaning "the ingredient's own figures, no packet" —
+	 * never stored, only set where a meal's diet resolves a row to the
+	 * ingredient itself (product_for_diet()). effective_product_id() reads it
+	 * as no product, past the reference.
+	 */
+	public const PIN_OWN = -1;
+
+	/**
 	 * Post ID of the ingredient.
 	 *
 	 * @var int
@@ -280,6 +288,10 @@ class Mixmymeals_Ingredient {
 	 */
 	public static function effective_product_id( int $ingredient_id, int $pinned = 0 ): int {
 
+		if ( self::PIN_OWN === $pinned ) {
+			return 0;
+		}
+
 		$pin = self::pinned_product_id( $ingredient_id, $pinned );
 
 		return $pin > 0 ? $pin : Mixmymeals_Product::get_reference_id( $ingredient_id );
@@ -310,6 +322,68 @@ class Mixmymeals_Ingredient {
 		$product = new Mixmymeals_Product( $pinned );
 
 		return $product->is_valid() && $product->get_ingredient_id() === $ingredient_id ? $pinned : 0;
+	}
+
+	/**
+	 * The packet a row has to be bought as for a dish to hold a diet.
+	 *
+	 * The concrete side of get_diet_suitabilities(): that one says an
+	 * ingredient *can* be vegan, this one says *which* packet makes it so. The
+	 * candidates are the same — the ingredient's own classification and every
+	 * product the recipe has not ruled out — so a recipe "vegan-capable" by
+	 * that rule always resolves here.
+	 *
+	 * The row's own choice is kept wherever it already holds the diet: a
+	 * recipe pinning a vegan packet is not second-guessed. Otherwise the
+	 * reference comes first, then the products in their stable order (by ID),
+	 * and last the ingredient's own figures (PIN_OWN), which are what the
+	 * classification "normally vegan" describes.
+	 *
+	 * @param int      $ingredient_id The ingredient of the row.
+	 * @param int      $pinned        The row's product_id.
+	 * @param string   $diet          Diet slug the dish is cooked as.
+	 * @param int[]    $excluded      The row's excluded_products.
+	 * @return int|null The product_id to cook the row with (possibly the row's
+	 *                  own, or PIN_OWN), null when nothing available holds it.
+	 */
+	public static function product_for_diet( int $ingredient_id, int $pinned, string $diet, array $excluded = array() ): ?int {
+
+		$ingredient = new self( $ingredient_id );
+
+		if ( ! $ingredient->is_valid() || '' === $diet ) {
+			return null;
+		}
+
+		$holds = static fn( array $slugs ): bool => in_array( $diet, Mixmymeals_Diet::expand( $slugs ), true );
+
+		if ( $holds( $ingredient->get_diets_pinned( $pinned ) ) ) {
+			return $pinned;
+		}
+
+		$own       = Mixmymeals_Diet::for_post( $ingredient_id );
+		$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
+		$products  = Mixmymeals_Product::for_ingredient( $ingredient_id );
+
+		// The reference first: it is the packet the site already plans with.
+		usort(
+			$products,
+			static fn( $a, $b ) => (int) ( $b->get_id() === $reference ) <=> (int) ( $a->get_id() === $reference )
+		);
+
+		foreach ( $products as $product ) {
+
+			$id = $product->get_id();
+
+			if ( in_array( $id, $excluded, true ) ) {
+				continue;
+			}
+
+			if ( $holds( Mixmymeals_Diet::apply_product( $own, $product->get_diets() ) ) ) {
+				return $id;
+			}
+		}
+
+		return $holds( $own ) ? self::PIN_OWN : null;
 	}
 
 	/**

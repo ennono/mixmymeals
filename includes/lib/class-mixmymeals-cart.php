@@ -94,6 +94,7 @@ class Mixmymeals_Cart {
 		?string $type = null,
 		?int $day = null,
 		//?string $note = null
+		?string $diet = null
 	): bool {
 
 		if ( $recipe_id <= 0 ) {
@@ -119,6 +120,7 @@ class Mixmymeals_Cart {
 			'type'      => $type ?? '',
 			'day'       => $day,
 			//'note'      => $note ?? '',
+			'diet'      => self::clean_diet( $recipe_id, (string) $diet ),
 		);
 
 		$this->save_items( $items );
@@ -237,7 +239,7 @@ class Mixmymeals_Cart {
 			return false;
 		}
 
-		$allowed_keys = array( 'servings', 'type', 'day' );
+		$allowed_keys = array( 'servings', 'type', 'day', 'diet' );
 
 		foreach ( $allowed_keys as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
@@ -245,8 +247,28 @@ class Mixmymeals_Cart {
 			}
 		}
 
+		if ( array_key_exists( 'diet', $data ) ) {
+			$items[ $index ]['diet'] = self::clean_diet( (int) ( $items[ $index ]['recipe_id'] ?? 0 ), (string) $data['diet'] );
+		}
+
 		$this->save_items( $items );
 		return true;
+	}
+
+	/**
+	 * A diet for a planner item, or '' — the same rule Mixmymeals_Meal::
+	 * set_diet() keeps, so the planner cannot hold a choice the saved plan
+	 * would drop.
+	 *
+	 * @param int    $recipe_id The item's recipe.
+	 * @param string $diet      Requested diet slug.
+	 * @return string
+	 */
+	public static function clean_diet( int $recipe_id, string $diet ): string {
+
+		$diet = Mixmymeals_Diet::resolve( sanitize_key( $diet ) );
+
+		return '' !== $diet && ( new Mixmymeals_Recipe( $recipe_id ) )->can_be_cooked_as( $diet ) ? $diet : '';
 	}
 
 	/**
@@ -320,8 +342,11 @@ class Mixmymeals_Cart {
 		$day = isset( $_POST['day'] ) ? intval( $_POST['day'] ) : 0;
 		$day = ( $day >= 1 && $day <= 7 ) ? $day : null;
 
+		// Optional; add() drops a diet the recipe cannot be cooked as.
+		$diet = isset( $_POST['diet'] ) ? sanitize_key( wp_unslash( $_POST['diet'] ) ) : '';
+
 		$cart = new Mixmymeals_Cart();
-		$ok   = $cart->add( $recipe_id, $servings, $type, $day );
+		$ok   = $cart->add( $recipe_id, $servings, $type, $day, $diet );
 
 		if ( ! $ok ) {
 			wp_send_json_error( [
@@ -449,6 +474,9 @@ class Mixmymeals_Cart {
 			? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : $item['note'] ?? '';
 		$item['day']      = isset( $_POST['day'] ) ? intval( $_POST['day'] )
 			: $item['day'] ?? null;
+		$item['diet']     = isset( $_POST['diet'] )
+			? self::clean_diet( (int) ( $item['recipe_id'] ?? 0 ), sanitize_key( wp_unslash( $_POST['diet'] ) ) )
+			: $item['diet'] ?? '';
 
 		// Item zurück in den Warenkorb setzen
 		$items[ $index ] = $item;
@@ -555,7 +583,8 @@ class Mixmymeals_Cart {
 				$recipe_id,
 				max( 1, intval( $item['servings'] ?? 1 ) ),
 				sanitize_text_field( (string) ( $item['type'] ?? '' ) ),
-				isset( $item['day'] ) ? intval( $item['day'] ) : null
+				isset( $item['day'] ) ? intval( $item['day'] ) : null,
+				(string) ( $item['diet'] ?? '' )
 			);
 		}
 
@@ -604,7 +633,8 @@ class Mixmymeals_Cart {
 				(int) $row['recipe_id'],
 				(int) $row['servings'],
 				(string) $row['type'],
-				$row['day']
+				$row['day'],
+				(string) ( $row['diet'] ?? '' )
 			);
 		}
 

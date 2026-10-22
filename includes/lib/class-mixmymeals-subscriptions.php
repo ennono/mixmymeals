@@ -2026,7 +2026,7 @@ class Mixmymeals_Subscriptions {
 				continue;
 			}
 
-			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+			$recipe = $meal->get_recipe();
 
 			if ( ! $recipe->is_valid() ) {
 				continue;
@@ -2353,7 +2353,7 @@ class Mixmymeals_Subscriptions {
 
 			// Per-person calories and cost (one serving) from the linked recipe.
 			$cal_line = '';
-			$recipe   = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+			$recipe   = $meal->get_recipe();
 			if ( $recipe->is_valid() ) {
 
 				$nutrition = $recipe->calculate_nutrition_per_serving();
@@ -2514,9 +2514,10 @@ class Mixmymeals_Subscriptions {
 
 			$rows = '';
 
-			foreach ( (array) $ings as $ing_id => $data ) {
+			foreach ( (array) $ings as $key => $data ) {
 
-				$ingredient = new Mixmymeals_Ingredient( (int) $ing_id );
+				$ing_id     = (int) ( $data['ingredient_id'] ?? $key );
+				$ingredient = new Mixmymeals_Ingredient( $ing_id );
 				if ( ! $ingredient->is_valid() ) {
 					continue;
 				}
@@ -2530,12 +2531,13 @@ class Mixmymeals_Subscriptions {
 					? ' <span style="color:#6B665B;">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
 					: '';
 
-				// The packet the figures assume, where the plan agrees on one.
-				$reference_label = (string) ( $data['product'] ?? '' );
+				// The packet the figures assume, where the plan agrees on one,
+				// and the diet a line of its own is bought for.
+				$reference_label = Mixmymeals_Shortcodes::shopping_item_product_text( $data );
 
 				$rows .= '<tr>'
 					. '<td style="padding:4px 0;color:#2C2A24;font-size:14px;">'
-					. esc_html( get_the_title( (int) $ing_id ) ) . $optional_label
+					. esc_html( get_the_title( $ing_id ) ) . $optional_label
 					. ( '' !== $reference_label
 						? '<br><span style="color:#8A8478;font-size:12px;">' . esc_html( $reference_label ) . '</span>'
 						: '' )

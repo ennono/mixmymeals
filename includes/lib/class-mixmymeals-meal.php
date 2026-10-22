@@ -23,6 +23,12 @@ class Mixmymeals_Meal {
 		$this->post_id = $post_id;
 	}
 
+	/**
+	 * The diet the meal's recipe is cooked as — a term slug of `mmm_diet`,
+	 * absent for the recipe as written. See get_diet().
+	 */
+	const META_DIET = '_mmm_diet';
+
 	/** Option guarding the one-off move of `note` meta into the text. */
 	const TEXT_MIGRATION_OPTION  = 'mixmymeals_meal_text_version';
 	const TEXT_MIGRATION_VERSION = '1';
@@ -99,6 +105,62 @@ class Mixmymeals_Meal {
 	 */
 	public function set_recipe_id( int $recipe_id ): void {
 		update_post_meta( $this->post_id, 'recipe_id', $recipe_id );
+	}
+
+	/**
+	 * The diet this meal cooks its recipe as, '' for the recipe as written.
+	 *
+	 * A recipe can be "vegan-capable" — every ingredient has a vegan packet —
+	 * and still be planned with mince. Which of the two lands on the table is
+	 * a fact about the planning, not about the dish, so it lives here, beside
+	 * the servings. Everything that computes from the meal reads the recipe
+	 * through get_recipe(), which applies it.
+	 *
+	 * The stored slug, resolved; get_recipe()->get_implemented_diet() is what
+	 * is actually in force, and differs only where the recipe changed after
+	 * the choice and can no longer be cooked that way.
+	 *
+	 * @return string
+	 */
+	public function get_diet(): string {
+		return Mixmymeals_Diet::resolve( (string) get_post_meta( $this->post_id, self::META_DIET, true ) );
+	}
+
+	/**
+	 * Sets the diet. Validated against the meal's recipe, so set the recipe
+	 * first: a diet the recipe cannot be cooked as is not stored, and neither
+	 * is '' — both clear the field and leave the recipe as written.
+	 *
+	 * @param string $diet Diet slug (or a former key), '' for as written.
+	 * @return bool Whether the diet is stored afterwards.
+	 */
+	public function set_diet( string $diet ): bool {
+
+		$diet   = Mixmymeals_Diet::resolve( sanitize_key( $diet ) );
+		$recipe = new Mixmymeals_Recipe( $this->get_recipe_id() );
+
+		if ( '' === $diet || ! $recipe->can_be_cooked_as( $diet ) ) {
+			delete_post_meta( $this->post_id, self::META_DIET );
+			return false;
+		}
+
+		update_post_meta( $this->post_id, self::META_DIET, $diet );
+
+		return true;
+	}
+
+	/**
+	 * The meal's recipe as this meal cooks it.
+	 *
+	 * **Every read of a meal's dish goes through here**, not through
+	 * `new Mixmymeals_Recipe( get_recipe_id() )`: that instance is the recipe
+	 * as written, and reading it would put the mince on the shopping list of a
+	 * meal that is cooked vegan.
+	 *
+	 * @return Mixmymeals_Recipe
+	 */
+	public function get_recipe(): Mixmymeals_Recipe {
+		return ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->for_diet( $this->get_diet() );
 	}
 
 	/**

@@ -1856,7 +1856,7 @@ class Mixmymeals_Shortcodes {
 					'mixmymeals' ) . '</p>';
 		}
 
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
+		$recipe = $meal->get_recipe();
 
 		$steps = $recipe->get_steps();
 
@@ -2018,7 +2018,7 @@ class Mixmymeals_Shortcodes {
 	private function meal_nutrition_figures( Mixmymeals_Meal $meal ): ?array {
 
 		$recipe_id = $meal->get_recipe_id();
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
+		$recipe    = $meal->get_recipe();
 
 		$recipe_servings = max( 1.0, floatval( $recipe->get_servings() ) );
 		$meal_servings   = max( 1.0, floatval( $meal->get_shown_servings() ) );
@@ -2155,7 +2155,7 @@ class Mixmymeals_Shortcodes {
 
 			case 'mmm_meal':
 				$meal    = new Mixmymeals_Meal( $post_id );
-				$recipes = array( (int) $meal->get_recipe_id() );
+				$recipes = array( $meal->get_recipe() );
 				$figures = (array) ( $this->meal_nutrition_figures( $meal )['per_100g'] ?? array() );
 
 				// Weightless means nothing was summed; 0 there is not a figure.
@@ -2186,7 +2186,7 @@ class Mixmymeals_Shortcodes {
 
 		return $this->reliable_figures(
 			$plan->calc_nutrition_per_100g(),
-			array_column( $plan->get_meal_rows(), 'recipe_id' )
+			array_map( array( 'Mixmymeals_Meal_Plan', 'row_recipe' ), $plan->get_meal_rows() )
 		);
 	}
 
@@ -2195,7 +2195,7 @@ class Mixmymeals_Shortcodes {
 	 * cannot be trusted for.
 	 *
 	 * @param array $figures Sum key => figure.
-	 * @param int[] $recipes Recipe IDs the figures were summed from.
+	 * @param array<int,int|Mixmymeals_Recipe> $recipes Recipes (or IDs) the figures were summed from.
 	 * @return array<string,float|null>
 	 */
 	private function reliable_figures( array $figures, array $recipes ): array {
@@ -2871,7 +2871,7 @@ class Mixmymeals_Shortcodes {
 						<?php foreach ( $day_group['entries'] as $entry ) :
 							$meal      = $entry['meal'];
 							$recipe_id = (int) $meal->get_recipe_id();
-							$recipe    = new Mixmymeals_Recipe( $recipe_id );
+							$recipe    = $meal->get_recipe();
 							?>
 
 						<?php if ( ! $recipe->is_valid() ) : ?>
@@ -2972,7 +2972,8 @@ class Mixmymeals_Shortcodes {
 											printf( '<span class="mmm-tag">%s</span>', esc_html( $tag->name ) );
 										}
 									}
-									echo self::diet_chips( (int) $recipe->get_id(), 'mmm-tag' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+									// The meal, not its recipe: a dish planned vegan says "Vegan".
+									echo self::diet_chips( (int) $meal->get_id(), 'mmm-tag' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 									?>
                                 </div>
                             </div>
@@ -3091,8 +3092,9 @@ class Mixmymeals_Shortcodes {
                 <h4 class="mmm-shopping-category"><?php echo esc_html( $cat_name ); ?></h4>
                 <ul class="mmm-shopping-list-items">
 
-					<?php foreach ( $ings as $ing_id => $data ) :
+					<?php foreach ( $ings as $key => $data ) :
 
+						$ing_id         = (int) ( $data['ingredient_id'] ?? $key );
 						$ingredient_obj = new Mixmymeals_Ingredient( $ing_id );
 
 						if ( ! $ingredient_obj->is_valid() ) : ?>
@@ -3147,6 +3149,19 @@ class Mixmymeals_Shortcodes {
 						if ( '' !== $reference_label ) {
 							$item_html .= ' <span class="mmm-shopping-item-product">'
 								. esc_html( $reference_label ) . '</span>';
+						}
+
+						/*
+						 * A line of its own for the meals cooked as a diet —
+						 * "Hackfleisch … für vegan" beside the plain one. Named
+						 * even where the packet is, because the packet's name
+						 * does not always say why it is on the list.
+						 */
+						$diet_text = self::shopping_item_diet_text( $data );
+
+						if ( '' !== $diet_text ) {
+							$item_html .= ' <span class="mmm-shopping-item-diet">'
+								. esc_html( $diet_text ) . '</span>';
 						}
 						?>
 
@@ -3436,7 +3451,7 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
+		$recipe = $meal->get_recipe();
 
 		if ( ! $recipe->is_valid() || empty( $recipe->get_steps() ) ) {
 			return '';
@@ -3445,6 +3460,41 @@ class Mixmymeals_Shortcodes {
 		return '<button type="button" class="mmm-cook-mode-start">'
 		       . esc_html__( 'Start cooking mode', 'mixmymeals' )
 		       . '</button>';
+	}
+
+	/**
+	 * The diet a shopping-list line is bought for, as printed beside it —
+	 * "(Vegan)" — or '' for a line of the recipes as written.
+	 *
+	 * Mixmymeals_Meal_Plan::calc_shopping_list() gives such a line only where
+	 * a meal's diet chose its packet, and every rendering of the list (page,
+	 * mail, PDF) words it through here.
+	 *
+	 * @param array $data One line of calc_shopping_list().
+	 * @return string Plain text; escaping is the caller's.
+	 */
+	public static function shopping_item_diet_text( array $data ): string {
+
+		$label = Mixmymeals_Diet::label( (string) ( $data['diet'] ?? '' ) );
+
+		if ( '' === $label ) {
+			return '';
+		}
+
+		/* translators: %s: diet name, e.g. "Vegan" — the meals a shopping-list line is bought for. */
+		return sprintf( _x( '(%s)', 'shopping list line bought for a diet', 'mixmymeals' ), $label );
+	}
+
+	/**
+	 * Packet and diet of a shopping-list line in one string, for renderings
+	 * that have a single slot under the name (the mails): "Like Meat (Vegan)".
+	 *
+	 * @param array $data One line of calc_shopping_list().
+	 * @return string Plain text.
+	 */
+	public static function shopping_item_product_text( array $data ): string {
+
+		return trim( (string) ( $data['product'] ?? '' ) . ' ' . self::shopping_item_diet_text( $data ) );
 	}
 
 	/**
@@ -4456,6 +4506,31 @@ class Mixmymeals_Shortcodes {
 					<input type="number" class="mmm-plan-item-servings" data-field="servings"
 						min="1" value="<?php echo esc_attr( (string) $servings ); ?>"
 						aria-label="<?php esc_attr_e( 'Servings', 'mixmymeals' ); ?>">
+
+					<?php
+					/*
+					 * How the dish is cooked, only where there is a choice: a
+					 * recipe that can be cooked vegan with other packets than
+					 * the ones it names. The choice decides the shopping list,
+					 * so it belongs to the planning, like the servings.
+					 */
+					$diet_options = ( new Mixmymeals_Recipe( $recipe_id ) )->get_diet_options();
+					$diet         = Mixmymeals_Cart::clean_diet( $recipe_id, (string) ( $item['diet'] ?? '' ) );
+
+					if ( $diet_options ) :
+						?>
+					<select class="mmm-plan-item-diet" data-field="diet"
+						aria-label="<?php esc_attr_e( 'Diet', 'mixmymeals' ); ?>">
+						<option value=""<?php selected( $diet, '' ); ?>>
+							<?php esc_html_e( 'As in the recipe', 'mixmymeals' ); ?>
+						</option>
+						<?php foreach ( $diet_options as $slug ) : ?>
+							<option value="<?php echo esc_attr( $slug ); ?>"<?php selected( $diet, $slug ); ?>>
+								<?php echo esc_html( Mixmymeals_Diet::label( $slug ) ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+					<?php endif; ?>
 				</div>
 
 			</div>
@@ -5109,6 +5184,8 @@ class Mixmymeals_Shortcodes {
 				'type'      => sanitize_text_field( $item['type'] ?? '' ),
 				//'note'      => sanitize_textarea_field( $item['note'] ?? '' ),
 				'day'       => $day,
+				// Checked again by set_diet() against the recipe.
+				'diet'      => sanitize_key( (string) ( $item['diet'] ?? '' ) ),
 			];
 		}
 
@@ -5198,6 +5275,9 @@ class Mixmymeals_Shortcodes {
 			$meal->set_type( $item['type'] ?? '' );
 			if ( isset( $item['day'] ) ) {
 				$meal->set_day( (int) $item['day'] );
+			}
+			if ( '' !== $item['diet'] ) {
+				$meal->set_diet( $item['diet'] );
 			}
 		}
 
@@ -5293,7 +5373,7 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
+		$recipe = $meal->get_recipe();
 
 		$meal_servings   = max( 1.0, (float) $meal->get_shown_servings() );
 		$recipe_servings = max( 1.0, (float) $recipe->get_servings() );
@@ -5731,7 +5811,7 @@ class Mixmymeals_Shortcodes {
 
 		$kcal = 0;
 		foreach ( $entries as $entry ) {
-			$recipe = new Mixmymeals_Recipe( (int) $entry['meal']->get_recipe_id() );
+			$recipe = $entry['meal']->get_recipe();
 			if ( ! $recipe->is_valid() ) {
 				continue;
 			}
@@ -7230,13 +7310,13 @@ class Mixmymeals_Shortcodes {
 			$capable  = $plan->get_diets( true );
 		} else {
 
-			$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
-
-			if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
-				return '';
-			}
-
-			$recipe = new Mixmymeals_Recipe( $post_id );
+			/*
+			 * A meal answers as it is cooked: a vegan-capable chili planned
+			 * vegan is vegan, and says so without the "capable".
+			 */
+			$recipe = 'mmm_meal' === $type
+				? ( new Mixmymeals_Meal( $post_id ) )->get_recipe()
+				: new Mixmymeals_Recipe( 'mmm_recipe' === $type ? $post_id : 0 );
 
 			if ( ! $recipe->is_valid() ) {
 				return '';
@@ -7679,7 +7759,7 @@ class Mixmymeals_Shortcodes {
 		$meal      = new Mixmymeals_Meal( $meal_id );
 		$title     = get_the_title( $meal_id );
 		$recipe_id = (int) $meal->get_recipe_id();
-		$recipe    = new Mixmymeals_Recipe( $recipe_id );
+		$recipe    = $meal->get_recipe();
 
 		$weekday_labels = [
 			1 => __( 'Monday', 'mixmymeals' ),
@@ -7873,7 +7953,7 @@ class Mixmymeals_Shortcodes {
 
 		if ( $recipe_id > 0 && class_exists( 'Mixmymeals_Recipe' ) ) {
 
-			$recipe = new Mixmymeals_Recipe( $recipe_id );
+			$recipe = $meal_obj->get_recipe();
 
 			/* Calories (per serving) */
 			$nutrition = $recipe->calculate_nutrition_per_serving();
@@ -7945,7 +8025,7 @@ class Mixmymeals_Shortcodes {
 			/* -------------------------
 			 * Diet Type Badge
 			 * ------------------------- */
-			$mmm_diet = self::diet_chips( (int) $recipe->get_id(), 'mmm-meta__item' );
+			$mmm_diet = self::diet_chips( (int) $meal_obj->get_id(), 'mmm-meta__item' );
 			if ( '' !== $mmm_diet ) {
 				$items[] = $mmm_diet;
 			}
@@ -8129,7 +8209,7 @@ class Mixmymeals_Shortcodes {
 		$mmm_plan_cooked = array();
 
 		foreach ( $rows as $mmm_row ) {
-			$mmm_recipe = new Mixmymeals_Recipe( (int) $mmm_row['recipe_id'] );
+			$mmm_recipe = Mixmymeals_Meal_Plan::row_recipe( $mmm_row );
 
 			if ( $mmm_recipe->is_valid() ) {
 				$mmm_plan_cooked = array_merge( $mmm_plan_cooked, $mmm_recipe->get_cooked_ingredients() );
@@ -11401,12 +11481,14 @@ class Mixmymeals_Shortcodes {
 		$type = get_post_type( $post_id );
 
 		if ( 'mmm_meal' === $type ) {
-			$post_id = ( new Mixmymeals_Meal( $post_id ) )->get_recipe_id();
+			// As the meal cooks it: rows its diet decided drop out of the
+			// comparison, as a recipe's own pins do.
+			$recipe = ( new Mixmymeals_Meal( $post_id ) )->get_recipe();
 		} elseif ( 'mmm_recipe' !== $type ) {
 			return '';
+		} else {
+			$recipe = new Mixmymeals_Recipe( (int) $post_id );
 		}
-
-		$recipe = new Mixmymeals_Recipe( (int) $post_id );
 
 		if ( ! $recipe->is_valid() ) {
 			return '';
@@ -12015,7 +12097,7 @@ class Mixmymeals_Shortcodes {
 			return '<p>No recipe assigned.</p>';
 		}
 
-		$recipe = new Mixmymeals_Recipe( $recipe_id );
+		$recipe = $meal->get_recipe();
 
 		if ( ! $recipe->is_valid() ) {
 			return '<p>Invalid recipe.</p>';

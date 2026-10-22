@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.66.0
+Stable tag: 3.67.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,29 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.67.0 =
+
+Added:
+* A meal stores its diet — how the recipe is actually cooked for that
+  planning. A chili that is "vegan-capable" through a soy mince packet can
+  be planned once with beef and once vegan. Chosen in the plan's Meals box,
+  on the meal screen, per dish in the planner (only where the recipe offers
+  a choice) and over REST/MCP (`diet` on meals).
+* A meal cooked as a diet uses, per ingredient, a product that holds it
+  (the recipe's own choice where it already does, else the reference, else
+  another product the recipe has not ruled out, else the ingredient's own
+  figures); optional ingredients that cannot hold it are left out. Its
+  ingredient list, nutrition, costs, traffic lights, diet chip ("Vegan"
+  instead of "Vegan-capable") and the plan's figures follow.
+* Shopping list: an ingredient bought for a diet gets a line of its own,
+  with its packet and the diet — "Hackfleisch 400 g Sojahack (Vegan)" beside
+  "Hackfleisch 400 g Rinderhack" — on the plan page, in the mails, in
+  Bring! and over REST (`diet`). Where every meal buys it the same way it
+  stays one line.
+
+Fixed:
+* MCP `mmm_update_meal` offered `text` but never sent it.
 
 = 3.66.0 =
 

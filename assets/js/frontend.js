@@ -730,11 +730,11 @@ jQuery(function ($) {
         mmmMoveItemToDay(item, parseInt($(this).val(), 10) || 0);
     });
 
-    /* Servings and meal type of a planner item. Saved as they change, so
-       the cart — which the live nutrition is computed from — knows them
-       before the plan is saved; the plan itself still reads them from
-       the item when it is created. */
-    $(document).on('change', '.mmm-plan-item-servings, .mmm-plan-item-type', function () {
+    /* Servings, meal type and diet of a planner item. Saved as they
+       change, so the cart — which the live nutrition is computed from —
+       knows them before the plan is saved; the plan itself still reads
+       them from the item when it is created. */
+    $(document).on('change', '.mmm-plan-item-servings, .mmm-plan-item-type, .mmm-plan-item-diet', function () {
         const $field = $(this);
         const item = $field.closest('.mmm-plan-item');
         let value = $field.val();
@@ -888,6 +888,7 @@ jQuery(function ($) {
                 recipe_id: el.data('recipe-id'),
                 servings: el.find('.mmm-plan-item-servings').val(),
                 type: el.find('.mmm-plan-item-type').val(),
+                diet: el.find('.mmm-plan-item-diet').val() || '',
                 note: el.find('.mmm-plan-item-note').val(),
                 day: (dayList >= 1 && dayList <= 7) ? dayList : null
             });
