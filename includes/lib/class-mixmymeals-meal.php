@@ -119,7 +119,7 @@ class Mixmymeals_Meal {
 	 * state in which nobody knows what to buy. A meal that never said — one
 	 * from before this field, or one whose recipe changed — reads the
 	 * recipe's first choice, which is the recipe as written under its own
-	 * name ("Diet not specified", "Vegetarian").
+	 * name ("Original recipe", "Vegetarian").
 	 *
 	 * Everything that computes from the meal reads the recipe through
 	 * get_recipe(), which applies it.

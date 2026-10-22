@@ -951,7 +951,7 @@ class Mixmymeals_Recipe {
 	 * Only the `diet` axis — vegan, vegetarian, or none: the question that
 	 * decides what goes into the basket. The first entry is the recipe as
 	 * written, named by its strongest diet of that axis or, where it holds
-	 * none, Mixmymeals_Diet::NONE ("Diet not specified"); then every stronger diet of
+	 * none, Mixmymeals_Diet::NONE ("Original recipe"); then every stronger diet of
 	 * the axis it can be cooked as, weakest first. Fewer than two means there
 	 * is nothing to decide and the result is empty.
 	 *

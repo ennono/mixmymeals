@@ -160,11 +160,11 @@ $recipe = new Mixmymeals_Recipe( $recipe_id );
 
 mmm_md_assert( array() === array_intersect( array( $VEGAN, $VEGGI ), $recipe->get_diets() ), 'wie geschrieben ist das Chili weder vegan noch vegetarisch' );
 mmm_md_assert( $recipe->can_be_cooked_as( $VEGAN ), 'es kann vegan gekocht werden' );
-mmm_md_assert( array( Mixmymeals_Diet::NONE, $VEGGI, $VEGAN ) === $recipe->get_diet_choices(), 'zur Wahl stehen nicht festgelegt, vegetarisch und vegan — kein „wie im Rezept“' );
-mmm_md_assert( in_array( Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), array( 'Diet not specified', 'Ernährungsform nicht festgelegt' ), true ), 'die erste Wahl heißt „Ernährungsform nicht festgelegt“' );
+mmm_md_assert( array( Mixmymeals_Diet::NONE, $VEGGI, $VEGAN ) === $recipe->get_diet_choices(), 'zur Wahl stehen Originalrezept, vegetarisch und vegan — kein „wie im Rezept“' );
+mmm_md_assert( in_array( Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), array( 'Original recipe', 'Originalrezept' ), true ), 'die erste Wahl heißt „Originalrezept“' );
 
 $as_meat = $recipe->for_diet( Mixmymeals_Diet::NONE );
-mmm_md_assert( '' === $as_meat->get_implemented_diet() && abs( (float) $as_meat->calculate_nutrition_per_serving()['calories'] - 630 ) < 0.01, 'nicht festgelegt ist das Rezept wie geschrieben' );
+mmm_md_assert( '' === $as_meat->get_implemented_diet() && abs( (float) $as_meat->calculate_nutrition_per_serving()['calories'] - 630 ) < 0.01, 'Originalrezept ist das Rezept wie geschrieben' );
 mmm_md_assert( ! in_array( $VEGAN, $as_meat->get_diet_suitabilities(), true ), 'so festgelegt ist es nicht mehr „vegan-tauglich“' );
 mmm_md_assert( in_array( $VEGAN, $recipe->get_diet_suitabilities(), true ), 'das Rezept selbst bleibt vegan-tauglich' );
 
@@ -224,7 +224,7 @@ mmm_md_assert( $VEGAN === $meal_vegan->get_recipe()->get_implemented_diet(), 'ge
 mmm_md_assert( Mixmymeals_Diet::NONE === $meal_meat->get_diet(), 'ohne Angabe ist die Mahlzeit auf die erste Wahl festgelegt' );
 mmm_md_assert( ! $meal_meat->set_diet( 'zz-gibtsnicht' ) && Mixmymeals_Diet::NONE === $meal_meat->get_diet(), 'eine unbekannte Diät legt die erste Wahl fest' );
 mmm_md_assert( Mixmymeals_Diet::NONE === get_post_meta( $meal_meat->get_id(), Mixmymeals_Meal::META_DIET, true ), 'und speichert sie ausdrücklich' );
-mmm_md_assert( '' === Mixmymeals_Shortcodes::diet_chips( $meal_meat->get_id() ) || false === strpos( Mixmymeals_Shortcodes::diet_chips( $meal_meat->get_id() ), $VEGAN ), 'eine Mahlzeit ohne festgelegte Ernährungsform zeigt keinen Vegan-Chip' );
+mmm_md_assert( '' === Mixmymeals_Shortcodes::diet_chips( $meal_meat->get_id() ) || false === strpos( Mixmymeals_Shortcodes::diet_chips( $meal_meat->get_id() ), $VEGAN ), 'eine Mahlzeit nach Originalrezept zeigt keinen Vegan-Chip' );
 mmm_md_assert( false !== strpos( Mixmymeals_Shortcodes::diet_chips( $meal_vegan->get_id() ), '--diet-definite' ), 'die vegane Mahlzeit zeigt „Vegan“ als feste Angabe' );
 
 $plain = mmm_md_post( 'mmm_recipe', 'ZZ Steak' );
@@ -267,7 +267,7 @@ mmm_md_assert( 2 === substr_count( $bring, 'ZZ Hackfleisch' ), 'Bring! bekommt b
 $by_day = $plan->calc_nutrition_by_day();
 mmm_md_assert( abs( (float) $by_day[1]['per_person']['calories'] - 630 ) < 0.01 && abs( (float) $by_day[2]['per_person']['calories'] - 405 ) < 0.01, 'die Nährwerte je Tag folgen der Umsetzung' );
 
-mmm_md_assert( in_array( $VEGAN, ( new Mixmymeals_Meal_Plan( $plan_id ) )->get_diets(), true ) === false, 'der Plan ist nicht vegan, solange Montag nicht festgelegt ist' );
+mmm_md_assert( in_array( $VEGAN, ( new Mixmymeals_Meal_Plan( $plan_id ) )->get_diets(), true ) === false, 'der Plan ist nicht vegan, solange Montag das Originalrezept ist' );
 
 $meal_meat->set_diet( $VEGAN );
 mmm_md_assert( in_array( $VEGAN, ( new Mixmymeals_Meal_Plan( $plan_id ) )->get_diets(), true ), 'mit beiden Mahlzeiten vegan ist der Plan vegan' );

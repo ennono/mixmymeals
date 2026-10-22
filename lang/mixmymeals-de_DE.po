@@ -7542,8 +7542,8 @@ msgid "Adjust in the planner"
 msgstr "Im Planer anpassen"
 
 #: includes/lib/class-mixmymeals-diet.php
-msgid "Diet not specified"
-msgstr "Ernährungsform nicht festgelegt"
+msgid "Original recipe"
+msgstr "Originalrezept"
 
 #: includes/lib/class-mixmymeals-post-meta.php
 msgid ""

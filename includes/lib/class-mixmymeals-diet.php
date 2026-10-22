@@ -106,8 +106,7 @@ class Mixmymeals_Diet {
 
 	/**
 	 * The diet choice of a meal whose recipe holds no claim on the `diet`
-	 * axis, cooked as written — "Diet not specified". Not a term and never
-	 * one:
+	 * axis, cooked as written — "Original recipe". Not a term and never one:
 	 * resolve() maps it to '', so nothing that reads diets can mistake it for
 	 * a claim. Only Mixmymeals_Recipe::get_diet_choices() hands it out.
 	 */
@@ -554,15 +553,15 @@ class Mixmymeals_Diet {
 	}
 
 	/**
-	 * The label of a meal's diet choice: the diet's own, or "Diet not
-	 * specified" for NONE. Fixed wording on purpose: it says what is known
-	 * about the dish — nothing — and claims nothing beyond that.
+	 * The label of a meal's diet choice: the diet's own, or "Original recipe"
+	 * for NONE. Fixed wording on purpose: it names a settled state — the
+	 * recipe's own products — and claims no diet.
 	 *
 	 * @param string $slug A slug from Mixmymeals_Recipe::get_diet_choices().
 	 * @return string
 	 */
 	public static function choice_label( string $slug ): string {
-		return self::NONE === $slug ? __( 'Diet not specified', 'mixmymeals' ) : self::label( $slug );
+		return self::NONE === $slug ? __( 'Original recipe', 'mixmymeals' ) : self::label( $slug );
 	}
 
 	/**

@@ -5898,7 +5898,7 @@ msgid "Adjust in the planner"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-diet.php
-msgid "Diet not specified"
+msgid "Original recipe"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php
