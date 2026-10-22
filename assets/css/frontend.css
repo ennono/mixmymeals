@@ -597,30 +597,33 @@ body.mmm-cook-mode-open {
 
 /* ==========================================================
    PLAN SERVINGS — the field above a plan's shopping list
-   (?personen). Structure only: one line of text, − field +, text;
-   the look is the theme's. The Apply button is for pages without
-   JavaScript; once frontend.js has the field (.is-live) a change
-   applies itself.
+   (?mmm_persons_to_add). Structure only: one line, − value +, and
+   the planner link beside it where there is room; the look is the
+   theme's. .mmm-servings-delta is the "+1" appended to servings on
+   the rail and in the hero.
    ========================================================== */
-.mmm-plan-servings__line {
+.mmm-plan-servings {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5em;
+    column-gap: 1em;
+    row-gap: 0.25em;
 }
 
+.mmm-plan-servings__line,
 .mmm-plan-servings__controls {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.25em;
+    gap: 0.35em;
 }
 
 .mmm-plan-servings__step {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 2.75em;
-    min-height: 2.75em;
+    min-width: 2em;
+    min-height: 2em;
     text-decoration: none;
 }
 
@@ -629,18 +632,13 @@ body.mmm-cook-mode-open {
     cursor: default;
 }
 
-.mmm-plan-servings__input {
-    width: 4.5em;
-    text-align: center;
-}
-
 .mmm-plan-servings__value {
-    min-width: 2.5em;
+    min-width: 1.75em;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
-.mmm-plan-shopping.is-live .mmm-plan-servings__apply {
+.mmm-servings-delta[hidden] {
     display: none;
 }
 

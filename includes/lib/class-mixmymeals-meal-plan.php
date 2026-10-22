@@ -525,7 +525,7 @@ class Mixmymeals_Meal_Plan {
 
 		$servings = array();
 
-		// From the rows, so a plan under ?personen states what it shows.
+		// From the rows, so a plan built from rows states what it holds.
 		foreach ( $this->get_meal_rows() as $row ) {
 			$val = absint( $row['servings'] );
 			if ( $val > 0 ) {
@@ -566,7 +566,7 @@ class Mixmymeals_Meal_Plan {
 
 	/*
 	 * ---------------------------------------------------------------------
-	 * Servings on the plan page: ?personen
+	 * Servings on the plan page: ?mmm_persons_to_add
 	 * ---------------------------------------------------------------------
 	 *
 	 * Every meal stores its own servings, so a plan can feed three on Monday
@@ -578,13 +578,15 @@ class Mixmymeals_Meal_Plan {
 	 */
 
 	/**
-	 * The query parameter carrying the reader's choice: "+1" / "-2" relative
-	 * to every meal, or "4" — only on a plan whose meals all agree, where
-	 * "for 4 people" is what the reader means.
+	 * The query parameter carrying the reader's choice: how many people to
+	 * add to every meal, "1" or "-2". Always a difference, never a count —
+	 * the name says so, and a count means nothing on a plan feeding three on
+	 * Monday and nine on Wednesday. Prefixed like everything of this plugin
+	 * that lives in a shared namespace.
 	 *
 	 * @var string
 	 */
-	const SERVINGS_QUERY_VAR = 'personen';
+	const SERVINGS_QUERY_VAR = 'mmm_persons_to_add';
 
 	/**
 	 * How many people the page may add to every meal.
@@ -644,8 +646,8 @@ class Mixmymeals_Meal_Plan {
 
 	/**
 	 * The servings every meal of the plan shares, or 0 when they differ (or
-	 * there are no meals). Decides whether the page offers "for [4] people"
-	 * or "[±0] at every meal".
+	 * there are no meals). Decides whether the field reads "for − 4 +
+	 * people" or "people: − ±0 + at every meal".
 	 *
 	 * @return int
 	 */
@@ -674,12 +676,12 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * The raw ?personen value of the current request, '' when there is none.
+	 * The raw ?mmm_persons_to_add value of the current request, '' when
+	 * there is none.
 	 *
-	 * The one place the parameter is read. Unsanitised on purpose: a "+" in
-	 * a query string arrives as a space, and trimming would turn "+1" — one
-	 * more at every meal — into "1", one person in all. parse_servings_value()
-	 * accepts nothing but a sign and digits, which is the sanitising.
+	 * The one place the parameter is read. Untrimmed: a hand-typed "+" in a
+	 * query string arrives as a space. parse_servings_value() accepts nothing
+	 * but a sign and digits, which is the sanitising.
 	 *
 	 * @return string
 	 */
@@ -692,47 +694,26 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * Turns a ?personen value into the difference to add to every meal.
+	 * Turns a ?mmm_persons_to_add value into the difference to add to every
+	 * meal.
 	 *
 	 * The one place the value is checked, for the page, the AJAX answer and
-	 * the planner hand-over alike. "+1", "-2" (also with U+2212) and "±0" are
-	 * relative and valid on every plan; a plain number is absolute and valid
-	 * only where every meal has the same servings, since "for 4 people" means
-	 * nothing on a plan feeding three on Monday and nine on Wednesday. A "+"
-	 * may arrive decoded as a space. Anything else — text, an absolute
-	 * number on a mixed plan, a difference outside servings_offset_bounds() —
-	 * is null, and the page shows the plan as stored.
+	 * the planner hand-over alike. "1", "+1" (the "+" may arrive decoded as a
+	 * space), "-2" and "−2" (U+2212) are differences; anything else — text, a
+	 * difference outside servings_offset_bounds() — is null, and the page
+	 * shows the plan as stored.
 	 *
 	 * @param string $raw The parameter as sent.
 	 * @return int|null
 	 */
 	public function parse_servings_value( string $raw ): ?int {
 
-		if ( '' === $raw || ! preg_match( '/^([+ \-±]|\x{2212})?(\d{1,3})$/u', $raw, $m ) ) {
+		if ( '' === $raw || ! preg_match( '/^([+ \-]|\x{2212})?(\d{1,3})$/u', $raw, $m ) ) {
 			return null;
 		}
 
 		$sign   = $m[1] ?? '';
-		$number = (int) $m[2];
-
-		if ( '' === $sign ) {
-			$base = $this->servings_base();
-
-			if ( $base <= 0 || $number < 1 ) {
-				return null;
-			}
-
-			$offset = $number - $base;
-		} elseif ( '±' === $sign ) {
-			$offset = 0 === $number ? 0 : null;
-		} else {
-			$offset = ( '-' === $sign || "\u{2212}" === $sign ) ? -$number : $number;
-		}
-
-		if ( null === $offset ) {
-			return null;
-		}
-
+		$offset = ( '-' === $sign || "\u{2212}" === $sign ) ? -(int) $m[2] : (int) $m[2];
 		$bounds = $this->servings_offset_bounds();
 
 		return ( $offset >= $bounds['min'] && $offset <= $bounds['max'] ) ? $offset : null;
@@ -750,7 +731,8 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * Whether the current request carries ?personen at all — valid or not.
+	 * Whether the current request carries ?mmm_persons_to_add at all —
+	 * valid or not.
 	 * Such a page is one reader's question and gets noindex.
 	 *
 	 * @return bool
@@ -761,32 +743,20 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * How a difference is written into an address: the absolute number on a
-	 * plan whose meals agree, a signed difference otherwise. '' for none.
+	 * How a difference is written into an address: "1", "-2"; '' for none.
+	 * No "+": in a query string it is read back as a space.
 	 *
 	 * @param int $offset Difference.
 	 * @return string
 	 */
 	public function servings_query_value( int $offset ): string {
 
-		if ( 0 === $offset ) {
-			return '';
-		}
-
-		$base = $this->servings_base();
-
-		if ( $base > 0 ) {
-			return (string) max( 1, $base + $offset );
-		}
-
-		return ( $offset > 0 ? '+' : '-' ) . abs( $offset );
+		return 0 === $offset ? '' : (string) $offset;
 	}
 
 	/**
-	 * Adds ?personen for a difference to an address — or removes it for 0.
-	 *
-	 * Encoded here because add_query_arg() passes new values through as they
-	 * are, and a bare "+" in a query string is read back as a space.
+	 * Adds ?mmm_persons_to_add for a difference to an address — or removes
+	 * it for 0.
 	 *
 	 * @param string $url    Address.
 	 * @param int    $offset Difference.
@@ -843,6 +813,104 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * What a difference actually does to each meal, each day and the plan:
+	 * the servings shown minus the servings stored. Not simply the offset,
+	 * because a meal never drops below one — "−5" takes a meal of three to
+	 * one, which is −2 for that meal.
+	 *
+	 * The plan page prints the stored servings and appends this ("3 Portionen
+	 * +1"), so a reader sees both what the plan says and what the list is
+	 * now for.
+	 *
+	 * @param int $offset Difference, as from requested_servings_offset().
+	 * @return array{meals:array<int,int>, days:array<int,array{min:int,max:int}>, plan:array{min:int,max:int}}
+	 *         Per meal ID; per weekday (0 for meals without one) and for the
+	 *         whole plan the lowest and highest change.
+	 */
+	public function servings_changes( int $offset ): array {
+
+		$out = array(
+			'meals' => array(),
+			'days'  => array(),
+			'plan'  => array(
+				'min' => 0,
+				'max' => 0,
+			),
+		);
+
+		$stored = $this->get_meal_rows();
+		$shown  = $this->with_servings_offset( $offset )->get_meal_rows();
+		$by_id  = array_column( $shown, 'servings', 'meal_id' );
+		$first  = true;
+
+		foreach ( $stored as $i => $row ) {
+
+			// Rows a derived plan dropped (a recipe gone) have no change.
+			$now = $row['meal_id'] > 0 ? ( $by_id[ $row['meal_id'] ] ?? null ) : ( $shown[ $i ]['servings'] ?? null );
+			if ( null === $now ) {
+				continue;
+			}
+
+			$delta = (int) $now - (int) $row['servings'];
+			$day   = (int) $row['day'];
+			$day   = ( $day >= 1 && $day <= 7 ) ? $day : 0;
+
+			if ( $row['meal_id'] > 0 ) {
+				$out['meals'][ (int) $row['meal_id'] ] = $delta;
+			}
+
+			$out['days'][ $day ] = isset( $out['days'][ $day ] )
+				? array(
+					'min' => min( $out['days'][ $day ]['min'], $delta ),
+					'max' => max( $out['days'][ $day ]['max'], $delta ),
+				)
+				: array(
+					'min' => $delta,
+					'max' => $delta,
+				);
+
+			$out['plan'] = $first
+				? array(
+					'min' => $delta,
+					'max' => $delta,
+				)
+				: array(
+					'min' => min( $out['plan']['min'], $delta ),
+					'max' => max( $out['plan']['max'], $delta ),
+				);
+			$first       = false;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * A change as it is appended to a number of servings: "+1", "−2"
+	 * (U+2212, the minus a column of figures uses), '' for none. Where the
+	 * meals behind one figure changed by different amounts — only the floor
+	 * of one serving does that — the range, "−3 … −1".
+	 *
+	 * @param int $min Lowest change.
+	 * @param int $max Highest change.
+	 * @return string
+	 */
+	public static function format_servings_delta( int $min, int $max ): string {
+
+		$one = static function ( int $d ): string {
+			if ( 0 === $d ) {
+				return '±0';
+			}
+			return ( $d > 0 ? '+' : "\u{2212}" ) . number_format_i18n( abs( $d ) );
+		};
+
+		if ( 0 === $min && 0 === $max ) {
+			return '';
+		}
+
+		return $min === $max ? $one( $min ) : $one( $min ) . ' … ' . $one( $max );
 	}
 
 	/**
@@ -2498,7 +2566,7 @@ class Mixmymeals_Meal_Plan {
 		 * From the rows, like calc_nutrition(): a saved plan's rows are its
 		 * meal posts, read the same way they were read here before 3.66.0,
 		 * so its list is unchanged to the byte — and a plan made of rows, the
-		 * planner's or one under ?personen (with_servings_offset()), gets its
+		 * planner's or one under ?mmm_persons_to_add (with_servings_offset()), gets its
 		 * list from this one calculation instead of a second one.
 		 */
 		$rows = $this->get_meal_rows();
@@ -3225,7 +3293,7 @@ class Mixmymeals_Meal_Plan {
 	 * it finds there, so the link points at the plan's Bring! import view
 	 * rather than at the plan page (which is an ItemList, not a Recipe).
 	 *
-	 * With a servings difference the view's address carries ?personen, so
+	 * With a servings difference the view's address carries ?mmm_persons_to_add, so
 	 * what Bring! imports is the list the reader is looking at.
 	 *
 	 * @param int $plan_id Meal plan post ID.
@@ -3268,7 +3336,7 @@ class Mixmymeals_Meal_Plan {
 		$plan_id = (int) get_queried_object_id();
 		$plan    = new self( $plan_id );
 
-		// ?personen travels along from bring_deeplink(); invalid is ignored.
+		// ?mmm_persons_to_add travels along from bring_deeplink(); invalid is ignored.
 		$schema = $plan->with_servings_offset( $plan->requested_servings_offset() )->get_bring_recipe_schema();
 
 		// Nothing to import — let the normal plan page render instead.

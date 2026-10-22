@@ -1089,28 +1089,25 @@ jQuery(function ($) {
     })();
 
     /* ==========================================================
-       PLAN SERVINGS (plan page, ?personen)
+       PLAN SERVINGS (plan page, ?mmm_persons_to_add)
 
        The field above a plan's shopping list adds the same number of
        people to every meal. The arithmetic stays on the server — packs
        and unit divisors are rounded once over the new total there, by
        the calculation every shopping list goes through — so this only
        asks, and swaps in what comes back: the field, the list, the
-       address, and every other amount on the page (Bring! link, the
-       hero's servings, each day's and each meal card's servings).
-       Without JavaScript the − / + links and the form do the same by
+       address, the Bring! link, and the change appended to the hero's,
+       each day's and each meal card's servings (.mmm-servings-delta,
+       "+1"). Without JavaScript the − / + links do the same by
        reloading the page.
        ========================================================== */
     let mmmServingsRequest = null;
 
     $('[data-plan-shopping]').addClass('is-live');
 
-    // Text of a chip that starts with an icon: replace the text only.
-    function mmmSetChipText($chip, text) {
-        $chip.each(function () {
-            $(this).contents().filter(function () { return this.nodeType === 3; }).remove();
-            $(this).append(document.createTextNode(text));
-        });
+    // The "+1" behind a number of servings; hidden while there is none.
+    function mmmSetServingsDelta($scope, text) {
+        $scope.find('.mmm-servings-delta').text(text || '').prop('hidden', !text);
     }
 
     function mmmRequestPlanServings($wrap, value, focusSelector) {
@@ -1126,7 +1123,7 @@ jQuery(function ($) {
 
         mmmServingsRequest = mmmPost('mmm_plan_servings', {
             meal_plan_id: planId,
-            personen: value || '',
+            persons_to_add: value || '',
             show_details: $wrap.attr('data-show-details') === '1' ? 1 : 0,
             sort_by_category: $wrap.attr('data-sort-by-category') === '1' ? 1 : 0,
             cart_url: $wrap.find('.mmm-plan-servings__planner-link').attr('data-redirect-url') || ''
@@ -1139,14 +1136,11 @@ jQuery(function ($) {
                 $list.html(data.list || '');
 
                 // Back where the reader was: the same control, or the
-                // field when a step link has reached its end.
+                // value when a step link has reached its end.
                 if (focusSelector) {
                     let $focus = $wrap.find(focusSelector);
-                    if (!$focus.length) $focus = $wrap.find('.mmm-plan-servings__input, .mmm-plan-servings__value').first();
-                    if ($focus.length) {
-                        if (!$focus.is('a, input')) $focus.attr('tabindex', '-1');
-                        $focus.trigger('focus');
-                    }
+                    if (!$focus.length) $focus = $wrap.find('.mmm-plan-servings__value').first().attr('tabindex', '-1');
+                    $focus.trigger('focus');
                 }
 
                 if (data.url && window.history && window.history.replaceState) {
@@ -1158,24 +1152,22 @@ jQuery(function ($) {
                 }
 
                 $('.mmm-meal-plan-actions__item--load-into-cart[data-meal-plan-id="' + planId + '"]')
-                    .attr('data-personen', data.value || '');
+                    .attr('data-persons', data.value || '');
 
-                if (data.plan_servings) {
-                    mmmSetChipText($('.mmm-plan-hero__meta .mmm-chip--servings'), data.plan_servings);
-                }
+                mmmSetServingsDelta($('.mmm-plan-hero__meta .mmm-chip--servings'), data.plan_delta);
 
+                const $rail = $('.mmm-plan-rail[data-meal-plan-id="' + planId + '"]');
                 const days = data.days || {};
-                $('.mmm-plan-rail[data-meal-plan-id="' + planId + '"] [data-plan-servings-day]').each(function () {
-                    const text = days[this.getAttribute('data-plan-servings-day')];
-                    if (text) $(this).text(text);
+                $rail.find('[data-plan-servings-day]').each(function () {
+                    mmmSetServingsDelta($(this), days[this.getAttribute('data-plan-servings-day')]);
                 });
 
                 const meals = data.meals || {};
-                $('.mmm-plan-rail[data-meal-plan-id="' + planId + '"] .mmm-recipe-card[data-meal-id]').each(function () {
+                $rail.find('.mmm-recipe-card[data-meal-id]').each(function () {
                     const meal = meals[this.getAttribute('data-meal-id')];
                     if (!meal) return;
                     $(this).attr('href', meal.url);
-                    mmmSetChipText($(this).find('.mmm-chip--servings'), meal.servings);
+                    mmmSetServingsDelta($(this).find('.mmm-chip--servings'), meal.delta);
                 });
             })
             .always(function () {
@@ -1201,37 +1193,17 @@ jQuery(function ($) {
         const offset = Math.max(min, Math.min(max, (parseInt($ctrl.attr('data-offset'), 10) || 0) + (down ? -1 : 1)));
 
         $ctrl.attr('data-offset', offset);
-
-        let value = '';
-        if (base > 0) {
-            value = offset ? String(base + offset) : '';
-            $ctrl.find('.mmm-plan-servings__input').val(base + offset);
-        } else {
-            value = offset > 0 ? '+' + offset : (offset < 0 ? '-' + (-offset) : '');
-            $ctrl.find('.mmm-plan-servings__value').text(offset > 0 ? '+' + offset : (offset < 0 ? '\u2212' + (-offset) : '\u00b10'));
-        }
+        $ctrl.find('.mmm-plan-servings__value').text(
+            base > 0
+                ? String(base + offset)
+                : (offset > 0 ? '+' + offset : (offset < 0 ? '−' + (-offset) : '±0'))
+        );
 
         mmmRequestPlanServings(
             $link.closest('[data-plan-shopping]'),
-            value,
+            offset ? String(offset) : '',
             down ? 'a.mmm-plan-servings__step--down' : 'a.mmm-plan-servings__step--up'
         );
-    });
-
-    // The number field of a plan whose meals agree: an absolute count.
-    // On change, not on every keystroke — a half-typed "1" of "12" would
-    // otherwise be answered, and the answer would overwrite the field.
-    $(document).on('change', '[data-plan-shopping] .mmm-plan-servings__input', function () {
-        const value = parseInt(this.value, 10);
-        if (!value || value < 1) return;
-        // Focus only comes back if the reader was still in the field.
-        const focus = document.activeElement === this ? '.mmm-plan-servings__input' : '';
-        mmmRequestPlanServings($(this).closest('[data-plan-shopping]'), String(value), focus);
-    });
-
-    $(document).on('submit', '[data-plan-shopping] .mmm-plan-servings__form', function (e) {
-        e.preventDefault();
-        $(this).find('.mmm-plan-servings__input').trigger('change');
     });
 
     /* ==========================================================
@@ -1249,7 +1221,7 @@ jQuery(function ($) {
             redirectUrl = $('.mmm-cart-badge').first().closest('a').attr('href') || '';
         }
         // Read fresh, not through .data(): the servings field rewrites it.
-        const personen = btn.attr('data-personen') || '';
+        const persons = btn.attr('data-persons') || '';
         const labels = mixmymeals.load_into_cart_dialog || {};
 
         mmmOpenConfirmDialog({
@@ -1258,7 +1230,7 @@ jQuery(function ($) {
             confirm: labels.confirm,
             cancel: labels.cancel,
             onConfirm: function (ctx) {
-                mmmPost('mmm_load_plan_into_cart', { meal_plan_id: mealPlanId, personen: personen })
+                mmmPost('mmm_load_plan_into_cart', { meal_plan_id: mealPlanId, persons_to_add: persons })
                     .done(function (response) {
                         if (response && response.success) {
                             mmmUpdateCartBadge();

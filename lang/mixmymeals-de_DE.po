@@ -7517,14 +7517,14 @@ msgstr "Eine Person weniger bei jeder Mahlzeit"
 msgid "One person more at every meal"
 msgstr "Eine Person mehr bei jeder Mahlzeit"
 
-#. translators: %s: the field with the number of people. Keep the %s.
+#. translators: %s: − the number of people +. Keep the %s.
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "For %s person"
 msgid_plural "For %s people"
 msgstr[0] "Für %s Person"
 msgstr[1] "Für %s Personen"
 
-#. translators: %s: the − value + control. Keep the %s.
+#. translators: %s: − the change +. Keep the %s.
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "People: %s at every meal"
 msgstr "Personen: %s bei jeder Mahlzeit"
@@ -7532,10 +7532,6 @@ msgstr "Personen: %s bei jeder Mahlzeit"
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Number of people"
 msgstr "Anzahl Personen"
-
-#: includes/lib/class-mixmymeals-shortcodes.php
-msgid "Apply"
-msgstr "Übernehmen"
 
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Change single days?"

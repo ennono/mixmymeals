@@ -118,18 +118,19 @@ privacy text under Settings → Privacy after installation.
 = 3.66.0 =
 
 Added:
-* Shop for more or fewer people on a meal plan page. A field above the
-  shopping list adds the same number of people to every meal — "For [4]
-  people" where all meals agree, "People: − ±0 + at every meal" with the
-  servings per weekday underneath where they differ. Each meal keeps at
-  least one serving. The shopping list, the Bring! export, the servings in
-  the hero and on the meal cards and the meal pages behind them follow; the
-  figures per day and person, the traffic lights and the day rating do not
-  depend on the number of people and stay as they are. Nothing is saved:
-  the address carries the choice (`?personen=+1`, or `?personen=4` on a
-  plan whose meals agree), so it works without JavaScript and can be
-  shared. Such pages are `noindex, follow`. "Adjust in the planner" next to
-  the field loads the plan with the difference applied.
+* Shop for more or fewer people on a meal plan page. One quiet line above
+  the shopping list adds the same number of people to every meal — "For
+  − 4 + people" where all meals agree, "People: − ±0 + at every meal"
+  where they differ. Each meal keeps at least one serving. The shopping
+  list, the Bring! export and the meal pages behind the cards follow. The
+  servings on the cards, the day heads and in the hero keep the plan's own
+  number and append the change ("3 servings +1"). The figures per day and
+  person, the traffic lights and the day rating do not depend on the
+  number of people and stay as they are. Nothing is saved: the address
+  carries the choice (`?mmm_persons_to_add=1` or `=-2`), so it works
+  without JavaScript and can be shared. Such pages are `noindex, follow`.
+  "Adjust in the planner" next to the field loads the plan with the
+  difference applied.
 * Where a plan's meals differ in servings, each day says how many people
   it is planned for ("4 people", "2–4 people").
 

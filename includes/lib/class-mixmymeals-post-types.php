@@ -1455,7 +1455,7 @@ class Mixmymeals_Post_Types {
 	 */
 	public static function is_noindex_view(): bool {
 		/*
-		 * A plan under ?personen is one reader's shopping question: the same
+		 * A plan under ?mmm_persons_to_add is one reader's shopping question: the same
 		 * plan with other amounts, at as many addresses as there are
 		 * numbers. Any value counts, valid or not — the page exists either
 		 * way. No canonical: the plan page is the one indexed, and `follow`
@@ -1469,7 +1469,7 @@ class Mixmymeals_Post_Types {
 		 *
 		 * @param bool $noindex Default: true on the singles of
 		 *                      NOINDEX_POST_TYPES and on a plan carrying
-		 *                      ?personen.
+		 *                      ?mmm_persons_to_add.
 		 */
 		return (bool) apply_filters( 'mixmymeals_seo_noindex', $noindex );
 	}

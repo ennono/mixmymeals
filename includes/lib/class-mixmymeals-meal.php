@@ -115,7 +115,7 @@ class Mixmymeals_Meal {
 
 	/**
 	 * The servings the meal page shows: the stored ones, or — under
-	 * ?personen, carried over from the plan page — those of the same meal in
+	 * ?mmm_persons_to_add, carried over from the plan page — those of the same meal in
 	 * the plan with that difference applied.
 	 *
 	 * Asks the plan rather than adding the number itself, because the rule

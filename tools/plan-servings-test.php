@@ -1,6 +1,6 @@
 <?php
 /**
- * Servings on the plan page (?personen): the shopping list computed from the
+ * Servings on the plan page (?mmm_persons_to_add): the shopping list computed from the
  * plan's rows, the one difference applied to every meal, rounding over the
  * sum, the per-person figures untouched, and the parameter checked in one
  * place.
@@ -375,57 +375,68 @@ try {
 	}
 	$ok( 'the totals do move', $mixed->calc_nutrition()['totals']['calories'] < $mixed->with_servings_offset( 1 )->calc_nutrition()['totals']['calories'] );
 
-	echo '-- 6. ?personen is checked in one place' . PHP_EOL;
+	echo '-- 6. ?mmm_persons_to_add is checked in one place' . PHP_EOL;
+	$ok( 'the parameter carries the plugin prefix', 'mmm_persons_to_add' === Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR );
 	$ok( 'text is ignored', null === $mixed->parse_servings_value( 'viele' ) );
-	$ok( 'an absolute number on a mixed plan is ignored', null === $mixed->parse_servings_value( '4' ) );
+	$ok( 'a plain number is a difference, not a count', 4 === $mixed->parse_servings_value( '4' ) && 2 === $tins->parse_servings_value( '2' ) );
 	$ok( '+1 is one more', 1 === $mixed->parse_servings_value( '+1' ) );
 	$ok( 'a "+" decoded to a space is still one more', 1 === $mixed->parse_servings_value( ' 1' ) );
 	$ok( '-5 is five fewer', -5 === $mixed->parse_servings_value( '-5' ) );
 	$ok( 'U+2212 is a minus', -2 === $mixed->parse_servings_value( "\u{2212}2" ) );
-	$ok( '±0 is nothing', 0 === $mixed->parse_servings_value( '±0' ) );
+	$ok( '0 is nothing', 0 === $mixed->parse_servings_value( '0' ) );
 	$ok( 'below the point where everything is at one: ignored', null === $mixed->parse_servings_value( '-9' ) );
 	$ok( 'above the cap: ignored', null === $mixed->parse_servings_value( '+' . ( Mixmymeals_Meal_Plan::SERVINGS_OFFSET_MAX + 1 ) ) );
-	$ok( 'absolute on a uniform plan', 1 === $tins->parse_servings_value( '2' ) );
-	$ok( 'zero people is ignored', null === $tins->parse_servings_value( '0' ) );
-	$ok( 'mixed plan writes a signed difference', '+1' === $mixed->servings_query_value( 1 ) );
-	$ok( 'uniform plan writes the count', '3' === $tins->servings_query_value( 2 ) );
-	$ok( 'the "+" is encoded in an address', false !== strpos( $mixed->add_servings_arg( 'https://example.org/plan/', 1 ), 'personen=%2B1' ) );
-	$ok( 'offset 0 removes the parameter', false === strpos( $mixed->add_servings_arg( 'https://example.org/plan/?personen=%2B1', 0 ), 'personen' ) );
+	$ok( 'a uniform plan cannot drop below one either', null === $tins->parse_servings_value( '-1' ) );
+	$ok( 'the address carries the difference, without a "+"', '1' === $mixed->servings_query_value( 1 ) && '2' === $tins->servings_query_value( 2 ) && '-2' === $mixed->servings_query_value( -2 ) );
+	$ok( 'in an address', false !== strpos( $mixed->add_servings_arg( 'https://example.org/plan/', 1 ), 'mmm_persons_to_add=1' ) );
+	$ok( 'offset 0 removes the parameter', false === strpos( $mixed->add_servings_arg( 'https://example.org/plan/?mmm_persons_to_add=1', 0 ), 'mmm_persons_to_add' ) );
 
 	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = 'viele';
 	$ok( 'request: text gives 0', 0 === $mixed->requested_servings_offset() );
 	$ok( 'but the page still carries the parameter (noindex)', Mixmymeals_Meal_Plan::has_servings_param() );
-	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '4';
-	$ok( 'request: absolute on a mixed plan gives 0', 0 === $mixed->requested_servings_offset() );
+	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '-30';
+	$ok( 'request: out of bounds gives 0', 0 === $mixed->requested_servings_offset() );
 	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = ' 1'; // "+1" as PHP decodes it.
 	$ok( 'request: +1', 1 === $mixed->requested_servings_offset() );
 
-	echo '-- 7. What the page shows under ?personen=+1' . PHP_EOL;
+	echo '-- 6b. The change is appended, per meal, per day, per plan' . PHP_EOL;
+	$changes = $mixed->servings_changes( -5 );
+	$ok( '−5 on 3/4/9 changes the meals by −2/−3/−5', array( -2, -3, -5 ) === array_values( $changes['meals'] ) );
+	$ok( 'the plan by −5 … −2', array( 'min' => -5, 'max' => -2 ) === $changes['plan'] );
+	$ok( 'written with U+2212 and a range', "\u{2212}5 … \u{2212}2" === Mixmymeals_Meal_Plan::format_servings_delta( -5, -2 ) );
+	$ok( '+1 reads "+1"', '+1' === Mixmymeals_Meal_Plan::format_servings_delta( 1, 1 ) );
+	$ok( 'no change, nothing appended', '' === Mixmymeals_Meal_Plan::format_servings_delta( 0, 0 ) && array( 0, 0, 0 ) === array_values( $mixed->servings_changes( 0 )['meals'] ) );
+
+	echo '-- 7. What the page shows under ?mmm_persons_to_add=1' . PHP_EOL;
 	$shortcodes = new Mixmymeals_Shortcodes();
 
 	$html = $shortcodes->mmm_shopping_list_for_a_single_meal_plan_callback( array( 'meal_plan_id' => $mixed_id ) );
 	$ok( 'the field sits above the list', false !== strpos( $html, 'mmm-plan-servings--mixed' ) && strpos( $html, 'mmm-plan-servings' ) < strpos( $html, 'mmm-simple-shopping-list' ) );
-	$ok( 'with the servings per weekday', false !== strpos( $html, esc_html( Mixmymeals_Meal_Plan::weekday_name( 1, true ) . ' 4 · ' ) ) );
+	$ok( 'one quiet line: no form, no field, no list of days', false === strpos( $html, '<form' ) && false === strpos( $html, '<input' ) && false === strpos( $html, 'mmm-plan-servings__days' ) );
+	$ok( 'the value is the difference', false !== strpos( $html, '<output class="mmm-plan-servings__value">+1</output>' ) );
 	$ok( 'and the link into the planner', false !== strpos( $html, 'mmm-meal-plan-actions__item--load-into-cart mmm-plan-servings__planner-link' ) );
 	$ok( 'the list is the +1 list', false !== strpos( $html, esc_html( Mixmymeals_Meal_Plan::build_needed_amount_string( $row_of( $mixed->with_servings_offset( 1 )->calc_shopping_list(), $carrot )['units'], 1650.0 ) ) ) );
 
 	$rail = $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'meal_plan_id' => $mixed_id ) );
-	$ok( 'meal cards link with the difference', false !== strpos( $rail, 'personen=%2B1' ) );
+	$ok( 'meal cards link with the difference', false !== strpos( $rail, 'mmm_persons_to_add=1' ) );
 	$ok( 'each day says its people', 3 === substr_count( $rail, 'mmm-rail-day__servings' ) );
+	$ok( 'cards and days keep the stored number and append "+1"', 6 === substr_count( $rail, '<span class="mmm-servings-delta">+1</span>' ) );
+	$ok( 'the stored number stays', false !== strpos( $rail, '>' . esc_html( Mixmymeals_Meal_Plan::format_people( 3, 3 ) ) . ' <span class="mmm-servings-delta">+1</span>' ) );
 
-	$ok( 'Bring! is handed the parameter', false !== strpos( Mixmymeals_Meal_Plan::bring_deeplink( $mixed_id, 1 ), rawurlencode( 'personen=%2B1' ) ) );
+	$ok( 'Bring! is handed the parameter', false !== strpos( Mixmymeals_Meal_Plan::bring_deeplink( $mixed_id, 1 ), rawurlencode( 'mmm_persons_to_add=1' ) ) );
 
 	$meals = $mixed->get_meal_rows();
 	$ok( 'a meal page shows its share: 3 → 4', 4 === ( new Mixmymeals_Meal( $meals[0]['meal_id'] ) )->get_shown_servings() );
 	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '-5';
 	$ok( 'and −5 keeps it at one', 1 === ( new Mixmymeals_Meal( $meals[0]['meal_id'] ) )->get_shown_servings() );
-	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '4';
+	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = 'viele';
 	$ok( 'an invalid value shows the stored servings', 3 === ( new Mixmymeals_Meal( $meals[0]['meal_id'] ) )->get_shown_servings() );
 
 	unset( $_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] );
 
 	$uniform = $shortcodes->mmm_shopping_list_for_a_single_meal_plan_callback( array( 'meal_plan_id' => $tins_id ) );
-	$ok( 'a uniform plan gets the count field', false !== strpos( $uniform, 'mmm-plan-servings--uniform' ) && false !== strpos( $uniform, 'name="personen"' ) );
+	$ok( 'a uniform plan shows the count', false !== strpos( $uniform, 'mmm-plan-servings--uniform' ) && false !== strpos( $uniform, '<output class="mmm-plan-servings__value">1</output>' ) );
+	$ok( 'and nothing appended without a difference', false === strpos( $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'meal_plan_id' => $tins_id ) ), '<span class="mmm-servings-delta">' ) );
 	$ok( 'and no day labels on its rail', false === strpos( $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'meal_plan_id' => $tins_id ) ), 'mmm-rail-day__servings' ) );
 
 } finally {

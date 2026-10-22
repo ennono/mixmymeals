@@ -593,8 +593,8 @@ class Mixmymeals_Cart {
 		 * anything invalid loads the plan as stored.
 		 */
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated by parse_servings_value().
-		$personen = isset( $_POST['personen'] ) ? wp_unslash( $_POST['personen'] ) : '';
-		$offset   = (int) $plan->parse_servings_value( is_string( $personen ) ? substr( $personen, 0, 8 ) : '' );
+		$persons = isset( $_POST['persons_to_add'] ) ? wp_unslash( $_POST['persons_to_add'] ) : '';
+		$offset  = (int) $plan->parse_servings_value( is_string( $persons ) ? substr( $persons, 0, 8 ) : '' );
 
 		$cart = new Mixmymeals_Cart();
 		$cart->clear();
