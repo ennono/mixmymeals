@@ -1212,7 +1212,7 @@ class Mixmymeals_Post_Meta {
 	/**
 	 * The diet chooser of a meal: one of the recipe's get_diet_choices(), no
 	 * empty option — a meal whose recipe can be cooked two ways is always
-	 * cooked one of them ("With meat", "Vegetarian", "Vegan").
+	 * cooked one of them (the marked term's name, "Vegetarian", "Vegan").
 	 *
 	 * A recipe offering no choice gets a dash instead of a select, and so
 	 * does the empty row, whose recipe is not chosen yet: the meal it creates

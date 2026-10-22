@@ -106,11 +106,24 @@ class Mixmymeals_Diet {
 
 	/**
 	 * The diet choice of a meal whose recipe holds no claim on the `diet`
-	 * axis, cooked as written — "with meat". Not a term and never one:
-	 * resolve() maps it to '', so nothing that reads diets can mistake it for
-	 * a claim. Only Mixmymeals_Recipe::get_diet_choices() hands it out.
+	 * axis, cooked as written. Not a diet and never one: resolve() maps it to
+	 * '', so nothing that reads diets can mistake it for a claim. Only
+	 * Mixmymeals_Recipe::get_diet_choices() hands it out, and only while a
+	 * term is marked to name it (META_UNRESTRICTED).
 	 */
 	const NONE = '_none';
+
+	/**
+	 * Term meta marking the one term that names a dish without a diet — "Mit
+	 * Fleisch", "Omnivor", whatever the site calls it. The code names nothing
+	 * itself: what a dish *without* a stated diet is, is the site's word, and
+	 * any word chosen here would be a claim about recipes nobody classified.
+	 *
+	 * Such a term is a name, not a diet. terms_as_types() leaves it out, so it
+	 * implies nothing, is implied by nothing, and never appears as a filter, a
+	 * chip or a classification an ingredient could hold.
+	 */
+	const META_UNRESTRICTED = '_mmm_diet_unrestricted';
 
 	/**
 	 * What the four former built-ins were, for migrate_former_builtins() only.
@@ -225,6 +238,55 @@ class Mixmymeals_Diet {
 	 */
 	public static function reset_types(): void {
 		self::types_memo( null, true );
+		self::unrestricted_memo( true );
+	}
+
+	/**
+	 * The term marked as the name of a dish without a diet, or null.
+	 *
+	 * @return WP_Term|null
+	 */
+	public static function unrestricted_term(): ?WP_Term {
+		return self::unrestricted_memo();
+	}
+
+	/**
+	 * Per-request holder of unrestricted_term().
+	 *
+	 * @param bool $clear Forget what is held.
+	 * @return WP_Term|null
+	 */
+	private static function unrestricted_memo( bool $clear = false ): ?WP_Term {
+
+		static $memo = false;
+
+		if ( $clear ) {
+			$memo = false;
+			return null;
+		}
+
+		if ( false !== $memo ) {
+			return $memo;
+		}
+
+		if ( ! taxonomy_exists( self::TAXONOMY ) ) {
+			return null;
+		}
+
+		$terms = get_terms(
+			array(
+				'taxonomy'   => self::TAXONOMY,
+				'hide_empty' => false,
+				'number'     => 1,
+				'orderby'    => 'term_id',
+				'meta_key'   => self::META_UNRESTRICTED, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- a handful of terms.
+				'meta_value' => '1', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			)
+		);
+
+		$memo = ( ! is_wp_error( $terms ) && $terms ) ? $terms[0] : null;
+
+		return $memo;
 	}
 
 	/**
@@ -269,6 +331,12 @@ class Mixmymeals_Diet {
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			return $types;
 		}
+
+		// The term naming a dish without a diet is a name, not a diet.
+		$terms = array_filter(
+			$terms,
+			static fn( $term ) => '1' !== (string) get_term_meta( $term->term_id, self::META_UNRESTRICTED, true )
+		);
 
 		$by_id = array();
 
@@ -553,14 +621,21 @@ class Mixmymeals_Diet {
 	}
 
 	/**
-	 * The label of a meal's diet choice: the diet's own, or "With meat" for
-	 * NONE.
+	 * The label of a meal's diet choice: the diet's own, or for NONE the name
+	 * of the term marked with META_UNRESTRICTED.
 	 *
 	 * @param string $slug A slug from Mixmymeals_Recipe::get_diet_choices().
 	 * @return string
 	 */
 	public static function choice_label( string $slug ): string {
-		return self::NONE === $slug ? __( 'With meat', 'mixmymeals' ) : self::label( $slug );
+
+		if ( self::NONE !== $slug ) {
+			return self::label( $slug );
+		}
+
+		$term = self::unrestricted_term();
+
+		return $term ? $term->name : '';
 	}
 
 	/**
@@ -1252,7 +1327,7 @@ class Mixmymeals_Diet {
 	 */
 	public static function on_term_meta_changed( $meta_id, $term_id, $meta_key ): void {
 
-		if ( in_array( $meta_key, array( self::META_AXIS, self::META_RANK, self::META_SCHEMA ), true ) ) {
+		if ( in_array( $meta_key, array( self::META_AXIS, self::META_RANK, self::META_SCHEMA, self::META_UNRESTRICTED ), true ) ) {
 			self::reset_types();
 			Mixmymeals_Recipe::mark_all_indexes_dirty();
 		}
@@ -1280,7 +1355,20 @@ class Mixmymeals_Diet {
 		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="" placeholder="https://schema.org/…">';
 		echo '<p>' . esc_html( self::schema_help() ) . '</p></div>';
 
+		echo '<div class="form-field"><label><input type="checkbox" name="mmm_diet_unrestricted" value="1"> '
+			. esc_html__( 'Name for dishes without a diet', 'mixmymeals' ) . '</label>';
+		echo '<p>' . esc_html( self::unrestricted_help() ) . '</p></div>';
+
 		echo '<p class="description">' . esc_html__( 'The parent says what this diet implies: a dish that suits a diet automatically suits all of its parents. Example: Vegan below Vegetarian.', 'mixmymeals' ) . '</p>';
+	}
+
+	/**
+	 * What the "name for dishes without a diet" box does, for both forms.
+	 *
+	 * @return string
+	 */
+	private static function unrestricted_help(): string {
+		return __( 'Marks this term as the name a meal plan uses for a recipe cooked as written when that recipe states no diet, e.g. "With meat". Only then can a meal choose between that and the diets the recipe can be cooked as (vegetarian, vegan). Such a term is not a diet itself: it is not offered to ingredients, filters or badges. Only one term can carry it.', 'mixmymeals' );
 	}
 
 	/**
@@ -1343,6 +1431,11 @@ class Mixmymeals_Diet {
 		echo '<tr class="form-field"><th scope="row"><label for="mmm_diet_schema">' . esc_html__( 'schema.org diet URL', 'mixmymeals' ) . '</label></th><td>';
 		echo '<input type="url" name="mmm_diet_schema" id="mmm_diet_schema" value="' . esc_attr( $schema ) . '" placeholder="https://schema.org/…">';
 		echo '<p class="description">' . esc_html( self::schema_help() ) . '</p></td></tr>';
+
+		echo '<tr class="form-field"><th scope="row">' . esc_html__( 'Name for dishes without a diet', 'mixmymeals' ) . '</th><td>';
+		echo '<label><input type="checkbox" name="mmm_diet_unrestricted" value="1"' . checked( '1', (string) get_term_meta( $term->term_id, self::META_UNRESTRICTED, true ), false ) . '> '
+			. esc_html__( 'Name for dishes without a diet', 'mixmymeals' ) . '</label>';
+		echo '<p class="description">' . esc_html( self::unrestricted_help() ) . '</p></td></tr>';
 	}
 
 	/**
@@ -1370,7 +1463,7 @@ class Mixmymeals_Diet {
 	 * term appeared to have been saved with the fields the editor typed; an
 	 * error that names the field is the only honest answer.
 	 *
-	 * @return array{axis:string,rank:string,schema:string}|WP_Error|null
+	 * @return array{axis:string,rank:string,schema:string,unrestricted:string}|WP_Error|null
 	 */
 	private static function read_term_fields() {
 
@@ -1408,9 +1501,10 @@ class Mixmymeals_Diet {
 		}
 
 		return array(
-			'axis'   => $axis,
-			'rank'   => $rank,
-			'schema' => $schema,
+			'axis'         => $axis,
+			'rank'         => $rank,
+			'schema'       => $schema,
+			'unrestricted' => empty( $_POST['mmm_diet_unrestricted'] ) ? '' : '1',
 		);
 	}
 
@@ -1481,6 +1575,17 @@ class Mixmymeals_Diet {
 		self::write_term_meta( (int) $term_id, self::META_AXIS, $fields['axis'] );
 		self::write_term_meta( (int) $term_id, self::META_RANK, $fields['rank'] );
 		self::write_term_meta( (int) $term_id, self::META_SCHEMA, $fields['schema'] );
+
+		// One term names a dish without a diet; marking a second moves it.
+		if ( '1' === $fields['unrestricted'] ) {
+			foreach ( get_terms( array( 'taxonomy' => self::TAXONOMY, 'hide_empty' => false, 'fields' => 'ids' ) ) as $other ) {
+				if ( (int) $other !== (int) $term_id ) {
+					delete_term_meta( (int) $other, self::META_UNRESTRICTED );
+				}
+			}
+		}
+
+		self::write_term_meta( (int) $term_id, self::META_UNRESTRICTED, $fields['unrestricted'] );
 	}
 
 	/**

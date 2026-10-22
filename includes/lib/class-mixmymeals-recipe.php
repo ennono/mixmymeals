@@ -814,7 +814,7 @@ class Mixmymeals_Recipe {
 	 * Whether a meal has settled this recipe's `diet` axis — set by
 	 * for_diet() for one of get_diet_choices(). A settled dish is what it is
 	 * and nothing more: get_diet_suitabilities() then reports no diet of that
-	 * axis beyond the ones in force, so a meal cooked with meat does not read
+	 * axis beyond the ones in force, so a meal cooked as written does not read
 	 * "vegan-capable".
 	 *
 	 * @var bool
@@ -948,10 +948,11 @@ class Mixmymeals_Recipe {
 	/**
 	 * What a meal planning this recipe has to decide between, or nothing.
 	 *
-	 * Only the `diet` axis — vegan, vegetarian, with meat: the question that
+	 * Only the `diet` axis — vegan, vegetarian, or neither: the question that
 	 * decides what goes into the basket. The first entry is the recipe as
 	 * written, named by its strongest diet of that axis or, where it holds
-	 * none, Mixmymeals_Diet::NONE ("with meat"); then every stronger diet of
+	 * none, Mixmymeals_Diet::NONE — named by the term the site marked for it,
+	 * and only if one is marked; then every stronger diet of
 	 * the axis it can be cooked as, weakest first. Fewer than two means there
 	 * is nothing to decide and the result is empty.
 	 *
@@ -991,6 +992,18 @@ class Mixmymeals_Recipe {
 		asort( $stronger );
 
 		$own = Mixmymeals_Diet::strongest( $in_force, 'diet' );
+
+		/*
+		 * A recipe stating no diet as written can only be offered under a
+		 * name the site chose (Mixmymeals_Diet::unrestricted_term()). Without
+		 * one there is no choice at all: inventing a name would be a claim
+		 * about a dish nobody classified, and dropping the as-written option
+		 * would force every planning of it into the next diet — which would
+		 * change the shopping list of plans nobody touched.
+		 */
+		if ( '' === $own && ! Mixmymeals_Diet::unrestricted_term() ) {
+			return self::$choices_cache[ $this->post_id ] = array();
+		}
 
 		return self::$choices_cache[ $this->post_id ] = array_merge(
 			array( '' !== $own ? $own : Mixmymeals_Diet::NONE ),
@@ -4087,7 +4100,7 @@ class Mixmymeals_Recipe {
 		$capable = Mixmymeals_Diet::combine( $sets );
 
 		/*
-		 * A meal that settled the diet axis is what it is: with meat it is
+		 * A meal that settled the diet axis is what it is: as written it is
 		 * not "vegan-capable", whatever packets exist. Other axes stay as
 		 * they are — the meal decided nothing about gluten.
 		 */

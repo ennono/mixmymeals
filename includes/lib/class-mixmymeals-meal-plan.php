@@ -87,7 +87,7 @@ class Mixmymeals_Meal_Plan {
 				'type'      => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
 				// Resolved, not validated: row_recipe() asks the recipe,
 				// which is the one place that knows what it can be cooked as.
-				// NONE ("with meat") is kept, since it settles the dish too.
+				// NONE (as written, no diet) is kept, since it settles the dish too.
 				'diet'      => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
 			);
 		}

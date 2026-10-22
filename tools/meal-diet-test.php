@@ -114,7 +114,34 @@ if ( ! $vegan ) {
 	$GLOBALS['MMM_MD_TERMS'][] = (int) $vegan->term_id;
 }
 update_term_meta( (int) $vegetarian->term_id, '_mmm_diet_axis', 'diet' );
+
+// Der Name für Gerichte ohne Ernährungsform kommt aus einem markierten Term.
+$omni = get_term_by( 'slug', 'zz-mit-fleisch', 'mmm_diet' );
+if ( ! $omni ) {
+	$omni                      = (object) wp_insert_term( 'ZZ Mit Fleisch', 'mmm_diet', array( 'slug' => 'zz-mit-fleisch' ) );
+	$GLOBALS['MMM_MD_TERMS'][] = (int) $omni->term_id;
+}
+update_term_meta( (int) $omni->term_id, Mixmymeals_Diet::META_UNRESTRICTED, '1' );
 Mixmymeals_Diet::reset_types();
+
+mmm_md_assert( 'ZZ Mit Fleisch' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), 'der Name kommt aus dem markierten Term' );
+
+// Rundlauf durch das Term-Formular: ein zweiter markierter Term nimmt dem
+// ersten die Markierung, abgewählt verschwindet sie.
+$other                     = (object) wp_insert_term( 'ZZ Omnivor', 'mmm_diet', array( 'slug' => 'zz-omnivor' ) );
+$GLOBALS['MMM_MD_TERMS'][] = (int) $other->term_id;
+$_POST                     = array(
+	'mmm_diet_term_nonce'   => wp_create_nonce( 'mmm_diet_term' ),
+	'mmm_diet_unrestricted' => '1',
+);
+Mixmymeals_Diet::save_term_fields( (int) $other->term_id );
+mmm_md_assert( 'ZZ Omnivor' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ) && '' === get_term_meta( (int) $omni->term_id, Mixmymeals_Diet::META_UNRESTRICTED, true ), 'nur ein Term trägt die Markierung' );
+$_POST = array( 'mmm_diet_term_nonce' => wp_create_nonce( 'mmm_diet_term' ) );
+Mixmymeals_Diet::save_term_fields( (int) $other->term_id );
+$_POST = array();
+mmm_md_assert( '' === get_term_meta( (int) $other->term_id, Mixmymeals_Diet::META_UNRESTRICTED, true ), 'abgewählt ist sie weg' );
+update_term_meta( (int) $omni->term_id, Mixmymeals_Diet::META_UNRESTRICTED, '1' );
+mmm_md_assert( ! Mixmymeals_Diet::is_known( 'zz-mit-fleisch' ), 'der markierte Term ist keine Ernährungsform' );
 
 $VEGAN = 'zz-vegan';
 $VEGGI = 'zz-vegetarisch';
@@ -161,7 +188,6 @@ $recipe = new Mixmymeals_Recipe( $recipe_id );
 mmm_md_assert( array() === array_intersect( array( $VEGAN, $VEGGI ), $recipe->get_diets() ), 'wie geschrieben ist das Chili weder vegan noch vegetarisch' );
 mmm_md_assert( $recipe->can_be_cooked_as( $VEGAN ), 'es kann vegan gekocht werden' );
 mmm_md_assert( array( Mixmymeals_Diet::NONE, $VEGGI, $VEGAN ) === $recipe->get_diet_choices(), 'zur Wahl stehen mit Fleisch, vegetarisch und vegan — kein „wie im Rezept“' );
-mmm_md_assert( 'With meat' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ) || 'Mit Fleisch' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), 'die erste Wahl heißt „mit Fleisch“' );
 
 $as_meat = $recipe->for_diet( Mixmymeals_Diet::NONE );
 mmm_md_assert( '' === $as_meat->get_implemented_diet() && abs( (float) $as_meat->calculate_nutrition_per_serving()['calories'] - 630 ) < 0.01, 'mit Fleisch ist das Rezept wie geschrieben' );
@@ -199,6 +225,15 @@ mmm_md_assert( 0 === (int) $rows[ $bruehe ]['product_id'], 'vegetarisch: die Br�
 mmm_md_assert( isset( $rows[ $kaese ] ), 'vegetarisch: der Parmesan bleibt' );
 
 mmm_md_assert( '' === $recipe->for_diet( 'zz-gibtsnicht' )->get_implemented_diet(), 'eine unbekannte Diät gibt das Rezept wie geschrieben' );
+
+// Ohne markierten Term gibt es keine Wahl — weder einen erfundenen Namen
+// noch ein Rezept, das stillschweigend vegetarisch gekocht wird.
+delete_term_meta( (int) $omni->term_id, Mixmymeals_Diet::META_UNRESTRICTED );
+$unnamed = mmm_md_post( 'mmm_recipe', 'ZZ Chili ohne Namen' );
+( new Mixmymeals_Recipe( $unnamed ) )->set_steps( ( new Mixmymeals_Recipe( $recipe_id ) )->get_steps() );
+mmm_md_assert( array() === ( new Mixmymeals_Recipe( $unnamed ) )->get_diet_choices(), 'ohne markierten Term keine Wahl' );
+mmm_md_assert( '' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), 'und kein Name aus dem Code' );
+update_term_meta( (int) $omni->term_id, Mixmymeals_Diet::META_UNRESTRICTED, '1' );
 
 echo "\n-- 2. Die Mahlzeit speichert die Umsetzung\n";
 
