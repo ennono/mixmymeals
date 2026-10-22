@@ -948,11 +948,10 @@ class Mixmymeals_Recipe {
 	/**
 	 * What a meal planning this recipe has to decide between, or nothing.
 	 *
-	 * Only the `diet` axis — vegan, vegetarian, or neither: the question that
+	 * Only the `diet` axis — vegan, vegetarian, or none: the question that
 	 * decides what goes into the basket. The first entry is the recipe as
 	 * written, named by its strongest diet of that axis or, where it holds
-	 * none, Mixmymeals_Diet::NONE — named by the term the site marked for it,
-	 * and only if one is marked; then every stronger diet of
+	 * none, Mixmymeals_Diet::NONE ("Diet not specified"); then every stronger diet of
 	 * the axis it can be cooked as, weakest first. Fewer than two means there
 	 * is nothing to decide and the result is empty.
 	 *
@@ -992,18 +991,6 @@ class Mixmymeals_Recipe {
 		asort( $stronger );
 
 		$own = Mixmymeals_Diet::strongest( $in_force, 'diet' );
-
-		/*
-		 * A recipe stating no diet as written can only be offered under a
-		 * name the site chose (Mixmymeals_Diet::unrestricted_term()). Without
-		 * one there is no choice at all: inventing a name would be a claim
-		 * about a dish nobody classified, and dropping the as-written option
-		 * would force every planning of it into the next diet — which would
-		 * change the shopping list of plans nobody touched.
-		 */
-		if ( '' === $own && ! Mixmymeals_Diet::unrestricted_term() ) {
-			return self::$choices_cache[ $this->post_id ] = array();
-		}
 
 		return self::$choices_cache[ $this->post_id ] = array_merge(
 			array( '' !== $own ? $own : Mixmymeals_Diet::NONE ),

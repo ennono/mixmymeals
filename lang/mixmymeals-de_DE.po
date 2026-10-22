@@ -7542,23 +7542,8 @@ msgid "Adjust in the planner"
 msgstr "Im Planer anpassen"
 
 #: includes/lib/class-mixmymeals-diet.php
-msgid "Name for dishes without a diet"
-msgstr "Name für Gerichte ohne Ernährungsform"
-
-#: includes/lib/class-mixmymeals-diet.php
-msgid ""
-"Marks this term as the name a meal plan uses for a recipe cooked as written "
-"when that recipe states no diet, e.g. \"With meat\". Only then can a meal "
-"choose between that and the diets the recipe can be cooked as (vegetarian, "
-"vegan). Such a term is not a diet itself: it is not offered to ingredients, "
-"filters or badges. Only one term can carry it."
-msgstr ""
-"Markiert diesen Begriff als den Namen, den ein Essensplan für ein Rezept "
-"wie geschrieben verwendet, wenn das Rezept keine Ernährungsform hat, z. B. "
-"„Mit Fleisch“. Nur dann kann eine Mahlzeit zwischen diesem und den "
-"Ernährungsformen wählen, für die das Rezept taugt (vegetarisch, vegan). Ein "
-"solcher Begriff ist selbst keine Ernährungsform: Er wird Zutaten, Filtern "
-"und Kennzeichnungen nicht angeboten. Nur ein Begriff kann ihn tragen."
+msgid "Diet not specified"
+msgstr "Ernährungsform nicht festgelegt"
 
 #: includes/lib/class-mixmymeals-post-meta.php
 msgid ""
