@@ -82,6 +82,13 @@ class Mixmymeals_Recipe {
 	private static $cookable_cache = array();
 
 	/**
+	 * Per-request answers of get_diet_choices(), keyed by recipe ID.
+	 *
+	 * @var array<int, string[]>
+	 */
+	private static $choices_cache = array();
+
+	/**
 	 * The share of a dish's weight that may lack nutrition data before the
 	 * figures stop being called complete.
 	 *
@@ -804,6 +811,17 @@ class Mixmymeals_Recipe {
 	private string $diet = '';
 
 	/**
+	 * Whether a meal has settled this recipe's `diet` axis — set by
+	 * for_diet() for one of get_diet_choices(). A settled dish is what it is
+	 * and nothing more: get_diet_suitabilities() then reports no diet of that
+	 * axis beyond the ones in force, so a meal cooked with meat does not read
+	 * "vegan-capable".
+	 *
+	 * @var bool
+	 */
+	private bool $fixed = false;
+
+	/**
 	 * @param int $post_id Recipe post ID.
 	 */
 	public function __construct( int $post_id ) {
@@ -856,26 +874,42 @@ class Mixmymeals_Recipe {
 	 *
 	 * An unknown slug, or one the recipe cannot be cooked as, gives the recipe
 	 * as written: a meal must never claim a diet its rows do not hold.
+	 * Mixmymeals_Diet::NONE is the recipe as written too, but settled — see
+	 * $fixed — and so is any diet of the `diet` axis.
 	 *
-	 * @param string $diet Diet slug, '' for the recipe as written.
+	 * @param string $diet Diet slug, Mixmymeals_Diet::NONE, or '' for the
+	 *                     recipe as written and unsettled.
 	 * @return self
 	 */
 	public function for_diet( string $diet ): self {
 
-		$diet = Mixmymeals_Diet::resolve( $diet );
+		$fixed = Mixmymeals_Diet::NONE === $diet;
+		$diet  = Mixmymeals_Diet::resolve( $diet );
 
 		if ( '' === $diet || ! $this->can_be_cooked_as( $diet ) ) {
 			$diet = '';
+		} else {
+			$fixed = 'diet' === ( Mixmymeals_Diet::types()[ $diet ]['axis'] ?? '' );
 		}
 
-		if ( $diet === $this->diet ) {
+		if ( $diet === $this->diet && $fixed === $this->fixed ) {
 			return $this;
 		}
 
-		$copy       = clone $this;
-		$copy->diet = $diet;
+		$copy        = clone $this;
+		$copy->diet  = $diet;
+		$copy->fixed = $fixed;
 
 		return $copy;
+	}
+
+	/**
+	 * The recipe as written and unsettled — what the choices are made from.
+	 *
+	 * @return self
+	 */
+	private function as_written(): self {
+		return ( '' === $this->diet && ! $this->fixed ) ? $this : $this->for_diet( '' );
 	}
 
 	/**
@@ -905,34 +939,62 @@ class Mixmymeals_Recipe {
 		}
 
 		if ( ! isset( self::$cookable_cache[ $this->post_id ][ $diet ] ) ) {
-			$as_written = '' === $this->diet ? $this : $this->for_diet( '' );
-
-			self::$cookable_cache[ $this->post_id ][ $diet ] = in_array( $diet, Mixmymeals_Diet::expand( $as_written->get_diet_suitabilities() ), true );
+			self::$cookable_cache[ $this->post_id ][ $diet ] = in_array( $diet, Mixmymeals_Diet::expand( $this->as_written()->get_diet_suitabilities() ), true );
 		}
 
 		return self::$cookable_cache[ $this->post_id ][ $diet ];
 	}
 
 	/**
-	 * The diets a meal may choose for this recipe: everything it can be
-	 * cooked as that it is not already, in the order of the vocabulary.
+	 * What a meal planning this recipe has to decide between, or nothing.
 	 *
-	 * What it already is needs no choice — "vegetarian" on a vegetarian dish
-	 * changes nothing on the shopping list.
+	 * Only the `diet` axis — vegan, vegetarian, with meat: the question that
+	 * decides what goes into the basket. The first entry is the recipe as
+	 * written, named by its strongest diet of that axis or, where it holds
+	 * none, Mixmymeals_Diet::NONE ("with meat"); then every stronger diet of
+	 * the axis it can be cooked as, weakest first. Fewer than two means there
+	 * is nothing to decide and the result is empty.
 	 *
-	 * @return string[] Diet slugs.
+	 * There is deliberately no "as in the recipe": a recipe offering two ways
+	 * leaves the shopping open, and a meal is where it is closed. The first
+	 * entry is the default wherever a meal has not said, which makes it a
+	 * named choice rather than an open one.
+	 *
+	 * @return string[] Slugs for Mixmymeals_Meal::set_diet().
 	 */
-	public function get_diet_options(): array {
+	public function get_diet_choices(): array {
 
-		$as_written = '' === $this->diet ? $this : $this->for_diet( '' );
-		$capable    = Mixmymeals_Diet::expand( $as_written->get_diet_suitabilities() );
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		if ( isset( self::$choices_cache[ $this->post_id ] ) ) {
+			return self::$choices_cache[ $this->post_id ];
+		}
+
+		$as_written = $this->as_written();
 		$in_force   = Mixmymeals_Diet::expand( $as_written->get_diets() );
+		$capable    = Mixmymeals_Diet::expand( $as_written->get_diet_suitabilities() );
+		$types      = Mixmymeals_Diet::types();
+		$stronger   = array();
 
-		return array_values(
-			array_filter(
-				array_keys( Mixmymeals_Diet::types() ),
-				static fn( $slug ) => in_array( $slug, $capable, true ) && ! in_array( $slug, $in_force, true )
-			)
+		foreach ( $capable as $slug ) {
+			if ( 'diet' === ( $types[ $slug ]['axis'] ?? '' ) && ! in_array( $slug, $in_force, true ) ) {
+				$stronger[ $slug ] = (int) $types[ $slug ]['rank'];
+			}
+		}
+
+		if ( ! $stronger ) {
+			return self::$choices_cache[ $this->post_id ] = array();
+		}
+
+		asort( $stronger );
+
+		$own = Mixmymeals_Diet::strongest( $in_force, 'diet' );
+
+		return self::$choices_cache[ $this->post_id ] = array_merge(
+			array( '' !== $own ? $own : Mixmymeals_Diet::NONE ),
+			array_keys( $stronger )
 		);
 	}
 
@@ -1130,7 +1192,8 @@ class Mixmymeals_Recipe {
 			self::$cooked_cache[ $this->post_id ],
 			self::$cost_cache[ $this->post_id ],
 			self::$coverage_cache[ $this->post_id ],
-			self::$cookable_cache[ $this->post_id ]
+			self::$cookable_cache[ $this->post_id ],
+			self::$choices_cache[ $this->post_id ]
 		);
 
 		if ( ! $this->is_valid() ) {
@@ -4021,7 +4084,25 @@ class Mixmymeals_Recipe {
 				->get_diet_suitabilities( array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ) );
 		}
 
-		return Mixmymeals_Diet::combine( $sets );
+		$capable = Mixmymeals_Diet::combine( $sets );
+
+		/*
+		 * A meal that settled the diet axis is what it is: with meat it is
+		 * not "vegan-capable", whatever packets exist. Other axes stay as
+		 * they are — the meal decided nothing about gluten.
+		 */
+		if ( $this->fixed ) {
+			$types    = Mixmymeals_Diet::types();
+			$in_force = Mixmymeals_Diet::expand( $this->get_diets() );
+			$capable  = array_values(
+				array_filter(
+					$capable,
+					static fn( $slug ) => 'diet' !== ( $types[ $slug ]['axis'] ?? '' ) || in_array( $slug, $in_force, true )
+				)
+			);
+		}
+
+		return $capable;
 	}
 
 

@@ -105,6 +105,14 @@ class Mixmymeals_Diet {
 	const FORMER_OPTION = 'mixmymeals_diet_former_terms';
 
 	/**
+	 * The diet choice of a meal whose recipe holds no claim on the `diet`
+	 * axis, cooked as written — "with meat". Not a term and never one:
+	 * resolve() maps it to '', so nothing that reads diets can mistake it for
+	 * a claim. Only Mixmymeals_Recipe::get_diet_choices() hands it out.
+	 */
+	const NONE = '_none';
+
+	/**
 	 * What the four former built-ins were, for migrate_former_builtins() only.
 	 *
 	 * Nothing reads this at run time; a diet is what its term says. Each entry
@@ -542,6 +550,17 @@ class Mixmymeals_Diet {
 	 */
 	public static function label( string $slug ): string {
 		return (string) ( self::types()[ $slug ]['label'] ?? '' );
+	}
+
+	/**
+	 * The label of a meal's diet choice: the diet's own, or "With meat" for
+	 * NONE.
+	 *
+	 * @param string $slug A slug from Mixmymeals_Recipe::get_diet_choices().
+	 * @return string
+	 */
+	public static function choice_label( string $slug ): string {
+		return self::NONE === $slug ? __( 'With meat', 'mixmymeals' ) : self::label( $slug );
 	}
 
 	/**

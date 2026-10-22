@@ -160,10 +160,15 @@ $mk_meal = function( $plan, $recipe, $day )  {
 	return $m;
 };
 $meal_pin = $mk_meal( $plan, $r_pin, 1 );
-$mk_meal( $plan, $r_opt, 2 );
+$meal_opt = $mk_meal( $plan, $r_opt, 2 );
 t( 'Mahlzeit loest aufs Rezept auf', 'Vegan', wp_strip_all_tags( Mixmymeals_Shortcodes::diet_chips( $meal_pin ) ) );
 t( 'Plan in force: schwaechstes Gericht', 'vegetarian', ( new Mixmymeals_Meal_Plan( $plan ) )->get_diet_type() );
-t( 'Plan erreichbar: beide vegan-faehig',  'vegan',      ( new Mixmymeals_Meal_Plan( $plan ) )->get_diet_suitability() );
+// Seit 3.67.0 ist jede Mahlzeit festgelegt: ohne Angabe auf die erste Wahl
+// ihres Rezepts, hier „vegetarisch“ wie geschrieben. Erreichbar ist dann nur,
+// was die Mahlzeiten festlegen.
+t( 'Plan erreichbar: Mahlzeiten festgelegt', 'vegetarian', ( new Mixmymeals_Meal_Plan( $plan ) )->get_diet_suitability() );
+( new Mixmymeals_Meal( $meal_opt ) )->set_diet( 'vegan' );
+t( 'Plan mit beiden vegan festgelegt',      'vegan',      ( new Mixmymeals_Meal_Plan( $plan ) )->get_diet_type() );
 $plan2 = wp_insert_post( array( 'post_type' => 'mmm_meal_plan', 'post_title' => 'T Plan 2', 'post_status' => 'publish' ) );
 trash( $plan2 );
 update_post_meta( $plan2, 'start_day', 1 ); update_post_meta( $plan2, 'end_day', 1 );

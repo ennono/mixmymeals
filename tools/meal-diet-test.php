@@ -160,7 +160,13 @@ $recipe = new Mixmymeals_Recipe( $recipe_id );
 
 mmm_md_assert( array() === array_intersect( array( $VEGAN, $VEGGI ), $recipe->get_diets() ), 'wie geschrieben ist das Chili weder vegan noch vegetarisch' );
 mmm_md_assert( $recipe->can_be_cooked_as( $VEGAN ), 'es kann vegan gekocht werden' );
-mmm_md_assert( array( $VEGGI, $VEGAN ) === array_values( array_intersect( array( $VEGGI, $VEGAN ), $recipe->get_diet_options() ) ), 'zur Wahl stehen vegetarisch und vegan' );
+mmm_md_assert( array( Mixmymeals_Diet::NONE, $VEGGI, $VEGAN ) === $recipe->get_diet_choices(), 'zur Wahl stehen mit Fleisch, vegetarisch und vegan — kein „wie im Rezept“' );
+mmm_md_assert( 'With meat' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ) || 'Mit Fleisch' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), 'die erste Wahl heißt „mit Fleisch“' );
+
+$as_meat = $recipe->for_diet( Mixmymeals_Diet::NONE );
+mmm_md_assert( '' === $as_meat->get_implemented_diet() && abs( (float) $as_meat->calculate_nutrition_per_serving()['calories'] - 630 ) < 0.01, 'mit Fleisch ist das Rezept wie geschrieben' );
+mmm_md_assert( ! in_array( $VEGAN, $as_meat->get_diet_suitabilities(), true ), 'mit Fleisch festgelegt ist es nicht mehr „vegan-tauglich“' );
+mmm_md_assert( in_array( $VEGAN, $recipe->get_diet_suitabilities(), true ), 'das Rezept selbst bleibt vegan-tauglich' );
 
 $as_vegan = $recipe->for_diet( $VEGAN );
 mmm_md_assert( $VEGAN === $as_vegan->get_implemented_diet(), 'for_diet() setzt die Umsetzung' );
@@ -215,14 +221,19 @@ foreach ( array( array( $meal_meat, 1 ), array( $meal_vegan, 2 ) ) as $pair ) {
 mmm_md_assert( $meal_vegan->set_diet( $VEGAN ), 'vegan wird gespeichert' );
 mmm_md_assert( $VEGAN === $meal_vegan->get_diet(), 'und gelesen' );
 mmm_md_assert( $VEGAN === $meal_vegan->get_recipe()->get_implemented_diet(), 'get_recipe() kocht vegan' );
-mmm_md_assert( ! $meal_meat->set_diet( 'zz-gibtsnicht' ) && '' === $meal_meat->get_diet(), 'eine unbekannte Diät wird nicht gespeichert' );
+mmm_md_assert( Mixmymeals_Diet::NONE === $meal_meat->get_diet(), 'ohne Angabe ist die Mahlzeit auf die erste Wahl festgelegt' );
+mmm_md_assert( ! $meal_meat->set_diet( 'zz-gibtsnicht' ) && Mixmymeals_Diet::NONE === $meal_meat->get_diet(), 'eine unbekannte Diät legt die erste Wahl fest' );
+mmm_md_assert( Mixmymeals_Diet::NONE === get_post_meta( $meal_meat->get_id(), Mixmymeals_Meal::META_DIET, true ), 'und speichert sie ausdrücklich' );
+mmm_md_assert( '' === Mixmymeals_Shortcodes::diet_chips( $meal_meat->get_id() ) || false === strpos( Mixmymeals_Shortcodes::diet_chips( $meal_meat->get_id() ), $VEGAN ), 'eine Mahlzeit mit Fleisch zeigt keinen Vegan-Chip' );
+mmm_md_assert( false !== strpos( Mixmymeals_Shortcodes::diet_chips( $meal_vegan->get_id() ), '--diet-definite' ), 'die vegane Mahlzeit zeigt „Vegan“ als feste Angabe' );
 
 $plain = mmm_md_post( 'mmm_recipe', 'ZZ Steak' );
 ( new Mixmymeals_Recipe( $plain ) )->set_steps( array( array( 'title' => 'x', 'ingredients' => array( array( 'id' => $rind ? $hack : 0, 'amount' => 200, 'excluded_products' => array( $soja ) ) ) ) ) );
 $probe = Mixmymeals_Meal::create( 'ZZ Probe', $plan_id );
 $GLOBALS['MMM_MD_TRASH'][] = $probe->get_id();
 $probe->set_recipe_id( $plain );
-mmm_md_assert( ! $probe->set_diet( $VEGAN ), 'ein Rezept, das Soja ausschließt, kann nicht vegan gekocht werden' );
+mmm_md_assert( ! $probe->set_diet( $VEGAN ) && '' === $probe->get_diet(), 'ein Rezept, das Soja ausschließt, bietet keine Wahl — die Mahlzeit hat keine' );
+mmm_md_assert( array() === ( new Mixmymeals_Recipe( $plain ) )->get_diet_choices(), 'ohne Wahl gibt es keine Auswahl' );
 wp_delete_post( $probe->get_id(), true );
 
 echo "\n-- 3. Plan und Einkaufsliste\n";
@@ -278,7 +289,8 @@ mmm_md_assert( serialize( reset( $from_rows ) ) === serialize( reset( $saved ) )
 mmm_md_assert( $VEGAN === Mixmymeals_Cart::clean_diet( $recipe_id, $VEGAN ) && '' === Mixmymeals_Cart::clean_diet( $plain, $VEGAN ), 'der Warenkorb prüft die Diät wie die Mahlzeit' );
 
 $offset = ( new Mixmymeals_Meal_Plan( $plan_id ) )->with_servings_offset( 1 );
-mmm_md_assert( array( '', $VEGAN ) === array_column( $offset->get_meal_rows(), 'diet' ), '?mmm_persons_to_add behält die Umsetzung' );
+mmm_md_assert( array( Mixmymeals_Diet::NONE, $VEGAN ) === array_column( $offset->get_meal_rows(), 'diet' ), '?mmm_persons_to_add behält die Umsetzung' );
+mmm_md_assert( Mixmymeals_Diet::NONE === Mixmymeals_Cart::clean_diet( $recipe_id, '' ), 'ein Planer-Eintrag ohne Angabe ist auf die erste Wahl festgelegt' );
 
 echo "\n-- 5. Admin-Tabelle und REST\n";
 
@@ -296,6 +308,8 @@ ob_start();
 ( new Mixmymeals_Post_Meta() )->render_meal_plan_overview_meta_box( get_post( $plan_id ) );
 $box = (string) ob_get_clean();
 mmm_md_assert( 1 === preg_match( '/<option value="' . $VEGGI . '"\s+selected/', $box ), 'und zeigt sie wieder an' );
+preg_match_all( '/<select name="[^"]*\[diet\]">.*?<\/select>/s', $box, $mmm_md_selects );
+mmm_md_assert( $mmm_md_selects[0] && false === strpos( implode( '', $mmm_md_selects[0] ), '<option value=""' ), 'die Diät-Auswahl der Tabelle bietet keine leere Wahl' );
 
 $response = rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/mixmymeals/v1/meals/' . $meal_vegan->get_id() ) );
 $data     = $response->get_data();
@@ -304,7 +318,7 @@ mmm_md_assert( $VEGAN === ( $data['diet'] ?? null ) && $VEGAN === ( $data['diet_
 $request = new WP_REST_Request( 'POST', '/mixmymeals/v1/meals/' . $meal_vegan->get_id() );
 $request->set_param( 'diet', '' );
 rest_get_server()->dispatch( $request );
-mmm_md_assert( '' === ( new Mixmymeals_Meal( $meal_vegan->get_id() ) )->get_diet(), 'REST setzt die Diät zurück' );
+mmm_md_assert( Mixmymeals_Diet::NONE === ( new Mixmymeals_Meal( $meal_vegan->get_id() ) )->get_diet(), 'REST ohne Wahl legt die erste Wahl fest' );
 
 echo "\n-- 6. Speichern aus dem Planer\n";
 
@@ -348,7 +362,7 @@ if ( $created > $before ) {
 		$diets[ (int) $row['day'] ] = $row['diet'];
 	}
 	ksort( $diets );
-	mmm_md_assert( array( 1 => '', 2 => $VEGAN ) === $diets, 'der gespeicherte Plan übernimmt die Diät je Mahlzeit' );
+	mmm_md_assert( array( 1 => Mixmymeals_Diet::NONE, 2 => $VEGAN ) === $diets, 'der gespeicherte Plan übernimmt die Diät je Mahlzeit, ohne Angabe die erste Wahl' );
 } else {
 	mmm_md_assert( false, 'der Planer hat einen Plan gespeichert' );
 }

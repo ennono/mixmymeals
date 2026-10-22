@@ -7541,9 +7541,9 @@ msgstr "Einzelne Tage ändern?"
 msgid "Adjust in the planner"
 msgstr "Im Planer anpassen"
 
-#: includes/lib/class-mixmymeals-post-meta.php
-msgid "As in the recipe"
-msgstr "Wie im Rezept"
+#: includes/lib/class-mixmymeals-diet.php
+msgid "With meat"
+msgstr "Mit Fleisch"
 
 #: includes/lib/class-mixmymeals-post-meta.php
 msgid ""

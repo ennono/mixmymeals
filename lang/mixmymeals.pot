@@ -5897,8 +5897,8 @@ msgstr ""
 msgid "Adjust in the planner"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-post-meta.php
-msgid "As in the recipe"
+#: includes/lib/class-mixmymeals-diet.php
+msgid "With meat"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php

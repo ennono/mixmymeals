@@ -1210,38 +1210,35 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
-	 * The diet chooser of one row: the recipe as written, or a diet it can be
-	 * cooked as (Mixmymeals_Recipe::get_diet_options()).
+	 * The diet chooser of a meal: one of the recipe's get_diet_choices(), no
+	 * empty option — a meal whose recipe can be cooked two ways is always
+	 * cooked one of them ("With meat", "Vegetarian", "Vegan").
 	 *
-	 * Without a recipe — the empty row — every diet is offered and
-	 * Mixmymeals_Meal::set_diet() decides on save whether the chosen recipe
-	 * can hold it. A stored diet the recipe no longer offers stays listed, so
-	 * saving the table does not silently drop it.
+	 * A recipe offering no choice gets a dash instead of a select, and so
+	 * does the empty row, whose recipe is not chosen yet: the meal it creates
+	 * starts on the recipe's first choice and shows its select from then on.
 	 *
 	 * @param string                 $name    Field name.
-	 * @param Mixmymeals_Recipe|null $recipe  The row's recipe, null for the new row.
-	 * @param string                 $current Stored diet.
+	 * @param Mixmymeals_Recipe|null $recipe  The meal's recipe, null for the new row.
+	 * @param string                 $current Mixmymeals_Meal::get_diet().
 	 * @return string
 	 */
 	public static function meal_diet_select( string $name, ?Mixmymeals_Recipe $recipe, string $current ): string {
 
-		$slugs = null === $recipe
-			? array_keys( Mixmymeals_Diet::types() )
-			: $recipe->get_diet_options();
+		$choices = null === $recipe ? array() : $recipe->get_diet_choices();
 
-		if ( '' !== $current && ! in_array( $current, $slugs, true ) ) {
-			$slugs[] = $current;
+		if ( ! $choices ) {
+			return '<span aria-hidden="true">—</span>';
 		}
 
-		$out = '<select name="' . esc_attr( $name ) . '">'
-			. '<option value="">' . esc_html__( 'As in the recipe', 'mixmymeals' ) . '</option>';
+		$out = '<select name="' . esc_attr( $name ) . '">';
 
-		foreach ( $slugs as $slug ) {
+		foreach ( $choices as $slug ) {
 			$out .= sprintf(
 				'<option value="%s" %s>%s</option>',
 				esc_attr( $slug ),
 				selected( $current, $slug, false ),
-				esc_html( Mixmymeals_Diet::label( $slug ) )
+				esc_html( Mixmymeals_Diet::choice_label( $slug ) )
 			);
 		}
 
@@ -1451,12 +1448,10 @@ class Mixmymeals_Post_Meta {
 			$meal->set_servings( max( 1, absint( $row['servings'] ) ) );
 		}
 
-		// After the recipe, because set_diet() checks the diet against it: a
-		// recipe changed in the same row must be cookable that way, or the
-		// meal goes back to the recipe as written.
-		if ( isset( $row['diet'] ) ) {
-			$meal->set_diet( (string) $row['diet'] );
-		}
+		// After the recipe, because set_diet() checks the diet against it,
+		// and always: a new meal, or one whose recipe changed in this row,
+		// is settled on the recipe's first choice unless one was picked.
+		$meal->set_diet( (string) ( $row['diet'] ?? '' ) );
 	}
 
 	/**
@@ -2451,15 +2446,19 @@ class Mixmymeals_Post_Meta {
 			. '" min="1" step="1" style="width:100px;"></p>';
 
 		/*
-		 * How the dish is cooked for this planning. The options are the
-		 * diets the recipe can be cooked as and is not already; a recipe
-		 * changed on this screen is checked against on save.
+		 * How the dish is cooked for this planning — only where the recipe
+		 * can be cooked more than one way, and then always one of them. A
+		 * recipe changed on this screen is checked on save.
 		 */
-		echo '<p><label><strong>' . esc_html__( 'Diet', 'mixmymeals' ) . '</strong></label><br>';
-		echo self::meal_diet_select( 'mmm_meal_diet', new Mixmymeals_Recipe( $meal_obj->get_recipe_id() ), $meal_obj->get_diet() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-		echo '<br><span class="description">'
-			. esc_html__( 'Cooks the recipe with the products this diet needs — on the plan, in its nutrition and on the shopping list.', 'mixmymeals' )
-			. '</span></p>';
+		$mmm_meal_recipe = new Mixmymeals_Recipe( $meal_obj->get_recipe_id() );
+
+		if ( $mmm_meal_recipe->get_diet_choices() ) {
+			echo '<p><label><strong>' . esc_html__( 'Diet', 'mixmymeals' ) . '</strong></label><br>';
+			echo self::meal_diet_select( 'mmm_meal_diet', $mmm_meal_recipe, $meal_obj->get_diet() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<br><span class="description">'
+				. esc_html__( 'Cooks the recipe with the products this diet needs — on the plan, in its nutrition and on the shopping list.', 'mixmymeals' )
+				. '</span></p>';
+		}
 
 		/*
 		 * The meal's own text. Not core's Excerpt box — mmm_meal does not
@@ -2531,10 +2530,9 @@ class Mixmymeals_Post_Meta {
 			$meal_obj->set_text( sanitize_textarea_field( wp_unslash( $_POST['mmm_meal_text'] ) ) );
 		}
 
-		// After the recipe: set_diet() checks the diet against it.
-		if ( isset( $_POST['mmm_meal_diet'] ) ) {
-			$meal_obj->set_diet( sanitize_key( wp_unslash( $_POST['mmm_meal_diet'] ) ) );
-		}
+		// After the recipe: set_diet() checks the diet against it, and
+		// settles a meal without a pick on the recipe's first choice.
+		$meal_obj->set_diet( isset( $_POST['mmm_meal_diet'] ) ? sanitize_key( wp_unslash( $_POST['mmm_meal_diet'] ) ) : '' );
 
 		// -----------------------
 		// NEU: Wochentag speichern

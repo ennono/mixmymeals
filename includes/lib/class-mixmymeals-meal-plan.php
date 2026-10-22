@@ -87,7 +87,8 @@ class Mixmymeals_Meal_Plan {
 				'type'      => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
 				// Resolved, not validated: row_recipe() asks the recipe,
 				// which is the one place that knows what it can be cooked as.
-				'diet'      => Mixmymeals_Diet::resolve( sanitize_key( (string) ( $row['diet'] ?? '' ) ) ),
+				// NONE ("with meat") is kept, since it settles the dish too.
+				'diet'      => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
 			);
 		}
 
@@ -131,6 +132,19 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * A row's diet as given: Mixmymeals_Diet::NONE, a known slug, or ''.
+	 *
+	 * @param string $diet Raw value.
+	 * @return string
+	 */
+	private static function row_diet( string $diet ): string {
+
+		$diet = sanitize_key( $diet );
+
+		return Mixmymeals_Diet::NONE === $diet ? $diet : Mixmymeals_Diet::resolve( $diet );
+	}
+
+	/**
 	 * The dish of one meal row, cooked as the row says.
 	 *
 	 * The one way a plan calculation gets at a recipe: the shopping list, the
@@ -142,6 +156,12 @@ class Mixmymeals_Meal_Plan {
 	 * @return Mixmymeals_Recipe
 	 */
 	public static function row_recipe( array $row ): Mixmymeals_Recipe {
+		// A cart item from before diets were settled says nothing; it is
+		// read like a meal that never said — the recipe's first choice.
+		if ( ! isset( $row['diet'] ) || '' === $row['diet'] ) {
+			$row['diet'] = Mixmymeals_Cart::clean_diet( (int) ( $row['recipe_id'] ?? 0 ), '' );
+		}
+
 		return ( new Mixmymeals_Recipe( (int) ( $row['recipe_id'] ?? 0 ) ) )->for_diet( (string) ( $row['diet'] ?? '' ) );
 	}
 

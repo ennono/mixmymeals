@@ -256,19 +256,28 @@ class Mixmymeals_Cart {
 	}
 
 	/**
-	 * A diet for a planner item, or '' — the same rule Mixmymeals_Meal::
-	 * set_diet() keeps, so the planner cannot hold a choice the saved plan
-	 * would drop.
+	 * The diet of a planner item — the same rule Mixmymeals_Meal::set_diet()
+	 * keeps, so the planner cannot hold a state the saved plan would not:
+	 * where the recipe offers a choice the item always holds one (the
+	 * requested one if valid, else the recipe's first), where it offers none
+	 * it holds ''.
 	 *
 	 * @param int    $recipe_id The item's recipe.
-	 * @param string $diet      Requested diet slug.
+	 * @param string $diet      Requested choice.
 	 * @return string
 	 */
 	public static function clean_diet( int $recipe_id, string $diet ): string {
 
-		$diet = Mixmymeals_Diet::resolve( sanitize_key( $diet ) );
+		$choices = ( new Mixmymeals_Recipe( $recipe_id ) )->get_diet_choices();
 
-		return '' !== $diet && ( new Mixmymeals_Recipe( $recipe_id ) )->can_be_cooked_as( $diet ) ? $diet : '';
+		if ( ! $choices ) {
+			return '';
+		}
+
+		$diet = sanitize_key( $diet );
+		$diet = Mixmymeals_Diet::NONE === $diet ? $diet : Mixmymeals_Diet::resolve( $diet );
+
+		return in_array( $diet, $choices, true ) ? $diet : $choices[0];
 	}
 
 	/**

@@ -120,9 +120,13 @@ privacy text under Settings → Privacy after installation.
 Added:
 * A meal stores its diet — how the recipe is actually cooked for that
   planning. A chili that is "vegan-capable" through a soy mince packet can
-  be planned once with beef and once vegan. Chosen in the plan's Meals box,
-  on the meal screen, per dish in the planner (only where the recipe offers
-  a choice) and over REST/MCP (`diet` on meals).
+  be planned once "With meat" and once "Vegan". Where a recipe offers more
+  than one diet, every meal planning it is settled on one of them — there
+  is no "as in the recipe"; a meal that has not chosen is cooked as the
+  recipe is written, under that diet's name. Chosen in the plan's Meals
+  box, on the meal screen, per dish in the planner and over REST/MCP
+  (`diet` on meals). A meal settled with meat no longer reads
+  "Vegan-capable".
 * A meal cooked as a diet uses, per ingredient, a product that holds it
   (the recipe's own choice where it already does, else the reference, else
   another product the recipe has not ruled out, else the ingredient's own

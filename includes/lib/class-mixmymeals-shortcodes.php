@@ -4511,22 +4511,21 @@ class Mixmymeals_Shortcodes {
 					/*
 					 * How the dish is cooked, only where there is a choice: a
 					 * recipe that can be cooked vegan with other packets than
-					 * the ones it names. The choice decides the shopping list,
-					 * so it belongs to the planning, like the servings.
+					 * the ones it names. Then always one of them — there is no
+					 * "as in the recipe", which is the state that leaves the
+					 * shopping open. The choice belongs to the planning, like
+					 * the servings.
 					 */
-					$diet_options = ( new Mixmymeals_Recipe( $recipe_id ) )->get_diet_options();
+					$diet_choices = ( new Mixmymeals_Recipe( $recipe_id ) )->get_diet_choices();
 					$diet         = Mixmymeals_Cart::clean_diet( $recipe_id, (string) ( $item['diet'] ?? '' ) );
 
-					if ( $diet_options ) :
+					if ( $diet_choices ) :
 						?>
 					<select class="mmm-plan-item-diet" data-field="diet"
 						aria-label="<?php esc_attr_e( 'Diet', 'mixmymeals' ); ?>">
-						<option value=""<?php selected( $diet, '' ); ?>>
-							<?php esc_html_e( 'As in the recipe', 'mixmymeals' ); ?>
-						</option>
-						<?php foreach ( $diet_options as $slug ) : ?>
+						<?php foreach ( $diet_choices as $slug ) : ?>
 							<option value="<?php echo esc_attr( $slug ); ?>"<?php selected( $diet, $slug ); ?>>
-								<?php echo esc_html( Mixmymeals_Diet::label( $slug ) ); ?>
+								<?php echo esc_html( Mixmymeals_Diet::choice_label( $slug ) ); ?>
 							</option>
 						<?php endforeach; ?>
 					</select>
@@ -5276,9 +5275,8 @@ class Mixmymeals_Shortcodes {
 			if ( isset( $item['day'] ) ) {
 				$meal->set_day( (int) $item['day'] );
 			}
-			if ( '' !== $item['diet'] ) {
-				$meal->set_diet( $item['diet'] );
-			}
+			// Always: a recipe offering a choice is settled on save.
+			$meal->set_diet( $item['diet'] );
 		}
 
 		// Find out where to redirect now:

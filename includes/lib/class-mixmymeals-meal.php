@@ -24,8 +24,8 @@ class Mixmymeals_Meal {
 	}
 
 	/**
-	 * The diet the meal's recipe is cooked as — a term slug of `mmm_diet`,
-	 * absent for the recipe as written. See get_diet().
+	 * The diet the meal's recipe is cooked as — one of the recipe's
+	 * get_diet_choices(), absent where it offers none. See get_diet().
 	 */
 	const META_DIET = '_mmm_diet';
 
@@ -108,45 +108,65 @@ class Mixmymeals_Meal {
 	}
 
 	/**
-	 * The diet this meal cooks its recipe as, '' for the recipe as written.
+	 * The diet this meal cooks its recipe as — one of the recipe's
+	 * get_diet_choices(), or '' where the recipe offers no choice.
 	 *
 	 * A recipe can be "vegan-capable" — every ingredient has a vegan packet —
 	 * and still be planned with mince. Which of the two lands on the table is
 	 * a fact about the planning, not about the dish, so it lives here, beside
-	 * the servings. Everything that computes from the meal reads the recipe
-	 * through get_recipe(), which applies it.
+	 * the servings, and **it is always settled**: there is no "as in the
+	 * recipe" for a recipe that offers two ways, because that is exactly the
+	 * state in which nobody knows what to buy. A meal that never said — one
+	 * from before this field, or one whose recipe changed — reads the
+	 * recipe's first choice, which is the recipe as written under its own
+	 * name ("with meat", "vegetarian").
 	 *
-	 * The stored slug, resolved; get_recipe()->get_implemented_diet() is what
-	 * is actually in force, and differs only where the recipe changed after
-	 * the choice and can no longer be cooked that way.
+	 * Everything that computes from the meal reads the recipe through
+	 * get_recipe(), which applies it.
 	 *
-	 * @return string
+	 * @return string A choice slug (possibly Mixmymeals_Diet::NONE), or ''.
 	 */
 	public function get_diet(): string {
-		return Mixmymeals_Diet::resolve( (string) get_post_meta( $this->post_id, self::META_DIET, true ) );
+
+		$choices = ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->get_diet_choices();
+
+		if ( ! $choices ) {
+			return '';
+		}
+
+		$stored = (string) get_post_meta( $this->post_id, self::META_DIET, true );
+		$stored = Mixmymeals_Diet::NONE === $stored ? $stored : Mixmymeals_Diet::resolve( $stored );
+
+		return in_array( $stored, $choices, true ) ? $stored : $choices[0];
 	}
 
 	/**
-	 * Sets the diet. Validated against the meal's recipe, so set the recipe
-	 * first: a diet the recipe cannot be cooked as is not stored, and neither
-	 * is '' — both clear the field and leave the recipe as written.
+	 * Settles the diet. Checked against the meal's recipe, so set the recipe
+	 * first.
 	 *
-	 * @param string $diet Diet slug (or a former key), '' for as written.
-	 * @return bool Whether the diet is stored afterwards.
+	 * Where the recipe offers a choice something is always stored: the
+	 * requested choice if it is one, else the recipe's first. Where it offers
+	 * none the field is cleared — the recipe has settled it itself.
+	 *
+	 * @param string $diet A choice slug (or a former key); '' for the default.
+	 * @return bool Whether the requested choice is the one stored.
 	 */
 	public function set_diet( string $diet ): bool {
 
-		$diet   = Mixmymeals_Diet::resolve( sanitize_key( $diet ) );
-		$recipe = new Mixmymeals_Recipe( $this->get_recipe_id() );
+		$choices = ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->get_diet_choices();
 
-		if ( '' === $diet || ! $recipe->can_be_cooked_as( $diet ) ) {
+		if ( ! $choices ) {
 			delete_post_meta( $this->post_id, self::META_DIET );
-			return false;
+			return '' === $diet;
 		}
 
-		update_post_meta( $this->post_id, self::META_DIET, $diet );
+		$diet  = sanitize_key( $diet );
+		$diet  = Mixmymeals_Diet::NONE === $diet ? $diet : Mixmymeals_Diet::resolve( $diet );
+		$valid = in_array( $diet, $choices, true );
 
-		return true;
+		update_post_meta( $this->post_id, self::META_DIET, $valid ? $diet : $choices[0] );
+
+		return $valid;
 	}
 
 	/**
