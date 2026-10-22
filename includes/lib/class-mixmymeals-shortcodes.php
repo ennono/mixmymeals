@@ -1988,12 +1988,12 @@ class Mixmymeals_Shortcodes {
 									<?php endif; ?>
 									<?php if ( $is_optional ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
 									<?php
-									$product_label = $this->pinned_product_label(
+									echo $this->row_product_markup( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 										(int) $ing['id'],
-										(int) ( $ing['product_id'] ?? 0 )
+										(int) ( $ing['product_id'] ?? 0 ),
+										! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
 									);
 									?>
-									<?php if ( '' !== $product_label ) : ?><span class="mmm-ingredient-product"><?php echo esc_html( $product_label ); ?></span><?php endif; ?>
                                 </li>
 							<?php endforeach; ?>
                         </ul>
@@ -2345,7 +2345,10 @@ class Mixmymeals_Shortcodes {
 	 *                                                         says why nothing is rated),
 	 *                                                         `cooked`: the ingredients
 	 *                                                         whose cooking factor moved
-	 *                                                         the weight, as name and factor.
+	 *                                                         the weight, as name and factor,
+	 *                                                         `open`: the packets a diet
+	 *                                                         fell back on
+	 *                                                         (Mixmymeals_Recipe::get_open_products()).
 	 * @return string '' when the site has switched every column off.
 	 */
 	private function render_nutrition_table( string $context, array $data, array $args = array() ): string {
@@ -2380,12 +2383,20 @@ class Mixmymeals_Shortcodes {
 			$explain['rating'] = Mixmymeals_Meal_Plan::day_rating_note();
 		}
 
+		if ( ! empty( $args['open'] ) ) {
+			$explain['open'] = Mixmymeals_Nutrition_Table::open_note( (array) $args['open'] );
+		}
+
 		// The marks go onto the headings here, once, so the cell labels the
 		// phone layout prints from data-label carry them too.
 		$footnotes = Mixmymeals_Nutrition_Table::footnotes( $config, $cooked, $explain );
 
 		foreach ( $footnotes['marks'] as $mmm_col => $mmm_mark ) {
-			$config['columns'][ $mmm_col ] .= $mmm_mark;
+			if ( 'label' === $mmm_col ) {
+				$config['label'] .= $mmm_mark;
+			} else {
+				$config['columns'][ $mmm_col ] .= $mmm_mark;
+			}
 		}
 
 		ob_start();
@@ -2589,6 +2600,7 @@ class Mixmymeals_Shortcodes {
 				'tokens' => array( 'weight' => (string) round( $weight_per_serving ) ),
 				'lights' => $lights,
 				'cooked' => $figures['cooked'] ?? array(),
+				'open'   => $meal->get_recipe()->get_open_products(),
 			)
 		);
 
@@ -4026,12 +4038,12 @@ class Mixmymeals_Shortcodes {
 									<?php endif; ?>
 									<?php if ( $is_optional ) : ?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
 									<?php
-									$product_label = $this->pinned_product_label(
+									echo $this->row_product_markup( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 										(int) $ing['id'],
-										(int) ( $ing['product_id'] ?? 0 )
+										(int) ( $ing['product_id'] ?? 0 ),
+										! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
 									);
 									?>
-									<?php if ( '' !== $product_label ) : ?><span class="mmm-ingredient-product"><?php echo esc_html( $product_label ); ?></span><?php endif; ?>
                                 </li>
 							<?php endforeach; ?>
                         </ul>
@@ -5449,6 +5461,33 @@ class Mixmymeals_Shortcodes {
 		return $product_id > 0 ? ( new Mixmymeals_Product( $product_id ) )->label() : '';
 	}
 
+	/**
+	 * What an ingredient list prints after a row's name about its packet.
+	 *
+	 * The pinned product where the row names one (pinned_product_label()).
+	 * A row a meal's diet left open — several packets hold the diet, and the
+	 * figures are taken from the least favourable — names no packet but the
+	 * diet, "(Vegan)", the shopping list's wording: the reader is told what
+	 * to look for, not which brand to buy.
+	 *
+	 * @param int    $ingredient_id The ingredient of the row.
+	 * @param int    $pinned        The row's product_id.
+	 * @param string $open_diet     The diet of an open row, '' otherwise.
+	 * @return string Markup, '' when there is nothing to say.
+	 */
+	private function row_product_markup( int $ingredient_id, int $pinned, string $open_diet ): string {
+
+		if ( '' !== $open_diet ) {
+			$text = self::shopping_item_diet_text( array( 'diet' => $open_diet ) );
+
+			return '' === $text ? '' : '<span class="mmm-ingredient-product mmm-ingredient-product--open">' . esc_html( $text ) . '</span>';
+		}
+
+		$label = $this->pinned_product_label( $ingredient_id, $pinned );
+
+		return '' === $label ? '' : '<span class="mmm-ingredient-product">' . esc_html( $label ) . '</span>';
+	}
+
 	private function render_ingredients_list( array $ingredients_raw ): string {
 
 		if ( empty( $ingredients_raw ) ) {
@@ -5486,11 +5525,14 @@ class Mixmymeals_Shortcodes {
 				];
 			}
 
-			$pinned = (int) ( $ing['product_id'] ?? 0 );
+			// An open row is marked by its diet, a decided one by its packet.
+			$pinned = ! empty( $ing['product_open'] )
+				? 'open:' . (string) ( $ing['implemented_for'] ?? '' )
+				: (string) (int) ( $ing['product_id'] ?? 0 );
 
 			$ingredients[ $id ]['pinned'] = null === $ingredients[ $id ]['pinned'] || $ingredients[ $id ]['pinned'] === $pinned
 				? $pinned
-				: 0;
+				: '0';
 
 			// Aggregation (skalierte Werte direkt verwenden)
 			$ingredients[ $id ]['amount']   += (float) ( $ing['amount'] ?? 0 );
@@ -5523,14 +5565,13 @@ class Mixmymeals_Shortcodes {
 							<?php echo esc_html( $ingredient['name'] ); ?>
 						</span>
 							<?php
-							$product_label = $this->pinned_product_label(
+							$mmm_pinned = (string) ( $ingredient['pinned'] ?? '0' );
+							echo $this->row_product_markup( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 								(int) $ingredient['id'],
-								(int) ( $ingredient['pinned'] ?? 0 )
+								(int) $mmm_pinned,
+								0 === strpos( $mmm_pinned, 'open:' ) ? substr( $mmm_pinned, 5 ) : ''
 							);
 							?>
-							<?php if ( '' !== $product_label ) : ?>
-								<span class="mmm-ingredient-product"><?php echo esc_html( $product_label ); ?></span>
-							<?php endif; ?>
 
 							<?php if ( ! empty( $ingredient['amount'] ) ) :
 
@@ -8205,12 +8246,14 @@ class Mixmymeals_Shortcodes {
 		// Every dish on the plan whose weight a cooking factor moved: the
 		// per-100 g column is a mix of their cooked weights.
 		$mmm_plan_cooked = array();
+		$mmm_plan_open   = array();
 
 		foreach ( $rows as $mmm_row ) {
 			$mmm_recipe = Mixmymeals_Meal_Plan::row_recipe( $mmm_row );
 
 			if ( $mmm_recipe->is_valid() ) {
 				$mmm_plan_cooked = array_merge( $mmm_plan_cooked, $mmm_recipe->get_cooked_ingredients() );
+				$mmm_plan_open   = array_merge( $mmm_plan_open, $mmm_recipe->get_open_products() );
 			}
 		}
 
@@ -8231,6 +8274,7 @@ class Mixmymeals_Shortcodes {
 				'lights'  => $lights,
 				'ratings' => $plan->calc_day_rating()['ratings'],
 				'cooked'  => $mmm_plan_cooked,
+				'open'    => $mmm_plan_open,
 			)
 		);
 	}

@@ -2339,7 +2339,8 @@ class Mixmymeals_Meal_Plan {
 					(int) ( $ing['product_id'] ?? 0 ),
 					$weight / $servings,
 					'grams_person',
-					array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
+					array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
+					! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
 				);
 
 				if ( ! isset( $counted[ $id ] ) ) {
@@ -2672,7 +2673,21 @@ class Mixmymeals_Meal_Plan {
 				 * up under the ingredient as it always has.
 				 */
 				$implemented = (string) ( $ing['implemented_for'] ?? '' );
-				$group       = '' === $implemented ? (string) $ing_id : $ing_id . '|' . $row_product;
+				$open        = '' !== $implemented && ! empty( $ing['product_open'] );
+
+				/*
+				 * Where several packets hold the diet the purchase is open:
+				 * "Joghurt (Vegan)", whichever packet the figures were taken
+				 * from. Those rows add up per ingredient and diet, and the
+				 * line names no product — the sentinel -2 in `products` is
+				 * what keeps it from naming one.
+				 */
+				if ( $open ) {
+					$group       = $ing_id . '|' . $implemented;
+					$row_product = -2;
+				} else {
+					$group = '' === $implemented ? (string) $ing_id : $ing_id . '|' . $row_product;
+				}
 
 				if ( ! isset( $ingredient_totals[ $group ] ) ) {
 					$ingredient_totals[ $group ] = [
@@ -2774,7 +2789,7 @@ class Mixmymeals_Meal_Plan {
 			 * made of. Disagreement prints nothing rather than one of the two.
 			 */
 			$products           = array_keys( $data['products'] );
-			$data['product_id'] = 1 === count( $products ) ? (int) $products[0] : 0;
+			$data['product_id'] = 1 === count( $products ) ? max( 0, (int) $products[0] ) : 0;
 			$data['product']    = $data['product_id'] > 0
 				? ( new Mixmymeals_Product( $data['product_id'] ) )->label()
 				: '';

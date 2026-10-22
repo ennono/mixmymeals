@@ -367,6 +367,92 @@ if ( $created > $before ) {
 	mmm_md_assert( false, 'der Planer hat einen Plan gespeichert' );
 }
 
+echo "\n-- 7. Mehrere vegane Produkte: das ungünstigste, keine Marke\n";
+
+$jog   = mmm_md_ingredient( 'ZZ Joghurt', 60, '' );
+$milch = mmm_md_product( $jog, 'ZZ Kuhmilch', 60, $VEGGI );
+$natur = mmm_md_product( $jog, 'ZZ Soja Natur', 50, $VEGAN );
+$vanil = mmm_md_product( $jog, 'ZZ Soja Vanille', 80, $VEGAN );
+( new Mixmymeals_Product( $natur ) )->set_nutrition( array( 'calories_100' => 50, 'fat' => 2, 'sugar' => 1, 'salt' => 0.1 ) );
+( new Mixmymeals_Product( $vanil ) )->set_nutrition( array( 'calories_100' => 80, 'fat' => 2, 'sugar' => 8, 'salt' => 0.1 ) );
+Mixmymeals_Product::set_reference_id( $jog, $milch );
+
+$choice = Mixmymeals_Ingredient::diet_product( $jog, 0, $VEGAN );
+mmm_md_assert( array( 'id' => $vanil, 'open' => true ) === $choice, 'zwei vegane Produkte: das mit den ungünstigsten Werten (mehr Zucker), offen' );
+mmm_md_assert( array( 'id' => $natur, 'open' => false ) === Mixmymeals_Ingredient::diet_product( $jog, 0, $VEGAN, array( $vanil ) ), 'bleibt nach dem Ausschluss eines Pakets nur eins, ist es entschieden' );
+mmm_md_assert( array( 'id' => $natur, 'open' => false ) === Mixmymeals_Ingredient::diet_product( $jog, $natur, $VEGAN ), 'ein festgelegtes veganes Paket der Rezeptzeile bleibt' );
+mmm_md_assert( array( 'id' => 0, 'open' => false ) === Mixmymeals_Ingredient::diet_product( $jog, 0, $VEGGI ), 'vegetarisch erfüllt schon das Referenzpaket — die Zeile bleibt, wie sie ist' );
+
+$bowl_id = mmm_md_post( 'mmm_recipe', 'ZZ Bowl' );
+( new Mixmymeals_Recipe( $bowl_id ) )->set_servings( 1 );
+( new Mixmymeals_Recipe( $bowl_id ) )->set_steps(
+	array(
+		array(
+			'title'       => 'Anrichten',
+			'ingredients' => array(
+				array( 'id' => $jog, 'amount' => 200 ),
+				array( 'id' => $tomate, 'amount' => 100 ),
+			),
+		),
+	)
+);
+$bowl = ( new Mixmymeals_Recipe( $bowl_id ) )->for_diet( $VEGAN );
+
+$jrow = null;
+foreach ( $bowl->get_ingredients_scaled( 1.0 ) as $mmm_row ) {
+	if ( $jog === (int) $mmm_row['id'] ) {
+		$jrow = $mmm_row;
+	}
+}
+mmm_md_assert( $jrow && $vanil === (int) $jrow['product_id'] && ! empty( $jrow['product_open'] ), 'die vegane Bowl rechnet mit Soja Vanille und hält das Paket offen' );
+mmm_md_assert( abs( (float) $bowl->calculate_nutrition_per_serving()['calories'] - 180 ) < 0.01, 'die Nährwerte sind die eines Pakets (160 + 20 kcal), kein Mischwert' );
+
+$open = $bowl->get_open_products();
+mmm_md_assert( 1 === count( $open ) && 'ZZ Joghurt' === $open[0]['name'] && $VEGAN === $open[0]['diet'] && false !== strpos( $open[0]['product'], 'Soja Vanille' ), 'get_open_products() nennt Zutat, Diät und Paket' );
+$note = Mixmymeals_Nutrition_Table::open_note( $open );
+mmm_md_assert( false !== strpos( $note, 'ZZ Joghurt (ZZ Vegan)' ) && false !== strpos( $note, 'Soja Vanille' ), 'die Fußnote nennt das Paket der Zahlen' );
+mmm_md_assert( array() === ( new Mixmymeals_Recipe( $bowl_id ) )->get_open_products(), 'das Rezept wie geschrieben hat keine offenen Pakete' );
+
+$footnotes = Mixmymeals_Nutrition_Table::footnotes( Mixmymeals_Nutrition_Table::config( 'meal' ), array(), array( 'open' => $note ) );
+mmm_md_assert( isset( $footnotes['marks']['label'] ) && 'open' === end( $footnotes['notes'] )['kind'], 'die Fußnote hängt mit ihrer Marke an der Kopfzelle' );
+
+$plan2_id = mmm_md_post( 'mmm_meal_plan', 'ZZ Bowl-Woche' );
+update_post_meta( $plan2_id, 'start_day', 1 );
+update_post_meta( $plan2_id, 'end_day', 7 );
+$bowl_meal = Mixmymeals_Meal::create( 'ZZ Bowl Mi', $plan2_id );
+$GLOBALS['MMM_MD_TRASH'][] = $bowl_meal->get_id();
+$bowl_meal->set_recipe_id( $bowl_id );
+$bowl_meal->set_servings( 1 );
+$bowl_meal->set_type( 'lunch' );
+$bowl_meal->set_day( 3 );
+mmm_md_assert( $bowl_meal->set_diet( $VEGAN ), 'die Bowl-Mahlzeit ist vegan' );
+
+$list2 = ( new Mixmymeals_Meal_Plan( $plan2_id ) )->calc_shopping_list( false );
+$list2 = reset( $list2 );
+$jline = null;
+foreach ( $list2 as $data ) {
+	if ( $jog === (int) $data['ingredient_id'] ) {
+		$jline = $data;
+	}
+}
+mmm_md_assert( $jline && 0 === (int) $jline['product_id'] && '' === $jline['product'], 'die Einkaufsliste nennt kein Paket' );
+mmm_md_assert( $jline && $VEGAN === $jline['diet'] && '(ZZ Vegan)' === Mixmymeals_Shortcodes::shopping_item_product_text( $jline ), 'nur „(Vegan)“ hinter der Zutat' );
+
+$groups = $bowl_meal->get_recipe()->calc_product_impact();
+$jgroup = null;
+foreach ( $groups as $group ) {
+	if ( $jog === (int) $group['ingredient_id'] ) {
+		$jgroup = $group;
+	}
+}
+$ids = $jgroup ? array_column( $jgroup['products'], 'id' ) : array();
+sort( $ids );
+$expect = array( $natur, $vanil );
+sort( $expect );
+mmm_md_assert( $jgroup && $expect === $ids, 'der Produktvergleich bleibt und zeigt nur die veganen Pakete' );
+$anchor = $jgroup ? array_values( array_filter( $jgroup['products'], static fn( $r ) => $r['is_anchor'] ) ) : array();
+mmm_md_assert( $anchor && $vanil === (int) $anchor[0]['id'], 'verankert auf dem Paket, mit dem gerechnet wird' );
+
 echo "\n=== Aufräumen ===\n";
 
 foreach ( array_reverse( $GLOBALS['MMM_MD_TRASH'] ) as $trash_id ) {

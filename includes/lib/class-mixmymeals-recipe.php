@@ -1003,10 +1003,12 @@ class Mixmymeals_Recipe {
 	 *
 	 * Without a diet the row is returned untouched. With one, its product is
 	 * replaced by the packet the diet needs (Mixmymeals_Ingredient::
-	 * product_for_diet()) and the row is marked with the diet in
+	 * diet_product()) and the row is marked with the diet in
 	 * `implemented_for` where that changed anything — which is what lets the
 	 * shopping list keep such a packet apart from the same ingredient bought
-	 * for another meal. An optional row that cannot hold the diet is left out:
+	 * for another meal — and with `product_open` where several packets would
+	 * have done, so that no list names the one the figures were taken from.
+	 * An optional row that cannot hold the diet is left out:
 	 * that is how the "capable" rule reads optional ingredients. A required one
 	 * that cannot is kept as written; can_be_cooked_as() keeps that from
 	 * happening unless the recipe changed after the meal chose.
@@ -1017,26 +1019,30 @@ class Mixmymeals_Recipe {
 	private function implement_row( array $ing ): ?array {
 
 		$ing['implemented_for'] = '';
+		$ing['product_open']    = false;
 
 		if ( '' === $this->diet ) {
 			return $ing;
 		}
 
-		$pinned  = (int) ( $ing['product_id'] ?? 0 );
-		$product = Mixmymeals_Ingredient::product_for_diet(
+		$pinned = (int) ( $ing['product_id'] ?? 0 );
+		$choice = Mixmymeals_Ingredient::diet_product(
 			(int) ( $ing['id'] ?? 0 ),
 			$pinned,
 			$this->diet,
 			array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
 		);
 
-		if ( null === $product ) {
+		if ( null === $choice ) {
 			return empty( $ing['optional'] ) ? $ing : null;
 		}
 
-		if ( $product !== $pinned ) {
-			$ing['product_id']      = $product;
+		if ( $choice['id'] !== $pinned ) {
+			$ing['product_id']      = $choice['id'];
 			$ing['implemented_for'] = $this->diet;
+			// Several packets hold the diet: the figures are the least
+			// favourable one's, and nobody is told to buy it.
+			$ing['product_open']    = $choice['open'];
 		}
 
 		return $ing;
@@ -1553,7 +1559,8 @@ class Mixmymeals_Recipe {
 				(int) ( $ing['product_id'] ?? 0 ),
 				$weight / $servings,
 				'grams',
-				array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
+				array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
+				! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
 			);
 		}
 
@@ -1644,6 +1651,48 @@ class Mixmymeals_Recipe {
 		}
 
 		return self::$cooked_cache[ $this->post_id ][ $this->diet ] ?? array();
+	}
+
+	/**
+	 * The rows whose packet this instance's diet left open, with the packet
+	 * the figures were taken from — one entry per ingredient and packet, in
+	 * recipe order; empty for the recipe as written and wherever every row is
+	 * decided.
+	 *
+	 * What the nutrition tables name in their note
+	 * (Mixmymeals_Nutrition_Table::open_note()), so figures matching no
+	 * packet on the shopping list say where they came from.
+	 *
+	 * @return array<int, array{name:string, diet:string, product:string}>
+	 */
+	public function get_open_products(): array {
+
+		if ( '' === $this->diet ) {
+			return array();
+		}
+
+		$open = array();
+
+		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ing ) {
+
+			if ( empty( $ing['product_open'] ) ) {
+				continue;
+			}
+
+			$product = new Mixmymeals_Product( (int) ( $ing['product_id'] ?? 0 ) );
+
+			if ( ! $product->is_valid() ) {
+				continue;
+			}
+
+			$open[ (int) $ing['id'] . '|' . $product->get_id() ] = array(
+				'name'    => (string) ( $ing['name'] ?? '' ),
+				'diet'    => (string) ( $ing['implemented_for'] ?? '' ),
+				'product' => $product->label(),
+			);
+		}
+
+		return array_values( $open );
 	}
 
 	/**
@@ -2118,6 +2167,7 @@ class Mixmymeals_Recipe {
 					'product_id'        => $product_id,
 					'excluded_products' => array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
 					'implemented_for'   => (string) $ing['implemented_for'],
+					'product_open'      => ! empty( $ing['product_open'] ),
 				);
 			}
 		}
@@ -2220,6 +2270,8 @@ class Mixmymeals_Recipe {
 					// The diet this row's packet was chosen for, '' where the
 					// recipe's own choice stands — see implement_row().
 					'implemented_for' => (string) $ing['implemented_for'],
+					// Several packets hold that diet; the list names none.
+					'product_open'    => ! empty( $ing['product_open'] ),
 					'step'            => $step_index,
 				);
 			}

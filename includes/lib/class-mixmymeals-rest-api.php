@@ -795,14 +795,17 @@ class Mixmymeals_Rest_Api {
 
 		$post_id = (int) $request->get_param( 'post_id' );
 		$type    = get_post_type( $post_id );
+		$recipe  = null;
 
 		if ( 'mmm_meal' === $type ) {
-			$post_id = ( new Mixmymeals_Meal( $post_id ) )->get_recipe_id();
+			// As the meal cooks it, the way [mmm_meal_product_impact] reads it.
+			$recipe  = ( new Mixmymeals_Meal( $post_id ) )->get_recipe();
+			$post_id = $recipe->get_id();
 			$type    = get_post_type( $post_id );
 		}
 
 		if ( 'mmm_recipe' === $type ) {
-			$recipe = new Mixmymeals_Recipe( $post_id );
+			$recipe = $recipe ?? new Mixmymeals_Recipe( $post_id );
 
 			if ( ! $recipe->is_valid() ) {
 				return new WP_Error( 'mmm_not_found', __( 'Recipe not found.', 'mixmymeals' ), array( 'status' => 404 ) );

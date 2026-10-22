@@ -592,9 +592,15 @@ class Mixmymeals_Product {
 	 * @param float                $grams         Grams one person eats from this row.
 	 * @param string               $grams_key     Where the total goes: 'grams' or 'grams_person'.
 	 * @param int[]                $excluded      Products this row rules out for its dish.
+	 * @param string               $open_diet     The diet of a row a meal's diet left open
+	 *                                            (several packets hold it, the figures are
+	 *                                            the least favourable one's), '' otherwise.
+	 *                                            Such a row is a question, not a pin, and
+	 *                                            its alternatives are the packets holding
+	 *                                            that diet.
 	 * @return void
 	 */
-	public static function add_row_weight( array &$info, int $ingredient_id, int $pinned, float $grams, string $grams_key = 'grams', array $excluded = array() ): void {
+	public static function add_row_weight( array &$info, int $ingredient_id, int $pinned, float $grams, string $grams_key = 'grams', array $excluded = array(), string $open_diet = '' ): void {
 		/*
 		 * Pakete, die eine Rezeptzeile für ihr Gericht ausgeschlossen hat.
 		 * Vereinigt über alle Zeilen: der Vergleich zeigt eine Tabelle je
@@ -614,10 +620,19 @@ class Mixmymeals_Product {
 		$info[ $grams_key ]           = (float) ( $info[ $grams_key ] ?? 0.0 ) + $grams;
 		$info['products'][ $product ] = (float) ( $info['products'][ $product ] ?? 0.0 ) + $grams;
 
-		// Only a pin counts as decided. A reference product is the site's
-		// default for the ingredient, not a statement about this dish.
-		if ( 0 === $pin ) {
-			$info['open'] = (float) ( $info['open'] ?? 0.0 ) + $grams;
+		/*
+		 * Only a pin counts as decided. A reference product is the site's
+		 * default for the ingredient, not a statement about this dish — and
+		 * a packet a diet fell back on because several would do is not one
+		 * either. Those grams stay open, restricted to that diet: a vegan
+		 * meal's question is which vegan packet, not whether to buy beef.
+		 */
+		if ( '' !== $open_diet ) {
+			$info['open']                     = (float) ( $info['open'] ?? 0.0 ) + $grams;
+			$info['open_diets'][ $open_diet ] = true;
+		} elseif ( 0 === $pin ) {
+			$info['open']      = (float) ( $info['open'] ?? 0.0 ) + $grams;
+			$info['open_free'] = (float) ( $info['open_free'] ?? 0.0 ) + $grams;
 		}
 	}
 
@@ -778,6 +793,26 @@ class Mixmymeals_Product {
 					array_filter(
 						$products,
 						static fn( $product ) => ! in_array( $product->get_id(), $blocked, true )
+					)
+				);
+			}
+
+			/*
+			 * Grams left open only by a meal's diet are a question among the
+			 * packets holding it; where some grams are open without a diet,
+			 * every packet is still a candidate for those.
+			 */
+			$open_diets = array_keys( (array) ( $info['open_diets'] ?? array() ) );
+
+			if ( $open_diets && (float) ( $info['open_free'] ?? 0.0 ) <= 0 ) {
+				$own      = Mixmymeals_Diet::for_post( (int) $ingredient_id );
+				$products = array_values(
+					array_filter(
+						$products,
+						static fn( $product ) => ! array_diff(
+							$open_diets,
+							Mixmymeals_Diet::expand( Mixmymeals_Diet::apply_product( $own, $product->get_diets() ) )
+						)
 					)
 				);
 			}

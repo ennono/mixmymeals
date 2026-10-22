@@ -5913,3 +5913,22 @@ msgstr ""
 msgctxt "shopping list line bought for a diet"
 msgid "(%s)"
 msgstr ""
+
+#. translators: 1: ingredient with its diet, e.g. "Yoghurt (Vegan)", 2: the product the figures come from.
+#: includes/lib/class-mixmymeals-nutrition-table.php
+#, php-format
+msgctxt "ingredient with the product its figures come from"
+msgid "%1$s: %2$s"
+msgstr ""
+
+#. translators: %s: semicolon-separated ingredients with the product the figures use, e.g. "Yoghurt (Vegan): Alpro Vanilla".
+#: includes/lib/class-mixmymeals-nutrition-table.php
+#, php-format
+msgid ""
+"Several products are possible for one ingredient; the figures use the least "
+"favourable (%s)."
+msgid_plural ""
+"Several products are possible for some ingredients; the figures use the "
+"least favourable of each (%s)."
+msgstr[0] ""
+msgstr[1] ""

@@ -127,20 +127,31 @@ Added:
   box, on the meal screen, per dish in the planner and over REST/MCP
   (`diet` on meals). A meal settled as written no longer reads
   "Vegan-capable".
-* A meal cooked as a diet uses, per ingredient, a product that holds it
-  (the recipe's own choice where it already does, else the reference, else
-  another product the recipe has not ruled out, else the ingredient's own
-  figures); optional ingredients that cannot hold it are left out. Its
-  ingredient list, nutrition, costs, traffic lights, diet chip ("Vegan"
-  instead of "Vegan-capable") and the plan's figures follow.
+* A meal cooked as a diet works as a filter on each ingredient: a row that
+  already holds the diet stays as written; otherwise the one product the
+  recipe has not ruled out that holds it is used, and where several do, the
+  one with the least favourable figures (the largest share of the reference
+  intake in fat, saturates, sugars and salt) — one whole product, never a
+  mix, so the product comparison still measures against it. Without such a
+  product the ingredient's own figures are used; optional ingredients that
+  cannot hold the diet are left out. Its ingredient list, nutrition, costs,
+  traffic lights, diet chip ("Vegan" instead of "Vegan-capable") and the
+  plan's figures follow.
+* Where several products would do, no brand is named: the shopping list,
+  the meal's ingredient list and the PDF print "Joghurt (Vegan)", and the
+  meal's and the plan's nutrition table name the product the figures come
+  from in a footnote. The product comparison keeps that ingredient and
+  offers only the products holding the diet.
 * Shopping list: an ingredient bought for a diet gets a line of its own,
-  with its packet and the diet — "Hackfleisch 400 g Sojahack (Vegan)" beside
-  "Hackfleisch 400 g Rinderhack" — on the plan page, in the mails, in
-  Bring! and over REST (`diet`). Where every meal buys it the same way it
-  stays one line.
+  with its packet where one is decided, and the diet — "Hackfleisch 400 g
+  Sojahack (Vegan)" beside "Hackfleisch 400 g Rinderhack" — on the plan
+  page, in the mails, in Bring! and over REST (`diet`). Where every meal
+  buys it the same way it stays one line.
 
 Fixed:
 * MCP `mmm_update_meal` offered `text` but never sent it.
+* `GET /product-impact` read a meal as its recipe as written instead of as
+  the meal cooks it, unlike `[mmm_meal_product_impact]`.
 
 = 3.66.0 =
 
