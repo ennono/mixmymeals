@@ -127,7 +127,8 @@ Added:
   box, on the meal screen, in the "Plan this recipe as a meal" dialog, per
   dish in the planner and over REST/MCP
   (`diet` on meals). A meal settled as written no longer reads
-  "Vegan-capable".
+  "Vegan-capable". The name of the first choice ("Original recipe") can be
+  changed under Settings → Language → Terms.
 * A meal cooked as a diet works as a filter on each ingredient: a row that
   already holds the diet stays as written; otherwise the one product the
   recipe has not ruled out that holds it is used, and where several do, the

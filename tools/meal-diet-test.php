@@ -162,6 +162,11 @@ mmm_md_assert( array() === array_intersect( array( $VEGAN, $VEGGI ), $recipe->ge
 mmm_md_assert( $recipe->can_be_cooked_as( $VEGAN ), 'es kann vegan gekocht werden' );
 mmm_md_assert( array( Mixmymeals_Diet::NONE, $VEGGI, $VEGAN ) === $recipe->get_diet_choices(), 'zur Wahl stehen Originalrezept, vegetarisch und vegan — kein „wie im Rezept“' );
 mmm_md_assert( in_array( Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), array( 'Original recipe', 'Originalrezept' ), true ), 'die erste Wahl heißt „Originalrezept“' );
+update_option( Mixmymeals_Diet::NONE_LABEL_OPTION, '  Wie im Kochbuch ' );
+mmm_md_assert( 'Wie im Kochbuch' === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), 'der Begriff unter „Sprache“ ersetzt „Originalrezept“' );
+update_option( Mixmymeals_Diet::NONE_LABEL_OPTION, '' );
+mmm_md_assert( Mixmymeals_Diet::none_label_default() === Mixmymeals_Diet::choice_label( Mixmymeals_Diet::NONE ), 'ein leeres Feld gibt den Wortlaut der Sprache' );
+delete_option( Mixmymeals_Diet::NONE_LABEL_OPTION );
 
 $as_meat = $recipe->for_diet( Mixmymeals_Diet::NONE );
 mmm_md_assert( '' === $as_meat->get_implemented_diet() && abs( (float) $as_meat->calculate_nutrition_per_serving()['calories'] - 630 ) < 0.01, 'Originalrezept ist das Rezept wie geschrieben' );

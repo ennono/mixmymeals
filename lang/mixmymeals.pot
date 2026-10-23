@@ -5937,3 +5937,24 @@ msgstr[1] ""
 msgctxt "planner dialog field"
 msgid "Diet"
 msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Terms"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Single words that appear in several places. Leave a field empty for the "
+"wording of the site language."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Recipe as written"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"The first diet choice of a meal whose recipe can be cooked several ways: the "
+"recipe with its own products. Shown in the planner, the \"Plan this recipe as "
+"a meal\" dialog, the Meals box and on the meal screen."
+msgstr ""

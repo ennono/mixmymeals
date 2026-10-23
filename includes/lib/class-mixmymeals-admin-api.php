@@ -208,6 +208,7 @@ class Mixmymeals_Admin_API {
 			// currency symbol is two characters, a chip pattern a short
 			// sentence, and the narrow box cut "Geeignet für {diet}" in half.
 			case 'chip_text':
+			case 'term_diet_none':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 				         . '" class="regular-text" type="text" name="'
 				         . esc_attr( $option_name ) . '" placeholder="'

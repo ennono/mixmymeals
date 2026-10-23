@@ -7587,3 +7587,30 @@ msgstr[1] ""
 msgctxt "planner dialog field"
 msgid "Diet"
 msgstr "Ernährungsform"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Terms"
+msgstr "Begriffe"
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Single words that appear in several places. Leave a field empty for the "
+"wording of the site language."
+msgstr ""
+"Einzelne Wörter, die an mehreren Stellen vorkommen. Ein leeres Feld "
+"verwendet den Wortlaut der Seitensprache."
+
+#: includes/class-mixmymeals-settings.php
+msgid "Recipe as written"
+msgstr "Rezept wie geschrieben"
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"The first diet choice of a meal whose recipe can be cooked several ways: the "
+"recipe with its own products. Shown in the planner, the \"Plan this recipe as "
+"a meal\" dialog, the Meals box and on the meal screen."
+msgstr ""
+"Die erste Wahl der Ernährungsform bei einer Mahlzeit, deren Rezept sich auf "
+"mehrere Arten kochen lässt: das Rezept mit seinen eigenen Produkten. Steht im "
+"Planer, im Dialog „Rezept als Mahlzeit einplanen“, in der Mahlzeiten-Tabelle "
+"und auf der Mahlzeit-Seite."
