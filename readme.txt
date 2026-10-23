@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.66.0
+Stable tag: 3.67.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,46 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.67.0 =
+
+Added:
+* A meal stores its diet — how the recipe is actually cooked for that
+  planning. A chili that is "vegan-capable" through a soy mince packet can
+  be planned once as written ("Original recipe") and once "Vegan". Where a recipe offers more
+  than one diet, every meal planning it is settled on one of them — there
+  is no "as in the recipe"; a meal that has not chosen is cooked as the
+  recipe is written, under that diet's name. Chosen in the plan's Meals
+  box, on the meal screen, in the "Plan this recipe as a meal" dialog, per
+  dish in the planner and over REST/MCP
+  (`diet` on meals). A meal settled as written no longer reads
+  "Vegan-capable". The name of the first choice ("Original recipe") can be
+  changed under Settings → Language → Terms.
+* A meal cooked as a diet works as a filter on each ingredient: a row that
+  already holds the diet stays as written; otherwise the one product the
+  recipe has not ruled out that holds it is used, and where several do, the
+  one with the least favourable figures (the largest share of the reference
+  intake in fat, saturates, sugars and salt) — one whole product, never a
+  mix, so the product comparison still measures against it. Without such a
+  product the ingredient's own figures are used; optional ingredients that
+  cannot hold the diet are left out. Its ingredient list, nutrition, costs,
+  traffic lights, diet chip ("Vegan" instead of "Vegan-capable") and the
+  plan's figures follow.
+* Where several products would do, no brand is named: the shopping list,
+  the meal's ingredient list and the PDF print "Joghurt (Vegan)", and the
+  meal's and the plan's nutrition table name the product the figures come
+  from in a footnote. The product comparison keeps that ingredient and
+  offers only the products holding the diet.
+* Shopping list: an ingredient bought for a diet gets a line of its own,
+  with its packet where one is decided, and the diet — "Hackfleisch 400 g
+  Sojahack (Vegan)" beside "Hackfleisch 400 g Rinderhack" — on the plan
+  page, in the mails, in Bring! and over REST (`diet`). Where every meal
+  buys it the same way it stays one line.
+
+Fixed:
+* MCP `mmm_update_meal` offered `text` but never sent it.
+* `GET /product-impact` read a meal as its recipe as written instead of as
+  the meal cooks it, unlike `[mmm_meal_product_impact]`.
 
 = 3.66.0 =
 

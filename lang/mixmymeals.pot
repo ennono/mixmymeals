@@ -5896,3 +5896,65 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Adjust in the planner"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-diet.php
+msgid "Original recipe"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid ""
+"Cooks the recipe with the products this diet needs — on the plan, in its "
+"nutrition and on the shopping list."
+msgstr ""
+
+#. translators: %s: diet name, e.g. "Vegan" — the meals a shopping-list line is bought for.
+#: includes/lib/class-mixmymeals-shortcodes.php
+#, php-format
+msgctxt "shopping list line bought for a diet"
+msgid "(%s)"
+msgstr ""
+
+#. translators: 1: ingredient with its diet, e.g. "Yoghurt (Vegan)", 2: the product the figures come from.
+#: includes/lib/class-mixmymeals-nutrition-table.php
+#, php-format
+msgctxt "ingredient with the product its figures come from"
+msgid "%1$s: %2$s"
+msgstr ""
+
+#. translators: %s: semicolon-separated ingredients with the product the figures use, e.g. "Yoghurt (Vegan): Alpro Vanilla".
+#: includes/lib/class-mixmymeals-nutrition-table.php
+#, php-format
+msgid ""
+"Several products are possible for one ingredient; the figures use the least "
+"favourable (%s)."
+msgid_plural ""
+"Several products are possible for some ingredients; the figures use the "
+"least favourable of each (%s)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-mixmymeals.php
+msgctxt "planner dialog field"
+msgid "Diet"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Terms"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"Single words that appear in several places. Leave a field empty for the "
+"wording of the site language."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Recipe as written"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid ""
+"The first diet choice of a meal whose recipe can be cooked several ways: the "
+"recipe with its own products. Shown in the planner, the \"Plan this recipe as "
+"a meal\" dialog, the Meals box and on the meal screen."
+msgstr ""

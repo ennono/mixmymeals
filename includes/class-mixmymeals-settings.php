@@ -1378,6 +1378,27 @@ class Mixmymeals_Settings {
 			}
 		}
 
+		/*
+		 * Begriffe: einzelne Wörter, die an mehreren Stellen gleich lauten
+		 * müssen. Eine eigene Sektion neben den Chips, weil sie keine
+		 * Platzhalter tragen und nicht nur auf Chips stehen.
+		 */
+		$fields[] = array(
+			'id'          => 'term_section',
+			'type'        => 'heading',
+			'level'       => 2,
+			'label'       => __( 'Terms', 'mixmymeals' ),
+			'description' => __( 'Single words that appear in several places. Leave a field empty for the wording of the site language.', 'mixmymeals' ),
+		);
+		$fields[] = array(
+			'id'          => 'term_diet_none',
+			'label'       => __( 'Recipe as written', 'mixmymeals' ),
+			'description' => __( 'The first diet choice of a meal whose recipe can be cooked several ways: the recipe with its own products. Shown in the planner, the "Plan this recipe as a meal" dialog, the Meals box and on the meal screen.', 'mixmymeals' ),
+			'default'     => '',
+			'placeholder' => Mixmymeals_Diet::none_label_default(),
+			'callback'    => static fn( $input ) => sanitize_text_field( (string) $input ),
+		);
+
 		return array(
 			'title'       => __( 'Language', 'mixmymeals' ),
 			'description' => __( 'How the site words things. Each text here replaces the wording that comes with the site language.', 'mixmymeals' ),

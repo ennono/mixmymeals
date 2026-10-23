@@ -12,6 +12,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Mixmymeals_Ingredient {
 
 	/**
+	 * A row's product_id meaning "the ingredient's own figures, no packet" —
+	 * never stored, only set where a meal's diet resolves a row to the
+	 * ingredient itself (product_for_diet()). effective_product_id() reads it
+	 * as no product, past the reference.
+	 */
+	public const PIN_OWN = -1;
+
+	/**
 	 * Post ID of the ingredient.
 	 *
 	 * @var int
@@ -280,6 +288,10 @@ class Mixmymeals_Ingredient {
 	 */
 	public static function effective_product_id( int $ingredient_id, int $pinned = 0 ): int {
 
+		if ( self::PIN_OWN === $pinned ) {
+			return 0;
+		}
+
 		$pin = self::pinned_product_id( $ingredient_id, $pinned );
 
 		return $pin > 0 ? $pin : Mixmymeals_Product::get_reference_id( $ingredient_id );
@@ -310,6 +322,145 @@ class Mixmymeals_Ingredient {
 		$product = new Mixmymeals_Product( $pinned );
 
 		return $product->is_valid() && $product->get_ingredient_id() === $ingredient_id ? $pinned : 0;
+	}
+
+	/**
+	 * The packet a row has to be bought as for a dish to hold a diet.
+	 *
+	 * The concrete side of get_diet_suitabilities(): that one says an
+	 * ingredient *can* be vegan, this one says which packet the figures come
+	 * from. The candidates are the same — the ingredient's own classification
+	 * and every product the recipe has not ruled out — so a recipe
+	 * "vegan-capable" by that rule always resolves here.
+	 *
+	 * A diet works as a filter, not as a choice of brand:
+	 *
+	 * - A row that already holds the diet as written (its own product, else
+	 *   the reference, else the ingredient's own classification) is kept.
+	 *   The diet decided nothing about it.
+	 * - Otherwise the products holding it are the candidates. One is taken
+	 *   as it is. Several leave the purchase **open**: the figures come from
+	 *   the least favourable of them (worst_product()) and the shopping list
+	 *   names none, so no visitor is sent to buy a brand nobody chose. The
+	 *   reference has no precedence here — it is the site's default for the
+	 *   ingredient, not a statement about the dish.
+	 * - No product holds it but the ingredient's own classification does:
+	 *   its own figures (PIN_OWN).
+	 *
+	 * One whole product, never a mix of several products' figures: the
+	 * product comparison measures every other packet against the one in
+	 * force, and a composite matches no column of it.
+	 *
+	 * @param int    $ingredient_id The ingredient of the row.
+	 * @param int    $pinned        The row's product_id.
+	 * @param string $diet          Diet slug the dish is cooked as.
+	 * @param int[]  $excluded      The row's excluded_products.
+	 * @return array{id:int, open:bool}|null `id` is the product_id to cook the
+	 *         row with (possibly the row's own, or PIN_OWN), `open` whether
+	 *         several products would have done; null when nothing available
+	 *         holds the diet.
+	 */
+	public static function diet_product( int $ingredient_id, int $pinned, string $diet, array $excluded = array() ): ?array {
+
+		$excluded   = array_map( 'intval', $excluded );
+		$ingredient = new self( $ingredient_id );
+
+		if ( ! $ingredient->is_valid() || '' === $diet ) {
+			return null;
+		}
+
+		$holds = static fn( array $slugs ): bool => in_array( $diet, Mixmymeals_Diet::expand( $slugs ), true );
+
+		if ( $holds( $ingredient->get_diets_pinned( $pinned ) ) ) {
+			return array( 'id' => $pinned, 'open' => false );
+		}
+
+		$own        = Mixmymeals_Diet::for_post( $ingredient_id );
+		$candidates = array();
+
+		foreach ( Mixmymeals_Product::for_ingredient( $ingredient_id ) as $product ) {
+
+			$id = $product->get_id();
+
+			if ( ! in_array( $id, $excluded, true ) && $holds( Mixmymeals_Diet::apply_product( $own, $product->get_diets() ) ) ) {
+				$candidates[] = $id;
+			}
+		}
+
+		if ( 1 === count( $candidates ) ) {
+			return array( 'id' => $candidates[0], 'open' => false );
+		}
+
+		if ( $candidates ) {
+			return array( 'id' => $ingredient->worst_product( $candidates ), 'open' => true );
+		}
+
+		return $holds( $own ) ? array( 'id' => self::PIN_OWN, 'open' => false ) : null;
+	}
+
+	/**
+	 * The product_id of diet_product(), for callers that need only the packet.
+	 *
+	 * @param int    $ingredient_id The ingredient of the row.
+	 * @param int    $pinned        The row's product_id.
+	 * @param string $diet          Diet slug the dish is cooked as.
+	 * @param int[]  $excluded      The row's excluded_products.
+	 * @return int|null
+	 */
+	public static function product_for_diet( int $ingredient_id, int $pinned, string $diet, array $excluded = array() ): ?int {
+
+		$choice = self::diet_product( $ingredient_id, $pinned, $diet, $excluded );
+
+		return null === $choice ? null : $choice['id'];
+	}
+
+	/**
+	 * Of several products, the one with the least favourable figures.
+	 *
+	 * Ranked by the figures that have a maximum (direction `limit`: fat,
+	 * saturates, sugars, salt), each as its share of the reference intake —
+	 * the scale the product comparison ranks by, and the only one on which
+	 * a gram of salt and a gram of fat are comparable. Energy alone would
+	 * miss two hams of equal kilocalories and twice the salt.
+	 *
+	 * Each product is scored with the figures it would actually supply
+	 * (get_nutrition_with_product(), so an unstated value is the
+	 * ingredient's): a packet must not come out ahead by staying silent.
+	 * Ties go to the lower ID, so the answer does not move between requests.
+	 *
+	 * @param int[] $product_ids Products of this ingredient.
+	 * @return int The chosen product, 0 for an empty list.
+	 */
+	public function worst_product( array $product_ids ): int {
+
+		$intake = Mixmymeals_Meal_Plan::reference_intake();
+		$best   = 0;
+		$score  = null;
+
+		$product_ids = array_map( 'intval', $product_ids );
+		sort( $product_ids );
+
+		foreach ( $product_ids as $id ) {
+
+			$figures = $this->get_nutrition_with_product( $id );
+			$sum     = 0.0;
+
+			foreach ( self::NUTRITION_KEY_MAP as $sum_key => $figure_key ) {
+
+				if ( 'limit' !== Mixmymeals_Meal_Plan::nutrition_direction( $sum_key ) || empty( $intake[ $sum_key ] ) ) {
+					continue;
+				}
+
+				$sum += (float) ( $figures[ $figure_key ] ?? 0 ) / (float) $intake[ $sum_key ];
+			}
+
+			if ( null === $score || $sum > $score + 1e-9 ) {
+				$best  = $id;
+				$score = $sum;
+			}
+		}
+
+		return $best;
 	}
 
 	/**

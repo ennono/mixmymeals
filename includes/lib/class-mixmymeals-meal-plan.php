@@ -85,6 +85,10 @@ class Mixmymeals_Meal_Plan {
 				'servings'  => max( 1, (int) ( $row['servings'] ?? 1 ) ),
 				'day'       => ( $day >= 1 && $day <= 7 ) ? $day : null,
 				'type'      => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
+				// Resolved, not validated: row_recipe() asks the recipe,
+				// which is the one place that knows what it can be cooked as.
+				// NONE (the original recipe) is kept, since it settles the dish too.
+				'diet'      => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
 			);
 		}
 
@@ -97,7 +101,10 @@ class Mixmymeals_Meal_Plan {
 	 * The one place the nutrition methods read meals: from the posts for a
 	 * saved plan, from the given rows for one built by from_meal_rows().
 	 *
-	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string}>
+	 * `diet` is what the meal cooks its recipe as; read the dish through
+	 * row_recipe(), never through `new Mixmymeals_Recipe( $row['recipe_id'] )`.
+	 *
+	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string, diet:string}>
 	 */
 	public function get_meal_rows(): array {
 
@@ -117,10 +124,45 @@ class Mixmymeals_Meal_Plan {
 				'servings'  => (int) $meal->get_servings(),
 				'day'       => $meal->get_day(),
 				'type'      => (string) $meal->get_type(),
+				'diet'      => $meal->get_diet(),
 			);
 		}
 
 		return $rows;
+	}
+
+	/**
+	 * A row's diet as given: Mixmymeals_Diet::NONE, a known slug, or ''.
+	 *
+	 * @param string $diet Raw value.
+	 * @return string
+	 */
+	private static function row_diet( string $diet ): string {
+
+		$diet = sanitize_key( $diet );
+
+		return Mixmymeals_Diet::NONE === $diet ? $diet : Mixmymeals_Diet::resolve( $diet );
+	}
+
+	/**
+	 * The dish of one meal row, cooked as the row says.
+	 *
+	 * The one way a plan calculation gets at a recipe: the shopping list, the
+	 * nutrition, the product comparison, the costs and the plan's own diet all
+	 * read the meal's diet through here, so a meal cooked vegan cannot be
+	 * vegan in one figure and mince in the next.
+	 *
+	 * @param array $row One entry of get_meal_rows().
+	 * @return Mixmymeals_Recipe
+	 */
+	public static function row_recipe( array $row ): Mixmymeals_Recipe {
+		// A cart item from before diets were settled says nothing; it is
+		// read like a meal that never said — the recipe's first choice.
+		if ( ! isset( $row['diet'] ) || '' === $row['diet'] ) {
+			$row['diet'] = Mixmymeals_Cart::clean_diet( (int) ( $row['recipe_id'] ?? 0 ), '' );
+		}
+
+		return ( new Mixmymeals_Recipe( (int) ( $row['recipe_id'] ?? 0 ) ) )->for_diet( (string) ( $row['diet'] ?? '' ) );
 	}
 
 	public function get_id(): int {
@@ -1675,7 +1717,7 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$recipe = new Mixmymeals_Recipe( $row['recipe_id'] );
+			$recipe = self::row_recipe( $row );
 
 			if ( ! $recipe->is_valid() ) {
 				continue;
@@ -2064,7 +2106,7 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->get_meal_rows() as $row ) {
 			if ( ! empty( $row['day'] ) ) {
-				$recipe_ids[] = (int) $row['recipe_id'];
+				$recipe_ids[] = self::row_recipe( $row );
 			}
 		}
 
@@ -2096,7 +2138,7 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->get_meal_rows() as $row ) {
 			if ( ! empty( $row['day'] ) ) {
-				$recipes[ (int) $row['day'] ][] = (int) $row['recipe_id'];
+				$recipes[ (int) $row['day'] ][] = self::row_recipe( $row );
 			}
 		}
 
@@ -2247,7 +2289,7 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->get_meal_rows() as $row ) {
 
-			$recipe = new Mixmymeals_Recipe( $row['recipe_id'] );
+			$recipe = self::row_recipe( $row );
 
 			if ( ! $recipe->is_valid() ) {
 				continue;
@@ -2297,7 +2339,8 @@ class Mixmymeals_Meal_Plan {
 					(int) ( $ing['product_id'] ?? 0 ),
 					$weight / $servings,
 					'grams_person',
-					array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
+					array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
+					! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
 				);
 
 				if ( ! isset( $counted[ $id ] ) ) {
@@ -2589,7 +2632,8 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$recipe = new Mixmymeals_Recipe( $recipe_id );
+			// As the meal cooks it — a meal cooked vegan buys the vegan packets.
+			$recipe = self::row_recipe( $row );
 
 			$recipe_servings = max( 1.0, floatval( $recipe->get_servings() ) );
 			$meal_servings   = max( 0.01, floatval( $row['servings'] ) );
@@ -2616,39 +2660,71 @@ class Mixmymeals_Meal_Plan {
 				$weight_per_unit = floatval( $ing['weight_per_unit'] ?? 0 );
 				$unit            = $ing['unit'] ?? '';
 
-				if ( ! isset( $ingredient_totals[ $ing_id ] ) ) {
-					$ingredient_totals[ $ing_id ] = [
-						'details'      => [],
-						'units'        => [],
-						'total_weight' => 0,
-						// Optional stays true only while every use of this
-						// ingredient across the plan is optional; a single
-						// required use flips it back to a normal purchase.
-						'optional'     => true,
-						// Every packet this plan's rows resolve to. One entry
-						// means the list can name it; several mean the recipes
-						// want different ones and naming either would send the
-						// shopper home with the wrong article for one of them.
-						'products'     => [],
-						'product_id'   => 0,
-						'product'      => '',
-					];
-				}
-
 				$row_product = Mixmymeals_Ingredient::effective_product_id(
 					$ing_id,
 					(int) ( $ing['product_id'] ?? 0 )
 				);
 
-				$ingredient_totals[ $ing_id ]['products'][ $row_product ] = true;
+				/*
+				 * A row whose packet a meal's diet chose is a purchase of its
+				 * own: the soy mince for Tuesday's vegan chili is not the beef
+				 * for Thursday's, and one line "500 g Hackfleisch" would leave
+				 * the shopper to work out which is which. Every other row adds
+				 * up under the ingredient as it always has.
+				 */
+				$implemented = (string) ( $ing['implemented_for'] ?? '' );
+				$open        = '' !== $implemented && ! empty( $ing['product_open'] );
 
-				$ingredient_totals[ $ing_id ]['optional'] =
-					$ingredient_totals[ $ing_id ]['optional'] && ! empty( $ing['optional'] );
+				/*
+				 * Where several packets hold the diet the purchase is open:
+				 * "Joghurt (Vegan)", whichever packet the figures were taken
+				 * from. Those rows add up per ingredient and diet, and the
+				 * line names no product — the sentinel -2 in `products` is
+				 * what keeps it from naming one.
+				 */
+				if ( $open ) {
+					$group       = $ing_id . '|' . $implemented;
+					$row_product = -2;
+				} else {
+					$group = '' === $implemented ? (string) $ing_id : $ing_id . '|' . $row_product;
+				}
+
+				if ( ! isset( $ingredient_totals[ $group ] ) ) {
+					$ingredient_totals[ $group ] = [
+						'ingredient_id' => $ing_id,
+						// The diet this line is bought for; '' for the recipes
+						// as written, and where the line serves several diets.
+						'diet'          => $implemented,
+						'details'       => [],
+						'units'         => [],
+						'total_weight'  => 0,
+						// Optional stays true only while every use of this
+						// ingredient across the plan is optional; a single
+						// required use flips it back to a normal purchase.
+						'optional'      => true,
+						// Every packet this plan's rows resolve to. One entry
+						// means the list can name it; several mean the recipes
+						// want different ones and naming either would send the
+						// shopper home with the wrong article for one of them.
+						'products'      => [],
+						'product_id'    => 0,
+						'product'       => '',
+					];
+				}
+
+				if ( $ingredient_totals[ $group ]['diet'] !== $implemented ) {
+					$ingredient_totals[ $group ]['diet'] = '';
+				}
+
+				$ingredient_totals[ $group ]['products'][ $row_product ] = true;
+
+				$ingredient_totals[ $group ]['optional'] =
+					$ingredient_totals[ $group ]['optional'] && ! empty( $ing['optional'] );
 
 				// Rohbedarf je Einheit sammeln; unteilbare Einheiten werden
 				// erst nach der Aggregation über alle Mahlzeiten gerundet.
-				if ( ! isset( $ingredient_totals[ $ing_id ]['units'][ $amount_id ] ) ) {
-					$ingredient_totals[ $ing_id ]['units'][ $amount_id ] = [
+				if ( ! isset( $ingredient_totals[ $group ]['units'][ $amount_id ] ) ) {
+					$ingredient_totals[ $group ]['units'][ $amount_id ] = [
 						'raw_amount'      => 0.0,
 						'weight_per_unit' => $weight_per_unit,
 						'is_indivisible'  => ! empty( $ing['is_indivisible'] ),
@@ -2656,9 +2732,9 @@ class Mixmymeals_Meal_Plan {
 						'unit_title'      => $unit,
 					];
 				}
-				$ingredient_totals[ $ing_id ]['units'][ $amount_id ]['raw_amount'] += $raw_amount;
+				$ingredient_totals[ $group ]['units'][ $amount_id ]['raw_amount'] += $raw_amount;
 
-				$ingredient_totals[ $ing_id ]['details'][] = [
+				$ingredient_totals[ $group ]['details'][] = [
 					'amount'      => $raw_amount,
 					'unit_title'  => $unit,
 					'weight_g'    => $weight_per_unit > 0
@@ -2713,7 +2789,7 @@ class Mixmymeals_Meal_Plan {
 			 * made of. Disagreement prints nothing rather than one of the two.
 			 */
 			$products           = array_keys( $data['products'] );
-			$data['product_id'] = 1 === count( $products ) ? (int) $products[0] : 0;
+			$data['product_id'] = 1 === count( $products ) ? max( 0, (int) $products[0] ) : 0;
 			$data['product']    = $data['product_id'] > 0
 				? ( new Mixmymeals_Product( $data['product_id'] ) )->label()
 				: '';
@@ -2722,14 +2798,40 @@ class Mixmymeals_Meal_Plan {
 		}
 		unset( $data );
 
+		/*
+		 * Keyed by ingredient ID wherever an ingredient is one line, as this
+		 * list has always been — the renderers, the mails, Bring! and the PDF
+		 * read that key. Only an ingredient bought for several diets gets
+		 * keys of the form "12|34"; `ingredient_id` is the field to read, and
+		 * its lines are moved together so they sit beside each other.
+		 */
+		$by_ingredient = [];
+
+		foreach ( $ingredient_totals as $group => $data ) {
+			$by_ingredient[ $data['ingredient_id'] ][ $group ] = $data;
+		}
+
+		$ingredient_totals = [];
+
+		foreach ( $by_ingredient as $ing_id => $groups ) {
+			if ( 1 === count( $groups ) ) {
+				$ingredient_totals[ $ing_id ] = reset( $groups );
+				continue;
+			}
+
+			foreach ( $groups as $group => $data ) {
+				$ingredient_totals[ $group ] = $data;
+			}
+		}
+
 		// 👉 Gruppieren nach Kategorie
 		$ingredients_by_cat = [];
 
 		if ( $sort_by_category ) {
 
-			foreach ( $ingredient_totals as $ing_id => $data ) {
+			foreach ( $ingredient_totals as $key => $data ) {
 
-				$terms = wp_get_post_terms( $ing_id, 'mmm_ingredient_category' );
+				$terms = wp_get_post_terms( (int) $data['ingredient_id'], 'mmm_ingredient_category' );
 				if ( is_wp_error( $terms ) ) {
 					$terms = [];
 				}
@@ -2738,7 +2840,7 @@ class Mixmymeals_Meal_Plan {
 					? $terms[0]->name
 					: __( 'Other', 'mixmymeals' );
 
-				$ingredients_by_cat[ $cat_name ][ $ing_id ] = $data;
+				$ingredients_by_cat[ $cat_name ][ $key ] = $data;
 			}
 
 			ksort( $ingredients_by_cat, SORT_NATURAL | SORT_FLAG_CASE );
@@ -2959,7 +3061,7 @@ class Mixmymeals_Meal_Plan {
 		$count = 0;
 		foreach ( $meals as $meal_post ) {
 			$meal   = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe = new Mixmymeals_Recipe( $meal->get_recipe_id() );
+			$recipe = $meal->get_recipe();
 			if ( ! $recipe->is_valid() ) {
 				continue;
 			}
@@ -3031,7 +3133,8 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->get_meals() as $meal_post ) {
 
-			$recipe = new Mixmymeals_Recipe( ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe_id() );
+			// As each meal cooks it: a plan of vegan-cooked meals is vegan.
+			$recipe = ( new Mixmymeals_Meal( $meal_post->ID ) )->get_recipe();
 
 			if ( ! $recipe->is_valid() ) {
 				return array();
@@ -3433,14 +3536,15 @@ class Mixmymeals_Meal_Plan {
 
 		// Grouping by category would only add headings we cannot use here.
 		foreach ( $this->calc_shopping_list( false ) as $ingredients ) {
-			foreach ( $ingredients as $ing_id => $data ) {
+			foreach ( $ingredients as $key => $data ) {
 
-				$ingredient = new Mixmymeals_Ingredient( (int) $ing_id );
+				$ing_id     = (int) ( $data['ingredient_id'] ?? $key );
+				$ingredient = new Mixmymeals_Ingredient( $ing_id );
 				if ( ! $ingredient->is_valid() ) {
 					continue;
 				}
 
-				$name = trim( wp_strip_all_tags( get_the_title( (int) $ing_id ) ) );
+				$name = trim( wp_strip_all_tags( get_the_title( $ing_id ) ) );
 				if ( '' === $name ) {
 					continue;
 				}

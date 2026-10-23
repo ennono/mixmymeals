@@ -23,6 +23,12 @@ class Mixmymeals_Meal {
 		$this->post_id = $post_id;
 	}
 
+	/**
+	 * The diet the meal's recipe is cooked as — one of the recipe's
+	 * get_diet_choices(), absent where it offers none. See get_diet().
+	 */
+	const META_DIET = '_mmm_diet';
+
 	/** Option guarding the one-off move of `note` meta into the text. */
 	const TEXT_MIGRATION_OPTION  = 'mixmymeals_meal_text_version';
 	const TEXT_MIGRATION_VERSION = '1';
@@ -99,6 +105,82 @@ class Mixmymeals_Meal {
 	 */
 	public function set_recipe_id( int $recipe_id ): void {
 		update_post_meta( $this->post_id, 'recipe_id', $recipe_id );
+	}
+
+	/**
+	 * The diet this meal cooks its recipe as — one of the recipe's
+	 * get_diet_choices(), or '' where the recipe offers no choice.
+	 *
+	 * A recipe can be "vegan-capable" — every ingredient has a vegan packet —
+	 * and still be planned with mince. Which of the two lands on the table is
+	 * a fact about the planning, not about the dish, so it lives here, beside
+	 * the servings, and **it is always settled**: there is no "as in the
+	 * recipe" for a recipe that offers two ways, because that is exactly the
+	 * state in which nobody knows what to buy. A meal that never said — one
+	 * from before this field, or one whose recipe changed — reads the
+	 * recipe's first choice, which is the recipe as written under its own
+	 * name ("Original recipe", "Vegetarian").
+	 *
+	 * Everything that computes from the meal reads the recipe through
+	 * get_recipe(), which applies it.
+	 *
+	 * @return string A choice slug (possibly Mixmymeals_Diet::NONE), or ''.
+	 */
+	public function get_diet(): string {
+
+		$choices = ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->get_diet_choices();
+
+		if ( ! $choices ) {
+			return '';
+		}
+
+		$stored = (string) get_post_meta( $this->post_id, self::META_DIET, true );
+		$stored = Mixmymeals_Diet::NONE === $stored ? $stored : Mixmymeals_Diet::resolve( $stored );
+
+		return in_array( $stored, $choices, true ) ? $stored : $choices[0];
+	}
+
+	/**
+	 * Settles the diet. Checked against the meal's recipe, so set the recipe
+	 * first.
+	 *
+	 * Where the recipe offers a choice something is always stored: the
+	 * requested choice if it is one, else the recipe's first. Where it offers
+	 * none the field is cleared — the recipe has settled it itself.
+	 *
+	 * @param string $diet A choice slug (or a former key); '' for the default.
+	 * @return bool Whether the requested choice is the one stored.
+	 */
+	public function set_diet( string $diet ): bool {
+
+		$choices = ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->get_diet_choices();
+
+		if ( ! $choices ) {
+			delete_post_meta( $this->post_id, self::META_DIET );
+			return '' === $diet;
+		}
+
+		$diet  = sanitize_key( $diet );
+		$diet  = Mixmymeals_Diet::NONE === $diet ? $diet : Mixmymeals_Diet::resolve( $diet );
+		$valid = in_array( $diet, $choices, true );
+
+		update_post_meta( $this->post_id, self::META_DIET, $valid ? $diet : $choices[0] );
+
+		return $valid;
+	}
+
+	/**
+	 * The meal's recipe as this meal cooks it.
+	 *
+	 * **Every read of a meal's dish goes through here**, not through
+	 * `new Mixmymeals_Recipe( get_recipe_id() )`: that instance is the recipe
+	 * as written, and reading it would put the mince on the shopping list of a
+	 * meal that is cooked vegan.
+	 *
+	 * @return Mixmymeals_Recipe
+	 */
+	public function get_recipe(): Mixmymeals_Recipe {
+		return ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->for_diet( $this->get_diet() );
 	}
 
 	/**

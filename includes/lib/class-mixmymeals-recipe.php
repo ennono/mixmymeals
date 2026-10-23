@@ -43,35 +43,50 @@ class Mixmymeals_Recipe {
 	const PREP_TIME_STEPS = array( 20, 30, 60 );
 
 	/**
-	 * Per-request nutrition per serving, keyed by recipe ID.
+	 * Per-request nutrition per serving, keyed by recipe ID and diet implementation.
 	 *
-	 * @var array<int, array<string,float>>
+	 * @var array<int, array<string, array<string,float>>>
 	 */
 	private static $per_serving_cache = array();
 
 	/**
 	 * Per-request names of the ingredients whose cooking factor changed the
-	 * weight, keyed by recipe ID. Filled by the same pass that sums the weight,
+	 * weight, keyed by recipe ID and diet implementation. Filled by the same pass that sums the weight,
 	 * so the note under a table cannot name a different set than the one the
 	 * figures were computed from.
 	 *
-	 * @var array<int, array<int, array{name:string, factor:float}>>
+	 * @var array<int, array<string, array<int, array{name:string, factor:float}>>>
 	 */
 	private static $cooked_cache = array();
 
 	/**
-	 * Per-request cost per serving, keyed by recipe ID.
+	 * Per-request cost per serving, keyed by recipe ID and diet implementation.
 	 *
-	 * @var array<int, float>
+	 * @var array<int, array<string, float>>
 	 */
 	private static $cost_cache = array();
 
 	/**
-	 * Per-request nutrition coverage, keyed by recipe ID.
+	 * Per-request nutrition coverage, keyed by recipe ID and diet implementation.
 	 *
-	 * @var array<int, array<string, mixed>>
+	 * @var array<int, array<string, array<string, mixed>>>
 	 */
 	private static $coverage_cache = array();
+
+	/**
+	 * Per-request answers of can_be_cooked_as(), keyed by recipe ID and diet.
+	 * Every meal asks it whenever its dish is read.
+	 *
+	 * @var array<int, array<string, bool>>
+	 */
+	private static $cookable_cache = array();
+
+	/**
+	 * Per-request answers of get_diet_choices(), keyed by recipe ID.
+	 *
+	 * @var array<int, string[]>
+	 */
+	private static $choices_cache = array();
 
 	/**
 	 * The share of a dish's weight that may lack nutrition data before the
@@ -788,6 +803,25 @@ class Mixmymeals_Recipe {
 	private int $post_id;
 
 	/**
+	 * The diet this instance is cooked as — '' for the recipe as written.
+	 * Set only through for_diet(); see there.
+	 *
+	 * @var string
+	 */
+	private string $diet = '';
+
+	/**
+	 * Whether a meal has settled this recipe's `diet` axis — set by
+	 * for_diet() for one of get_diet_choices(). A settled dish is what it is
+	 * and nothing more: get_diet_suitabilities() then reports no diet of that
+	 * axis beyond the ones in force, so a meal cooked as written does not read
+	 * "vegan-capable".
+	 *
+	 * @var bool
+	 */
+	private bool $fixed = false;
+
+	/**
 	 * @param int $post_id Recipe post ID.
 	 */
 	public function __construct( int $post_id ) {
@@ -823,6 +857,195 @@ class Mixmymeals_Recipe {
 		}
 
 		return new self( $post_id );
+	}
+
+	/**
+	 * This recipe as cooked for a diet: the same post, with every row bought
+	 * as the diet needs.
+	 *
+	 * A recipe "vegan-capable" through its products says what *could* be
+	 * bought; a meal saying "vegan" says what *is*. Everything that reads
+	 * ingredient rows — nutrition, cost, the ingredient lists, the shopping
+	 * list, the diet answers themselves — goes through
+	 * get_ingredients_scaled() or get_ingredients_normalized(), and both
+	 * resolve the rows through implement_row(). So an instance from here
+	 * computes everything for the dish as the meal cooks it, and no caller
+	 * has to know diets exist.
+	 *
+	 * An unknown slug, or one the recipe cannot be cooked as, gives the recipe
+	 * as written: a meal must never claim a diet its rows do not hold.
+	 * Mixmymeals_Diet::NONE is the recipe as written too, but settled — see
+	 * $fixed — and so is any diet of the `diet` axis.
+	 *
+	 * @param string $diet Diet slug, Mixmymeals_Diet::NONE, or '' for the
+	 *                     recipe as written and unsettled.
+	 * @return self
+	 */
+	public function for_diet( string $diet ): self {
+
+		$fixed = Mixmymeals_Diet::NONE === $diet;
+		$diet  = Mixmymeals_Diet::resolve( $diet );
+
+		if ( '' === $diet || ! $this->can_be_cooked_as( $diet ) ) {
+			$diet = '';
+		} else {
+			$fixed = 'diet' === ( Mixmymeals_Diet::types()[ $diet ]['axis'] ?? '' );
+		}
+
+		if ( $diet === $this->diet && $fixed === $this->fixed ) {
+			return $this;
+		}
+
+		$copy        = clone $this;
+		$copy->diet  = $diet;
+		$copy->fixed = $fixed;
+
+		return $copy;
+	}
+
+	/**
+	 * The recipe as written and unsettled — what the choices are made from.
+	 *
+	 * @return self
+	 */
+	private function as_written(): self {
+		return ( '' === $this->diet && ! $this->fixed ) ? $this : $this->for_diet( '' );
+	}
+
+	/**
+	 * The diet this instance is cooked as, '' for the recipe as written.
+	 *
+	 * @return string
+	 */
+	public function get_implemented_diet(): string {
+		return $this->diet;
+	}
+
+	/**
+	 * Whether every required row can be bought for a diet.
+	 *
+	 * The same answer as the "capable" chip: get_diet_suitabilities() is built
+	 * from exactly the candidates product_for_diet() chooses from.
+	 *
+	 * @param string $diet Diet slug.
+	 * @return bool
+	 */
+	public function can_be_cooked_as( string $diet ): bool {
+
+		$diet = Mixmymeals_Diet::resolve( $diet );
+
+		if ( '' === $diet || ! Mixmymeals_Diet::is_known( $diet ) || ! $this->is_valid() ) {
+			return false;
+		}
+
+		if ( ! isset( self::$cookable_cache[ $this->post_id ][ $diet ] ) ) {
+			self::$cookable_cache[ $this->post_id ][ $diet ] = in_array( $diet, Mixmymeals_Diet::expand( $this->as_written()->get_diet_suitabilities() ), true );
+		}
+
+		return self::$cookable_cache[ $this->post_id ][ $diet ];
+	}
+
+	/**
+	 * What a meal planning this recipe has to decide between, or nothing.
+	 *
+	 * Only the `diet` axis — vegan, vegetarian, or none: the question that
+	 * decides what goes into the basket. The first entry is the recipe as
+	 * written, named by its strongest diet of that axis or, where it holds
+	 * none, Mixmymeals_Diet::NONE ("Original recipe"); then every stronger diet of
+	 * the axis it can be cooked as, weakest first. Fewer than two means there
+	 * is nothing to decide and the result is empty.
+	 *
+	 * There is deliberately no "as in the recipe": a recipe offering two ways
+	 * leaves the shopping open, and a meal is where it is closed. The first
+	 * entry is the default wherever a meal has not said, which makes it a
+	 * named choice rather than an open one.
+	 *
+	 * @return string[] Slugs for Mixmymeals_Meal::set_diet().
+	 */
+	public function get_diet_choices(): array {
+
+		if ( ! $this->is_valid() ) {
+			return array();
+		}
+
+		if ( isset( self::$choices_cache[ $this->post_id ] ) ) {
+			return self::$choices_cache[ $this->post_id ];
+		}
+
+		$as_written = $this->as_written();
+		$in_force   = Mixmymeals_Diet::expand( $as_written->get_diets() );
+		$capable    = Mixmymeals_Diet::expand( $as_written->get_diet_suitabilities() );
+		$types      = Mixmymeals_Diet::types();
+		$stronger   = array();
+
+		foreach ( $capable as $slug ) {
+			if ( 'diet' === ( $types[ $slug ]['axis'] ?? '' ) && ! in_array( $slug, $in_force, true ) ) {
+				$stronger[ $slug ] = (int) $types[ $slug ]['rank'];
+			}
+		}
+
+		if ( ! $stronger ) {
+			return self::$choices_cache[ $this->post_id ] = array();
+		}
+
+		asort( $stronger );
+
+		$own = Mixmymeals_Diet::strongest( $in_force, 'diet' );
+
+		return self::$choices_cache[ $this->post_id ] = array_merge(
+			array( '' !== $own ? $own : Mixmymeals_Diet::NONE ),
+			array_keys( $stronger )
+		);
+	}
+
+	/**
+	 * One step row as this instance cooks it.
+	 *
+	 * Without a diet the row is returned untouched. With one, its product is
+	 * replaced by the packet the diet needs (Mixmymeals_Ingredient::
+	 * diet_product()) and the row is marked with the diet in
+	 * `implemented_for` where that changed anything — which is what lets the
+	 * shopping list keep such a packet apart from the same ingredient bought
+	 * for another meal — and with `product_open` where several packets would
+	 * have done, so that no list names the one the figures were taken from.
+	 * An optional row that cannot hold the diet is left out:
+	 * that is how the "capable" rule reads optional ingredients. A required one
+	 * that cannot is kept as written; can_be_cooked_as() keeps that from
+	 * happening unless the recipe changed after the meal chose.
+	 *
+	 * @param array $ing Raw ingredient row of a step.
+	 * @return array|null The row, or null to leave it out.
+	 */
+	private function implement_row( array $ing ): ?array {
+
+		$ing['implemented_for'] = '';
+		$ing['product_open']    = false;
+
+		if ( '' === $this->diet ) {
+			return $ing;
+		}
+
+		$pinned = (int) ( $ing['product_id'] ?? 0 );
+		$choice = Mixmymeals_Ingredient::diet_product(
+			(int) ( $ing['id'] ?? 0 ),
+			$pinned,
+			$this->diet,
+			array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
+		);
+
+		if ( null === $choice ) {
+			return empty( $ing['optional'] ) ? $ing : null;
+		}
+
+		if ( $choice['id'] !== $pinned ) {
+			$ing['product_id']      = $choice['id'];
+			$ing['implemented_for'] = $this->diet;
+			// Several packets hold the diet: the figures are the least
+			// favourable one's, and nobody is told to buy it.
+			$ing['product_open']    = $choice['open'];
+		}
+
+		return $ing;
 	}
 
 	public static function exists_by_id( int $post_id ): bool {
@@ -967,13 +1190,16 @@ class Mixmymeals_Recipe {
 		 * Both figures are derived from the steps, and both are held for the
 		 * request. The REST API updates a recipe and serialises it in the same
 		 * call, so without this it answered with the nutrition from before the
-		 * write — found by the test suite, not in production.
+		 * write — found by the test suite, not in production. Keyed by recipe
+		 * first, so this clears every diet implementation of it at once.
 		 */
 		unset(
 			self::$per_serving_cache[ $this->post_id ],
 			self::$cooked_cache[ $this->post_id ],
 			self::$cost_cache[ $this->post_id ],
-			self::$coverage_cache[ $this->post_id ]
+			self::$coverage_cache[ $this->post_id ],
+			self::$cookable_cache[ $this->post_id ],
+			self::$choices_cache[ $this->post_id ]
 		);
 
 		if ( ! $this->is_valid() ) {
@@ -1256,18 +1482,18 @@ class Mixmymeals_Recipe {
 		 * asks again. set_steps() clears it, because a write during the same
 		 * request must not read back the figures from before it.
 		 */
-		if ( isset( self::$per_serving_cache[ $this->post_id ] ) ) {
-			return self::$per_serving_cache[ $this->post_id ];
+		if ( isset( self::$per_serving_cache[ $this->post_id ][ $this->diet ] ) ) {
+			return self::$per_serving_cache[ $this->post_id ][ $this->diet ];
 		}
 
 		if ( ! $this->is_valid() ) {
-			self::$cooked_cache[ $this->post_id ] = array();
-			return self::$per_serving_cache[ $this->post_id ] = [];
+			self::$cooked_cache[ $this->post_id ][ $this->diet ] = array();
+			return self::$per_serving_cache[ $this->post_id ][ $this->diet ] = [];
 		}
 
 		[ $totals, $total_weight, $cooked ] = $this->_calculate_total_nutrition( 1.0 );
 
-		self::$cooked_cache[ $this->post_id ] = $cooked;
+		self::$cooked_cache[ $this->post_id ][ $this->diet ] = $cooked;
 
 		$servings = max(1.0, floatval($this->get_servings()));
 
@@ -1277,7 +1503,7 @@ class Mixmymeals_Recipe {
 
 		$totals['weight_per_serving'] = $total_weight / $servings;
 
-		return self::$per_serving_cache[ $this->post_id ] = $totals;
+		return self::$per_serving_cache[ $this->post_id ][ $this->diet ] = $totals;
 	}
 
 	/**
@@ -1333,7 +1559,8 @@ class Mixmymeals_Recipe {
 				(int) ( $ing['product_id'] ?? 0 ),
 				$weight / $servings,
 				'grams',
-				array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) )
+				array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
+				! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
 			);
 		}
 
@@ -1419,11 +1646,53 @@ class Mixmymeals_Recipe {
 	 */
 	public function get_cooked_ingredients(): array {
 
-		if ( ! isset( self::$cooked_cache[ $this->post_id ] ) ) {
+		if ( ! isset( self::$cooked_cache[ $this->post_id ][ $this->diet ] ) ) {
 			$this->calculate_nutrition_per_serving();
 		}
 
-		return self::$cooked_cache[ $this->post_id ] ?? array();
+		return self::$cooked_cache[ $this->post_id ][ $this->diet ] ?? array();
+	}
+
+	/**
+	 * The rows whose packet this instance's diet left open, with the packet
+	 * the figures were taken from — one entry per ingredient and packet, in
+	 * recipe order; empty for the recipe as written and wherever every row is
+	 * decided.
+	 *
+	 * What the nutrition tables name in their note
+	 * (Mixmymeals_Nutrition_Table::open_note()), so figures matching no
+	 * packet on the shopping list say where they came from.
+	 *
+	 * @return array<int, array{name:string, diet:string, product:string}>
+	 */
+	public function get_open_products(): array {
+
+		if ( '' === $this->diet ) {
+			return array();
+		}
+
+		$open = array();
+
+		foreach ( $this->get_ingredients_scaled( 1.0 ) as $ing ) {
+
+			if ( empty( $ing['product_open'] ) ) {
+				continue;
+			}
+
+			$product = new Mixmymeals_Product( (int) ( $ing['product_id'] ?? 0 ) );
+
+			if ( ! $product->is_valid() ) {
+				continue;
+			}
+
+			$open[ (int) $ing['id'] . '|' . $product->get_id() ] = array(
+				'name'    => (string) ( $ing['name'] ?? '' ),
+				'diet'    => (string) ( $ing['implemented_for'] ?? '' ),
+				'product' => $product->label(),
+			);
+		}
+
+		return array_values( $open );
 	}
 
 	/**
@@ -1475,16 +1744,27 @@ class Mixmymeals_Recipe {
 	 * and by the plan's "too little": a sum that is low because data is
 	 * missing must get neither a green light nor a shortfall.
 	 *
-	 * @param int[] $recipe_ids Recipe IDs; duplicates and non-recipes are fine.
+	 * @param array<int,int|self> $recipe_ids Recipe IDs or recipes (for_diet());
+	 *                                        duplicates and non-recipes are fine.
 	 * @return string[] Keys of Mixmymeals_Meal_Plan::NUTRITION_KEYS.
 	 */
 	public static function unreliable_nutrition_keys( array $recipe_ids ): array {
 
-		$out = array();
+		$out     = array();
+		$recipes = array();
 
-		foreach ( array_unique( array_filter( array_map( 'intval', $recipe_ids ) ) ) as $recipe_id ) {
+		/*
+		 * Recipe objects as well as IDs: a meal cooked for a diet is made of
+		 * other packets than the recipe as written, and whether its sum can be
+		 * judged depends on theirs.
+		 */
+		foreach ( $recipe_ids as $item ) {
+			$recipe = $item instanceof self ? $item : new self( (int) $item );
 
-			$recipe = new self( $recipe_id );
+			$recipes[ $recipe->get_id() . '|' . $recipe->get_implemented_diet() ] = $recipe;
+		}
+
+		foreach ( $recipes as $recipe ) {
 
 			if ( ! $recipe->is_valid() ) {
 				continue;
@@ -1567,8 +1847,8 @@ class Mixmymeals_Recipe {
 			);
 		}
 
-		if ( isset( self::$coverage_cache[ $this->post_id ] ) ) {
-			return self::$coverage_cache[ $this->post_id ];
+		if ( isset( self::$coverage_cache[ $this->post_id ][ $this->diet ] ) ) {
+			return self::$coverage_cache[ $this->post_id ][ $this->diet ];
 		}
 
 		$weight  = 0.0;
@@ -1661,7 +1941,7 @@ class Mixmymeals_Recipe {
 			$complete = $complete && $figures['complete'];
 		}
 
-		return self::$coverage_cache[ $this->post_id ] = array(
+		return self::$coverage_cache[ $this->post_id ][ $this->diet ] = array(
 			'weight'   => $weight,
 			'share'    => '' === $worst ? 1.0 : $per_key[ $worst ]['share'],
 			'complete' => $complete,
@@ -1732,8 +2012,8 @@ class Mixmymeals_Recipe {
 		 * ingredient list four times — nutrition, cost and the two diet
 		 * answers — and the cost pass repeats what the nutrition pass just did.
 		 */
-		if ( isset( self::$cost_cache[ $this->post_id ] ) ) {
-			return self::$cost_cache[ $this->post_id ];
+		if ( isset( self::$cost_cache[ $this->post_id ][ $this->diet ] ) ) {
+			return self::$cost_cache[ $this->post_id ][ $this->diet ];
 		}
 
 		$servings    = $this->get_servings();
@@ -1753,7 +2033,7 @@ class Mixmymeals_Recipe {
 			);
 		}
 
-		return self::$cost_cache[ $this->post_id ] = $total_cost;
+		return self::$cost_cache[ $this->post_id ][ $this->diet ] = $total_cost;
 	}
 
 	public function set_servings( float $servings ): bool {
@@ -1837,6 +2117,12 @@ class Mixmymeals_Recipe {
 		foreach ( $steps as $step ) {
 			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
 
+				$ing = $this->implement_row( (array) $ing );
+
+				if ( null === $ing ) {
+					continue;
+				}
+
 				$id         = intval( $ing['id'] ?? 0 );
 				$amount     = floatval( $ing['amount'] ?? 0 );
 				$amount_id  = intval( $ing['amount_id'] ?? 0 );
@@ -1880,6 +2166,8 @@ class Mixmymeals_Recipe {
 					'optional'          => ! empty( $ing['optional'] ),
 					'product_id'        => $product_id,
 					'excluded_products' => array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
+					'implemented_for'   => (string) $ing['implemented_for'],
+					'product_open'      => ! empty( $ing['product_open'] ),
 				);
 			}
 		}
@@ -1901,6 +2189,12 @@ class Mixmymeals_Recipe {
 
 		foreach ( $steps as $step_index => $step) {
 			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
+
+				$ing = $this->implement_row( (array) $ing );
+
+				if ( null === $ing ) {
+					continue;
+				}
 
 				$id         = intval( $ing['id'] ?? 0 );
 				$amount     = floatval( $ing['amount'] ?? 0 );
@@ -1973,6 +2267,11 @@ class Mixmymeals_Recipe {
 					'optional'        => ! empty( $ing['optional'] ),
 					'product_id'      => $product_id,
 					'excluded_products' => array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
+					// The diet this row's packet was chosen for, '' where the
+					// recipe's own choice stands — see implement_row().
+					'implemented_for' => (string) $ing['implemented_for'],
+					// Several packets hold that diet; the list names none.
+					'product_open'    => ! empty( $ing['product_open'] ),
 					'step'            => $step_index,
 				);
 			}
@@ -3837,7 +4136,25 @@ class Mixmymeals_Recipe {
 				->get_diet_suitabilities( array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ) );
 		}
 
-		return Mixmymeals_Diet::combine( $sets );
+		$capable = Mixmymeals_Diet::combine( $sets );
+
+		/*
+		 * A meal that settled the diet axis is what it is: as written it is
+		 * not "vegan-capable", whatever packets exist. Other axes stay as
+		 * they are — the meal decided nothing about gluten.
+		 */
+		if ( $this->fixed ) {
+			$types    = Mixmymeals_Diet::types();
+			$in_force = Mixmymeals_Diet::expand( $this->get_diets() );
+			$capable  = array_values(
+				array_filter(
+					$capable,
+					static fn( $slug ) => 'diet' !== ( $types[ $slug ]['axis'] ?? '' ) || in_array( $slug, $in_force, true )
+				)
+			);
+		}
+
+		return $capable;
 	}
 
 

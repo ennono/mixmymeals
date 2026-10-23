@@ -1123,6 +1123,7 @@ const TOOLS = [
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
               title:     { type: "string", description: "Optional; leer = Rezepttitel." },
               text:      { type: "string", description: "Kurzer Text zu dieser Einplanung; gehört der Mahlzeit, nicht dem Rezept." },
+              diet:      { type: "string", description: "Ernährungsform dieser Mahlzeit, nur bei Rezepten mit Wahl (diet_options der Mahlzeit, z. B. \"_none\" = Originalrezept, wie geschrieben, \"vegetarian\", \"vegan\"): jede Zutat wird dann mit einem passenden Produkt gerechnet und eingekauft. Eine Mahlzeit mit Wahl ist immer festgelegt — ohne Angabe oder bei ungültiger Angabe auf die erste Option (das Rezept wie geschrieben), mit warning." },
             },
           },
         },
@@ -1151,6 +1152,7 @@ const TOOLS = [
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
               title:     { type: "string" },
               text:      { type: "string", description: "Kurzer Text zu dieser Einplanung; gehört der Mahlzeit, nicht dem Rezept." },
+              diet:      { type: "string", description: "Ernährungsform dieser Mahlzeit, nur bei Rezepten mit Wahl (diet_options der Mahlzeit, z. B. \"_none\" = Originalrezept, wie geschrieben, \"vegetarian\", \"vegan\"): jede Zutat wird dann mit einem passenden Produkt gerechnet und eingekauft. Eine Mahlzeit mit Wahl ist immer festgelegt — ohne Angabe oder bei ungültiger Angabe auf die erste Option (das Rezept wie geschrieben), mit warning." },
             },
           },
         },
@@ -1205,6 +1207,7 @@ const TOOLS = [
         status:    { type: "string" },
         title:     { type: "string" },
         text:      { type: "string", description: "Kurzer Text zu DIESER Einplanung (z. B. \"Doppelte Menge kochen, Hälfte einfrieren\"). Gehört der Mahlzeit, nicht dem Rezept; leer = nichts gesagt." },
+        diet:      { type: "string", description: "Ernährungsform dieser Einplanung — eine der diet_options der Mahlzeit (\"_none\" = Originalrezept, wie geschrieben, sonst ein Diät-Slug wie \"vegan\"). Nur Rezepte, die mehrere Formen anbieten, haben Optionen, und dann ist die Mahlzeit immer festgelegt: ein ungültiger Wert setzt die erste Option. Die Mahlzeit wird mit den passenden Produkten gerechnet, die Einkaufsliste führt sie als eigene Zeilen." },
       },
     },
   },
@@ -1744,7 +1747,7 @@ async function handleTool(name, args) {
     case "mmm_update_meal": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["recipe_id", "servings", "type", "day", "status", "title"];
+      const allowed = ["recipe_id", "servings", "type", "day", "status", "title", "text", "diet"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }

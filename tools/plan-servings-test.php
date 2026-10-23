@@ -34,6 +34,30 @@ $make_post = function ( array $args ) use ( &$trash ): int {
 };
 
 /**
+ * A shopping list without the two fields 3.67.0 added to every line
+ * (`ingredient_id`, `diet` — the meal's diet). A plan without meal diets
+ * carries the line's own key and '' there, which this checks before
+ * removing them, so everything else can still be compared with 3.65.1 byte
+ * for byte.
+ *
+ * @param array $list From calc_shopping_list().
+ * @return array|null Null when a line carries anything else in those fields.
+ */
+function mmm_ps_without_diet_fields( array $list ): ?array {
+
+	foreach ( $list as $cat => $lines ) {
+		foreach ( $lines as $key => $line ) {
+			if ( (int) $key !== ( $line['ingredient_id'] ?? null ) || '' !== ( $line['diet'] ?? null ) ) {
+				return null;
+			}
+			unset( $list[ $cat ][ $key ]['ingredient_id'], $list[ $cat ][ $key ]['diet'] );
+		}
+	}
+
+	return $list;
+}
+
+/**
  * calc_shopping_list() as it stood in 3.65.1, reading the meal posts
  * directly. Frozen here as the oracle the rewrite onto get_meal_rows() is
  * measured against; do not update it along with the class.
@@ -327,10 +351,10 @@ try {
 		foreach ( array( true, false ) as $sort ) {
 			$ok(
 				"plan $plan_id, " . ( $sort ? 'by category' : 'flat' ) . ': same as 3.65.1, byte for byte',
-				serialize( mmm_ps_legacy_shopping_list( $plan_id, $sort ) ) === serialize( $plan->calc_shopping_list( $sort ) )
+				serialize( mmm_ps_legacy_shopping_list( $plan_id, $sort ) ) === serialize( mmm_ps_without_diet_fields( $plan->calc_shopping_list( $sort ) ) )
 			);
 		}
-		$ok( "plan $plan_id, one day: same as 3.65.1", serialize( mmm_ps_legacy_shopping_list( $plan_id, true, 1 ) ) === serialize( $plan->calc_shopping_list( true, 1 ) ) );
+		$ok( "plan $plan_id, one day: same as 3.65.1", serialize( mmm_ps_legacy_shopping_list( $plan_id, true, 1 ) ) === serialize( mmm_ps_without_diet_fields( $plan->calc_shopping_list( true, 1 ) ) ) );
 	}
 	$ok( 'the packet is still named on the line', 'ZZ T Dosentomaten' === ( $row_of( $mixed->calc_shopping_list(), $tomato )['product'] ?? '' ) );
 

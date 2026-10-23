@@ -348,12 +348,22 @@ class Mixmymeals {
 	 */
 	public function enqueue_scripts(): void {
 
+		/*
+		 * Versioned by the file's own date, as admin.css is: the plugin
+		 * version only moves on a release, so a changed script behind an
+		 * unchanged ?ver= stayed in every browser cache — the planner
+		 * dialog's diet field never arrived on a site that had the old
+		 * frontend.min.js under the same version.
+		 */
+		$js_file    = 'js/frontend' . $this->script_suffix . '.js';
+		$js_path    = $this->dir . '/assets/' . $js_file;
+		$js_version = file_exists( $js_path ) ? $this->_version . '.' . filemtime( $js_path ) : $this->_version;
+
 		wp_register_script(
 			$this->_token . '-frontend',
-			esc_url( $this->assets_url ) . 'js/frontend' . $this->script_suffix
-			. '.js',
+			esc_url( $this->assets_url ) . $js_file,
 			array( 'jquery' ),
-			$this->_version,
+			$js_version,
 			array( 'in_footer' => true )
 		);
 		wp_enqueue_script( $this->_token . '-frontend' );
@@ -371,6 +381,7 @@ class Mixmymeals {
 				'planner_dialog'         => array(
 					'title'    => __( 'Plan this recipe as a meal', 'mixmymeals' ),
 					'servings' => __( 'Servings', 'mixmymeals' ),
+					'diet'     => _x( 'Diet', 'planner dialog field', 'mixmymeals' ),
 					'type'     => __( 'Meal type', 'mixmymeals' ),
 					'day'      => __( 'Day', 'mixmymeals' ),
 					'no_type'  => __( 'No type', 'mixmymeals' ),

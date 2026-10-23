@@ -263,6 +263,7 @@ final class Mixmymeals_Nutrition_Table {
 	 * - Cooking factor: the `serving` column (its weight) and `per_100g` (its
 	 *   figures), when a factor moved the weight and that note is on.
 	 * - Traffic light: the `per_100g` column, where the lights stand.
+	 * - Open packets: the label heading, since every figure rests on them.
 	 *
 	 * The rating and light notes are not switchable: they say what a
 	 * judgement printed on the page rests on, and a verdict without its
@@ -270,7 +271,7 @@ final class Mixmymeals_Nutrition_Table {
 	 *
 	 * @param array                $config  From config().
 	 * @param string[]             $cooked  Ingredient names whose cooking factor moved the weight.
-	 * @param array<string,string> $explain `rating` and/or `light` note texts,
+	 * @param array<string,string> $explain `rating`, `light` and/or `open` note texts,
 	 *                                      given by the caller only where the
 	 *                                      table carries ratings or lights.
 	 * @return array{notes:array<int,array{mark:string,kind:string,text:string}>, marks:array<string,string>}
@@ -306,6 +307,16 @@ final class Mixmymeals_Nutrition_Table {
 			$wanted[] = array( 'light', (string) $explain['light'], array( 'per_100g' ) );
 		}
 
+		/*
+		 * Which packet the figures were taken from where a meal's diet left
+		 * the purchase open. It concerns every figure of the table, so its
+		 * mark goes on the label heading rather than on one column ('label'
+		 * in `marks`, which the renderer appends to the label).
+		 */
+		if ( '' !== (string) ( $explain['open'] ?? '' ) ) {
+			$wanted[] = array( 'open', (string) $explain['open'], array( 'label' ) );
+		}
+
 		$notes = array();
 		$marks = array();
 
@@ -326,6 +337,64 @@ final class Mixmymeals_Nutrition_Table {
 		return array(
 			'notes' => $notes,
 			'marks' => $marks,
+		);
+	}
+
+	/**
+	 * The note under a table whose figures rest on a packet nobody chose, or ''.
+	 *
+	 * Where a meal's diet leaves several packets of an ingredient possible,
+	 * the figures are those of the least favourable one and the shopping list
+	 * names none (Mixmymeals_Ingredient::diet_product()). Without saying so
+	 * the table would print figures that match no packet the reader can see —
+	 * so this names the ingredient, the diet and the packet the figures came
+	 * from. Here and nowhere else: on the shopping list a brand would read as
+	 * a recommendation to buy it.
+	 *
+	 * @param array $items array{name:string, diet:string, product:string} per
+	 *                     ingredient (Mixmymeals_Recipe::get_open_products()).
+	 * @return string Plain text.
+	 */
+	public static function open_note( array $items ): string {
+
+		$parts = array();
+
+		foreach ( $items as $item ) {
+
+			$name    = (string) ( $item['name'] ?? '' );
+			$product = (string) ( $item['product'] ?? '' );
+
+			if ( '' === $name || '' === $product ) {
+				continue;
+			}
+
+			$diet = Mixmymeals_Shortcodes::shopping_item_diet_text( array( 'diet' => (string) ( $item['diet'] ?? '' ) ) );
+			$part = sprintf(
+				/* translators: 1: ingredient with its diet, e.g. "Yoghurt (Vegan)", 2: the product the figures come from. */
+				_x( '%1$s: %2$s', 'ingredient with the product its figures come from', 'mixmymeals' ),
+				trim( $name . ' ' . $diet ),
+				$product
+			);
+
+			$parts[ $part ] = $part;
+		}
+
+		if ( ! $parts ) {
+			return '';
+		}
+
+		$count = count( $parts );
+		$list  = implode( '; ', array_slice( array_values( $parts ), 0, 6 ) ) . ( $count > 6 ? '; …' : '' );
+
+		return sprintf(
+			/* translators: %s: semicolon-separated ingredients with the product the figures use, e.g. "Yoghurt (Vegan): Alpro Vanilla". */
+			_n(
+				'Several products are possible for one ingredient; the figures use the least favourable (%s).',
+				'Several products are possible for some ingredients; the figures use the least favourable of each (%s).',
+				$count,
+				'mixmymeals'
+			),
+			$list
 		);
 	}
 

@@ -105,6 +105,20 @@ class Mixmymeals_Diet {
 	const FORMER_OPTION = 'mixmymeals_diet_former_terms';
 
 	/**
+	 * The diet choice of a meal whose recipe holds no claim on the `diet`
+	 * axis, cooked as written — "Original recipe". Not a term and never one:
+	 * resolve() maps it to '', so nothing that reads diets can mistake it for
+	 * a claim. Only Mixmymeals_Recipe::get_diet_choices() hands it out.
+	 */
+	const NONE = '_none';
+
+	/**
+	 * Option holding the site's own word for NONE (Settings → Language →
+	 * Terms). Empty means the site language's "Original recipe".
+	 */
+	const NONE_LABEL_OPTION = 'mixmymeals_term_diet_none';
+
+	/**
 	 * What the four former built-ins were, for migrate_former_builtins() only.
 	 *
 	 * Nothing reads this at run time; a diet is what its term says. Each entry
@@ -542,6 +556,44 @@ class Mixmymeals_Diet {
 	 */
 	public static function label( string $slug ): string {
 		return (string) ( self::types()[ $slug ]['label'] ?? '' );
+	}
+
+	/**
+	 * The label of a meal's diet choice: the diet's own, or for NONE the
+	 * site's word for it (none_label()). It names a settled state — the
+	 * recipe's own products — and claims no diet.
+	 *
+	 * @param string $slug A slug from Mixmymeals_Recipe::get_diet_choices().
+	 * @return string
+	 */
+	public static function choice_label( string $slug ): string {
+		return self::NONE === $slug ? self::none_label() : self::label( $slug );
+	}
+
+	/**
+	 * What NONE is called: the site's own word where it set one, else
+	 * "Original recipe" in the site language. A setting rather than a fixed
+	 * string because the right word for "the recipe with its own products"
+	 * is a matter of the site's tone; it is still one word for every place
+	 * the choice appears — planner, dialog, Meals box, meal screen.
+	 *
+	 * @return string
+	 */
+	public static function none_label(): string {
+
+		$own = trim( (string) get_option( self::NONE_LABEL_OPTION, '' ) );
+
+		return '' !== $own ? $own : self::none_label_default();
+	}
+
+	/**
+	 * The site language's word for NONE, shown as the placeholder of the
+	 * setting so an empty field says what it stands for.
+	 *
+	 * @return string
+	 */
+	public static function none_label_default(): string {
+		return __( 'Original recipe', 'mixmymeals' );
 	}
 
 	/**
