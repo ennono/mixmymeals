@@ -4135,7 +4135,8 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * Builds the "Add to Planner" control for a recipe — the single source of
 	 * this button's markup. Everything that opens the planner dialog carries the
-	 * class mmm-recipe-actions__item--cart plus data-recipe-id/data-servings;
+	 * class mmm-recipe-actions__item--cart plus data-recipe-id/data-servings
+	 * (and data-diets where the recipe offers a choice of diet);
 	 * one delegated click handler in frontend.js binds to exactly that.
 	 *
 	 * The element and the extra classes are configurable because the button
@@ -4188,14 +4189,27 @@ class Mixmymeals_Shortcodes {
 		 * can say which dish it was. Reading it back out of the card would tie
 		 * the script to a markup it does not own.
 		 */
+		/*
+		 * The diets the dish can be planned as, so the dialog settles the
+		 * meal right away — the choices the planner and the meal offer
+		 * (Mixmymeals_Recipe::get_diet_choices()), first one preselected,
+		 * none where the recipe offers no choice.
+		 */
+		$diets = array();
+
+		foreach ( ( new Mixmymeals_Recipe( $recipe_id ) )->get_diet_choices() as $slug ) {
+			$diets[] = array( $slug, Mixmymeals_Diet::choice_label( $slug ) );
+		}
+
 		return sprintf(
-			'<%1$s%2$s class="%3$s" data-recipe-id="%4$d" data-servings="%5$d" data-recipe-title="%6$s">%7$s</%1$s>',
+			'<%1$s%2$s class="%3$s" data-recipe-id="%4$d" data-servings="%5$d" data-recipe-title="%6$s"%7$s>%8$s</%1$s>',
 			$element,
 			' type="button"',
 			esc_attr( $classes ),
 			$recipe_id,
 			$servings,
 			esc_attr( get_the_title( $recipe_id ) ),
+			$diets ? ' data-diets="' . esc_attr( (string) wp_json_encode( $diets ) ) . '"' : '',
 			esc_html( (string) $args['text'] )
 		);
 	}

@@ -152,7 +152,7 @@ jQuery(function ($) {
         }
     }
 
-    function mmmOpenPlannerDialog(recipeId, defaultServings, recipeTitle) {
+    function mmmOpenPlannerDialog(recipeId, defaultServings, recipeTitle, diets) {
         const labels = mixmymeals.planner_dialog || {};
         const types = labels.types || {};
         const days = labels.days || {};
@@ -176,6 +176,9 @@ jQuery(function ($) {
                     '<label>' + (labels.servings || '') +
                         '<input type="number" min="1" class="mmm-planner-dialog-servings" value="' + defaultServings + '">' +
                     '</label>' +
+                    '<label class="mmm-planner-dialog-diet-field">' + (labels.diet || '') +
+                        '<select class="mmm-planner-dialog-diet"></select>' +
+                    '</label>' +
                     '<label>' + (labels.type || '') +
                         '<select class="mmm-planner-dialog-type">' + typeOptions + '</select>' +
                     '</label>' +
@@ -190,6 +193,19 @@ jQuery(function ($) {
                 '</div>' +
             '</div>'
         );
+
+        /* How the dish is cooked, only where the recipe offers a choice —
+           the same choices as in the planner, the first preselected, so the
+           meal is settled the moment it is planned. Built with .text(), since
+           the labels are term names. */
+        if (Array.isArray(diets) && diets.length > 1) {
+            const $diet = backdrop.find('.mmm-planner-dialog-diet');
+            diets.forEach(function (choice) {
+                $diet.append($('<option>').val(choice[0]).text(choice[1]));
+            });
+        } else {
+            backdrop.find('.mmm-planner-dialog-diet-field').remove();
+        }
 
         $('body').append(backdrop);
         backdrop.find('.mmm-planner-dialog-servings').trigger('focus');
@@ -210,6 +226,7 @@ jQuery(function ($) {
             mmmPost('mmm_add_to_cart', {
                 recipe_id: recipeId,
                 servings: parseInt(backdrop.find('.mmm-planner-dialog-servings').val(), 10) || 1,
+                diet: backdrop.find('.mmm-planner-dialog-diet').val() || '',
                 type: backdrop.find('.mmm-planner-dialog-type').val() || '',
                 day: backdrop.find('.mmm-planner-dialog-day').val() || null
             })
@@ -415,7 +432,8 @@ jQuery(function ($) {
         mmmOpenPlannerDialog(
             btn.data('recipe-id'),
             parseInt(btn.data('servings'), 10) || 1,
-            btn.data('recipe-title') || ''
+            btn.data('recipe-title') || '',
+            btn.data('diets') || []
         );
     });
 

@@ -371,6 +371,7 @@ class Mixmymeals {
 				'planner_dialog'         => array(
 					'title'    => __( 'Plan this recipe as a meal', 'mixmymeals' ),
 					'servings' => __( 'Servings', 'mixmymeals' ),
+					'diet'     => _x( 'Diet', 'planner dialog field', 'mixmymeals' ),
 					'type'     => __( 'Meal type', 'mixmymeals' ),
 					'day'      => __( 'Day', 'mixmymeals' ),
 					'no_type'  => __( 'No type', 'mixmymeals' ),

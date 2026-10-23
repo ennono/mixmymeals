@@ -7582,3 +7582,8 @@ msgstr[0] ""
 msgstr[1] ""
 "Für einige Zutaten kommen mehrere Produkte infrage; gerechnet ist jeweils "
 "mit dem ungünstigsten (%s)."
+
+#: includes/class-mixmymeals.php
+msgctxt "planner dialog field"
+msgid "Diet"
+msgstr "Ernährungsform"

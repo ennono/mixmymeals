@@ -124,7 +124,8 @@ Added:
   than one diet, every meal planning it is settled on one of them — there
   is no "as in the recipe"; a meal that has not chosen is cooked as the
   recipe is written, under that diet's name. Chosen in the plan's Meals
-  box, on the meal screen, per dish in the planner and over REST/MCP
+  box, on the meal screen, in the "Plan this recipe as a meal" dialog, per
+  dish in the planner and over REST/MCP
   (`diet` on meals). A meal settled as written no longer reads
   "Vegan-capable".
 * A meal cooked as a diet works as a filter on each ingredient: a row that
