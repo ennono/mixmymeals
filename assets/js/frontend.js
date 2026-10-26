@@ -311,6 +311,71 @@ jQuery(function ($) {
     }
 
     /* ==========================================================
+       SAVE BAR (planner)
+       ========================================================== */
+
+    /**
+     * "Save plan" at the foot of the screen while the save form is out of
+     * sight and the planner holds something to save.
+     *
+     * The form sits below the board, the nutrition and the shopping list,
+     * so on a full week it is thousands of pixels away from where the plan
+     * is being built. The bar follows the cart bar's split: this builds it
+     * and decides when it shows, the theme decides how it looks.
+     *
+     * Its target is the save button's closest [data-plan-save] — the
+     * section the theme wraps the form in — or, without one, the block the
+     * button sits in. A click scrolls there and puts the focus into the
+     * first field (name or address where the plan can be subscribed to,
+     * else the button), so the next keystroke lands in the form.
+     */
+    let mmmSaveBar = null;
+    let mmmSaveTargetVisible = true;
+
+    function mmmEnsureSaveBar() {
+        const button = $('.mmm-plan-builder').length ? $('.mmm-create-meal-plan-link').first() : $();
+        if (!button.length || !('IntersectionObserver' in window)) return;
+
+        let target = button.closest('[data-plan-save]');
+        if (!target.length) target = button.parent();
+
+        const labels = (window.mixmymeals && mixmymeals.planner_dialog) || {};
+
+        mmmSaveBar = $('<div class="mmm-save-bar" hidden></div>');
+        $('<a class="mmm-save-bar__link"></a>')
+            .attr('href', target.attr('id') ? '#' + target.attr('id') : '#')
+            .text(labels.save_plan || button.text().trim())
+            .on('click', function (e) {
+                e.preventDefault();
+                const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                target.get(0).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+                const field = target.find('.mmm-plan-subscribe input:visible').first();
+                (field.length ? field : button).get(0).focus({ preventScroll: true });
+            })
+            .appendTo(mmmSaveBar);
+
+        $('body').append(mmmSaveBar);
+
+        new IntersectionObserver(function (entries) {
+            mmmSaveTargetVisible = entries[entries.length - 1].isIntersecting;
+            mmmUpdateSaveBar();
+        }).observe(target.get(0));
+    }
+
+    // Shown while the form is out of sight and the planner is not empty.
+    // Called by the observer and after every removal from the planner.
+    function mmmUpdateSaveBar() {
+        if (!mmmSaveBar) return;
+        const show = !mmmSaveTargetVisible && $('.mmm-plan-item').length > 0;
+        mmmSaveBar.prop('hidden', !show);
+        $('body').toggleClass('mmm-save-bar-visible', show);
+    }
+
+    // Here rather than with the cart bar above: the two lets this reads are
+    // declared just before, and calling it earlier throws.
+    mmmEnsureSaveBar();
+
+    /* ==========================================================
        SAYING WHAT HAPPENED
        ========================================================== */
 
@@ -831,6 +896,7 @@ jQuery(function ($) {
                     item.slideUp(200, function () {
                         item.remove();
                         mmmUpdateCartBadge();
+                        mmmUpdateSaveBar();
                     });
                     mmmRefreshPlannerNutrition();
                     return;
@@ -867,6 +933,7 @@ jQuery(function ($) {
                     mmmUpdateCartBadge();
                     $('.mmm-plan-item').slideUp(200, function () {
                         $(this).remove();
+                        mmmUpdateSaveBar();
                     });
                     mmmRefreshPlannerNutrition();
                     return;

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.68.1
+Stable tag: 3.69.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.69.0 =
+
+Added:
+* The planner shows a "Save Plan" bar at the foot of the screen while the
+  save form is out of sight and the planner is not empty. A tap scrolls to
+  the form and puts the cursor into its first field. The theme decides how
+  the bar looks and marks the section to watch with `data-plan-save`.
 
 = 3.68.1 =
 

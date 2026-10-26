@@ -414,6 +414,8 @@ class Mixmymeals {
 						'count_many' => sprintf( _n( '%s recipe in the planner.', '%s recipes in the planner.', 2, 'mixmymeals' ), '%s' ),
 						'to_plan'    => __( 'To the planner', 'mixmymeals' ),
 					),
+					// The planner's save bar; the button's own label.
+					'save_plan' => __( 'Save Plan', 'mixmymeals' ),
 					'share'    => array(
 						'title'     => __( 'My meal plan', 'mixmymeals' ),
 						'text'      => __( 'Here is what I have planned for the week.', 'mixmymeals' ),
