@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.67.0
+Stable tag: 3.69.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,31 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.69.0 =
+
+Added:
+* The planner shows a "Save Plan" bar at the foot of the screen while the
+  save form is out of sight and the planner is not empty. A tap scrolls to
+  the form and puts the cursor into its first field. The theme decides how
+  the bar looks and marks the section to watch with `data-plan-save`.
+
+= 3.68.1 =
+
+Changed:
+* The finished plans the empty planner offers as templates are now three
+  chosen at random on every visit, instead of always the three newest.
+
+= 3.68.0 =
+
+Added:
+* The planner can show the shopping list of the plan it is building, live:
+  `[mmm_planner_shopping_list]` (attributes `show_details` and
+  `sort_by_category`, both on by default) follows every added or removed
+  recipe, every move and every change of servings, type or diet. It is the
+  list the plan page will print once the planner is saved — packs rounded up
+  once over the whole week — and arrives with the planner's nutrition in the
+  same request, which computes it only where the page shows the list.
 
 = 3.67.0 =
 

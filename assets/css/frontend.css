@@ -645,3 +645,22 @@ body.mmm-cook-mode-open {
 .mmm-plan-shopping__list[aria-busy="true"] {
     opacity: 0.6;
 }
+
+/* ==========================================================
+   Planner save bar (frontend.js, mmmEnsureSaveBar())
+
+   Structure only: pinned to the foot of the screen, gone while hidden.
+   Colour, padding and the link's look are the theme's.
+   ========================================================== */
+
+.mmm-save-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+}
+
+.mmm-save-bar[hidden] {
+    display: none;
+}

@@ -315,6 +315,8 @@ class Mixmymeals_Shortcodes {
 			[ $this, 'mmm_meal_plan_builder_callback' ] );
 		add_shortcode( 'mmm_planner_nutrition',
 			[ $this, 'mmm_planner_nutrition_callback' ] );
+		add_shortcode( 'mmm_planner_shopping_list',
+			[ $this, 'mmm_planner_shopping_list_callback' ] );
 
 		add_shortcode( 'mmm_clear_cart',
 			[ $this, 'mmm_clear_cart_callback' ] );
@@ -4673,43 +4675,7 @@ class Mixmymeals_Shortcodes {
 							 * Only on the empty state: once something is in
 							 * the planner, an offer to clear it is a trap.
 							 */
-							$mmm_template_args = array(
-								'post_type'      => 'mmm_meal_plan',
-								'post_status'    => 'publish',
-								'posts_per_page' => 3,
-								'orderby'        => 'date',
-								'order'          => 'DESC',
-								'no_found_rows'  => true,
-							);
-
-							/*
-							 * Optional: nur Pläne mit Kategorie anbieten. Ein
-							 * Besucherplan trägt keine — das ist dieselbe
-							 * Definition, nach der
-							 * Mixmymeals_Cleanup::delete_uncategorized_meal_plans()
-							 * sie wieder abräumt, und es wäre eine seltsame
-							 * Vorlage, einen Plan anzubieten, den der nächste
-							 * Cron-Lauf löscht.
-							 *
-							 * Die Klausel geht in die Abfrage und nicht als
-							 * Filter hinterher: bei drei Posts würde ein
-							 * nachträglich aussortierter Plan seinen Platz
-							 * behalten und die Liste auf zwei schrumpfen
-							 * lassen.
-							 */
-							if ( 'on' === (string) get_option( 'mixmymeals_planner_templates_require_category', '' ) ) {
-								// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-								$mmm_template_args['tax_query'] = array(
-									array(
-										'taxonomy' => 'mmm_meal_plan_category',
-										'operator' => 'EXISTS',
-									),
-								);
-							}
-
-							$mmm_templates = get_posts(
-								Mixmymeals_Post_Types::exclude_unlisted( $mmm_template_args )
-							);
+							$mmm_templates = get_posts( self::planner_template_args() );
 
 							if ( $mmm_templates ) :
 								?>
@@ -4934,6 +4900,51 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * The query for the finished plans the empty planner offers as templates.
+	 *
+	 * Three published plans, **in random order**, so the offer changes from
+	 * visit to visit instead of always naming the three newest — which on a
+	 * site with visitor plans were whatever somebody last saved. The
+	 * unlisted clause is applied here, so a caller cannot forget it.
+	 *
+	 * Optionally only plans with a category: a visitor plan carries none,
+	 * which is the same definition
+	 * Mixmymeals_Cleanup::delete_uncategorized_meal_plans() removes them by,
+	 * and offering a plan the next cron run deletes would be an odd
+	 * template. The clause goes into the query rather than a filter over
+	 * its result: with three posts, one sorted out afterwards would keep its
+	 * slot and the list would shrink to two. It lands in tax_query while
+	 * exclude_unlisted() writes meta_query, so neither displaces the other.
+	 *
+	 * Public for tools/planner-templates-test.php, which checks exactly this
+	 * query rather than a copy of it.
+	 *
+	 * @return array get_posts() arguments.
+	 */
+	public static function planner_template_args(): array {
+
+		$args = array(
+			'post_type'      => 'mmm_meal_plan',
+			'post_status'    => 'publish',
+			'posts_per_page' => 3,
+			'orderby'        => 'rand',
+			'no_found_rows'  => true,
+		);
+
+		if ( 'on' === (string) get_option( 'mixmymeals_planner_templates_require_category', '' ) ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			$args['tax_query'] = array(
+				array(
+					'taxonomy' => 'mmm_meal_plan_category',
+					'operator' => 'EXISTS',
+				),
+			);
+		}
+
+		return Mixmymeals_Post_Types::exclude_unlisted( $args );
 	}
 
 	/**
@@ -8436,13 +8447,92 @@ class Mixmymeals_Shortcodes {
 
 		wp_send_json_success(
 			array(
-				'empty' => ! $plan->get_meal_rows(),
-				'html'  => $this->render_planner_nutrition( $plan ),
-				'table' => $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : '',
-				'days'  => $days,
-				'prep'  => $this->planner_prep_notes( $items ),
+				'empty'    => ! $plan->get_meal_rows(),
+				'html'     => $this->render_planner_nutrition( $plan ),
+				'table'    => $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : '',
+				'days'     => $days,
+				'prep'     => $this->planner_prep_notes( $items ),
+				/*
+				 * Only where the page has the list: a shopping list is not
+				 * free to compute, and the nutrition box alone does not need it.
+				 */
+				'shopping' => empty( $_POST['shopping'] ) // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked above.
+					? null
+					: $this->render_planner_shopping_list(
+						$plan,
+						! empty( $_POST['show_details'] ), // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked above.
+						! empty( $_POST['sort_by_category'] ) // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked above.
+					),
 			)
 		);
+	}
+
+	/**
+	 * Shortcode [mmm_planner_shopping_list].
+	 *
+	 * The shopping list of the plan the planner is building, live: computed
+	 * from the cart by Mixmymeals_Meal_Plan::from_meal_rows() and
+	 * calc_shopping_list(), so it is the list the plan page will print once
+	 * the planner is saved — packs and unit divisors rounded up once over
+	 * the whole week, a diet's packets on lines of their own. Refreshed by
+	 * frontend.js from the `shopping` key of the `mmm_planner_nutrition`
+	 * answer, the same request the figures come from, whenever a recipe is
+	 * added, removed, moved or its servings, type or diet change.
+	 *
+	 * @param array|string $atts show_details (each line opens to the recipes
+	 *                           it comes from), sort_by_category; both
+	 *                           default on, as on the plan page.
+	 * @return string
+	 */
+	public function mmm_planner_shopping_list_callback( $atts = [] ): string {
+
+		$atts = shortcode_atts(
+			[
+				'show_details'     => true,
+				'sort_by_category' => true,
+			],
+			$atts,
+			'mmm_planner_shopping_list'
+		);
+
+		$show_details     = filter_var( $atts['show_details'], FILTER_VALIDATE_BOOLEAN );
+		$sort_by_category = filter_var( $atts['sort_by_category'], FILTER_VALIDATE_BOOLEAN );
+
+		$items = ( new Mixmymeals_Cart() )->get_items();
+
+		// First answer rendered here, like [mmm_planner_nutrition]; an empty
+		// planner keeps the box hidden until something is planned.
+		return '<section class="mmm-planner-shopping" data-planner-shopping'
+		       . ' data-show-details="' . ( $show_details ? '1' : '0' ) . '"'
+		       . ' data-sort-by-category="' . ( $sort_by_category ? '1' : '0' ) . '"'
+		       . ' aria-label="' . esc_attr__( 'Shopping list of this plan', 'mixmymeals' ) . '"'
+		       . ( $items ? '' : ' hidden' ) . '>'
+		       . $this->render_planner_shopping_list(
+				Mixmymeals_Meal_Plan::from_meal_rows( $items ),
+				$show_details,
+				$sort_by_category
+			)
+		       . '</section>';
+	}
+
+	/**
+	 * The planner's shopping list: a heading and the list exactly as the plan
+	 * page renders it (render_shopping_list()).
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan             Plan built from the cart.
+	 * @param bool                 $show_details     Lines open to their recipes.
+	 * @param bool                 $sort_by_category Grouped by ingredient category.
+	 * @return string '' when the planner is empty.
+	 */
+	private function render_planner_shopping_list( Mixmymeals_Meal_Plan $plan, bool $show_details, bool $sort_by_category ): string {
+
+		if ( ! $plan->get_meal_rows() ) {
+			return '';
+		}
+
+		return '<h3 class="mmm-planner-shopping__title">'
+		       . esc_html__( 'Shopping list', 'mixmymeals' ) . '</h3>'
+		       . $this->render_shopping_list( $plan, $show_details, $sort_by_category );
 	}
 
 	/**

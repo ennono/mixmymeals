@@ -7614,3 +7614,11 @@ msgstr ""
 "mehrere Arten kochen lässt: das Rezept mit seinen eigenen Produkten. Steht im "
 "Planer, im Dialog „Rezept als Mahlzeit einplanen“, in der Mahlzeiten-Tabelle "
 "und auf der Mahlzeit-Seite."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Shopping list"
+msgstr "Einkaufsliste"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Shopping list of this plan"
+msgstr "Einkaufsliste dieses Plans"
