@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.68.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.68.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -425,9 +425,11 @@ Assertions in `tools/plan-servings-test.php`.
 
 **The empty planner offers finished plans as templates**, through the control the plan pages already use (`.mmm-meal-plan-actions__item--load-into-cart`) with the same confirmation, because it replaces the planner. Only on the empty state: once something is in there, an offer to clear it is a trap.
 
+**Three of them, chosen at random** (`orderby => rand`), so the offer changes between visits instead of naming the three newest — on a site with visitor plans, whatever somebody last saved. The query is `Mixmymeals_Shortcodes::planner_template_args()`, public so the test checks it rather than a copy (it used to carry one). A full-page cache freezes the draw for as long as it keeps the page; the planner is per visitor, so it is normally not cached.
+
 **Which plans qualify is a setting** — `mixmymeals_planner_templates_require_category`, off by default, in the Meal Plans tab under *Planner*. Switched on, only plans carrying a `mmm_meal_plan_category` term are offered. That is deliberately the **same** definition `Mixmymeals_Cleanup::delete_uncategorized_meal_plans()` uses to remove visitor plans again (`operator => 'NOT EXISTS'`, inverted here to `EXISTS`): a site running both would otherwise offer as a template a plan the next cron run deletes. Two definitions of "uncategorized" would drift, so there is one.
 
-The clause goes **into the query**, not into a filter over its result. Only three plans are fetched; sorting one out afterwards would leave it holding its slot and the list would quietly shrink to two. Note that it lands in `tax_query` while `Mixmymeals_Post_Types::exclude_unlisted()` writes `meta_query` — they do not touch, so an unlisted plan stays out whatever the setting says. `tools/planner-templates-test.php` pins all three properties.
+The clause goes **into the query**, not into a filter over its result. Only three plans are fetched; sorting one out afterwards would leave it holding its slot and the list would quietly shrink to two. Note that it lands in `tax_query` while `Mixmymeals_Post_Types::exclude_unlisted()` writes `meta_query` — they do not touch, so an unlisted plan stays out whatever the setting says. `tools/planner-templates-test.php` pins these properties and the random draw; its membership checks ask for all matches (`posts_per_page => -1`), since "is offered" must not depend on what the draw picked.
 
 **Adding a recipe says so.** `mmmAnnounce()` writes one sentence into `#mmm-status` (`role="status"`, `aria-live="polite"` — the site had no live region at all) and shows the same text as a toast, so what is read aloud and what is seen cannot drift. The wording comes from `planner_dialog.added` in three variants rather than one template with holes, because a recipe planned without a day or a type otherwise reads "X planned for , .". The count rides along on the `mmm_add_to_cart` answer instead of costing a second request.
 

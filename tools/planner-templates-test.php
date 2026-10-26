@@ -46,36 +46,24 @@ function mmm_tpl_assert( bool $ok, string $label ): void {
 }
 
 /**
- * Baut die Vorlagenliste so, wie der leere Planer sie baut.
+ * Die Vorlagenliste mit genau den Argumenten des leeren Planers
+ * (Mixmymeals_Shortcodes::planner_template_args()) — bis auf die Reihenfolge,
+ * wenn $all gesetzt ist: dann alle Treffer statt drei zufälliger, damit „wird
+ * angeboten“ nicht davon abhängt, was der Zufall gerade gezogen hat.
  *
- * Bewusst eine Kopie der Argumente aus dem Shortcode: die Markup-Ausgabe
- * lässt sich ohne Request nicht aufrufen, und was hier geprüft wird, ist die
- * Abfrage.
- *
+ * @param bool $all Alle Treffer statt der drei angebotenen.
  * @return int[]
  */
-function mmm_tpl_query(): array {
+function mmm_tpl_query( bool $all = false ): array {
 
-	$args = array(
-		'post_type'      => 'mmm_meal_plan',
-		'post_status'    => 'publish',
-		'posts_per_page' => 3,
-		'orderby'        => 'date',
-		'order'          => 'DESC',
-		'no_found_rows'  => true,
-		'fields'         => 'ids',
-	);
+	$args           = Mixmymeals_Shortcodes::planner_template_args();
+	$args['fields'] = 'ids';
 
-	if ( 'on' === (string) get_option( 'mixmymeals_planner_templates_require_category', '' ) ) {
-		$args['tax_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-			array(
-				'taxonomy' => 'mmm_meal_plan_category',
-				'operator' => 'EXISTS',
-			),
-		);
+	if ( $all ) {
+		$args['posts_per_page'] = -1;
 	}
 
-	return array_map( 'intval', get_posts( Mixmymeals_Post_Types::exclude_unlisted( $args ) ) );
+	return array_map( 'intval', get_posts( $args ) );
 }
 
 $saved_option = get_option( 'mixmymeals_planner_templates_require_category', '' );
@@ -172,14 +160,14 @@ $without_cat = $created[1];
 echo "\n-- 4. Schalter aus: der Plan ohne Kategorie ist dabei\n";
 
 update_option( 'mixmymeals_planner_templates_require_category', '' );
-$off = mmm_tpl_query();
+$off = mmm_tpl_query( true );
 
 mmm_tpl_assert( in_array( $without_cat, $off, true ), 'er wird angeboten' );
 
 echo "\n-- 5. Schalter an: er fällt raus\n";
 
 update_option( 'mixmymeals_planner_templates_require_category', 'on' );
-$on = mmm_tpl_query();
+$on = mmm_tpl_query( true );
 
 mmm_tpl_assert( ! in_array( $without_cat, $on, true ), 'er wird nicht mehr angeboten' );
 mmm_tpl_assert(
@@ -208,8 +196,9 @@ foreach ( array( 'ZZ Plan mit Kategorie C', 'ZZ Plan mit Kategorie D' ) as $plan
 }
 
 $full = mmm_tpl_query();
+$all  = mmm_tpl_query( true );
 mmm_tpl_assert( 3 === count( $full ), 'drei Vorlagen, nicht zwei (' . count( $full ) . ')' );
-mmm_tpl_assert( ! in_array( $without_cat, $full, true ), 'und keine davon ohne Kategorie' );
+mmm_tpl_assert( ! in_array( $without_cat, $all, true ), 'und keine davon ohne Kategorie' );
 
 echo "\n-- 7. Nicht gelistete Pläne bleiben draußen\n";
 
@@ -229,11 +218,30 @@ $created[] = (int) $unlisted;
 wp_set_object_terms( (int) $unlisted, array( $term_id ), 'mmm_meal_plan_category' );
 update_post_meta( (int) $unlisted, Mixmymeals_Post_Types::META_UNLISTED, '1' );
 
-$with_unlisted = mmm_tpl_query();
+$with_unlisted = mmm_tpl_query( true );
 mmm_tpl_assert(
 	! in_array( (int) $unlisted, $with_unlisted, true ),
 	'der zurückgezogene Plan fehlt trotz Kategorie'
 );
+
+echo "\n-- 8. Zufällig gewählt, nicht die neuesten drei\n";
+
+$args = Mixmymeals_Shortcodes::planner_template_args();
+mmm_tpl_assert( 'rand' === ( $args['orderby'] ?? '' ) && 3 === ( $args['posts_per_page'] ?? 0 ), 'drei Pläne in zufälliger Reihenfolge' );
+
+/*
+ * Vier gelistete Pläne mit Kategorie (der fünfte ist zurückgezogen), drei
+ * angeboten: in 40 Abfragen müssen mehr als drei verschiedene vorkommen. Bei
+ * „die neuesten drei“ wären es immer dieselben. Dass der Zufall 40-mal
+ * dieselben drei aus vier zieht, hat die Wahrscheinlichkeit (1/4)^39.
+ */
+$seen = array();
+for ( $i = 0; $i < 40; $i++ ) {
+	foreach ( mmm_tpl_query() as $id ) {
+		$seen[ $id ] = true;
+	}
+}
+mmm_tpl_assert( count( $seen ) > 3, 'über mehrere Aufrufe kommen mehr als drei Pläne vor (' . count( $seen ) . ')' );
 
 echo "\n=== Aufräumen ===\n";
 

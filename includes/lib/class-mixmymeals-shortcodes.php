@@ -4675,43 +4675,7 @@ class Mixmymeals_Shortcodes {
 							 * Only on the empty state: once something is in
 							 * the planner, an offer to clear it is a trap.
 							 */
-							$mmm_template_args = array(
-								'post_type'      => 'mmm_meal_plan',
-								'post_status'    => 'publish',
-								'posts_per_page' => 3,
-								'orderby'        => 'date',
-								'order'          => 'DESC',
-								'no_found_rows'  => true,
-							);
-
-							/*
-							 * Optional: nur Pläne mit Kategorie anbieten. Ein
-							 * Besucherplan trägt keine — das ist dieselbe
-							 * Definition, nach der
-							 * Mixmymeals_Cleanup::delete_uncategorized_meal_plans()
-							 * sie wieder abräumt, und es wäre eine seltsame
-							 * Vorlage, einen Plan anzubieten, den der nächste
-							 * Cron-Lauf löscht.
-							 *
-							 * Die Klausel geht in die Abfrage und nicht als
-							 * Filter hinterher: bei drei Posts würde ein
-							 * nachträglich aussortierter Plan seinen Platz
-							 * behalten und die Liste auf zwei schrumpfen
-							 * lassen.
-							 */
-							if ( 'on' === (string) get_option( 'mixmymeals_planner_templates_require_category', '' ) ) {
-								// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-								$mmm_template_args['tax_query'] = array(
-									array(
-										'taxonomy' => 'mmm_meal_plan_category',
-										'operator' => 'EXISTS',
-									),
-								);
-							}
-
-							$mmm_templates = get_posts(
-								Mixmymeals_Post_Types::exclude_unlisted( $mmm_template_args )
-							);
+							$mmm_templates = get_posts( self::planner_template_args() );
 
 							if ( $mmm_templates ) :
 								?>
@@ -4936,6 +4900,51 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * The query for the finished plans the empty planner offers as templates.
+	 *
+	 * Three published plans, **in random order**, so the offer changes from
+	 * visit to visit instead of always naming the three newest — which on a
+	 * site with visitor plans were whatever somebody last saved. The
+	 * unlisted clause is applied here, so a caller cannot forget it.
+	 *
+	 * Optionally only plans with a category: a visitor plan carries none,
+	 * which is the same definition
+	 * Mixmymeals_Cleanup::delete_uncategorized_meal_plans() removes them by,
+	 * and offering a plan the next cron run deletes would be an odd
+	 * template. The clause goes into the query rather than a filter over
+	 * its result: with three posts, one sorted out afterwards would keep its
+	 * slot and the list would shrink to two. It lands in tax_query while
+	 * exclude_unlisted() writes meta_query, so neither displaces the other.
+	 *
+	 * Public for tools/planner-templates-test.php, which checks exactly this
+	 * query rather than a copy of it.
+	 *
+	 * @return array get_posts() arguments.
+	 */
+	public static function planner_template_args(): array {
+
+		$args = array(
+			'post_type'      => 'mmm_meal_plan',
+			'post_status'    => 'publish',
+			'posts_per_page' => 3,
+			'orderby'        => 'rand',
+			'no_found_rows'  => true,
+		);
+
+		if ( 'on' === (string) get_option( 'mixmymeals_planner_templates_require_category', '' ) ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			$args['tax_query'] = array(
+				array(
+					'taxonomy' => 'mmm_meal_plan_category',
+					'operator' => 'EXISTS',
+				),
+			);
+		}
+
+		return Mixmymeals_Post_Types::exclude_unlisted( $args );
 	}
 
 	/**
