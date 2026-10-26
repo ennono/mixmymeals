@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.67.0
+Stable tag: 3.68.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.68.0 =
+
+Added:
+* The planner can show the shopping list of the plan it is building, live:
+  `[mmm_planner_shopping_list]` (attributes `show_details` and
+  `sort_by_category`, both on by default) follows every added or removed
+  recipe, every move and every change of servings, type or diet. It is the
+  list the plan page will print once the planner is saved — packs rounded up
+  once over the whole week — and arrives with the planner's nutrition in the
+  same request, which computes it only where the page shows the list.
 
 = 3.67.0 =
 

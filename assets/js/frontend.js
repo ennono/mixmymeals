@@ -615,6 +615,7 @@ jQuery(function ($) {
        plan uses — a second calculation here would disagree with the
        plan the moment it is saved. Debounced, because a drag and a
        servings spinner fire several changes in quick succession.
+       [mmm_planner_shopping_list] is refreshed from the same answer.
        ========================================================== */
     let mmmNutritionTimer = null;
     let mmmNutritionRequest = null;
@@ -623,7 +624,8 @@ jQuery(function ($) {
         const $box = $('[data-planner-nutrition]');
         const $days = $('[data-day-nutrition]');
         const $prep = $('[data-day-prep]');
-        if (!$box.length && !$days.length && !$prep.length) return;
+        const $shop = $('[data-planner-shopping]').first();
+        if (!$box.length && !$days.length && !$prep.length && !$shop.length) return;
 
         clearTimeout(mmmNutritionTimer);
         mmmNutritionTimer = setTimeout(function () {
@@ -634,9 +636,17 @@ jQuery(function ($) {
                 mmmNutritionRequest.abort();
             }
 
-            $box.add($days).add($prep).attr('aria-busy', 'true');
+            $box.add($days).add($prep).add($shop).attr('aria-busy', 'true');
 
-            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', {})
+            // The shopping list rides on the same answer, computed from
+            // the same cart — asked for only where the page shows one.
+            const extra = $shop.length ? {
+                shopping: 1,
+                show_details: $shop.attr('data-show-details') === '1' ? 1 : 0,
+                sort_by_category: $shop.attr('data-sort-by-category') === '1' ? 1 : 0
+            } : {};
+
+            mmmNutritionRequest = mmmPost('mmm_planner_nutrition', extra)
                 .done(function (response) {
                     if (!response || !response.success || !response.data) return;
 
@@ -663,9 +673,32 @@ jQuery(function ($) {
                         const html = prep[this.getAttribute('data-day-prep')] || '';
                         $(this).html(html).prop('hidden', !html);
                     });
+
+                    // The shopping list, keeping open the lines that were open.
+                    if ($shop.length && typeof response.data.shopping === 'string') {
+                        // A line is its ingredient plus, where a diet split
+                        // it, that diet; the amount is what just changed.
+                        const lineKey = function (el) {
+                            return $(el).find('.mmm-shopping-item-name').text() + '|'
+                                + $(el).find('.mmm-shopping-item-diet').text();
+                        };
+                        const openLines = [];
+                        $shop.find('.mmm-shopping-item details[open]').each(function () {
+                            openLines.push(lineKey(this));
+                        });
+
+                        $shop.html(response.data.shopping);
+                        $shop.prop('hidden', !response.data.shopping);
+
+                        $shop.find('.mmm-shopping-item details').each(function () {
+                            if (openLines.indexOf(lineKey(this)) !== -1) {
+                                this.open = true;
+                            }
+                        });
+                    }
                 })
                 .always(function () {
-                    $box.add($days).add($prep).removeAttr('aria-busy');
+                    $box.add($days).add($prep).add($shop).removeAttr('aria-busy');
                 });
         }, 400);
     }

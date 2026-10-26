@@ -5958,3 +5958,11 @@ msgid ""
 "recipe with its own products. Shown in the planner, the \"Plan this recipe as "
 "a meal\" dialog, the Meals box and on the meal screen."
 msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Shopping list"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Shopping list of this plan"
+msgstr ""
