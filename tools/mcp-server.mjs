@@ -4,7 +4,7 @@
  * WordPress REST API – MCP Server (MixMyMeals-Edition v5.1)
  *
  * Umgebungsvariablen:
- *   WP_URL           z.B. https://www.stopfnicht.de
+ *   WP_URL           z.B. https://speisengeplant.de
  *   WP_USER          WordPress-Benutzername
  *   WP_APP_PASSWORD  Application Password
  *
