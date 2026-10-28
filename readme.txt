@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.69.0
+Stable tag: 3.70.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,26 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.70.0 =
+
+Added:
+* Eaters: a plan can list its people, and each meal says which of them eat
+  it — a breakfast for one, the dinner for all. The nutrition per day and
+  person, the plan rating, the traffic lights in the plan table, the rows
+  under the planner's days and the product comparison are then given per
+  person, each divided by the days that person has meals; "too little" only
+  where that person has breakfast, lunch and dinner. A switch above the
+  figures chooses the person on the plan page (?mmm_eater=p2) and in the
+  planner. A plan without people has one person who eats everything, which
+  is exactly what every plan was before.
+* The plan screen has a "People" box (a name per person for the editors,
+  never published, and a profile) and a column "Eats along" in its Meals
+  box. The planner adds and removes people by number and ticks on each
+  recipe who eats it. REST and MCP carry `eaters` on plans and meals.
+* Servings stay a field of their own — the shopping list, the costs and
+  Bring! do not depend on who eats. New meals start with one serving per
+  person.
 
 = 3.69.0 =
 

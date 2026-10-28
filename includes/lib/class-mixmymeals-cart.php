@@ -12,6 +12,18 @@ class Mixmymeals_Cart {
 	const EXPIRATION       = WEEK_IN_SECONDS;
 
 	/**
+	 * Where the planner keeps its people: user meta for a logged-in visitor,
+	 * a transient beside the cart's (same key, this suffix) for a guest.
+	 *
+	 * Kept apart from the items because the items are a list that is
+	 * counted, sliced and merged as it is. The planner names people by
+	 * number only ("Person 2"): no name is ever asked for or stored here,
+	 * so a shared planner and a plan saved from it carry none either.
+	 */
+	const EATERS_META_KEY   = 'mixmymeals_cart_eaters';
+	const EATERS_KEY_SUFFIX = '_eaters';
+
+	/**
 	 * Returns true if user is logged in.
 	 */
 	private function is_logged_in(): bool {
@@ -80,6 +92,118 @@ class Mixmymeals_Cart {
 		set_transient( $key, $items, self::EXPIRATION );
 	}
 
+	/**
+	 * The planner's people, as Mixmymeals_Meal_Plan::sanitize_eaters()
+	 * gives them, without names. Empty while the planner lists nobody —
+	 * which is one person eating everything.
+	 *
+	 * @return array<int, array{id:string, name:string, profile:string}>
+	 */
+	public function get_eaters(): array {
+
+		$data = $this->is_logged_in()
+			? get_user_meta( get_current_user_id(), self::EATERS_META_KEY, true )
+			: get_transient( $this->get_anon_key() . self::EATERS_KEY_SUFFIX );
+
+		return self::strip_eater_names( Mixmymeals_Meal_Plan::sanitize_eaters( $data ) );
+	}
+
+	/**
+	 * Stores the planner's people, names dropped. A list of one is no list.
+	 *
+	 * @param array $eaters People.
+	 * @return void
+	 */
+	public function save_eaters( array $eaters ): void {
+
+		$eaters = self::strip_eater_names( Mixmymeals_Meal_Plan::sanitize_eaters( $eaters ) );
+
+		if ( count( $eaters ) <= 1 ) {
+			$this->clear_eaters();
+			return;
+		}
+
+		if ( $this->is_logged_in() ) {
+			update_user_meta( get_current_user_id(), self::EATERS_META_KEY, $eaters );
+			return;
+		}
+
+		set_transient( $this->get_anon_key() . self::EATERS_KEY_SUFFIX, $eaters, self::EXPIRATION );
+	}
+
+	/**
+	 * The planner as a plan: its items as meal rows, with its people.
+	 * What every live figure, list and note of the planner is read from.
+	 *
+	 * @return Mixmymeals_Meal_Plan
+	 */
+	public function as_plan(): Mixmymeals_Meal_Plan {
+
+		return Mixmymeals_Meal_Plan::from_meal_rows( $this->get_items(), $this->get_eaters() );
+	}
+
+	/**
+	 * Forgets the planner's people.
+	 *
+	 * @return void
+	 */
+	private function clear_eaters(): void {
+
+		if ( $this->is_logged_in() ) {
+			delete_user_meta( get_current_user_id(), self::EATERS_META_KEY );
+			return;
+		}
+
+		delete_transient( $this->get_anon_key() . self::EATERS_KEY_SUFFIX );
+	}
+
+	/**
+	 * The ids of the planner's people, in order — one, DEFAULT_EATER, while
+	 * it lists nobody.
+	 *
+	 * @return string[]
+	 */
+	public function eater_ids(): array {
+
+		return Mixmymeals_Meal_Plan::from_meal_rows( array(), $this->get_eaters() )->eater_ids();
+	}
+
+	/**
+	 * A people list without names — the planner's, a shared snapshot's, and
+	 * a plan's on its way into a planner.
+	 *
+	 * @param array $eaters Sanitised people.
+	 * @return array
+	 */
+	public static function strip_eater_names( array $eaters ): array {
+
+		foreach ( $eaters as $i => $person ) {
+			$eaters[ $i ]['name'] = '';
+		}
+
+		return $eaters;
+	}
+
+	/**
+	 * Who eats a planner item, as it is stored on the item: the ids, or an
+	 * empty list for everybody — so an item from before the field and an
+	 * item eaten by all are the same thing.
+	 *
+	 * @param mixed    $eaters Raw ids (array, or a comma-separated string from the planner).
+	 * @param string[] $ids    The planner's ids.
+	 * @return string[]
+	 */
+	public static function clean_item_eaters( $eaters, array $ids ): array {
+
+		if ( is_string( $eaters ) ) {
+			$eaters = '' === $eaters ? array() : explode( ',', $eaters );
+		}
+
+		$clean = Mixmymeals_Meal_Plan::clean_eaters( $eaters, $ids );
+
+		return array_values( $ids ) === $clean ? array() : $clean;
+	}
+
 	private function get_max_items(): int {
 		$max = (int) get_option( 'mixmymeals_max_items_in_cart', 30 );
 		return max( 1, $max );
@@ -94,7 +218,8 @@ class Mixmymeals_Cart {
 		?string $type = null,
 		?int $day = null,
 		//?string $note = null
-		?string $diet = null
+		?string $diet = null,
+		?array $eaters = null
 	): bool {
 
 		if ( $recipe_id <= 0 ) {
@@ -121,6 +246,9 @@ class Mixmymeals_Cart {
 			'day'       => $day,
 			//'note'      => $note ?? '',
 			'diet'      => self::clean_diet( $recipe_id, (string) $diet ),
+			// Empty is everybody: a recipe planned from its page is eaten
+			// by all until somebody says otherwise in the planner.
+			'eaters'    => self::clean_item_eaters( $eaters ?? array(), $this->eater_ids() ),
 		);
 
 		$this->save_items( $items );
@@ -171,6 +299,9 @@ class Mixmymeals_Cart {
 	 * Clears the entire cart.
 	 */
 	public function clear(): void {
+
+		// Clearing the planner starts over, people included.
+		$this->clear_eaters();
 
 		if ( $this->is_logged_in() ) {
 			delete_user_meta( get_current_user_id(), self::META_KEY );
@@ -229,6 +360,18 @@ class Mixmymeals_Cart {
 		update_user_meta( $user_id, self::META_KEY, $merged_items );
 
 		delete_transient( $key );
+
+		// The guest's people come along where the account lists none; where
+		// it does, the guest's items keep only the ids it knows, and the
+		// rest read as "everybody".
+		$guest_eaters = get_transient( $key . self::EATERS_KEY_SUFFIX );
+		$user_eaters  = get_user_meta( $user_id, self::EATERS_META_KEY, true );
+
+		if ( is_array( $guest_eaters ) && $guest_eaters && empty( $user_eaters ) ) {
+			update_user_meta( $user_id, self::EATERS_META_KEY, self::strip_eater_names( Mixmymeals_Meal_Plan::sanitize_eaters( $guest_eaters ) ) );
+		}
+
+		delete_transient( $key . self::EATERS_KEY_SUFFIX );
 	}
 
 	public function update_item_by_index( int $index, array $data ): bool {
@@ -239,7 +382,7 @@ class Mixmymeals_Cart {
 			return false;
 		}
 
-		$allowed_keys = array( 'servings', 'type', 'day', 'diet' );
+		$allowed_keys = array( 'servings', 'type', 'day', 'diet', 'eaters' );
 
 		foreach ( $allowed_keys as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
@@ -249,6 +392,10 @@ class Mixmymeals_Cart {
 
 		if ( array_key_exists( 'diet', $data ) ) {
 			$items[ $index ]['diet'] = self::clean_diet( (int) ( $items[ $index ]['recipe_id'] ?? 0 ), (string) $data['diet'] );
+		}
+
+		if ( array_key_exists( 'eaters', $data ) ) {
+			$items[ $index ]['eaters'] = self::clean_item_eaters( $data['eaters'], $this->eater_ids() );
 		}
 
 		$this->save_items( $items );
@@ -301,6 +448,7 @@ class Mixmymeals_Cart {
 			'mmm_load_plan_into_cart' => 'mmm_load_plan_into_cart_ajax_callback',
 			'mmm_share_cart'          => 'mmm_share_cart_ajax_callback',
 			'mmm_load_shared_cart'    => 'mmm_load_shared_cart_ajax_callback',
+			'mmm_cart_eaters'         => 'mmm_cart_eaters_ajax_callback',
 		);
 
 		foreach ( $endpoints as $action => $method ) {
@@ -486,6 +634,10 @@ class Mixmymeals_Cart {
 		$item['diet']     = isset( $_POST['diet'] )
 			? self::clean_diet( (int) ( $item['recipe_id'] ?? 0 ), sanitize_key( wp_unslash( $_POST['diet'] ) ) )
 			: $item['diet'] ?? '';
+		// "p1,p3" from the planner; checked against the planner's people.
+		$item['eaters'] = isset( $_POST['eaters'] )
+			? self::clean_item_eaters( sanitize_text_field( wp_unslash( (string) $_POST['eaters'] ) ), $cart->eater_ids() )
+			: (array) ( $item['eaters'] ?? array() );
 
 		// Item zurück in den Warenkorb setzen
 		$items[ $index ] = $item;
@@ -535,6 +687,9 @@ class Mixmymeals_Cart {
 			self::SHARE_PREFIX . $token,
 			array(
 				'items'   => $items,
+				// Numbers only, as in the planner itself: a shared link
+				// carries no names because the planner holds none.
+				'eaters'  => self::strip_eater_names( ( new self() )->get_eaters() ),
 				'created' => time(),
 			),
 			self::SHARE_EXPIRATION
@@ -577,6 +732,7 @@ class Mixmymeals_Cart {
 
 		$cart = new self();
 		$cart->clear();
+		$cart->save_eaters( (array) ( $shared['eaters'] ?? array() ) );
 
 		foreach ( $shared['items'] as $item ) {
 
@@ -593,7 +749,8 @@ class Mixmymeals_Cart {
 				max( 1, intval( $item['servings'] ?? 1 ) ),
 				sanitize_text_field( (string) ( $item['type'] ?? '' ) ),
 				isset( $item['day'] ) ? intval( $item['day'] ) : null,
-				(string) ( $item['diet'] ?? '' )
+				(string) ( $item['diet'] ?? '' ),
+				(array) ( $item['eaters'] ?? array() )
 			);
 		}
 
@@ -637,19 +794,107 @@ class Mixmymeals_Cart {
 		$cart = new Mixmymeals_Cart();
 		$cart->clear();
 
+		/*
+		 * The plan's people come along as numbers: the names an editor gave
+		 * them are wp-admin's, and the planner holds none. The ids stay, so
+		 * every meal keeps the people it had.
+		 */
+		$cart->save_eaters(
+			array_map(
+				static fn( $person ) => array(
+					'id'      => $person['id'],
+					'profile' => $person['profile'],
+				),
+				$plan->get_eaters()
+			)
+		);
+
 		foreach ( $plan->with_servings_offset( $offset )->get_meal_rows() as $row ) {
 			$cart->add(
 				(int) $row['recipe_id'],
 				(int) $row['servings'],
 				(string) $row['type'],
 				$row['day'],
-				(string) ( $row['diet'] ?? '' )
+				(string) ( $row['diet'] ?? '' ),
+				(array) ( $row['eaters'] ?? array() )
 			);
 		}
 
 		wp_send_json_success( array(
 			'message' => __( 'Meal plan loaded into the planner.', 'mixmymeals' ),
 		) );
+	}
+
+	/**
+	 * AJAX handler for wp_ajax_mmm_cart_eaters: adds a person to the planner
+	 * (`op=add`) or removes one (`op=remove`, `id`).
+	 *
+	 * A new person gets the next free id and the default profile; the
+	 * planner names them by number. Removing one drops them from every
+	 * item, and an item left with nobody is eaten by all again. Answers
+	 * with the people as the planner shows them.
+	 *
+	 * @return void
+	 */
+	public static function mmm_cart_eaters_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$op     = isset( $_POST['op'] ) ? sanitize_key( wp_unslash( $_POST['op'] ) ) : '';
+		$cart   = new self();
+		$eaters = $cart->get_eaters();
+
+		if ( ! $eaters ) {
+			$eaters = array(
+				array(
+					'id'      => Mixmymeals_Meal_Plan::DEFAULT_EATER,
+					'name'    => '',
+					'profile' => Mixmymeals_Meal_Plan::DEFAULT_PROFILE,
+				),
+			);
+		}
+
+		if ( 'add' === $op ) {
+
+			if ( count( $eaters ) >= Mixmymeals_Meal_Plan::EATERS_MAX ) {
+				wp_send_json_error(
+					array(
+						'code'    => 'eaters_max',
+						'message' => __( 'No more people can be added to this planner.', 'mixmymeals' ),
+					),
+					409
+				);
+			}
+
+			// No id: sanitize_eaters() hands out the next free one.
+			$eaters[] = array( 'profile' => Mixmymeals_Meal_Plan::DEFAULT_PROFILE );
+
+		} elseif ( 'remove' === $op ) {
+
+			$id     = isset( $_POST['id'] ) ? sanitize_key( wp_unslash( $_POST['id'] ) ) : '';
+			$eaters = array_values( array_filter( $eaters, static fn( $p ) => $p['id'] !== $id ) );
+
+		} else {
+			wp_send_json_error( array( 'code' => 'invalid_op' ), 400 );
+		}
+
+		$cart->save_eaters( $eaters );
+
+		// Every item keeps only people who are still listed.
+		$ids   = $cart->eater_ids();
+		$items = $cart->get_items();
+
+		foreach ( $items as $i => $item ) {
+			$items[ $i ]['eaters'] = self::clean_item_eaters( (array) ( $item['eaters'] ?? array() ), $ids );
+		}
+
+		$cart->save_items( $items );
+
+		wp_send_json_success(
+			array(
+				'eaters' => Mixmymeals_Meal_Plan::from_meal_rows( array(), $cart->get_eaters() )->get_eaters(),
+			)
+		);
 	}
 
 }

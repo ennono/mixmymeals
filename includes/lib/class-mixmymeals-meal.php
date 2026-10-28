@@ -29,6 +29,13 @@ class Mixmymeals_Meal {
 	 */
 	const META_DIET = '_mmm_diet';
 
+	/**
+	 * Who eats the meal: ids of the parent plan's people
+	 * (Mixmymeals_Meal_Plan::get_eaters()). No row means everybody — every
+	 * meal from before the field, and every meal eaten by all.
+	 */
+	const META_EATERS = '_mmm_eaters';
+
 	/** Option guarding the one-off move of `note` meta into the text. */
 	const TEXT_MIGRATION_OPTION  = 'mixmymeals_meal_text_version';
 	const TEXT_MIGRATION_VERSION = '1';
@@ -181,6 +188,55 @@ class Mixmymeals_Meal {
 	 */
 	public function get_recipe(): Mixmymeals_Recipe {
 		return ( new Mixmymeals_Recipe( $this->get_recipe_id() ) )->for_diet( $this->get_diet() );
+	}
+
+	/**
+	 * Who eats the meal as stored, unchecked. For
+	 * Mixmymeals_Meal_Plan::get_meal_rows(), which checks it against the
+	 * plan's people it has already read; everything else reads get_eaters().
+	 *
+	 * @return string[]
+	 */
+	public function get_eaters_raw(): array {
+
+		$stored = get_post_meta( $this->post_id, self::META_EATERS, true );
+
+		return is_array( $stored ) ? array_map( 'strval', $stored ) : array();
+	}
+
+	/**
+	 * Who eats the meal: ids of the parent plan's people, in the plan's
+	 * order, never empty (Mixmymeals_Meal_Plan::clean_eaters()).
+	 *
+	 * @return string[]
+	 */
+	public function get_eaters(): array {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return Mixmymeals_Meal_Plan::clean_eaters( $this->get_eaters_raw(), $plan->eater_ids() );
+	}
+
+	/**
+	 * Settles who eats the meal. Checked against the parent plan's people,
+	 * so set the plan first; an unknown id is dropped, and a list that ends
+	 * up naming everybody — or nobody — is stored as no row, which is
+	 * "everybody": a person added to the plan later then eats it too.
+	 *
+	 * @param array $eaters Ids of the plan's people.
+	 * @return void
+	 */
+	public function set_eaters( array $eaters ): void {
+
+		$ids   = ( new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() ) )->eater_ids();
+		$clean = Mixmymeals_Meal_Plan::clean_eaters( $eaters, $ids );
+
+		if ( array_values( $ids ) === $clean ) {
+			delete_post_meta( $this->post_id, self::META_EATERS );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_EATERS, $clean );
 	}
 
 	/**

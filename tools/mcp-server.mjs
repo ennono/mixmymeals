@@ -176,6 +176,25 @@ const AUTHOR_FIELDS = {
   image:     { type: "number", description: "Attachment-ID des Profilbilds, 0 entfernt es. Wird wie der Avatar eines WordPress-Autors dargestellt und nur zusammen mit name verwendet." },
 };
 
+const EATERS_SCHEMA = {
+  type: "array",
+  description: "Die Personen des Plans, in Reihenfolge; ersetzt die Liste. Je Eintrag id (\"p1\", \"p2\" …; weglassen = neue Person, die ID wird vergeben), name (nur für Redakteure, wird nie veröffentlicht — öffentlich heißt es \"Person 1\", \"Person 2\"; beim Update ohne name bleibt der gespeicherte) und profile (bisher nur \"adult\"). [] oder eine Person = Standard: eine Person, die alles isst. Die Nährwerte pro Tag und Person werden je Person gerechnet: nur ihre Mahlzeiten, geteilt durch ihre Tage; \"zu wenig\" nur, wo sie an dem Tag Frühstück, Mittag- und Abendessen hat. Einkaufsliste und Portionen hängen nicht daran.",
+  items: {
+    type: "object",
+    properties: {
+      id:      { type: "string" },
+      name:    { type: "string" },
+      profile: { type: "string" },
+    },
+  },
+};
+
+const MEAL_EATERS_SCHEMA = {
+  type: "array",
+  items: { type: "string" },
+  description: "Wer diese Mahlzeit isst: IDs der Personen des Plans (\"p1\" …). Unbekannte IDs werden verworfen (warning); leer oder niemand übrig = alle. Unabhängig von servings, das weiter sagt, wie viel gekocht wird (Reste, Gäste).",
+};
+
 const AUTHOR_SCHEMA = {
   type: "object",
   description: "Externe Autorenangabe. Nur übergebene Felder werden geändert, \"\" löscht ein Feld. Ohne name fällt der Beitrag auf seinen WordPress-Autor zurück.",
@@ -874,6 +893,7 @@ const TOOLS = [
       required: ["post_id"],
       properties: {
         post_id: { type: "number", description: "Post-ID eines mmm_recipe, mmm_meal oder mmm_meal_plan" },
+        eater:   { type: "string", description: "Nur bei einem Plan mit mehreren Personen: wessen Tage (\"p2\"); Standard die erste Person." },
       },
     },
   },
@@ -989,6 +1009,7 @@ const TOOLS = [
         author:     AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        eaters:         EATERS_SCHEMA,
       },
     },
   },
@@ -1010,6 +1031,7 @@ const TOOLS = [
         author:    AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        eaters:         EATERS_SCHEMA,
       },
     },
   },
@@ -1109,6 +1131,7 @@ const TOOLS = [
         author:     AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        eaters:         EATERS_SCHEMA,
         meals: {
           type: "array",
           description: "Mahlzeiten des Plans.",
@@ -1117,7 +1140,8 @@ const TOOLS = [
             properties: {
               recipe_id: { type: "number", description: "Post-ID des Rezepts (Vorrang vor recipe)." },
               recipe:    { type: "string", description: "Alternativ: Rezeptname oder Slug (exakt, sonst Teiltreffer)." },
-              servings:  { type: "number", default: 1 },
+              servings:  { type: "number", description: "Ohne Angabe eine Portion je Person des Plans." },
+              eaters:    MEAL_EATERS_SCHEMA,
               type:      { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] },
               day:       { type: "number", description: "1=Mo … 7=So" },
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
@@ -1146,7 +1170,8 @@ const TOOLS = [
             properties: {
               recipe_id: { type: "number" },
               recipe:    { type: "string" },
-              servings:  { type: "number", default: 1 },
+              servings:  { type: "number", description: "Ohne Angabe eine Portion je Person des Plans." },
+              eaters:    MEAL_EATERS_SCHEMA,
               type:      { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] },
               day:       { type: "number" },
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
@@ -1172,7 +1197,8 @@ const TOOLS = [
         plan_id:   { type: "number" },
         recipe_id: { type: "number" },
         title:     { type: "string", description: "Leer = wird aus Rezepttitel abgeleitet" },
-        servings:  { type: "number", default: 1 },
+        servings:  { type: "number", description: "Ohne Angabe eine Portion je Person des Plans." },
+        eaters:    MEAL_EATERS_SCHEMA,
         type:      { type: "string", description: "breakfast | lunch | dinner | snack | other" },
         day:       { type: "number", description: "1=Mo … 7=So" },
         status:    { type: "string", default: "publish" },
@@ -1206,6 +1232,7 @@ const TOOLS = [
         day:       { type: "number" },
         status:    { type: "string" },
         title:     { type: "string" },
+        eaters:    MEAL_EATERS_SCHEMA,
         text:      { type: "string", description: "Kurzer Text zu DIESER Einplanung (z. B. \"Doppelte Menge kochen, Hälfte einfrieren\"). Gehört der Mahlzeit, nicht dem Rezept; leer = nichts gesagt." },
         diet:      { type: "string", description: "Ernährungsform dieser Einplanung — eine der diet_options der Mahlzeit (\"_none\" = Originalrezept, wie geschrieben, sonst ein Diät-Slug wie \"vegan\"). Nur Rezepte, die mehrere Formen anbieten, haben Optionen, und dann ist die Mahlzeit immer festgelegt: ein ungültiger Wert setzt die erste Option. Die Mahlzeit wird mit den passenden Produkten gerechnet, die Einkaufsliste führt sie als eigene Zeilen." },
       },
@@ -1581,7 +1608,7 @@ async function handleTool(name, args) {
       });
 
     case "mmm_product_impact":
-      return mmm("GET", `/product-impact?post_id=${args.post_id}`);
+      return mmm("GET", `/product-impact?post_id=${args.post_id}` + (args.eater ? `&eater=${encodeURIComponent(args.eater)}` : ""));
 
     case "mmm_delete_product":
       return mmm("DELETE", `/products/${args.id}`);
@@ -1647,13 +1674,14 @@ async function handleTool(name, args) {
       if (author     !== undefined) body.author     = author;
       if (featured_image !== undefined) body.featured_image = featured_image;
       if (image_credit   !== undefined) body.image_credit   = image_credit;
+      if (args.eaters    !== undefined) body.eaters         = args.eaters;
       return mmm("POST", "/meal-plans", body);
     }
 
     case "mmm_update_meal_plan": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["title", "status", "content", "excerpt", "start_day", "end_day", "author", "featured_image", "image_credit"];
+      const allowed = ["title", "status", "content", "excerpt", "start_day", "end_day", "author", "featured_image", "image_credit", "eaters"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }
@@ -1724,6 +1752,7 @@ async function handleTool(name, args) {
       if (author     !== undefined) body.author     = author;
       if (featured_image !== undefined) body.featured_image = featured_image;
       if (image_credit   !== undefined) body.image_credit   = image_credit;
+      if (args.eaters    !== undefined) body.eaters         = args.eaters;
       return mmm("POST", "/meal-plans/build", body);
     }
 
@@ -1733,8 +1762,11 @@ async function handleTool(name, args) {
     // ── MixMyMeals: Mahlzeiten ─────────────────────────────────────────────
 
     case "mmm_add_meal": {
-      const { plan_id, recipe_id, title, servings = 1, type, day, status = "publish" } = args;
-      const body = { plan_id, recipe_id, servings, status };
+      const { plan_id, recipe_id, title, servings, eaters, type, day, status = "publish" } = args;
+      const body = { plan_id, recipe_id, status };
+      // Ohne servings legt der Server eine Portion je Person des Plans an.
+      if (servings !== undefined) body.servings = servings;
+      if (eaters   !== undefined) body.eaters   = eaters;
       if (title !== undefined) body.title = title;
       if (type  !== undefined) body.type  = type;
       if (day   !== undefined) body.day   = day;
@@ -1747,7 +1779,7 @@ async function handleTool(name, args) {
     case "mmm_update_meal": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["recipe_id", "servings", "type", "day", "status", "title", "text", "diet"];
+      const allowed = ["recipe_id", "servings", "type", "day", "status", "title", "text", "diet", "eaters"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }

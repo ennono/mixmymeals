@@ -3801,16 +3801,18 @@ msgid ""
 "of its own, can be opened by anyone holding the generated link, and is "
 "deleted automatically after %d day. The copy is frozen: later changes to "
 "one's own planner do not appear in it, and the link gives no access to the "
-"planner itself. Only recipe IDs, servings, meal type and weekday are stored "
-"— no identifier of the person sharing. No copy exists unless someone shares."
+"planner itself. Only recipe IDs, servings, meal type, weekday and which of "
+"the numbered people eat along are stored — no identifier of the person "
+"sharing. No copy exists unless someone shares."
 msgid_plural ""
 "Sharing the planner: using the share button deliberately creates a copy of "
 "the recipe selection. It is stored on the server under a random identifier "
 "of its own, can be opened by anyone holding the generated link, and is "
 "deleted automatically after %d days. The copy is frozen: later changes to "
 "one's own planner do not appear in it, and the link gives no access to the "
-"planner itself. Only recipe IDs, servings, meal type and weekday are stored "
-"— no identifier of the person sharing. No copy exists unless someone shares."
+"planner itself. Only recipe IDs, servings, meal type, weekday and which of "
+"the numbered people eat along are stored — no identifier of the person "
+"sharing. No copy exists unless someone shares."
 msgstr[0] ""
 "Planer teilen: Wer den Teilen-Knopf im Planer benutzt, legt damit bewusst "
 "eine Kopie seiner Rezeptauswahl an. Sie wird unter einer eigenen zufälligen "
@@ -3818,8 +3820,9 @@ msgstr[0] ""
 "abrufbar, der ihn besitzt, und wird nach %d Tag automatisch gelöscht. Die "
 "Kopie ist eingefroren: spätere Änderungen am eigenen Planer erscheinen nicht"
 " im Link, und der Link gibt keinen Zugriff auf den Planer selbst. Es werden "
-"dabei nur Rezept-IDs, Portionen, Mahlzeitentyp und Wochentag gespeichert — "
-"keine Kennung des Teilenden. Wer nicht teilt, erzeugt diese Kopie nicht."
+"dabei nur Rezept-IDs, Portionen, Mahlzeitentyp, Wochentag und die Angabe, "
+"welche der nummerierten Personen mitessen, gespeichert — keine Kennung des "
+"Teilenden. Wer nicht teilt, erzeugt diese Kopie nicht."
 msgstr[1] ""
 "Planer teilen: Wer den Teilen-Knopf im Planer benutzt, legt damit bewusst "
 "eine Kopie seiner Rezeptauswahl an. Sie wird unter einer eigenen zufälligen "
@@ -3827,8 +3830,9 @@ msgstr[1] ""
 "abrufbar, der ihn besitzt, und wird nach %d Tagen automatisch gelöscht. Die "
 "Kopie ist eingefroren: spätere Änderungen am eigenen Planer erscheinen nicht"
 " im Link, und der Link gibt keinen Zugriff auf den Planer selbst. Es werden "
-"dabei nur Rezept-IDs, Portionen, Mahlzeitentyp und Wochentag gespeichert — "
-"keine Kennung des Teilenden. Wer nicht teilt, erzeugt diese Kopie nicht."
+"dabei nur Rezept-IDs, Portionen, Mahlzeitentyp, Wochentag und die Angabe, "
+"welche der nummerierten Personen mitessen, gespeichert — keine Kennung des "
+"Teilenden. Wer nicht teilt, erzeugt diese Kopie nicht."
 
 #: includes/lib/class-mixmymeals-privacy.php:531
 msgid ""
@@ -7622,3 +7626,95 @@ msgstr "Einkaufsliste"
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Shopping list of this plan"
 msgstr "Einkaufsliste dieses Plans"
+
+#. translators: %s: name of a profile of the people on a plan, e.g. "Child".
+#: includes/class-mixmymeals-settings.php
+#, php-format
+msgid "Reference intake: %s"
+msgstr "Referenzmengen: %s"
+
+#: includes/class-mixmymeals-settings.php
+msgid "For people on a plan with this profile. Empty fields use the figure above."
+msgstr "Für Personen eines Plans mit diesem Profil. Leere Felder übernehmen den Wert darüber."
+
+#: includes/lib/class-mixmymeals-cart.php
+msgid "No more people can be added to this planner."
+msgstr "Diesem Planer können keine weiteren Personen hinzugefügt werden."
+
+#. translators: Profile of a person eating from a meal plan.
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgctxt "eater profile"
+msgid "Adult"
+msgstr "Erwachsene Person"
+
+#. translators: %d: position of a person in a meal plan's list of people.
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Person %d"
+msgstr "Person %d"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Eats along"
+msgstr "Isst mit"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "People"
+msgstr "Personen"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Who eats from this plan. Each meal says which of them eat along (column \"Eats along\" under Meals); the nutrition per day and person is then given per person. Names are shown here only — the public page says \"Person 1\", \"Person 2\"."
+msgstr "Wer von diesem Plan isst. Jede Mahlzeit sagt, wer davon mitisst (Spalte „Isst mit“ unter Mahlzeiten); die Nährwerte pro Tag und Person gelten dann je Person. Namen stehen nur hier — die öffentliche Seite sagt „Person 1“, „Person 2“."
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Person"
+msgstr "Person"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Name (wp-admin only)"
+msgstr "Name (nur in wp-admin)"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Profile"
+msgstr "Profil"
+
+#. translators: %s: neutral label of a person, e.g. "Person 2".
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "Remove %s"
+msgstr "%s entfernen"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Add a person"
+msgstr "Person hinzufügen"
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "Where the planner lists several people, it also stores how many there are and which of them eat each recipe; they are numbered only (“Person 1”, “Person 2”), no names are asked for."
+msgstr "Führt der Planer mehrere Personen, speichert er außerdem, wie viele es sind und welche von ihnen jedes Rezept mitessen; sie sind nur nummeriert („Person 1“, „Person 2“), Namen werden nicht abgefragt."
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "Where a plan lists several people, which of them eat each meal is saved with it and the page shows nutrition figures for each of them, naming them by number only (“Person 1”, “Person 2”); names our editors may note for them in the administration are not published."
+msgstr "Führt ein Plan mehrere Personen, wird mit ihm gespeichert, welche von ihnen jede Mahlzeit mitessen, und die Seite zeigt für jede von ihnen Nährwerte, nur mit Nummer benannt („Person 1“, „Person 2“); Namen, die unsere Redaktion in der Verwaltung für sie notiert, werden nicht veröffentlicht."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "This person eats none of the planned meals."
+msgstr "Diese Person isst keine der geplanten Mahlzeiten mit."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "This person eats none of the planned meals yet."
+msgstr "Diese Person isst noch keine der geplanten Mahlzeiten mit."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Whose nutrition"
+msgstr "Wessen Nährwerte"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Nutrition for:"
+msgstr "Nährwerte für:"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Who eats along:"
+msgstr "Wer isst mit:"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Tick on each recipe who eats it."
+msgstr "Kreuze bei jedem Rezept an, wer es mitisst."

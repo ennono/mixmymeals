@@ -418,6 +418,11 @@ class Mixmymeals_Shortcodes {
 			array( $this, 'mmm_plan_servings_ajax_callback' ) );
 		add_action( 'wp_ajax_nopriv_mmm_plan_servings',
 			array( $this, 'mmm_plan_servings_ajax_callback' ) );
+		// The plan page's switch between its people: read-only, guests too.
+		add_action( 'wp_ajax_mmm_plan_nutrition',
+			array( $this, 'mmm_plan_nutrition_ajax_callback' ) );
+		add_action( 'wp_ajax_nopriv_mmm_plan_nutrition',
+			array( $this, 'mmm_plan_nutrition_ajax_callback' ) );
 		add_action( 'wp_ajax_mmm_create_meal_plan',
 			array( $this, 'mmm_create_meal_plan_ajax_callback' ) );
 		add_action( 'wp_ajax_nopriv_mmm_create_meal_plan',
@@ -4457,9 +4462,10 @@ class Mixmymeals_Shortcodes {
 	 * @param array<string,string> $types    Meal types, key => label.
 	 * @param array<int,string>    $days     Weekdays, 1-7 => label.
 	 * @param int                  $day      The list this item sits in, 0 = unassigned.
+	 * @param Mixmymeals_Meal_Plan $plan     The planner as a plan, for its people.
 	 * @return string Escaped markup.
 	 */
-	private function render_plan_item( int $index, array $item, array $types, array $days, int $day ): string {
+	private function render_plan_item( int $index, array $item, array $types, array $days, int $day, ?Mixmymeals_Meal_Plan $plan = null ): string {
 
 		$recipe_id = intval( $item['recipe_id'] ?? 0 );
 		$title     = get_the_title( $recipe_id );
@@ -4560,6 +4566,8 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
 				</div>
 
+				<?php echo null === $plan ? '' : $this->render_plan_item_eaters( $plan, (array) ( $item['eaters'] ?? array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+
 			</div>
 
 			<button class="mmm-plan-item-remove" type="button"
@@ -4582,6 +4590,9 @@ class Mixmymeals_Shortcodes {
 		$cart = new Mixmymeals_Cart();
 
 		$items = $cart->get_items();
+
+		// The planner as a plan, with its people.
+		$mmm_cart_plan = $cart->as_plan();
 
 		// Liste der Tage (Mo–So)
 		$days = array(
@@ -4612,8 +4623,10 @@ class Mixmymeals_Shortcodes {
 			$days_with_items[ intval( $item['day'] ?? 0 ) ] = true;
 		}
 
-		// The cart as a plan, for the figures under each day.
-		$mmm_day_ratings = Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_day_ratings();
+		// The cart as a plan, for the figures under each day — the first
+		// person's where the planner lists several, as the box above starts.
+		$mmm_first_eater = (string) ( $mmm_cart_plan->eater_ids()[0] ?? '' );
+		$mmm_day_ratings = $this->planner_day_ratings( $mmm_cart_plan, $mmm_first_eater );
 
 		// …and for the preparation due on each weekday.
 		$mmm_prep = $this->planner_prep_notes( $items );
@@ -4621,7 +4634,9 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 
-        <div class="mmm-plan-builder">
+        <div class="mmm-plan-builder"<?php echo $mmm_cart_plan->has_eaters() ? ' data-eater-count="' . esc_attr( (string) count( $mmm_cart_plan->eater_ids() ) ) . '"' : ''; ?>>
+
+			<?php echo $this->render_planner_eaters( $mmm_cart_plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
@@ -4637,7 +4652,7 @@ class Mixmymeals_Shortcodes {
 							continue;
 						}
 
-						echo $this->render_plan_item( (int) $index, $item, $types, $days, 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
+						echo $this->render_plan_item( (int) $index, $item, $types, $days, 0, $mmm_cart_plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
 
 					endforeach;
 					?>
@@ -4750,7 +4765,7 @@ class Mixmymeals_Shortcodes {
 									continue;
 								}
 
-								echo $this->render_plan_item( (int) $index, $item, $types, $days, $day_key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
+								echo $this->render_plan_item( (int) $index, $item, $types, $days, $day_key, $mmm_cart_plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
 
 							endforeach;
 							?>
@@ -5222,6 +5237,8 @@ class Mixmymeals_Shortcodes {
 				'day'       => $day,
 				// Checked again by set_diet() against the recipe.
 				'diet'      => sanitize_key( (string) ( $item['diet'] ?? '' ) ),
+				// Checked again by set_eaters() against the plan's people.
+				'eaters'    => array_map( 'sanitize_key', array_map( 'strval', is_array( $item['eaters'] ?? null ) ? $item['eaters'] : explode( ',', (string) ( $item['eaters'] ?? '' ) ) ) ),
 			];
 		}
 
@@ -5289,6 +5306,10 @@ class Mixmymeals_Shortcodes {
 		$meal_plan->set_start_day( $start_day );
 		$meal_plan->set_end_day( $end_day );
 
+		// The planner's people, as numbers: the planner holds no names, and
+		// the plan becomes a public page.
+		$meal_plan->set_eaters( Mixmymeals_Cart::strip_eater_names( ( new Mixmymeals_Cart() )->get_eaters() ) );
+
 		// Meals anlegen
 		foreach ( $items as $item ) {
 
@@ -5314,6 +5335,7 @@ class Mixmymeals_Shortcodes {
 			}
 			// Always: a recipe offering a choice is settled on save.
 			$meal->set_diet( $item['diet'] );
+			$meal->set_eaters( $item['eaters'] );
 		}
 
 		// Find out where to redirect now:
@@ -8224,7 +8246,7 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
 		}
 
-		return $this->render_plan_nutrition_overview( $plan );
+		return $this->render_plan_nutrition_overview( $plan, $plan->requested_eater() );
 	}
 
 	/**
@@ -8307,18 +8329,62 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * The plan page's nutrition overview: the planner's tiles above the table.
 	 *
-	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * Where the plan lists several people the overview is one person's,
+	 * with the switch above it (render_eater_switch()); the wrapper then
+	 * carries data-plan-nutrition and data-eater, which frontend.js swaps
+	 * whole from the `mmm_plan_nutrition` answer. A plan of one person
+	 * prints exactly what it printed before.
+	 *
+	 * The switch's links keep the address the overview stands on — the plan
+	 * page or any page embedding it — with its other parameters, so
+	 * ?mmm_persons_to_add survives a change of person.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan     Plan.
+	 * @param string               $eater    Whose figures; '' for the first person.
+	 * @param string               $page_url Address of the page; '' for the current request.
 	 * @return string
 	 */
-	private function render_plan_nutrition_overview( Mixmymeals_Meal_Plan $plan ): string {
+	private function render_plan_nutrition_overview( Mixmymeals_Meal_Plan $plan, string $eater = '', string $page_url = '' ): string {
+
+		if ( ! $plan->has_eaters() ) {
+			return $this->render_plan_nutrition_overview_body( $plan, '' );
+		}
+
+		$eater    = $plan->resolve_eater( $eater );
+		$page_url = '' !== $page_url ? $page_url : add_query_arg( array() );
+
+		return Mixmymeals_Meal_Plan::with_reference_profile(
+			$plan->eater_profile( $eater ),
+			function () use ( $plan, $eater, $page_url ): string {
+				return $this->render_plan_nutrition_overview_body(
+					$plan->for_eater( $eater ),
+					$this->render_eater_switch( $plan, $eater, $page_url ),
+					' data-plan-nutrition="' . esc_attr( (string) $plan->get_id() ) . '" data-eater="' . esc_attr( $eater ) . '"'
+				);
+			}
+		);
+	}
+
+	/**
+	 * The overview's markup for one plan as one person eats it.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan        Plan (or for_eater() of it).
+	 * @param string               $switch_html The eater switch, '' for none.
+	 * @param string               $attrs       Extra attributes on the wrapper, escaped.
+	 * @return string
+	 */
+	private function render_plan_nutrition_overview_body( Mixmymeals_Meal_Plan $plan, string $switch_html, string $attrs = '' ): string {
 
 		$per_day = $plan->calc_nutrition_per_day_person();
 
 		ob_start();
 		?>
-        <div class="mmm-meal-plan-nutrition">
+        <div class="mmm-meal-plan-nutrition"<?php echo $attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped by the caller. ?>>
 
 			<?php
+			// The switch between the plan's people, where it has several.
+			echo $switch_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+
 			// The planner's tiles, so the saved plan looks the way it did
 			// while it was planned. Its rating note is the table's footnote.
 			if ( $per_day['days'] >= 1 ) {
@@ -8326,7 +8392,13 @@ class Mixmymeals_Shortcodes {
 			}
 			?>
 
-			<?php echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+			<?php
+			if ( $plan->get_meal_rows() ) {
+				echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+			} else {
+				echo '<p class="mmm-meal-plan-nutrition__hint">' . esc_html__( 'This person eats none of the planned meals.', 'mixmymeals' ) . '</p>';
+			}
+			?>
         </div>
 		<?php
 
@@ -8409,14 +8481,15 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_planner_nutrition_callback(): string {
 
-		$items = ( new Mixmymeals_Cart() )->get_items();
+		$cart  = new Mixmymeals_Cart();
+		$items = $cart->get_items();
 
 		// The first answer is rendered here, so the figures stand on first
 		// paint rather than after a round trip; frontend.js refreshes them.
 		return '<section class="mmm-planner-nutrition" data-planner-nutrition aria-label="'
 		       . esc_attr__( 'Nutrition of this plan', 'mixmymeals' ) . '"'
 		       . ( $items ? '' : ' hidden' ) . '>'
-		       . $this->render_planner_nutrition( Mixmymeals_Meal_Plan::from_meal_rows( $items ) )
+		       . $this->render_planner_nutrition( $cart->as_plan() )
 		       . '</section>';
 	}
 
@@ -8435,11 +8508,16 @@ class Mixmymeals_Shortcodes {
 
 		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
 
-		$items = ( new Mixmymeals_Cart() )->get_items();
-		$plan  = Mixmymeals_Meal_Plan::from_meal_rows( $items );
+		$cart  = new Mixmymeals_Cart();
+		$items = $cart->get_items();
+		$plan  = $cart->as_plan();
+
+		// Whose figures: the person chosen in the switch, the first one for
+		// anything else. The shopping list and the notes are everybody's.
+		$eater = $plan->resolve_eater( isset( $_POST['eater'] ) ? sanitize_key( wp_unslash( $_POST['eater'] ) ) : '' );
 
 		$days    = array();
-		$ratings = $plan->calc_day_ratings();
+		$ratings = $this->planner_day_ratings( $plan, $eater );
 
 		foreach ( range( 1, 7 ) as $day ) {
 			$days[ $day ] = $this->render_planner_day_nutrition( $ratings, $day );
@@ -8448,8 +8526,10 @@ class Mixmymeals_Shortcodes {
 		wp_send_json_success(
 			array(
 				'empty'    => ! $plan->get_meal_rows(),
-				'html'     => $this->render_planner_nutrition( $plan ),
-				'table'    => $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : '',
+				'eater'    => $eater,
+				'eaters'   => $plan->has_eaters() ? $plan->get_eaters() : array(),
+				'html'     => $this->render_planner_nutrition( $plan, $eater ),
+				'table'    => $plan->get_meal_rows() ? $this->render_person_nutrition_table( $plan, $eater ) : '',
 				'days'     => $days,
 				'prep'     => $this->planner_prep_notes( $items ),
 				/*
@@ -8498,7 +8578,8 @@ class Mixmymeals_Shortcodes {
 		$show_details     = filter_var( $atts['show_details'], FILTER_VALIDATE_BOOLEAN );
 		$sort_by_category = filter_var( $atts['sort_by_category'], FILTER_VALIDATE_BOOLEAN );
 
-		$items = ( new Mixmymeals_Cart() )->get_items();
+		$cart  = new Mixmymeals_Cart();
+		$items = $cart->get_items();
 
 		// First answer rendered here, like [mmm_planner_nutrition]; an empty
 		// planner keeps the box hidden until something is planned.
@@ -8508,7 +8589,7 @@ class Mixmymeals_Shortcodes {
 		       . ' aria-label="' . esc_attr__( 'Shopping list of this plan', 'mixmymeals' ) . '"'
 		       . ( $items ? '' : ' hidden' ) . '>'
 		       . $this->render_planner_shopping_list(
-				Mixmymeals_Meal_Plan::from_meal_rows( $items ),
+				$cart->as_plan(),
 				$show_details,
 				$sort_by_category
 			)
@@ -8562,14 +8643,40 @@ class Mixmymeals_Shortcodes {
 	 * person, each with its share of the reference intake and its rating,
 	 * and the full plan table behind a disclosure.
 	 *
-	 * @param Mixmymeals_Meal_Plan $plan Plan built from the cart.
+	 * Where the planner lists several people, the figures are one person's
+	 * — the switch above them says whose — and "per day and person" means
+	 * that person.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan  Plan built from the cart.
+	 * @param string               $eater Whose figures; '' for the first person.
 	 * @return string '' when the planner is empty.
 	 */
-	private function render_planner_nutrition( Mixmymeals_Meal_Plan $plan ): string {
+	private function render_planner_nutrition( Mixmymeals_Meal_Plan $plan, string $eater = '' ): string {
 
 		if ( ! $plan->get_meal_rows() ) {
 			return '';
 		}
+
+		$eater = $plan->resolve_eater( $eater );
+
+		return Mixmymeals_Meal_Plan::with_reference_profile(
+			$plan->eater_profile( $eater ),
+			function () use ( $plan, $eater ): string {
+				return $this->render_eater_switch( $plan, $eater, '' )
+					. $this->render_planner_nutrition_body( $plan, $plan->for_eater( $eater ) );
+			}
+		);
+	}
+
+	/**
+	 * The planner's nutrition view for one person (or for the one person of
+	 * a planner listing nobody).
+	 *
+	 * @param Mixmymeals_Meal_Plan $planner The whole planner.
+	 * @param Mixmymeals_Meal_Plan $plan    The planner as that person eats it.
+	 * @return string
+	 */
+	private function render_planner_nutrition_body( Mixmymeals_Meal_Plan $planner, Mixmymeals_Meal_Plan $plan ): string {
 
 		$per_day = $plan->calc_nutrition_per_day_person();
 		$rating  = $plan->calc_day_rating();
@@ -8577,7 +8684,9 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 		<h3 class="mmm-planner-nutrition__title"><?php esc_html_e( 'Average nutrition per day and person', 'mixmymeals' ); ?></h3>
-		<?php if ( $per_day['days'] < 1 ) : ?>
+		<?php if ( $per_day['days'] < 1 && $planner->has_eaters() && ! $plan->get_meal_rows() ) : ?>
+			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'This person eats none of the planned meals yet.', 'mixmymeals' ); ?></p>
+		<?php elseif ( $per_day['days'] < 1 ) : ?>
 			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'Give a recipe a day to see what a day of this plan provides.', 'mixmymeals' ); ?></p>
 		<?php else : ?>
 			<?php echo $this->render_nutrition_tiles( $per_day['average'], (array) $rating['ratings'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
@@ -8593,7 +8702,7 @@ class Mixmymeals_Shortcodes {
 			<?php
 			// The table alone: the plan page prints these same tiles above it,
 			// and here they already stand above the disclosure.
-			echo $this->render_plan_nutrition_table( $plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+			echo $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 			?>
 		</details>
 		<?php
@@ -8647,6 +8756,214 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * The plan's nutrition table as one person eats it — the string the
+	 * planner's `table` and the plan page print, byte for byte, for the same
+	 * meals and the same person. With that person's profile in force, so a
+	 * percentage is of their reference intake.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan  Plan, saved or built from the cart.
+	 * @param string               $eater Eater id; '' for the first person.
+	 * @return string '' when that person eats nothing.
+	 */
+	private function render_person_nutrition_table( Mixmymeals_Meal_Plan $plan, string $eater = '' ): string {
+
+		$eater = $plan->resolve_eater( $eater );
+
+		return Mixmymeals_Meal_Plan::with_reference_profile(
+			$plan->eater_profile( $eater ),
+			function () use ( $plan, $eater ): string {
+				$person = $plan->for_eater( $eater );
+				return $person->get_meal_rows() ? $this->render_plan_nutrition_table( $person ) : '';
+			}
+		);
+	}
+
+	/**
+	 * The day ratings (calc_day_ratings()) of one person of the planner, with their profile in
+	 * force: the row under each day of the builder is what that person eats.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan  The planner as a plan.
+	 * @param string               $eater Eater id.
+	 * @return array
+	 */
+	private function planner_day_ratings( Mixmymeals_Meal_Plan $plan, string $eater ): array {
+
+		$eater = $plan->resolve_eater( $eater );
+
+		return Mixmymeals_Meal_Plan::with_reference_profile(
+			$plan->eater_profile( $eater ),
+			static fn() => $plan->for_eater( $eater )->calc_day_ratings()
+		);
+	}
+
+	/**
+	 * The switch between the people of a plan, above their figures.
+	 *
+	 * Links on the plan page (?mmm_eater=p2, so it works without
+	 * JavaScript and frontend.js only has to swap the box), buttons in the
+	 * planner, which has no address of its own. Neutral labels only —
+	 * "Person 2" — because a saved plan is a public page: the names an
+	 * editor may give the people stay in wp-admin.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan    Plan.
+	 * @param string               $current Eater shown.
+	 * @param string               $url     Page address for links; '' for buttons.
+	 * @return string '' unless the plan lists several people.
+	 */
+	private function render_eater_switch( Mixmymeals_Meal_Plan $plan, string $current, string $url ): string {
+
+		if ( ! $plan->has_eaters() ) {
+			return '';
+		}
+
+		$items = '';
+
+		foreach ( $plan->get_eaters() as $person ) {
+
+			$is_current = $person['id'] === $current;
+
+			if ( '' !== $url ) {
+				$href   = $plan->get_eaters()[0]['id'] === $person['id']
+					? remove_query_arg( Mixmymeals_Meal_Plan::EATER_QUERY_VAR, $url )
+					: add_query_arg( Mixmymeals_Meal_Plan::EATER_QUERY_VAR, rawurlencode( $person['id'] ), $url );
+				$items .= sprintf(
+					'<li class="mmm-eater-switch__entry"><a class="mmm-eater-switch__item%1$s" href="%2$s" data-eater="%3$s"%4$s rel="nofollow">%5$s</a></li>',
+					$is_current ? ' is-current' : '',
+					esc_url( $href . '#mmm-plan-nutrition' ),
+					esc_attr( $person['id'] ),
+					$is_current ? ' aria-current="true"' : '',
+					esc_html( $person['label'] )
+				);
+			} else {
+				$items .= sprintf(
+					'<li class="mmm-eater-switch__entry"><button type="button" class="mmm-eater-switch__item%1$s" data-eater="%2$s" aria-pressed="%3$s">%4$s</button></li>',
+					$is_current ? ' is-current' : '',
+					esc_attr( $person['id'] ),
+					$is_current ? 'true' : 'false',
+					esc_html( $person['label'] )
+				);
+			}
+		}
+
+		return '<nav class="mmm-eater-switch"' . ( '' !== $url ? ' id="mmm-plan-nutrition"' : '' ) . ' aria-label="' . esc_attr__( 'Whose nutrition', 'mixmymeals' ) . '">'
+			. '<span class="mmm-eater-switch__lead">' . esc_html__( 'Nutrition for:', 'mixmymeals' ) . '</span>'
+			. '<ul class="mmm-eater-switch__list">' . $items . '</ul></nav>';
+	}
+
+	/**
+	 * The planner's people: how many there are, with a control to add one
+	 * and to remove the last. Numbers only ("Person 2") — the planner asks
+	 * for no names.
+	 *
+	 * Always printed on the builder, since this is where a second person is
+	 * added; one person reads "1 person" and offers only the "+".
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan The planner as a plan.
+	 * @return string
+	 */
+	private function render_planner_eaters( Mixmymeals_Meal_Plan $plan ): string {
+
+		$eaters = $plan->get_eaters();
+		$count  = count( $eaters );
+		$last   = end( $eaters );
+
+		$remove = $count > 1
+			? sprintf(
+				'<button type="button" class="mmm-plan-eaters__step mmm-plan-eaters__step--down" data-eater-remove="%1$s" aria-label="%2$s">&minus;</button>',
+				esc_attr( (string) $last['id'] ),
+				/* translators: %s: neutral label of a person, e.g. "Person 3". */
+				esc_attr( sprintf( __( 'Remove %s', 'mixmymeals' ), $last['label'] ) )
+			)
+			: '<span class="mmm-plan-eaters__step mmm-plan-eaters__step--down is-disabled" aria-hidden="true">&minus;</span>';
+
+		$add = $count < Mixmymeals_Meal_Plan::EATERS_MAX
+			? '<button type="button" class="mmm-plan-eaters__step mmm-plan-eaters__step--up" data-eater-add aria-label="' . esc_attr__( 'Add a person', 'mixmymeals' ) . '">+</button>'
+			: '<span class="mmm-plan-eaters__step mmm-plan-eaters__step--up is-disabled" aria-hidden="true">+</span>';
+
+		return '<div class="mmm-plan-eaters" data-plan-eaters>'
+			. '<span class="mmm-plan-eaters__lead">' . esc_html__( 'Who eats along:', 'mixmymeals' ) . '</span> '
+			. $remove
+			. '<output class="mmm-plan-eaters__value">' . esc_html( Mixmymeals_Meal_Plan::format_people( $count, $count ) ) . '</output>'
+			. $add
+			. ( $count > 1 ? ' <span class="mmm-plan-eaters__hint">' . esc_html__( 'Tick on each recipe who eats it.', 'mixmymeals' ) . '</span>' : '' )
+			. '</div>';
+	}
+
+	/**
+	 * Who eats one planner item: a checkbox per person, only where the
+	 * planner lists several. Written to the cart as it changes, like the
+	 * servings; an item with nobody ticked is eaten by all.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan   The planner as a plan.
+	 * @param array                $eaters The item's stored eaters (empty = all).
+	 * @return string
+	 */
+	private function render_plan_item_eaters( Mixmymeals_Meal_Plan $plan, array $eaters ): string {
+
+		if ( ! $plan->has_eaters() ) {
+			return '';
+		}
+
+		$eaters = Mixmymeals_Meal_Plan::clean_eaters( $eaters, $plan->eater_ids() );
+		$boxes  = '';
+
+		foreach ( $plan->get_eaters() as $person ) {
+			$boxes .= sprintf(
+				'<label class="mmm-plan-item-eater"><input type="checkbox" class="mmm-plan-item-eater__input" value="%1$s"%2$s> <span>%3$s</span></label>',
+				esc_attr( $person['id'] ),
+				in_array( $person['id'], $eaters, true ) ? ' checked' : '',
+				esc_html( $person['label'] )
+			);
+		}
+
+		return '<fieldset class="mmm-plan-item-eaters" data-field="eaters">'
+			. '<legend class="mmm-plan-item-eaters__legend">' . esc_html__( 'Eats along', 'mixmymeals' ) . '</legend>'
+			. $boxes . '</fieldset>';
+	}
+
+	/**
+	 * AJAX: the plan page's nutrition overview for one of the plan's people,
+	 * for the switch above it. Published plans only, guests too — it is
+	 * what the page itself prints under ?mmm_eater.
+	 *
+	 * Answers with `html`, the whole overview (the switch included), and
+	 * `parts`: the per-weekday table and the product comparison for the
+	 * same person, for the boxes the page marks with data-plan-eater-part.
+	 *
+	 * @return void
+	 */
+	public function mmm_plan_nutrition_ajax_callback(): void {
+
+		check_ajax_referer( 'mmm_frontend_nonce', 'nonce' );
+
+		$plan_id = isset( $_POST['meal_plan_id'] ) ? absint( $_POST['meal_plan_id'] ) : 0;
+		$post    = get_post( $plan_id );
+
+		if ( ! $post || 'mmm_meal_plan' !== $post->post_type || 'publish' !== $post->post_status || post_password_required( $post ) ) {
+			wp_send_json_error( array( 'code' => 'not_found' ), 404 );
+		}
+
+		$plan  = new Mixmymeals_Meal_Plan( $plan_id );
+		$eater = $plan->resolve_eater( isset( $_POST['eater'] ) ? sanitize_key( wp_unslash( $_POST['eater'] ) ) : '' );
+
+		// The page the switch stands on, for its links; this site only,
+		// else the plan's own address.
+		$page_url = isset( $_POST['page_url'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( (string) $_POST['page_url'] ) ), '' ) : '';
+		$page_url = '' !== $page_url ? $page_url : (string) get_permalink( $plan_id );
+
+		wp_send_json_success(
+			array(
+				'eater' => $eater,
+				'html'  => $plan->get_meal_rows() ? $this->render_plan_nutrition_overview( $plan, $eater, $page_url ) : '',
+				'parts' => array(
+					'days'   => $this->render_plan_days_nutrition( $plan, 'per_person', $eater ),
+					'impact' => $this->render_plan_product_impact( $plan, $eater ),
+				),
+			)
+		);
+	}
+
+	/**
 	 * Shortcode [mmm_nutrition_per_day_for_a_single_meal_plan].
 	 * Renders the plan's nutrition broken down by weekday — the distribution
 	 * that the averages in [mmm_nutrition_overview_for_a_single_meal_plan]
@@ -8678,7 +8995,40 @@ class Mixmymeals_Shortcodes {
 		// 'person' = one serving of each meal, 'total' = everything cooked.
 		$bucket = 'total' === $atts['per'] ? 'totals' : 'per_person';
 
-		$plan   = new Mixmymeals_Meal_Plan( $meal_plan_id );
+		$plan = new Mixmymeals_Meal_Plan( $meal_plan_id );
+
+		if ( empty( $plan->get_day_range() ) ) {
+			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
+		}
+
+		/*
+		 * Per person, on a plan of several people, it is one person's week —
+		 * the one the overview's switch shows — in a box frontend.js swaps
+		 * along with it. Everything cooked is everybody's and stays as it is.
+		 */
+		if ( 'per_person' === $bucket && $plan->has_eaters() ) {
+			return '<div class="mmm-plan-eater-part" data-plan-eater-part="days">'
+				. $this->render_plan_days_nutrition( $plan, $bucket, $plan->requested_eater() )
+				. '</div>';
+		}
+
+		return $this->render_plan_days_nutrition( $plan, $bucket, '' );
+	}
+
+	/**
+	 * The per-weekday table of [mmm_nutrition_per_day_for_a_single_meal_plan].
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan   Plan.
+	 * @param string               $bucket per_person or totals.
+	 * @param string               $eater  Whose week, for per_person on a plan of several people.
+	 * @return string
+	 */
+	private function render_plan_days_nutrition( Mixmymeals_Meal_Plan $plan, string $bucket, string $eater ): string {
+
+		if ( 'per_person' === $bucket ) {
+			$plan = $plan->for_eater( $eater );
+		}
+
 		$by_day = $plan->calc_nutrition_by_day();
 
 		if ( empty( $by_day ) ) {
@@ -11591,10 +11941,37 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return $this->render_product_impact(
-			$plan->calc_product_impact(),
-			__( 'Per day and person', 'mixmymeals' ),
-			__( 'Nutrition per day and person over the whole plan, depending on which product is used for this ingredient.', 'mixmymeals' )
+		// One person's days on a plan of several, swapped with the switch.
+		if ( $plan->has_eaters() ) {
+			return '<div class="mmm-plan-eater-part" data-plan-eater-part="impact">'
+				. $this->render_plan_product_impact( $plan, $plan->requested_eater() )
+				. '</div>';
+		}
+
+		return $this->render_plan_product_impact( $plan, '' );
+	}
+
+	/**
+	 * The plan's product comparison for one person — per day and person is
+	 * that person's average, divided by their days.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan  Plan.
+	 * @param string               $eater Eater id; '' for the first person.
+	 * @return string
+	 */
+	private function render_plan_product_impact( Mixmymeals_Meal_Plan $plan, string $eater ): string {
+
+		$eater = $plan->resolve_eater( $eater );
+
+		return Mixmymeals_Meal_Plan::with_reference_profile(
+			$plan->eater_profile( $eater ),
+			function () use ( $plan, $eater ): string {
+				return $this->render_product_impact(
+					$plan->for_eater( $eater )->calc_product_impact(),
+					__( 'Per day and person', 'mixmymeals' ),
+					__( 'Nutrition per day and person over the whole plan, depending on which product is used for this ingredient.', 'mixmymeals' )
+				);
+			}
 		);
 	}
 
