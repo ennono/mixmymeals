@@ -4566,7 +4566,7 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
 				</div>
 
-				<?php echo null === $plan ? '' : $this->render_plan_item_eaters( $plan, (array) ( $item['eaters'] ?? array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+				<?php echo null === $plan ? '' : $this->render_plan_item_eaters( $plan, (array) ( $item['eaters'] ?? array() ), (array) ( $item['portions'] ?? array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 
 			</div>
 
@@ -4634,7 +4634,7 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 
-        <div class="mmm-plan-builder"<?php echo $mmm_cart_plan->has_eaters() ? ' data-eater-count="' . esc_attr( (string) count( $mmm_cart_plan->eater_ids() ) ) . '"' : ''; ?>>
+        <div class="mmm-plan-builder"<?php echo $mmm_cart_plan->has_eaters() ? ' data-default-servings="' . esc_attr( (string) $mmm_cart_plan->default_servings() ) . '"' : ''; ?>>
 
 			<?php echo $this->render_planner_eaters( $mmm_cart_plan ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 
@@ -5239,6 +5239,8 @@ class Mixmymeals_Shortcodes {
 				'diet'      => sanitize_key( (string) ( $item['diet'] ?? '' ) ),
 				// Checked again by set_eaters() against the plan's people.
 				'eaters'    => array_map( 'sanitize_key', array_map( 'strval', is_array( $item['eaters'] ?? null ) ? $item['eaters'] : explode( ',', (string) ( $item['eaters'] ?? '' ) ) ) ),
+				// A JSON object of portions; checked by set_eater_portions().
+				'portions'  => is_array( $item['portions'] ?? null ) ? $item['portions'] : sanitize_text_field( (string) ( $item['portions'] ?? '' ) ),
 			];
 		}
 
@@ -5336,6 +5338,7 @@ class Mixmymeals_Shortcodes {
 			// Always: a recipe offering a choice is settled on save.
 			$meal->set_diet( $item['diet'] );
 			$meal->set_eaters( $item['eaters'] );
+			$meal->set_eater_portions( $item['portions'] );
 		}
 
 		// Find out where to redirect now:
@@ -8345,9 +8348,19 @@ class Mixmymeals_Shortcodes {
 	 * @return string
 	 */
 	private function render_plan_nutrition_overview( Mixmymeals_Meal_Plan $plan, string $eater = '', string $page_url = '' ): string {
-
+		/*
+		 * One person: no switch and no wrapper — the markup of a plan without
+		 * people — but that person's portions still count (a plan for one
+		 * child at half portions). for_eater() hands back the plan itself
+		 * when there is nothing to apply.
+		 */
 		if ( ! $plan->has_eaters() ) {
-			return $this->render_plan_nutrition_overview_body( $plan, '' );
+			$only = $plan->resolve_eater( '' );
+
+			return Mixmymeals_Meal_Plan::with_reference_profile(
+				$plan->eater_profile( $only ),
+				fn(): string => $this->render_plan_nutrition_overview_body( $plan->for_eater( $only ), '' )
+			);
 		}
 
 		$eater    = $plan->resolve_eater( $eater );
@@ -8880,13 +8893,67 @@ class Mixmymeals_Shortcodes {
 			? '<button type="button" class="mmm-plan-eaters__step mmm-plan-eaters__step--up" data-eater-add aria-label="' . esc_attr__( 'Add a person', 'mixmymeals' ) . '">+</button>'
 			: '<span class="mmm-plan-eaters__step mmm-plan-eaters__step--up is-disabled" aria-hidden="true">+</span>';
 
+		/*
+		 * What each of them usually eats, where there are several: the
+		 * figure every recipe starts from; a recipe can say otherwise.
+		 */
+		$usual = '';
+
+		if ( $count > 1 ) {
+			foreach ( $eaters as $person ) {
+				/* translators: %s: neutral label of a person, e.g. "Person 2". */
+				$label  = sprintf( __( 'Portions %s usually eats', 'mixmymeals' ), $person['label'] );
+				$usual .= sprintf(
+					'<label class="mmm-plan-eaters__person"><span class="mmm-plan-eaters__person-label">%1$s</span> %2$s</label>',
+					esc_html( $person['label'] ),
+					self::portion_input( 'mmm-plan-eaters__portions', $person['id'], (float) $person['portions'], (float) $person['portions'], $label )
+				);
+			}
+
+			$usual = '<span class="mmm-plan-eaters__people">'
+				. '<span class="mmm-plan-eaters__people-lead">' . esc_html__( 'Usual portions:', 'mixmymeals' ) . '</span> '
+				. $usual . '</span>';
+		}
+
 		return '<div class="mmm-plan-eaters" data-plan-eaters>'
 			. '<span class="mmm-plan-eaters__lead">' . esc_html__( 'Who eats along:', 'mixmymeals' ) . '</span> '
 			. $remove
 			. '<output class="mmm-plan-eaters__value">' . esc_html( Mixmymeals_Meal_Plan::format_people( $count, $count ) ) . '</output>'
 			. $add
 			. ( $count > 1 ? ' <span class="mmm-plan-eaters__hint">' . esc_html__( 'Tick on each recipe who eats it.', 'mixmymeals' ) . '</span>' : '' )
+			. $usual
 			. '</div>';
+	}
+
+	/**
+	 * A number field for portions, stepped as the setting says, for the
+	 * planner's two places: the usual amount, and an item's, which is empty
+	 * while it is the usual one — shown then as the placeholder.
+	 *
+	 * @param string     $css_class Field class.
+	 * @param string     $eater     Eater id, data-eater.
+	 * @param float      $usual     What the person usually eats.
+	 * @param float|null $value     This field's own value; null for none.
+	 * @param string     $label     Accessible name.
+	 * @param bool       $enabled   Whether the field can be used.
+	 * @return string
+	 */
+	private static function portion_input( string $css_class, string $eater, float $usual, ?float $value, string $label, bool $enabled = true ): string {
+
+		$step = Mixmymeals_Meal_Plan::portion_step();
+
+		return sprintf(
+			'<input type="number" class="%1$s" data-eater="%2$s" min="%3$s" max="%4$s" step="%5$s" inputmode="decimal" value="%6$s" placeholder="%7$s" aria-label="%8$s"%9$s>',
+			esc_attr( $css_class ),
+			esc_attr( $eater ),
+			esc_attr( (string) ( $step > 0 ? $step : 0.05 ) ),
+			esc_attr( (string) Mixmymeals_Meal_Plan::PORTIONS_MAX ),
+			esc_attr( $step > 0 ? (string) $step : 'any' ),
+			null === $value ? '' : esc_attr( (string) $value ),
+			esc_attr( (string) $usual ),
+			esc_attr( $label ),
+			$enabled ? '' : ' disabled'
+		);
 	}
 
 	/**
@@ -8894,11 +8961,12 @@ class Mixmymeals_Shortcodes {
 	 * planner lists several. Written to the cart as it changes, like the
 	 * servings; an item with nobody ticked is eaten by all.
 	 *
-	 * @param Mixmymeals_Meal_Plan $plan   The planner as a plan.
-	 * @param array                $eaters The item's stored eaters (empty = all).
+	 * @param Mixmymeals_Meal_Plan $plan     The planner as a plan.
+	 * @param array                $eaters   The item's stored eaters (empty = all).
+	 * @param array                $portions The item's own portions, id => portions.
 	 * @return string
 	 */
-	private function render_plan_item_eaters( Mixmymeals_Meal_Plan $plan, array $eaters ): string {
+	private function render_plan_item_eaters( Mixmymeals_Meal_Plan $plan, array $eaters, array $portions = array() ): string {
 
 		if ( ! $plan->has_eaters() ) {
 			return '';
@@ -8908,11 +8976,29 @@ class Mixmymeals_Shortcodes {
 		$boxes  = '';
 
 		foreach ( $plan->get_eaters() as $person ) {
+
+			$eats = in_array( $person['id'], $eaters, true );
+			$own  = Mixmymeals_Meal_Plan::normalise_portion( $portions[ $person['id'] ] ?? null, false );
+
+			// Ticked and how much: the number only counts while ticked, so it
+			// is switched off with the box.
 			$boxes .= sprintf(
-				'<label class="mmm-plan-item-eater"><input type="checkbox" class="mmm-plan-item-eater__input" value="%1$s"%2$s> <span>%3$s</span></label>',
+				'<span class="mmm-plan-item-eater-group"><label class="mmm-plan-item-eater"><input type="checkbox" class="mmm-plan-item-eater__input" value="%1$s"%2$s> <span>%3$s</span></label>%4$s</span>',
 				esc_attr( $person['id'] ),
-				in_array( $person['id'], $eaters, true ) ? ' checked' : '',
-				esc_html( $person['label'] )
+				$eats ? ' checked' : '',
+				esc_html( $person['label'] ),
+				self::portion_input(
+					'mmm-plan-item-eater__portions',
+					$person['id'],
+					(float) $person['portions'],
+					$own,
+					sprintf(
+						/* translators: %s: neutral label of a person, e.g. "Person 2". */
+						__( 'Portions %s eats of this recipe', 'mixmymeals' ),
+						$person['label']
+					),
+					$eats
+				)
 			);
 		}
 

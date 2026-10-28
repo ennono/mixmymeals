@@ -513,13 +513,13 @@ class Mixmymeals_Privacy {
 		 * this is a fact about the selection, not a new kind of data, and it
 		 * is said wherever the selection is described.
 		 */
-		$items['planner'] .= ' ' . __( 'Where the planner lists several people, it also stores how many there are and which of them eat each recipe; they are numbered only (“Person 1”, “Person 2”), no names are asked for.', 'mixmymeals' );
+		$items['planner'] .= ' ' . __( 'Where the planner lists several people, it also stores how many there are, which of them eat each recipe and how many portions each of them eats; they are numbered only (“Person 1”, “Person 2”), no names are asked for.', 'mixmymeals' );
 
 		$items['share'] = sprintf(
 			/* translators: %d: number of days. */
 			_n(
-				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d day. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along are stored — no identifier of the person sharing. No copy exists unless someone shares.',
-				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d days. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along are stored — no identifier of the person sharing. No copy exists unless someone shares.',
+				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d day. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares.',
+				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d days. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares.',
 				$share_days,
 				'mixmymeals'
 			),
@@ -539,7 +539,7 @@ class Mixmymeals_Privacy {
 		$plans = __( 'Saving plans: a plan saved in the planner becomes a publicly accessible page showing its recipes, servings and weekdays.', 'mixmymeals' );
 		// Who eats what goes public with the plan, by number only. Names our
 		// editors may note in the administration stay there (3.70.0).
-		$plans .= ' ' . __( 'Where a plan lists several people, which of them eat each meal is saved with it and the page shows nutrition figures for each of them, naming them by number only (“Person 1”, “Person 2”); names our editors may note for them in the administration are not published.', 'mixmymeals' );
+		$plans .= ' ' . __( 'Where a plan lists several people, which of them eat each meal and how many portions each eats is saved with it and the page shows nutrition figures for each of them, naming them by number only (“Person 1”, “Person 2”); names our editors may note for them in the administration are not published.', 'mixmymeals' );
 		if ( $public_mode ) {
 			$plans .= ' ' . ( 'on' === (string) get_option( 'mixmymeals_save_meal_plans_published_by_visitors_as_draft', '' )
 				? __( 'Plans saved by visitors who are not logged in are first stored as drafts and only appear publicly once we publish them; no name is stored with them.', 'mixmymeals' )

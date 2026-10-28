@@ -7,7 +7,8 @@
  * Checks that a plan without people computes exactly what it computed
  * before (against a frozen copy of the 3.69.0 rule), that a breakfast for
  * one person counts only for them, that each person is divided by their own
- * days, that "too little" needs a whole day of that person, that the
+ * days, that portions per person (usual, per meal, the step setting) scale
+ * that person's figures and nothing else, that "too little" needs a whole day of that person, that the
  * shopping list ignores eaters entirely, the round trips through the two
  * meta-box callbacks, the planner and the plan page printing one table per
  * person byte for byte, and that no name an editor gave reaches public
@@ -351,7 +352,7 @@ try {
 			$new_meal = new Mixmymeals_Meal( $child->ID );
 		}
 	}
-	$ok( 'the new row: eaten by person 2, two servings (one per person)', $new_meal && array( 'p2' ) === $new_meal->get_eaters() && 2 === $new_meal->get_servings() );
+	$ok( 'the new row: eaten by person 2, one serving (what its eaters eat)', $new_meal && array( 'p2' ) === $new_meal->get_eaters() && 1 === $new_meal->get_servings() );
 	if ( $new_meal ) {
 		wp_delete_post( $new_meal->get_id(), true );
 		Mixmymeals_Meal_Plan::flush_meals_cache( $plan_id );
@@ -505,7 +506,7 @@ try {
 	);
 	$created = rest_get_server()->dispatch( $create );
 	$data    = (array) $created->get_data();
-	$ok( 'REST /meals: one serving per person by default, unknown eater dropped', 201 === $created->get_status() && 2 === ( $data['servings'] ?? 0 ) && array( 'p1' ) === ( $data['eaters'] ?? null ) );
+	$ok( 'REST /meals: servings default to what its eaters eat, unknown eater dropped', 201 === $created->get_status() && 1 === ( $data['servings'] ?? 0 ) && array( 'p1' ) === ( $data['eaters'] ?? null ) );
 	if ( ! empty( $data['id'] ) ) {
 		wp_delete_post( (int) $data['id'], true );
 		Mixmymeals_Meal_Plan::flush_meals_cache( $plan_id );
@@ -535,6 +536,175 @@ try {
 	$ok( 'and the context is restored afterwards', abs( Mixmymeals_Meal_Plan::reference_intake()['calories'] - 2400.0 ) > 0.1 );
 	remove_filter( 'mixmymeals_eater_profiles', $profile_filter );
 	remove_filter( 'mixmymeals_reference_intake', $intake_filter, 10 );
+
+	echo PHP_EOL . '-- 10. Portions per person' . PHP_EOL;
+
+	wp_set_current_user( 1 );
+	$step_before = get_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION, null );
+	delete_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION );
+
+	$pp_id = $make_post( array( 'post_type' => 'mmm_meal_plan', 'post_title' => 'T Portionenplan' ) );
+	update_post_meta( $pp_id, 'start_day', 1 );
+	update_post_meta( $pp_id, 'end_day', 1 );
+
+	$pp = new Mixmymeals_Meal_Plan( $pp_id );
+	$pp->set_eaters(
+		array(
+			array( 'id' => 'p1' ),
+			array(
+				'id'       => 'p2',
+				'portions' => '0,5',
+			),
+		)
+	);
+	$pp = new Mixmymeals_Meal_Plan( $pp_id );
+
+	$pp_meal = array();
+	foreach ( array( 'b' => array( $rb, 'breakfast' ), 'd' => array( $rd, 'dinner' ) ) as $key => $m ) {
+		$meal = Mixmymeals_Meal::create( 'T Mahlzeit', $pp_id );
+		$meal->set_recipe_id( $m[0] );
+		$meal->set_servings( 2 );
+		$meal->set_day( 1 );
+		$meal->set_type( $m[1] );
+		$pp_meal[ $key ] = $meal;
+	}
+	Mixmymeals_Meal_Plan::flush_meals_cache( $pp_id );
+
+	$pp_shopping = serialize( $pp->calc_shopping_list() );
+	$kcal_of     = static fn( Mixmymeals_Meal_Plan $plan ): float => (float) $plan->calc_nutrition_per_day_person()['average']['calories'];
+
+	$ok( 'a usual portion of "0,5" is stored as 0.5', 0.5 === array_column( $pp->get_eaters(), 'portions', 'id' )['p2'] );
+	$ok( 'person 1 at one portion of each meal', abs( $kcal_of( $pp->for_eater( 'p1' ) ) - ( $cal_b + $cal_d ) ) < 0.001 );
+	$ok( 'person 2 at half a portion eats half of every figure', abs( $kcal_of( $pp->for_eater( 'p2' ) ) - 0.5 * ( $cal_b + $cal_d ) ) < 0.001 );
+	$ok( 'the plan as a whole still counts one portion each', abs( $kcal_of( $pp ) - ( $cal_b + $cal_d ) ) < 0.001 );
+
+	$pp_meal['d']->set_eater_portions( array( 'p2' => 1.5, 'p1' => 1 ) );
+	$ok( 'a meal of its own: only what differs from the usual is stored', array( 'p2' => 1.5 ) === get_post_meta( $pp_meal['d']->get_id(), Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
+	$ok( 'and read for everybody who eats it', array( 'p1' => 1.0, 'p2' => 1.5 ) === $pp_meal['d']->get_eater_portions() );
+	$ok( 'person 2: half a breakfast, one and a half dinners', abs( $kcal_of( $pp->for_eater( 'p2' ) ) - ( 0.5 * $cal_b + 1.5 * $cal_d ) ) < 0.001 );
+	$ok( 'the shopping list does not move (serialize)', $pp_shopping === serialize( $pp->calc_shopping_list() ) );
+
+	$pp_meal['b']->set_eater_portions( array( 'p2' => 0, 'p1' => -1, 'zz' => 2 ) );
+	$ok( 'zero, negatives and unknown people are not stored', '' === get_post_meta( $pp_meal['b']->get_id(), Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
+	$pp_meal['b']->set_eater_portions( array( 'p2' => 11 ) );
+	$ok( 'nor more than PORTIONS_MAX', '' === get_post_meta( $pp_meal['b']->get_id(), Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
+
+	$weights = $pp->for_eater( 'p2' )->get_ingredient_portion_weights();
+	$ok( 'the product comparison weighs what person 2 eats', abs( (float) $weights[ $ing ]['grams_person'] - ( 0.5 * 100 + 1.5 * 300 ) ) < 0.001 );
+
+	echo PHP_EOL . '-- 11. The step is a setting' . PHP_EOL;
+
+	$ok( 'quarters by default: 0.3 is 0.25', 0.25 === Mixmymeals_Meal_Plan::normalise_portion( '0.3' ) );
+	update_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION, '0.5' );
+	$ok( 'halves: 0.7 is 0.5, 0.8 is 1', 0.5 === Mixmymeals_Meal_Plan::normalise_portion( '0.7' ) && 1.0 === Mixmymeals_Meal_Plan::normalise_portion( '0,8' ) );
+	$ok( 'never below one step', 0.5 === Mixmymeals_Meal_Plan::normalise_portion( '0.1' ) );
+	update_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION, 'any' );
+	$ok( 'any amount: 0.7 stays', 0.7 === Mixmymeals_Meal_Plan::normalise_portion( '0.7' ) );
+	update_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION, '1' );
+	$ok( 'whole portions only: a stored 1.5 is read as stored', array( 'p1' => 1.0, 'p2' => 1.5 ) === $pp_meal['d']->get_eater_portions() );
+	$ok( 'an unknown setting is the default', 'zz' !== Mixmymeals_Meal_Plan::sanitize_portion_step( 'zz' ) && Mixmymeals_Meal_Plan::PORTION_STEP_DEFAULT === Mixmymeals_Meal_Plan::sanitize_portion_step( 'zz' ) );
+	delete_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION );
+
+	echo PHP_EOL . '-- 12. Servings start from the portions, then stay free' . PHP_EOL;
+
+	$ok( 'one adult and a half: two servings', 2 === $pp->default_servings() );
+	$ok( 'only person 2 at 1.5 of one meal: two servings', 2 === $pp->default_servings( array( 'p2' ), array( 'p2' => 1.5 ) ) );
+	$ok( 'only person 2 at half: one serving', 1 === $pp->default_servings( array( 'p2' ) ) );
+
+	$create = new WP_REST_Request( 'POST', '/mixmymeals/v1/meals' );
+	$create->set_body_params(
+		array(
+			'plan_id'        => $pp_id,
+			'recipe_id'      => $rl,
+			'day'            => 1,
+			'type'           => 'lunch',
+			'eater_portions' => array( 'p2' => 2 ),
+		)
+	);
+	$created = rest_get_server()->dispatch( $create );
+	$data    = (array) $created->get_data();
+	$ok( 'REST /meals: 1 + 2 portions start at three servings', 201 === $created->get_status() && 3 === ( $data['servings'] ?? 0 ) );
+	$ok( 'and carries eater_portions', array( 'p1' => 1.0, 'p2' => 2.0 ) === ( $data['eater_portions'] ?? null ) );
+	if ( ! empty( $data['id'] ) ) {
+		wp_delete_post( (int) $data['id'], true );
+		Mixmymeals_Meal_Plan::flush_meals_cache( $pp_id );
+	}
+
+	echo PHP_EOL . '-- 13. Round trips through the two boxes' . PHP_EOL;
+
+	$post_pp = function ( array $rows ) use ( $pp_id, $meta ) {
+		$_POST                         = array();
+		$_POST['mmm_plan_meals_nonce'] = wp_create_nonce( 'mmm_plan_meals_meta_box' );
+		$_POST['mmm_plan_meals']       = $rows;
+		$meta->save_plan_meals( $pp_id );
+		$_POST = array();
+	};
+	$d_id = $pp_meal['d']->get_id();
+
+	ob_start();
+	$meta->render_meal_plan_overview_meta_box( get_post( $pp_id ) );
+	$box = (string) ob_get_clean();
+	$ok( 'the Meals box has a portions field per person', false !== strpos( $box, 'mmm_plan_meals[' . $d_id . '][portions][p2]' ) && false !== strpos( $box, 'value="1.5"' ) );
+
+	$post_pp( array( $d_id => array( 'eaters_shown' => '1', 'eaters' => array( 'p1', 'p2' ), 'portions' => array( 'p1' => '', 'p2' => '1,25' ) ) ) );
+	$ok( 'Meals box: 1,25 for person 2 is saved', array( 'p1' => 1.0, 'p2' => 1.25 ) === ( new Mixmymeals_Meal( $d_id ) )->get_eater_portions() );
+	$post_pp( array( $d_id => array( 'eaters_shown' => '1', 'eaters' => array( 'p1', 'p2' ), 'portions' => array( 'p2' => '' ) ) ) );
+	$ok( 'an emptied field is the usual amount again', '' === get_post_meta( $d_id, Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
+	$post_pp( array( $d_id => array( 'eaters_shown' => '1', 'eaters' => array( 'p1' ), 'portions' => array( 'p2' => '2' ) ) ) );
+	$ok( 'a figure for somebody not ticked is not kept', '' === get_post_meta( $d_id, Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
+	$post_pp( array( $d_id => array( 'eaters_shown' => '1', 'eaters' => array( 'p1', 'p2' ), 'portions' => array( 'p2' => '1.5' ) ) ) );
+
+	$_POST                          = array();
+	$_POST['mmm_plan_eaters_nonce'] = wp_create_nonce( 'mmm_plan_eaters_meta_box' );
+	$_POST['mmm_plan_eaters']       = array( 'p2' => array( 'portions' => '0,75' ) );
+	$meta->save_plan_eaters( $pp_id );
+	$_POST = array();
+	$ok( 'People box: person 2 usually eats 0.75', 0.75 === array_column( ( new Mixmymeals_Meal_Plan( $pp_id ) )->get_eaters(), 'portions', 'id' )['p2'] );
+	$ok( 'the breakfast follows, the dinner keeps its own 1.5', array( 'p1' => 1.0, 'p2' => 0.75 ) === $pp_meal['b']->get_eater_portions() && array( 'p1' => 1.0, 'p2' => 1.5 ) === $pp_meal['d']->get_eater_portions() );
+
+	echo PHP_EOL . '-- 14. Planner and plan page agree, portions included' . PHP_EOL;
+
+	$pp = new Mixmymeals_Meal_Plan( $pp_id );
+	wp_set_current_user( 0 );
+	$ajax( 'mmm_load_plan_into_cart', array( 'meal_plan_id' => $pp_id ) );
+	$cart = new Mixmymeals_Cart();
+	$ok( 'the planner gets the usual portions', array( 'p1' => 1.0, 'p2' => 0.75 ) === array_column( $cart->get_eaters(), 'portions', 'id' ) );
+	$ok( 'and the dinner\'s own figure, nothing else', array( array(), array( 'p2' => 1.5 ) ) === array_map( static fn( $i ) => $i['portions'] ?? null, $cart->get_items() ) );
+
+	$json  = $ajax( 'mmm_planner_nutrition', array( 'eater' => 'p2' ) );
+	$saved = (string) $reflect->invoke( $shortcodes, $pp, 'p2' );
+	$ok( 'planner table = plan page table for person 2, byte for byte', '' !== $saved && $saved === ( $json['data']['table'] ?? null ) );
+
+	$_POST = array( 'index' => 0, 'portions' => wp_slash( wp_json_encode( array( 'p2' => '2', 'zz' => '1' ) ) ) );
+	$ajax( 'mmm_update_cart_item', $_POST );
+	$ok( 'the planner writes an item\'s portions, unknown people dropped', array( 'p2' => 2.0 ) === ( ( new Mixmymeals_Cart() )->get_items()[0]['portions'] ?? null ) );
+
+	$ajax( 'mmm_cart_eaters', array( 'op' => 'portions', 'id' => 'p1', 'portions' => '1,5' ) );
+	$ok( 'and a person\'s usual portions', 1.5 === array_column( ( new Mixmymeals_Cart() )->get_eaters(), 'portions', 'id' )['p1'] );
+	( new Mixmymeals_Cart() )->clear();
+
+	echo PHP_EOL . '-- 15. One person at half portions' . PHP_EOL;
+
+	wp_set_current_user( 1 );
+	$pp->set_eaters(
+		array(
+			array(
+				'id'       => 'p1',
+				'portions' => 0.5,
+			),
+		)
+	);
+	$pp = new Mixmymeals_Meal_Plan( $pp_id );
+	$ok( 'one person is still no switch', ! $pp->has_eaters() );
+	$ok( 'but their portions count', abs( $kcal_of( $pp->for_eater( 'p1' ) ) - 0.5 * ( $cal_b + $cal_d ) ) < 0.001 );
+	$page = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $pp_id . '"]' );
+	$ok( 'on the page too, without switch or wrapper attributes', false === strpos( $page, 'mmm-eater-switch' ) && false !== strpos( $page, '<div class="mmm-meal-plan-nutrition">' ) && false !== strpos( $page, Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', 0.5 * ( $cal_b + $cal_d ) ) ) );
+
+	if ( null === $step_before ) {
+		delete_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION );
+	} else {
+		update_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION, $step_before );
+	}
 
 } finally {
 	if ( null === $limit_before ) {

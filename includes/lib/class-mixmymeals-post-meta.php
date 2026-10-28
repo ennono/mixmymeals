@@ -1100,7 +1100,7 @@ class Mixmymeals_Post_Meta {
 			echo '<td>' . self::meal_diet_select( $field . '[diet]', new Mixmymeals_Recipe( $meal_obj->get_recipe_id() ), $meal_obj->get_diet() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 
 			if ( $plan->has_eaters() ) {
-				echo '<td>' . self::meal_eaters_checkboxes( $field, $plan, $meal_obj->get_eaters() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+				echo '<td>' . self::meal_eaters_checkboxes( $field, $plan, $meal_obj->get_eaters(), $meal_obj->get_eater_portions_raw() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 			}
 
 			// The meal keeps its own screen: notes, status and everything else
@@ -1277,24 +1277,43 @@ class Mixmymeals_Post_Meta {
 	 * everybody is told apart from a screen that never showed it — and
 	 * means "all", as nobody always does.
 	 *
-	 * @param string               $field   Row's field prefix.
-	 * @param Mixmymeals_Meal_Plan $plan    The plan.
-	 * @param string[]             $current Ids ticked.
+	 * Beside each box the portions that person eats of this meal: empty is
+	 * their usual amount (People box), which the placeholder shows.
+	 *
+	 * @param string               $field    Row's field prefix.
+	 * @param Mixmymeals_Meal_Plan $plan     The plan.
+	 * @param string[]             $current  Ids ticked.
+	 * @param array                $portions The meal's own figures, id => portions.
 	 * @return string
 	 */
-	private static function meal_eaters_checkboxes( string $field, Mixmymeals_Meal_Plan $plan, array $current ): string {
+	private static function meal_eaters_checkboxes( string $field, Mixmymeals_Meal_Plan $plan, array $current, array $portions = array() ): string {
 
 		$names = $plan->get_eater_names();
+		$step  = Mixmymeals_Meal_Plan::portion_step();
 		$out   = '<input type="hidden" name="' . esc_attr( $field . '[eaters_shown]' ) . '" value="1">';
 
 		foreach ( $plan->get_eaters() as $person ) {
 			$name = (string) ( $names[ $person['id'] ] ?? '' );
+			$own  = in_array( $person['id'], $current, true ) ? Mixmymeals_Meal_Plan::normalise_portion( $portions[ $person['id'] ] ?? null, false ) : null;
 			$out .= sprintf(
-				'<label class="mmm-plan-meals__eater"><input type="checkbox" name="%1$s" value="%2$s"%3$s> %4$s</label> ',
+				'<span class="mmm-plan-meals__eater-group"><label class="mmm-plan-meals__eater"><input type="checkbox" name="%1$s" value="%2$s"%3$s> %4$s</label> <input type="number" class="small-text mmm-plan-meals__portions" name="%5$s" value="%6$s" placeholder="%7$s" min="%8$s" max="%9$s" step="%10$s" aria-label="%11$s"></span> ',
 				esc_attr( $field . '[eaters][]' ),
 				esc_attr( $person['id'] ),
 				in_array( $person['id'], $current, true ) ? ' checked' : '',
-				esc_html( '' !== $name ? $name : $person['label'] )
+				esc_html( '' !== $name ? $name : $person['label'] ),
+				esc_attr( $field . '[portions][' . $person['id'] . ']' ),
+				null === $own ? '' : esc_attr( (string) $own ),
+				esc_attr( (string) $person['portions'] ),
+				esc_attr( (string) ( $step > 0 ? $step : 0.05 ) ),
+				esc_attr( (string) Mixmymeals_Meal_Plan::PORTIONS_MAX ),
+				esc_attr( $step > 0 ? (string) $step : 'any' ),
+				esc_attr(
+					sprintf(
+						/* translators: %s: name or neutral label of a person. */
+						__( 'Portions %s eats of this meal', 'mixmymeals' ),
+						'' !== $name ? $name : $person['label']
+					)
+				)
 			);
 		}
 
@@ -1473,6 +1492,7 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'Person', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Name (wp-admin only)', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Profile', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Usual portions', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Remove', 'mixmymeals' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
@@ -1489,6 +1509,7 @@ class Mixmymeals_Post_Meta {
 				(int) Mixmymeals_Meal_Plan::EATER_NAME_MAX
 			);
 			echo '<td>' . self::eater_profile_select( $field . '[profile]', $profiles, $person['profile'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td>' . self::eater_portions_input( $field . '[portions]', (float) $person['portions'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 
 			// The last person cannot go: a plan without people is a plan
 			// of one person eating everything, which is what the list says.
@@ -1514,6 +1535,7 @@ class Mixmymeals_Post_Meta {
 				(int) Mixmymeals_Meal_Plan::EATER_NAME_MAX
 			);
 			echo '<td>' . self::eater_profile_select( 'mmm_plan_eaters[new][profile]', $profiles, Mixmymeals_Meal_Plan::DEFAULT_PROFILE ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td>' . self::eater_portions_input( 'mmm_plan_eaters[new][portions]', Mixmymeals_Meal_Plan::DEFAULT_PORTION ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 			echo '<td></td>';
 			// The block editor's second Save would add the person twice.
 			printf(
@@ -1524,6 +1546,28 @@ class Mixmymeals_Post_Meta {
 		}
 
 		echo '</tbody></table>';
+	}
+
+	/**
+	 * How much one person usually eats, in portions of a recipe — the
+	 * figure every meal starts from. Stepped as the setting says.
+	 *
+	 * @param string $name  Field name.
+	 * @param float  $value Current portions.
+	 * @return string
+	 */
+	private static function eater_portions_input( string $name, float $value ): string {
+
+		$step = Mixmymeals_Meal_Plan::portion_step();
+
+		return sprintf(
+			'<input type="number" class="small-text" name="%1$s" value="%2$s" min="%3$s" max="%4$s" step="%5$s">',
+			esc_attr( $name ),
+			esc_attr( (string) $value ),
+			esc_attr( (string) ( $step > 0 ? $step : 0.05 ) ),
+			esc_attr( (string) Mixmymeals_Meal_Plan::PORTIONS_MAX ),
+			esc_attr( $step > 0 ? (string) $step : 'any' )
+		);
 	}
 
 	/**
@@ -1599,9 +1643,11 @@ class Mixmymeals_Post_Meta {
 			}
 
 			$list[] = array(
-				'id'      => $person['id'],
-				'name'    => null !== $row && isset( $row['name'] ) ? (string) $row['name'] : (string) ( $names[ $person['id'] ] ?? '' ),
-				'profile' => null !== $row && isset( $row['profile'] ) ? (string) $row['profile'] : $person['profile'],
+				'id'       => $person['id'],
+				'name'     => null !== $row && isset( $row['name'] ) ? (string) $row['name'] : (string) ( $names[ $person['id'] ] ?? '' ),
+				'profile'  => null !== $row && isset( $row['profile'] ) ? (string) $row['profile'] : $person['profile'],
+				// An emptied field is the default portion, not a deletion.
+				'portions' => null !== $row && isset( $row['portions'] ) ? (string) $row['portions'] : $person['portions'],
 			);
 		}
 
@@ -1615,8 +1661,9 @@ class Mixmymeals_Post_Meta {
 				$list[] = array( 'id' => Mixmymeals_Meal_Plan::DEFAULT_EATER );
 			}
 			$list[] = array(
-				'name'    => (string) ( $new['name'] ?? '' ),
-				'profile' => (string) ( $new['profile'] ?? '' ),
+				'name'     => (string) ( $new['name'] ?? '' ),
+				'profile'  => (string) ( $new['profile'] ?? '' ),
+				'portions' => (string) ( $new['portions'] ?? '' ),
 			);
 		}
 
@@ -1693,16 +1740,19 @@ class Mixmymeals_Post_Meta {
 			$meal->set_day( absint( $row['day'] ) );
 		}
 
+		// Only where the column was shown; nobody ticked is everybody. The
+		// portions after the eaters, which they are checked against.
+		if ( ! empty( $row['eaters_shown'] ) ) {
+			$meal->set_eaters( array_map( 'sanitize_key', array_map( 'strval', (array) ( $row['eaters'] ?? array() ) ) ) );
+			$meal->set_eater_portions( is_array( $row['portions'] ?? null ) ? $row['portions'] : array() );
+		}
+
 		if ( isset( $row['servings'] ) && '' !== $row['servings'] ) {
 			$meal->set_servings( max( 1, absint( $row['servings'] ) ) );
 		} elseif ( ! empty( $row['token'] ) ) {
-			// The new row left empty: one serving per person of the plan.
-			$meal->set_servings( ( new Mixmymeals_Meal_Plan( (int) $meal->get_parent_plan_id() ) )->default_servings() );
-		}
-
-		// Only where the column was shown; nobody ticked is everybody.
-		if ( ! empty( $row['eaters_shown'] ) ) {
-			$meal->set_eaters( array_map( 'sanitize_key', array_map( 'strval', (array) ( $row['eaters'] ?? array() ) ) ) );
+			// The new row left empty: what its eaters eat of it together,
+			// rounded up (Mixmymeals_Meal_Plan::default_servings()).
+			$meal->set_servings( ( new Mixmymeals_Meal_Plan( (int) $meal->get_parent_plan_id() ) )->default_servings( $meal->get_eaters(), $meal->get_eater_portions_raw() ) );
 		}
 
 		// After the recipe, because set_diet() checks the diet against it,

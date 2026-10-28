@@ -542,6 +542,24 @@ class Mixmymeals_Admin_API {
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
+			case 'eater_portion_step':
+				$current = '' !== (string) $data ? (string) $data : Mixmymeals_Meal_Plan::PORTION_STEP_DEFAULT;
+
+				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
+
+				foreach ( Mixmymeals_Meal_Plan::portion_steps() as $step => $label ) {
+					$html .= sprintf(
+						'<option value="%s"%s>%s</option>',
+						esc_attr( $step ),
+						selected( $current, $step, false ),
+						esc_html( $label )
+					);
+				}
+
+				$html .= '</select>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
 			case 'plan_subscribe_mode':
 				// What the code acts on, so a legacy value shows as what it now means.
 				$current = Mixmymeals_Subscriptions::save_offer_mode();

@@ -80,8 +80,9 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$day  = (int) ( $row['day'] ?? 0 );
-			$type = (string) ( $row['type'] ?? '' );
+			$day    = (int) ( $row['day'] ?? 0 );
+			$type   = (string) ( $row['type'] ?? '' );
+			$eating = self::clean_eaters( $row['eaters'] ?? array(), $ids );
 
 			$plan->rows[] = array(
 				// Kept where the row came from a saved meal, so a plan
@@ -98,8 +99,11 @@ class Mixmymeals_Meal_Plan {
 				// NONE (the original recipe) is kept, since it settles the dish too.
 				'diet'      => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
 				// Who eats it; never empty — nobody named means everybody.
-				'eaters'    => self::clean_eaters( $row['eaters'] ?? array(), $ids ),
-			);
+				'eaters'    => $eating,
+				// How much each of them eats: their own figure for this meal,
+				// else their usual one (resolve_portions()).
+				'portions'  => $plan->resolve_portions( (array) ( $row['portions'] ?? array() ), $eating ),
+			) + ( isset( $row['portion'] ) ? array( 'portion' => (float) $row['portion'] ) : array() );
 		}
 
 		return $plan;
@@ -114,10 +118,13 @@ class Mixmymeals_Meal_Plan {
 	 * `diet` is what the meal cooks its recipe as; read the dish through
 	 * row_recipe(), never through `new Mixmymeals_Recipe( $row['recipe_id'] )`.
 	 *
-	 * `eaters` is who eats it (clean_eaters(): never empty). Only the
-	 * per-person figures read it — for_eater() — never the shopping list.
+	 * `eaters` is who eats it (clean_eaters(): never empty), `portions` how
+	 * many portions each of them eats (resolve_portions()). Only the
+	 * per-person figures read them — for_eater() — never the shopping list.
+	 * A row of for_eater() carries `portion`, that one person's factor,
+	 * which calc_nutrition() and get_ingredient_portion_weights() apply.
 	 *
-	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string, diet:string, eaters:string[]}>
+	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string, diet:string, eaters:string[], portions:array<string,float>}>
 	 */
 	public function get_meal_rows(): array {
 
@@ -130,7 +137,8 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->get_meals() as $meal_post ) {
 
-			$meal = new Mixmymeals_Meal( $meal_post->ID );
+			$meal   = new Mixmymeals_Meal( $meal_post->ID );
+			$eating = self::clean_eaters( $meal->get_eaters_raw(), $ids );
 
 			$rows[] = array(
 				'meal_id'   => (int) $meal_post->ID,
@@ -139,7 +147,8 @@ class Mixmymeals_Meal_Plan {
 				'day'       => $meal->get_day(),
 				'type'      => (string) $meal->get_type(),
 				'diet'      => $meal->get_diet(),
-				'eaters'    => self::clean_eaters( $meal->get_eaters_raw(), $ids ),
+				'eaters'    => $eating,
+				'portions'  => $this->resolve_portions( $meal->get_eater_portions_raw(), $eating ),
 			);
 		}
 
@@ -320,9 +329,11 @@ class Mixmymeals_Meal_Plan {
 			$name    = mb_substr( trim( sanitize_text_field( (string) ( $entry['name'] ?? '' ) ) ), 0, self::EATER_NAME_MAX );
 
 			$person = array(
-				'id'      => '',
-				'name'    => $name,
-				'profile' => isset( $profiles[ $profile ] ) ? $profile : self::DEFAULT_PROFILE,
+				'id'       => '',
+				'name'     => $name,
+				'profile'  => isset( $profiles[ $profile ] ) ? $profile : self::DEFAULT_PROFILE,
+				// How much this person usually eats, in portions of a recipe.
+				'portions' => self::normalise_portion( $entry['portions'] ?? null ) ?? self::DEFAULT_PORTION,
 			);
 
 			if ( self::is_eater_id( $id ) && ! isset( $taken[ $id ] ) ) {
@@ -368,9 +379,10 @@ class Mixmymeals_Meal_Plan {
 		if ( ! $list ) {
 			$list = array(
 				array(
-					'id'      => self::DEFAULT_EATER,
-					'name'    => '',
-					'profile' => self::DEFAULT_PROFILE,
+					'id'       => self::DEFAULT_EATER,
+					'name'     => '',
+					'profile'  => self::DEFAULT_PROFILE,
+					'portions' => self::DEFAULT_PORTION,
 				),
 			);
 		}
@@ -385,7 +397,10 @@ class Mixmymeals_Meal_Plan {
 	 *
 	 * A plan without a list has one: DEFAULT_EATER, eating everything.
 	 *
-	 * @return array<int, array{id:string, position:int, label:string, profile:string}>
+	 * `portions` is how much the person usually eats, in portions of a
+	 * recipe — what each meal starts from (resolve_portions()).
+	 *
+	 * @return array<int, array{id:string, position:int, label:string, profile:string, portions:float}>
 	 */
 	public function get_eaters(): array {
 
@@ -397,6 +412,7 @@ class Mixmymeals_Meal_Plan {
 				'position' => $i + 1,
 				'label'    => self::eater_label( $i + 1 ),
 				'profile'  => $person['profile'],
+				'portions' => (float) ( $person['portions'] ?? self::DEFAULT_PORTION ),
 			);
 		}
 
@@ -436,7 +452,7 @@ class Mixmymeals_Meal_Plan {
 
 		$people = self::sanitize_eaters( $people );
 
-		if ( ! $people || ( 1 === count( $people ) && '' === $people[0]['name'] && self::DEFAULT_PROFILE === $people[0]['profile'] && self::DEFAULT_EATER === $people[0]['id'] ) ) {
+		if ( ! $people || ( 1 === count( $people ) && '' === $people[0]['name'] && self::DEFAULT_PROFILE === $people[0]['profile'] && self::DEFAULT_EATER === $people[0]['id'] && self::DEFAULT_PORTION === $people[0]['portions'] ) ) {
 			delete_post_meta( $this->post_id, self::EATERS_META );
 			return;
 		}
@@ -518,7 +534,8 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * The plan as one person eats it: only the meals that person eats.
+	 * The plan as one person eats it: only the meals that person eats, each
+	 * at the portions they eat of it (the row's `portion`).
 	 *
 	 * The one method behind every figure "per day and person" for a plan
 	 * with several people. Nothing is computed here — the result is a plan
@@ -537,17 +554,25 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public function for_eater( string $id ): self {
 
-		if ( ! $this->has_eaters() ) {
-			return $this;
-		}
-
 		$id   = $this->resolve_eater( $id );
 		$rows = array();
+		$same = ! $this->has_eaters();
 
 		foreach ( $this->get_meal_rows() as $row ) {
 			if ( in_array( $id, (array) ( $row['eaters'] ?? array() ), true ) ) {
-				$rows[] = $row;
+				$row['portion'] = (float) ( $row['portions'][ $id ] ?? self::DEFAULT_PORTION );
+				$same           = $same && self::DEFAULT_PORTION === $row['portion'];
+				$rows[]         = $row;
 			}
+		}
+
+		/*
+		 * A plan whose one person eats one portion of everything is that
+		 * person already: handing it back unchanged is what keeps every
+		 * figure of a plan without people byte for byte what it was.
+		 */
+		if ( $same ) {
+			return $this;
 		}
 
 		$plan          = self::from_meal_rows( $rows, $this->eaters_raw() );
@@ -593,14 +618,191 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * The servings a new meal of this plan starts with: one per person.
-	 * Only a default — servings stay free, for leftovers and guests.
+	 * The servings a new meal of this plan starts with: what its people
+	 * usually eat together, rounded up to whole servings (two adults and a
+	 * child at half a portion start at three). Only a default — servings
+	 * stay free, for leftovers and guests, and the shopping list reads
+	 * nothing else.
 	 *
+	 * @param string[]|null $eaters   Who eats the meal; null for everybody.
+	 * @param array         $portions What they eat of it where it differs
+	 *                                from their usual (resolve_portions()).
 	 * @return int
 	 */
-	public function default_servings(): int {
+	public function default_servings( ?array $eaters = null, array $portions = array() ): int {
 
-		return max( 1, count( $this->eaters_raw() ) );
+		$sum = array_sum( $this->resolve_portions( $portions, self::clean_eaters( $eaters ?? array(), $this->eater_ids() ) ) );
+
+		// A float sum of quarters is exact, but 2.0000000001 must not become 3.
+		return max( 1, (int) ceil( round( $sum, 3 ) ) );
+	}
+
+	/*
+	 * ---------------------------------------------------------------------
+	 * Portions per person
+	 * ---------------------------------------------------------------------
+	 *
+	 * How much a person eats is two numbers: what they usually eat
+	 * (`portions` on the person) and, where a meal differs, what they eat
+	 * of that meal (Mixmymeals_Meal::META_EATER_PORTIONS). Both are portions
+	 * of a recipe — one serving as the recipe defines it — so a child at
+	 * 0.5 eats half of every figure a serving states.
+	 */
+
+	/** The portions a person eats where nobody said otherwise. */
+	const DEFAULT_PORTION = 1.0;
+
+	/** The most portions one person can eat of one meal. */
+	const PORTIONS_MAX = 10.0;
+
+	/** Option: how finely portions per person are entered. */
+	const PORTION_STEP_OPTION = 'mixmymeals_eater_portion_step';
+
+	/** The step a site gets before it sets one. */
+	const PORTION_STEP_DEFAULT = '0.25';
+
+	/**
+	 * The steps the setting offers, value => label. "any" is any amount.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function portion_steps(): array {
+
+		return array(
+			'0.25' => __( 'Quarters (0.25, 0.5, 0.75 …)', 'mixmymeals' ),
+			'0.5'  => __( 'Halves (0.5, 1, 1.5 …)', 'mixmymeals' ),
+			'1'    => __( 'Whole portions only', 'mixmymeals' ),
+			'any'  => __( 'Any amount (e.g. 0.7)', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The step in force: 0.25, 0.5 or 1, or 0.0 for any amount.
+	 *
+	 * @return float
+	 */
+	public static function portion_step(): float {
+
+		$stored = (string) get_option( self::PORTION_STEP_OPTION, self::PORTION_STEP_DEFAULT );
+		$stored = isset( self::portion_steps()[ $stored ] ) ? $stored : self::PORTION_STEP_DEFAULT;
+
+		return 'any' === $stored ? 0.0 : (float) $stored;
+	}
+
+	/**
+	 * Sanitiser of the step setting.
+	 *
+	 * @param mixed $input Posted value.
+	 * @return string
+	 */
+	public static function sanitize_portion_step( $input ): string {
+
+		$input = (string) $input;
+
+		return isset( self::portion_steps()[ $input ] ) ? $input : self::PORTION_STEP_DEFAULT;
+	}
+
+	/**
+	 * A number of portions as entered: a decimal comma is fine, it is
+	 * snapped to the step in force (never below one step), and nothing,
+	 * zero, a negative or more than PORTIONS_MAX is null — "not stated".
+	 * Not eating a meal is said by not ticking it, not by a zero.
+	 *
+	 * @param mixed $raw  Value.
+	 * @param bool  $snap Snap to the step; reads leave stored values alone,
+	 *                    so changing the setting rewrites nothing.
+	 * @return float|null
+	 */
+	public static function normalise_portion( $raw, bool $snap = true ): ?float {
+
+		if ( null === $raw || is_array( $raw ) ) {
+			return null;
+		}
+
+		$raw = str_replace( ',', '.', trim( (string) $raw ) );
+
+		if ( '' === $raw || ! is_numeric( $raw ) ) {
+			return null;
+		}
+
+		$value = (float) $raw;
+
+		if ( $value <= 0 || $value > self::PORTIONS_MAX ) {
+			return null;
+		}
+
+		$step = $snap ? self::portion_step() : 0.0;
+
+		if ( $step > 0 ) {
+			$value = max( $step, round( $value / $step ) * $step );
+		}
+
+		return round( $value, 3 );
+	}
+
+	/**
+	 * How many portions each eater of a meal eats: their own figure for the
+	 * meal where it is a valid one, else what the person usually eats.
+	 *
+	 * @param array    $given  Raw per-meal figures, id => portions.
+	 * @param string[] $eaters Who eats the meal (clean_eaters()).
+	 * @return array<string,float>
+	 */
+	public function resolve_portions( array $given, array $eaters ): array {
+
+		$usual = array_column( $this->eaters_raw(), 'portions', 'id' );
+		$out   = array();
+
+		foreach ( $eaters as $id ) {
+			$out[ $id ] = self::normalise_portion( $given[ $id ] ?? null, false )
+				?? (float) ( $usual[ $id ] ?? self::DEFAULT_PORTION );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The per-meal figures worth storing: valid, snapped, only for people
+	 * who eat the meal, and only where they differ from what that person
+	 * usually eats — so changing the person's usual amount reaches every
+	 * meal that never said otherwise.
+	 *
+	 * @param mixed    $given  Raw id => portions (or a JSON object string).
+	 * @param string[] $eaters Who eats the meal.
+	 * @return array<string,float>
+	 */
+	public function clean_portion_overrides( $given, array $eaters ): array {
+
+		if ( is_string( $given ) ) {
+			$given = json_decode( $given, true );
+		}
+
+		$usual = array_column( $this->eaters_raw(), 'portions', 'id' );
+		$out   = array();
+
+		foreach ( (array) $given as $id => $raw ) {
+			$id    = sanitize_key( (string) $id );
+			$value = self::normalise_portion( $raw );
+
+			if ( null !== $value && in_array( $id, $eaters, true ) && abs( $value - (float) ( $usual[ $id ] ?? self::DEFAULT_PORTION ) ) > 0.0001 ) {
+				$out[ $id ] = $value;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * A number of portions as printed: "1", "0,5", "1,25".
+	 *
+	 * @param float $portions Portions.
+	 * @return string
+	 */
+	public static function format_portions( float $portions ): string {
+
+		$decimals = abs( $portions - round( $portions ) ) < 0.0001 ? 0 : ( abs( $portions * 2 - round( $portions * 2 ) ) < 0.0001 ? 1 : 2 );
+
+		return number_format_i18n( $portions, $decimals );
 	}
 
 	public function get_id(): int {
@@ -2227,16 +2429,19 @@ class Mixmymeals_Meal_Plan {
 
 			$per_serving   = $recipe->calculate_nutrition_per_serving();
 			$meal_servings = max( 0.01, (float) $row['servings'] );
+			// One portion per meal, unless the plan is one person's
+			// (for_eater()) and they eat more or less of this one.
+			$portion = (float) ( $row['portion'] ?? self::DEFAULT_PORTION );
 
 			$result['servings']      += $meal_servings;
-			$result['weight_person'] += (float) ( $per_serving['weight_per_serving'] ?? 0.0 );
+			$result['weight_person'] += (float) ( $per_serving['weight_per_serving'] ?? 0.0 ) * $portion;
 			++$result['meals'];
 
 			foreach ( self::NUTRITION_KEYS as $key ) {
 				$value = (float) ( $per_serving[ $key ] ?? 0.0 );
 
 				$result['totals'][ $key ]     += $value * $meal_servings;
-				$result['per_person'][ $key ] += $value;
+				$result['per_person'][ $key ] += $value * $portion;
 			}
 		}
 
@@ -2797,7 +3002,8 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$servings = max( 1.0, (float) $recipe->get_servings() );
+			// The portions one person eats of this meal (for_eater()), else one.
+			$servings = max( 1.0, (float) $recipe->get_servings() ) / (float) ( $row['portion'] ?? self::DEFAULT_PORTION );
 
 			/*
 			 * get_ingredients_scaled() returns one row per step, so an

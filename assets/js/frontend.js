@@ -159,11 +159,11 @@ jQuery(function ($) {
 
         mmmClosePlannerDialog();
 
-        // On the planner itself, a new meal starts with one serving per
-        // person it lists; the field stays free.
-        const eaterCount = parseInt($('.mmm-plan-builder').attr('data-eater-count'), 10) || 0;
-        if (eaterCount > 1) {
-            defaultServings = eaterCount;
+        // On the planner itself, a new meal starts with what its people
+        // usually eat together; the field stays free.
+        const plannerServings = parseInt($('.mmm-plan-builder').attr('data-default-servings'), 10) || 0;
+        if (plannerServings > 0) {
+            defaultServings = plannerServings;
         }
 
         let typeOptions = '<option value="">' + (labels.no_type || '—') + '</option>';
@@ -791,6 +791,27 @@ jQuery(function ($) {
 
     /* Adding or removing a person changes every item's checkboxes, which
        are the server's to render: reload once the cart has the list. */
+    /* What one of the planner's people usually eats: every recipe that does
+       not say otherwise follows, so the page is drawn again. */
+    $(document).on('change', '[data-plan-eaters] .mmm-plan-eaters__portions', function () {
+        const $field = $(this);
+        mmmSetBusy($field, true);
+
+        mmmPost('mmm_cart_eaters', { op: 'portions', id: $field.attr('data-eater'), portions: $field.val() })
+            .done(function (response) {
+                if (response && response.success) {
+                    window.location.reload();
+                    return;
+                }
+                mmmSetBusy($field, false);
+                mmmHandleAjaxError(response, { fallbackMessage: 'Error.' });
+            })
+            .fail(function (xhr) {
+                mmmSetBusy($field, false);
+                mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
+            });
+    });
+
     $(document).on('click', '[data-plan-eaters] [data-eater-add], [data-plan-eaters] [data-eater-remove]', function (e) {
         e.preventDefault();
         const $btn = $(this);
@@ -822,12 +843,47 @@ jQuery(function ($) {
             $set.find('.mmm-plan-item-eater__input').prop('checked', true);
         }
 
+        // A person's portions only count while they eat along.
+        $set.find('.mmm-plan-item-eater__input').each(function () {
+            $(this).closest('.mmm-plan-item-eater-group')
+                .find('.mmm-plan-item-eater__portions').prop('disabled', !this.checked);
+        });
+
         mmmSavePlanChange({
             index: item.data('index'),
             field: 'eaters',
             value: mmmItemEaters(item).join(',')
         }).always(mmmRefreshPlannerNutrition);
     });
+
+    /* How much one person eats of a planner item; empty is their usual. */
+    $(document).on('change', '.mmm-plan-item-eater__portions', function () {
+        const item = $(this).closest('.mmm-plan-item');
+
+        mmmSavePlanChange({
+            index: item.data('index'),
+            field: 'portions',
+            value: JSON.stringify(mmmItemPortions(item))
+        }).always(mmmRefreshPlannerNutrition);
+    });
+
+    /**
+     * The portions entered on a planner item for the people who eat it,
+     * {id: portions}; an empty field is that person's usual amount.
+     *
+     * @param {jQuery} item The .mmm-plan-item.
+     * @return {Object}
+     */
+    function mmmItemPortions(item) {
+        const out = {};
+        item.find('.mmm-plan-item-eater__portions:enabled').each(function () {
+            const value = (this.value || '').trim();
+            if (value !== '') {
+                out[this.getAttribute('data-eater')] = value;
+            }
+        });
+        return out;
+    }
 
     /**
      * The ids ticked on a planner item; [] where it has no boxes, which is
@@ -1082,6 +1138,7 @@ jQuery(function ($) {
                 type: el.find('.mmm-plan-item-type').val(),
                 diet: el.find('.mmm-plan-item-diet').val() || '',
                 eaters: mmmItemEaters(el).join(','),
+                portions: JSON.stringify(mmmItemPortions(el)),
                 note: el.find('.mmm-plan-item-note').val(),
                 day: (dayList >= 1 && dayList <= 7) ? dayList : null
             });

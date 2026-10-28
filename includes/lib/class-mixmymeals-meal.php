@@ -36,6 +36,13 @@ class Mixmymeals_Meal {
 	 */
 	const META_EATERS = '_mmm_eaters';
 
+	/**
+	 * How much each eater eats of this meal, where it differs from what the
+	 * person usually eats: id => portions. No row, or no entry for a person,
+	 * is their usual amount (Mixmymeals_Meal_Plan::resolve_portions()).
+	 */
+	const META_EATER_PORTIONS = '_mmm_eater_portions';
+
 	/** Option guarding the one-off move of `note` meta into the text. */
 	const TEXT_MIGRATION_OPTION  = 'mixmymeals_meal_text_version';
 	const TEXT_MIGRATION_VERSION = '1';
@@ -237,6 +244,56 @@ class Mixmymeals_Meal {
 		}
 
 		update_post_meta( $this->post_id, self::META_EATERS, $clean );
+	}
+
+	/**
+	 * The per-meal portions as stored, unchecked. For
+	 * Mixmymeals_Meal_Plan::get_meal_rows(); everything else reads
+	 * get_eater_portions().
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function get_eater_portions_raw(): array {
+
+		$stored = get_post_meta( $this->post_id, self::META_EATER_PORTIONS, true );
+
+		return is_array( $stored ) ? $stored : array();
+	}
+
+	/**
+	 * How many portions each eater eats of this meal, id => portions, for
+	 * everybody who eats it: their figure for this meal, else their usual.
+	 *
+	 * @return array<string,float>
+	 */
+	public function get_eater_portions(): array {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return $plan->resolve_portions( $this->get_eater_portions_raw(), $this->get_eaters() );
+	}
+
+	/**
+	 * Stores how much each eater eats of this meal. Checked against the
+	 * parent plan and who eats the meal, so set the plan and the eaters
+	 * first; a figure equal to the person's usual amount is not stored, and
+	 * neither is an invalid one (Mixmymeals_Meal_Plan::clean_portion_overrides()).
+	 *
+	 * @param array|string $portions id => portions (or a JSON object); empty
+	 *                               returns everybody to their usual amount.
+	 * @return void
+	 */
+	public function set_eater_portions( $portions ): void {
+
+		$plan  = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+		$clean = $plan->clean_portion_overrides( $portions, $this->get_eaters() );
+
+		if ( ! $clean ) {
+			delete_post_meta( $this->post_id, self::META_EATER_PORTIONS );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_EATER_PORTIONS, $clean );
 	}
 
 	/**

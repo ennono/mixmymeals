@@ -280,9 +280,13 @@ class Mixmymeals_Rest_Api {
 						'type'        => 'string',
 						'description' => 'Name for editors only; never published.',
 					),
-					'profile' => array(
+					'profile'  => array(
 						'type'        => 'string',
 						'description' => 'Reference-intake profile; only "adult" exists so far.',
+					),
+					'portions' => array(
+						'type'        => 'number',
+						'description' => 'Portions this person usually eats of a meal (default 1, at most 10), snapped to the site\'s step. A meal can say otherwise (eater_portions).',
 					),
 				),
 			),
@@ -293,6 +297,11 @@ class Mixmymeals_Rest_Api {
 			'type'        => 'array',
 			'items'       => array( 'type' => 'string' ),
 			'description' => 'Ids of the plan\'s people who eat this meal. Unknown ids are dropped; [] (or nobody left) means everybody.',
+		);
+		$meal_portions_arg = array(
+			'required'    => false,
+			'type'        => 'object',
+			'description' => 'Portions each eater eats of this meal where it differs from their usual, {"p2": 0.5}. Replaces what was stored; {} returns everybody to their usual amount. Only for people who eat the meal.',
 		);
 		$id_arg = array( 'validate_callback' => static fn( $v ) => is_numeric( $v ), 'sanitize_callback' => 'absint' );
 
@@ -618,9 +627,9 @@ class Mixmymeals_Rest_Api {
 		register_rest_route( 'mixmymeals/v1', '/equipment/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_equipment' ),     'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft' ) ), 'categories' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'integer' ) ), 'affiliate_links' => array( 'required' => false, 'type' => 'array', 'items' => array( 'type' => 'object' ) ), 'content' => array( 'required' => false, 'type' => 'string' ), 'featured_image' => array( 'required' => false, 'type' => 'integer' ) ) ) );
 
 		// ── Meals ─────────────────────────────────────────────────────────
-		register_rest_route( 'mixmymeals/v1', '/meals', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'plan_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'recipe_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'servings' => array( 'required' => false, 'type' => 'integer', 'description' => 'Default: one per person of the plan.' ), 'type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' ) ), 'text' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'diet' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_key', 'description' => 'How the recipe is cooked: one of the meal\'s diet_options ("_none" = the original recipe, as written). Only where the recipe offers a choice, and then always settled — anything else, or nothing, stores the first option.' ), 'eaters' => $meal_eaters_arg, 'day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meals', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'create_meal' ), 'permission_callback' => $auth, 'args' => array( 'title' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ), 'plan_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'recipe_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'servings' => array( 'required' => false, 'type' => 'integer', 'description' => 'Default: one per person of the plan.' ), 'type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' ) ), 'text' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'diet' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_key', 'description' => 'How the recipe is cooked: one of the meal\'s diet_options ("_none" = the original recipe, as written). Only where the recipe offers a choice, and then always settled — anything else, or nothing, stores the first option.' ), 'eaters' => $meal_eaters_arg, 'eater_portions' => $meal_portions_arg, 'day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'status' => array( 'required' => false, 'type' => 'string', 'default' => 'publish', 'enum' => array( 'publish', 'draft' ) ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => array( $this, 'get_meal' ),    'permission_callback' => '__return_true', 'args' => array( 'id' => $id_arg ) ) );
-		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'plan_id' => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'recipe_id' => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'servings' => array( 'required' => false, 'type' => 'integer' ), 'type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' ) ), 'text' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'diet' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_key', 'description' => 'How the recipe is cooked: one of the meal\'s diet_options ("_none" = the original recipe, as written). Only where the recipe offers a choice, and then always settled — anything else, or nothing, stores the first option.' ), 'eaters' => $meal_eaters_arg, 'day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft' ) ) ) ) );
+		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'update_meal' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'plan_id' => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'recipe_id' => array( 'required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint' ), 'servings' => array( 'required' => false, 'type' => 'integer' ), 'type' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' ) ), 'text' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field' ), 'diet' => array( 'required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_key', 'description' => 'How the recipe is cooked: one of the meal\'s diet_options ("_none" = the original recipe, as written). Only where the recipe offers a choice, and then always settled — anything else, or nothing, stores the first option.' ), 'eaters' => $meal_eaters_arg, 'eater_portions' => $meal_portions_arg, 'day' => array( 'required' => false, 'type' => 'integer', 'minimum' => 1, 'maximum' => 7 ), 'status' => array( 'required' => false, 'type' => 'string', 'enum' => array( 'publish', 'draft' ) ) ) ) );
 		register_rest_route( 'mixmymeals/v1', '/meals/(?P<id>\d+)/plan', array( 'methods' => WP_REST_Server::EDITABLE, 'callback' => array( $this, 'set_meal_plan' ), 'permission_callback' => $auth, 'args' => array( 'id' => $id_arg, 'plan_id' => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ) ) ) );
 
 		// ── AI convenience: build a whole plan in one call, bulk-add meals and
@@ -1088,6 +1097,9 @@ class Mixmymeals_Rest_Api {
 			'diet_options' => ( new Mixmymeals_Recipe( $meal->get_recipe_id() ) )->get_diet_choices(),
 			// Who eats it: ids of the plan's people, never empty.
 			'eaters'       => $meal->get_eaters(),
+			// How much each of them eats of it: their own figure for this
+			// meal, else their usual one.
+			'eater_portions' => $meal->get_eater_portions(),
 		);
 	}
 
@@ -1940,8 +1952,8 @@ class Mixmymeals_Rest_Api {
 	}
 
 	/**
-	 * A people list for an update, with the stored name kept wherever an
-	 * entry names an existing person and leaves `name` out — a client that
+	 * A people list for an update, with the stored name (and usual portions)
+	 * kept wherever an entry names an existing person and leaves it out — a client that
 	 * read the list without names (or only reorders it) must not blank them.
 	 *
 	 * @param Mixmymeals_Meal_Plan $plan   The plan.
@@ -1951,10 +1963,15 @@ class Mixmymeals_Rest_Api {
 	private function merge_eater_names( Mixmymeals_Meal_Plan $plan, array $eaters ): array {
 
 		$names = $plan->get_eater_names();
+		$usual = array_column( $plan->get_eaters(), 'portions', 'id' );
 
 		foreach ( $eaters as $i => $person ) {
 			if ( is_array( $person ) && ! array_key_exists( 'name', $person ) && isset( $person['id'], $names[ (string) $person['id'] ] ) ) {
 				$eaters[ $i ]['name'] = $names[ (string) $person['id'] ];
+			}
+			// The same for the usual portions: left out is kept, not reset.
+			if ( is_array( $person ) && ! array_key_exists( 'portions', $person ) && isset( $person['id'], $usual[ (string) $person['id'] ] ) ) {
+				$eaters[ $i ]['portions'] = $usual[ (string) $person['id'] ];
 			}
 		}
 
@@ -2150,9 +2167,10 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 500 ) );
 		}
 		$meal->set_recipe_id( $recipe_id );
-		// One serving per person of the plan unless stated; free from there.
-		$meal->set_servings( $request->has_param( 'servings' ) ? absint( $request->get_param( 'servings' ) ) : ( new Mixmymeals_Meal_Plan( (int) $plan_id ) )->default_servings() );
 		if ( $request->has_param( 'eaters' ) )   $meal->set_eaters( array_map( 'strval', (array) $request->get_param( 'eaters' ) ) );
+		if ( $request->has_param( 'eater_portions' ) ) $meal->set_eater_portions( (array) $request->get_param( 'eater_portions' ) );
+		// Unless stated, what its eaters eat of it together; free from there.
+		$meal->set_servings( $request->has_param( 'servings' ) ? absint( $request->get_param( 'servings' ) ) : ( new Mixmymeals_Meal_Plan( (int) $plan_id ) )->default_servings( $meal->get_eaters(), $meal->get_eater_portions_raw() ) );
 		if ( $request->has_param( 'type' ) )     $meal->set_type( $request->get_param( 'type' ) );
 		if ( $request->has_param( 'day' ) )      $meal->set_day( absint( $request->get_param( 'day' ) ) );
 		if ( $request->has_param( 'text' ) )     $meal->set_text( (string) $request->get_param( 'text' ) );
@@ -2185,6 +2203,7 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'text' ) )      $meal->set_text( (string) $request->get_param( 'text' ) );
 		// After plan_id: set_eaters() checks the ids against the plan's people.
 		if ( $request->has_param( 'eaters' ) )    $meal->set_eaters( array_map( 'strval', (array) $request->get_param( 'eaters' ) ) );
+		if ( $request->has_param( 'eater_portions' ) ) $meal->set_eater_portions( (array) $request->get_param( 'eater_portions' ) );
 		// After recipe_id: set_diet() checks the diet against the recipe, and
 		// a new recipe is settled on its first choice unless one is given.
 		if ( $request->has_param( 'diet' ) )      $meal->set_diet( (string) $request->get_param( 'diet' ) );
@@ -2345,10 +2364,9 @@ class Mixmymeals_Rest_Api {
 			$catalog[ mb_strtolower( get_the_title( $rid ) ) ] = (int) $rid;
 		}
 
-		$types        = array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' );
-		$plan_obj     = new Mixmymeals_Meal_Plan( $plan_id );
-		$eater_ids    = $plan_obj->eater_ids();
-		$default_serv = $plan_obj->default_servings();
+		$types     = array( 'breakfast', 'lunch', 'dinner', 'snack', 'other' );
+		$plan_obj  = new Mixmymeals_Meal_Plan( $plan_id );
+		$eater_ids = $plan_obj->eater_ids();
 
 		foreach ( $meals as $i => $m ) {
 			if ( ! is_array( $m ) ) {
@@ -2369,12 +2387,10 @@ class Mixmymeals_Rest_Api {
 				continue;
 			}
 
-			// Servings: one per person of the plan unless stated.
-			$type     = ( isset( $m['type'] ) && in_array( $m['type'], $types, true ) ) ? $m['type'] : 'other';
-			$day      = isset( $m['day'] ) ? max( 1, min( 7, (int) $m['day'] ) ) : 0;
-			$servings = isset( $m['servings'] ) ? max( 1, (int) $m['servings'] ) : $default_serv;
-			$status   = ( isset( $m['status'] ) && in_array( $m['status'], array( 'publish', 'draft' ), true ) ) ? $m['status'] : 'publish';
-			$title    = ! empty( $m['title'] ) ? sanitize_text_field( $m['title'] ) : get_the_title( $recipe_id );
+			$type   = ( isset( $m['type'] ) && in_array( $m['type'], $types, true ) ) ? $m['type'] : 'other';
+			$day    = isset( $m['day'] ) ? max( 1, min( 7, (int) $m['day'] ) ) : 0;
+			$status = ( isset( $m['status'] ) && in_array( $m['status'], array( 'publish', 'draft' ), true ) ) ? $m['status'] : 'publish';
+			$title  = ! empty( $m['title'] ) ? sanitize_text_field( $m['title'] ) : get_the_title( $recipe_id );
 
 			try {
 				$meal = Mixmymeals_Meal::create( $title, $plan_id, $status );
@@ -2384,7 +2400,6 @@ class Mixmymeals_Rest_Api {
 			}
 
 			$meal->set_recipe_id( $recipe_id );
-			$meal->set_servings( $servings );
 			$meal->set_type( $type );
 			if ( $day ) {
 				$meal->set_day( $day );
@@ -2407,6 +2422,11 @@ class Mixmymeals_Rest_Api {
 					$warnings[] = sprintf( 'Meal %d: unknown eater ids dropped (%s).', (int) $i + 1, implode( ', ', $unknown ) );
 				}
 			}
+			if ( isset( $m['eater_portions'] ) ) {
+				$meal->set_eater_portions( (array) $m['eater_portions'] );
+			}
+			// After the eaters: unless stated, what they eat of it together.
+			$meal->set_servings( isset( $m['servings'] ) ? max( 1, (int) $m['servings'] ) : $plan_obj->default_servings( $meal->get_eaters(), $meal->get_eater_portions_raw() ) );
 			$created[] = $meal->get_id();
 		}
 

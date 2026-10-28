@@ -185,8 +185,14 @@ const EATERS_SCHEMA = {
       id:      { type: "string" },
       name:    { type: "string" },
       profile: { type: "string" },
+      portions: { type: "number", description: "Wie viele Portionen diese Person üblicherweise isst (Standard 1, höchstens 10; auf die Schrittweite der Website gerundet). Eine Mahlzeit kann abweichen (eater_portions)." },
     },
   },
+};
+
+const MEAL_PORTIONS_SCHEMA = {
+  type: "object",
+  description: "Wie viele Portionen einzelne Esser von DIESER Mahlzeit essen, wo es von ihrem üblichen Wert abweicht, z. B. {\"p2\": 0.5}. Ersetzt das Gespeicherte; {} = alle wieder üblich. Nur für Personen, die mitessen. Die Nährwerte pro Person rechnen damit; die Einkaufsliste nicht (die hängt an servings).",
 };
 
 const MEAL_EATERS_SCHEMA = {
@@ -1140,8 +1146,9 @@ const TOOLS = [
             properties: {
               recipe_id: { type: "number", description: "Post-ID des Rezepts (Vorrang vor recipe)." },
               recipe:    { type: "string", description: "Alternativ: Rezeptname oder Slug (exakt, sonst Teiltreffer)." },
-              servings:  { type: "number", description: "Ohne Angabe eine Portion je Person des Plans." },
+              servings:  { type: "number", description: "Ohne Angabe die Summe der Portionen der Esser, aufgerundet." },
               eaters:    MEAL_EATERS_SCHEMA,
+              eater_portions: MEAL_PORTIONS_SCHEMA,
               type:      { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] },
               day:       { type: "number", description: "1=Mo … 7=So" },
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
@@ -1170,8 +1177,9 @@ const TOOLS = [
             properties: {
               recipe_id: { type: "number" },
               recipe:    { type: "string" },
-              servings:  { type: "number", description: "Ohne Angabe eine Portion je Person des Plans." },
+              servings:  { type: "number", description: "Ohne Angabe die Summe der Portionen der Esser, aufgerundet." },
               eaters:    MEAL_EATERS_SCHEMA,
+              eater_portions: MEAL_PORTIONS_SCHEMA,
               type:      { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] },
               day:       { type: "number" },
               status:    { type: "string", enum: ["publish", "draft"], default: "publish" },
@@ -1197,8 +1205,9 @@ const TOOLS = [
         plan_id:   { type: "number" },
         recipe_id: { type: "number" },
         title:     { type: "string", description: "Leer = wird aus Rezepttitel abgeleitet" },
-        servings:  { type: "number", description: "Ohne Angabe eine Portion je Person des Plans." },
+        servings:  { type: "number", description: "Ohne Angabe die Summe der Portionen der Esser, aufgerundet." },
         eaters:    MEAL_EATERS_SCHEMA,
+        eater_portions: MEAL_PORTIONS_SCHEMA,
         type:      { type: "string", description: "breakfast | lunch | dinner | snack | other" },
         day:       { type: "number", description: "1=Mo … 7=So" },
         status:    { type: "string", default: "publish" },
@@ -1233,6 +1242,7 @@ const TOOLS = [
         status:    { type: "string" },
         title:     { type: "string" },
         eaters:    MEAL_EATERS_SCHEMA,
+        eater_portions: MEAL_PORTIONS_SCHEMA,
         text:      { type: "string", description: "Kurzer Text zu DIESER Einplanung (z. B. \"Doppelte Menge kochen, Hälfte einfrieren\"). Gehört der Mahlzeit, nicht dem Rezept; leer = nichts gesagt." },
         diet:      { type: "string", description: "Ernährungsform dieser Einplanung — eine der diet_options der Mahlzeit (\"_none\" = Originalrezept, wie geschrieben, sonst ein Diät-Slug wie \"vegan\"). Nur Rezepte, die mehrere Formen anbieten, haben Optionen, und dann ist die Mahlzeit immer festgelegt: ein ungültiger Wert setzt die erste Option. Die Mahlzeit wird mit den passenden Produkten gerechnet, die Einkaufsliste führt sie als eigene Zeilen." },
       },
@@ -1762,11 +1772,12 @@ async function handleTool(name, args) {
     // ── MixMyMeals: Mahlzeiten ─────────────────────────────────────────────
 
     case "mmm_add_meal": {
-      const { plan_id, recipe_id, title, servings, eaters, type, day, status = "publish" } = args;
+      const { plan_id, recipe_id, title, servings, eaters, eater_portions, type, day, status = "publish" } = args;
       const body = { plan_id, recipe_id, status };
-      // Ohne servings legt der Server eine Portion je Person des Plans an.
+      // Ohne servings legt der Server die Summe der Esser-Portionen an.
       if (servings !== undefined) body.servings = servings;
       if (eaters   !== undefined) body.eaters   = eaters;
+      if (eater_portions !== undefined) body.eater_portions = eater_portions;
       if (title !== undefined) body.title = title;
       if (type  !== undefined) body.type  = type;
       if (day   !== undefined) body.day   = day;
@@ -1779,7 +1790,7 @@ async function handleTool(name, args) {
     case "mmm_update_meal": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["recipe_id", "servings", "type", "day", "status", "title", "text", "diet", "eaters"];
+      const allowed = ["recipe_id", "servings", "type", "day", "status", "title", "text", "diet", "eaters", "eater_portions"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }

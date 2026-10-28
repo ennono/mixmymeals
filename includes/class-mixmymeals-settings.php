@@ -637,6 +637,15 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'          => 'eater_portion_step',
+					'label'       => __( 'Portions per person', 'mixmymeals' ),
+					'description' => __( 'How finely the portions a person eats are entered — in the People box of a plan, its Meals box and the planner. Values already stored stay as they are.',
+						'mixmymeals' ),
+					'default'     => Mixmymeals_Meal_Plan::PORTION_STEP_DEFAULT,
+					'placeholder' => '',
+					'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_portion_step' ),
+				),
+				array(
 					'id'          => 'individual_tab_label',
 					'label'       => __( 'Individual Tab Label', 'mixmymeals' ),
 					'description' => __( 'Label for the "Individual" tab in the meal plan switcher.',

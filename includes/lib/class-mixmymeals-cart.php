@@ -204,6 +204,24 @@ class Mixmymeals_Cart {
 		return array_values( $ids ) === $clean ? array() : $clean;
 	}
 
+	/**
+	 * How much each eater eats of a planner item, as it is stored on the
+	 * item: only valid figures for people who eat it, only where they
+	 * differ from what that person usually eats
+	 * (Mixmymeals_Meal_Plan::clean_portion_overrides()). Empty is everybody
+	 * at their usual amount.
+	 *
+	 * @param mixed $portions Raw id => portions, or a JSON object string.
+	 * @param mixed $eaters   The item's eaters as stored (empty = all).
+	 * @return array<string,float>
+	 */
+	public function clean_item_portions( $portions, $eaters ): array {
+
+		$plan = Mixmymeals_Meal_Plan::from_meal_rows( array(), $this->get_eaters() );
+
+		return $plan->clean_portion_overrides( $portions, Mixmymeals_Meal_Plan::clean_eaters( (array) $eaters, $plan->eater_ids() ) );
+	}
+
 	private function get_max_items(): int {
 		$max = (int) get_option( 'mixmymeals_max_items_in_cart', 30 );
 		return max( 1, $max );
@@ -219,7 +237,8 @@ class Mixmymeals_Cart {
 		?int $day = null,
 		//?string $note = null
 		?string $diet = null,
-		?array $eaters = null
+		?array $eaters = null,
+		?array $portions = null
 	): bool {
 
 		if ( $recipe_id <= 0 ) {
@@ -239,6 +258,8 @@ class Mixmymeals_Cart {
 			return false;
 		}
 
+		$item_eaters = self::clean_item_eaters( $eaters ?? array(), $this->eater_ids() );
+
 		$items[] = array(
 			'recipe_id' => $recipe_id,
 			'servings'  => $servings ?? 1,
@@ -248,7 +269,9 @@ class Mixmymeals_Cart {
 			'diet'      => self::clean_diet( $recipe_id, (string) $diet ),
 			// Empty is everybody: a recipe planned from its page is eaten
 			// by all until somebody says otherwise in the planner.
-			'eaters'    => self::clean_item_eaters( $eaters ?? array(), $this->eater_ids() ),
+			'eaters'    => $item_eaters,
+			// Only what differs from each person's usual amount.
+			'portions'  => $this->clean_item_portions( $portions ?? array(), $item_eaters ),
 		);
 
 		$this->save_items( $items );
@@ -382,7 +405,7 @@ class Mixmymeals_Cart {
 			return false;
 		}
 
-		$allowed_keys = array( 'servings', 'type', 'day', 'diet', 'eaters' );
+		$allowed_keys = array( 'servings', 'type', 'day', 'diet', 'eaters', 'portions' );
 
 		foreach ( $allowed_keys as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
@@ -397,6 +420,9 @@ class Mixmymeals_Cart {
 		if ( array_key_exists( 'eaters', $data ) ) {
 			$items[ $index ]['eaters'] = self::clean_item_eaters( $data['eaters'], $this->eater_ids() );
 		}
+
+		// After the eaters: a figure for somebody who no longer eats it goes.
+		$items[ $index ]['portions'] = $this->clean_item_portions( $items[ $index ]['portions'] ?? array(), $items[ $index ]['eaters'] ?? array() );
 
 		$this->save_items( $items );
 		return true;
@@ -638,6 +664,12 @@ class Mixmymeals_Cart {
 		$item['eaters'] = isset( $_POST['eaters'] )
 			? self::clean_item_eaters( sanitize_text_field( wp_unslash( (string) $_POST['eaters'] ) ), $cart->eater_ids() )
 			: (array) ( $item['eaters'] ?? array() );
+		// {"p1":1.5} from the planner; checked after the eaters, since a
+		// figure only counts for somebody who eats the item.
+		$item['portions'] = $cart->clean_item_portions(
+			isset( $_POST['portions'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['portions'] ) ) : (array) ( $item['portions'] ?? array() ),
+			$item['eaters']
+		);
 
 		// Item zurück in den Warenkorb setzen
 		$items[ $index ] = $item;
@@ -750,7 +782,8 @@ class Mixmymeals_Cart {
 				sanitize_text_field( (string) ( $item['type'] ?? '' ) ),
 				isset( $item['day'] ) ? intval( $item['day'] ) : null,
 				(string) ( $item['diet'] ?? '' ),
-				(array) ( $item['eaters'] ?? array() )
+				(array) ( $item['eaters'] ?? array() ),
+				(array) ( $item['portions'] ?? array() )
 			);
 		}
 
@@ -802,8 +835,9 @@ class Mixmymeals_Cart {
 		$cart->save_eaters(
 			array_map(
 				static fn( $person ) => array(
-					'id'      => $person['id'],
-					'profile' => $person['profile'],
+					'id'       => $person['id'],
+					'profile'  => $person['profile'],
+					'portions' => $person['portions'],
 				),
 				$plan->get_eaters()
 			)
@@ -816,7 +850,8 @@ class Mixmymeals_Cart {
 				(string) $row['type'],
 				$row['day'],
 				(string) ( $row['diet'] ?? '' ),
-				(array) ( $row['eaters'] ?? array() )
+				(array) ( $row['eaters'] ?? array() ),
+				(array) ( $row['portions'] ?? array() )
 			);
 		}
 
@@ -827,7 +862,8 @@ class Mixmymeals_Cart {
 
 	/**
 	 * AJAX handler for wp_ajax_mmm_cart_eaters: adds a person to the planner
-	 * (`op=add`) or removes one (`op=remove`, `id`).
+	 * (`op=add`), removes one (`op=remove`, `id`) or sets how much one
+	 * usually eats (`op=portions`, `id`, `portions`).
 	 *
 	 * A new person gets the next free id and the default profile; the
 	 * planner names them by number. Removing one drops them from every
@@ -874,6 +910,16 @@ class Mixmymeals_Cart {
 			$id     = isset( $_POST['id'] ) ? sanitize_key( wp_unslash( $_POST['id'] ) ) : '';
 			$eaters = array_values( array_filter( $eaters, static fn( $p ) => $p['id'] !== $id ) );
 
+		} elseif ( 'portions' === $op ) {
+
+			$id    = isset( $_POST['id'] ) ? sanitize_key( wp_unslash( $_POST['id'] ) ) : '';
+			$value = Mixmymeals_Meal_Plan::normalise_portion( isset( $_POST['portions'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['portions'] ) ) : '' );
+
+			foreach ( $eaters as $i => $person ) {
+				if ( $person['id'] === $id ) {
+					$eaters[ $i ]['portions'] = $value ?? Mixmymeals_Meal_Plan::DEFAULT_PORTION;
+				}
+			}
 		} else {
 			wp_send_json_error( array( 'code' => 'invalid_op' ), 400 );
 		}
@@ -885,7 +931,8 @@ class Mixmymeals_Cart {
 		$items = $cart->get_items();
 
 		foreach ( $items as $i => $item ) {
-			$items[ $i ]['eaters'] = self::clean_item_eaters( (array) ( $item['eaters'] ?? array() ), $ids );
+			$items[ $i ]['eaters']   = self::clean_item_eaters( (array) ( $item['eaters'] ?? array() ), $ids );
+			$items[ $i ]['portions'] = $cart->clean_item_portions( (array) ( $item['portions'] ?? array() ), $items[ $i ]['eaters'] );
 		}
 
 		$cart->save_items( $items );

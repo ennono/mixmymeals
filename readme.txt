@@ -131,9 +131,13 @@ Added:
   never published, and a profile) and a column "Eats along" in its Meals
   box. The planner adds and removes people by number and ticks on each
   recipe who eats it. REST and MCP carry `eaters` on plans and meals.
+* Portions per person: each person has a usual amount (a child at 0.5),
+  and a meal can say otherwise for one of them (1.5 at dinner). Their
+  figures scale by it. How finely portions are entered is a setting
+  (Meal Plans → Planner: quarters, halves, whole portions or any amount).
 * Servings stay a field of their own — the shopping list, the costs and
-  Bring! do not depend on who eats. New meals start with one serving per
-  person.
+  Bring! do not depend on who eats. New meals start with what their eaters
+  eat together, rounded up.
 
 = 3.69.0 =
 

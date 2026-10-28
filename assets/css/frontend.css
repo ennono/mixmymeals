@@ -710,6 +710,32 @@ body.mmm-cook-mode-open {
     opacity: 0.6;
 }
 
+/* Portions per person: the usual amounts in the planner's people line,
+   and a field beside each person on a planner item. */
+.mmm-plan-eaters__people {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35em 0.75em;
+    flex-basis: 100%;
+}
+
+.mmm-plan-eaters__person,
+.mmm-plan-item-eater-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+}
+
+.mmm-plan-eaters__portions,
+.mmm-plan-item-eater__portions {
+    width: 4.5em;
+}
+
+.mmm-plan-item-eater__portions:disabled {
+    opacity: 0.4;
+}
+
 /* ==========================================================
    Planner save bar (frontend.js, mmmEnsureSaveBar())
 
