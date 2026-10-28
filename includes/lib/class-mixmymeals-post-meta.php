@@ -1091,10 +1091,15 @@ class Mixmymeals_Post_Meta {
 			echo '<td>' . self::meal_type_select( $field . '[type]', $meal_obj->get_type() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 			echo '<td>' . self::meal_day_select( $field . '[day]', $days, (int) $meal_obj->get_day() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 
+			// Not below what its eaters eat; more is allowed and noted.
+			$mmm_surplus = $plan->has_eaters() ? Mixmymeals_Meal_Plan::servings_surplus_text( $meal_obj->servings_surplus() ) : '';
+
 			printf(
-				'<td><input type="number" min="1" step="1" name="%s" value="%s" class="small-text"></td>',
+				'<td><input type="number" min="%1$s" step="1" name="%2$s" value="%3$s" class="small-text">%4$s</td>',
+				esc_attr( (string) $meal_obj->min_servings() ),
 				esc_attr( $field . '[servings]' ),
-				esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) )
+				esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) ),
+				'' === $mmm_surplus ? '' : '<br><span class="description mmm-plan-meals__surplus">' . esc_html( $mmm_surplus ) . '</span>'
 			);
 
 			echo '<td>' . self::meal_diet_select( $field . '[diet]', new Mixmymeals_Recipe( $meal_obj->get_recipe_id() ), $meal_obj->get_diet() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.

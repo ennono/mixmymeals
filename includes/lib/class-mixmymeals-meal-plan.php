@@ -80,29 +80,33 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$day    = (int) ( $row['day'] ?? 0 );
-			$type   = (string) ( $row['type'] ?? '' );
-			$eating = self::clean_eaters( $row['eaters'] ?? array(), $ids );
+			$day      = (int) ( $row['day'] ?? 0 );
+			$type     = (string) ( $row['type'] ?? '' );
+			$eating   = self::clean_eaters( $row['eaters'] ?? array(), $ids );
+			$portions = $plan->resolve_portions( (array) ( $row['portions'] ?? array() ), $eating );
+			$floor    = self::servings_floor( $portions );
 
 			$plan->rows[] = array(
 				// Kept where the row came from a saved meal, so a plan
 				// derived from one — with_servings_offset() — can still say
 				// which meal each of its rows is.
-				'meal_id'   => max( 0, (int) ( $row['meal_id'] ?? 0 ) ),
-				'recipe_id' => $recipe_id,
-				// Mixmymeals_Meal::get_servings() floors at 1; so does this.
-				'servings'  => max( 1, (int) ( $row['servings'] ?? 1 ) ),
-				'day'       => ( $day >= 1 && $day <= 7 ) ? $day : null,
-				'type'      => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
+				'meal_id'      => max( 0, (int) ( $row['meal_id'] ?? 0 ) ),
+				'recipe_id'    => $recipe_id,
+				// Never fewer than its eaters eat (min_servings()), the floor
+				// Mixmymeals_Meal::get_servings() keeps too.
+				'servings'     => max( $floor, (int) ( $row['servings'] ?? 1 ) ),
+				'day'          => ( $day >= 1 && $day <= 7 ) ? $day : null,
+				'type'         => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
 				// Resolved, not validated: row_recipe() asks the recipe,
 				// which is the one place that knows what it can be cooked as.
 				// NONE (the original recipe) is kept, since it settles the dish too.
-				'diet'      => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
+				'diet'         => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
 				// Who eats it; never empty — nobody named means everybody.
-				'eaters'    => $eating,
+				'eaters'       => $eating,
 				// How much each of them eats: their own figure for this meal,
 				// else their usual one (resolve_portions()).
-				'portions'  => $plan->resolve_portions( (array) ( $row['portions'] ?? array() ), $eating ),
+				'portions'     => $portions,
+				'min_servings' => $floor,
 			) + ( isset( $row['portion'] ) ? array( 'portion' => (float) $row['portion'] ) : array() );
 		}
 
@@ -137,18 +141,22 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $this->get_meals() as $meal_post ) {
 
-			$meal   = new Mixmymeals_Meal( $meal_post->ID );
-			$eating = self::clean_eaters( $meal->get_eaters_raw(), $ids );
+			$meal     = new Mixmymeals_Meal( $meal_post->ID );
+			$eating   = self::clean_eaters( $meal->get_eaters_raw(), $ids );
+			$portions = $this->resolve_portions( $meal->get_eater_portions_raw(), $eating );
+			$floor    = self::servings_floor( $portions );
 
 			$rows[] = array(
-				'meal_id'   => (int) $meal_post->ID,
-				'recipe_id' => (int) $meal->get_recipe_id(),
-				'servings'  => (int) $meal->get_servings(),
-				'day'       => $meal->get_day(),
-				'type'      => (string) $meal->get_type(),
-				'diet'      => $meal->get_diet(),
-				'eaters'    => $eating,
-				'portions'  => $this->resolve_portions( $meal->get_eater_portions_raw(), $eating ),
+				'meal_id'      => (int) $meal_post->ID,
+				'recipe_id'    => (int) $meal->get_recipe_id(),
+				'servings'     => max( $floor, (int) $meal->get_stored_servings() ),
+				'day'          => $meal->get_day(),
+				'type'         => (string) $meal->get_type(),
+				'diet'         => $meal->get_diet(),
+				'eaters'       => $eating,
+				'portions'     => $portions,
+				// The fewest servings that feed its eaters.
+				'min_servings' => $floor,
 			);
 		}
 
@@ -631,10 +639,80 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public function default_servings( ?array $eaters = null, array $portions = array() ): int {
 
-		$sum = array_sum( $this->resolve_portions( $portions, self::clean_eaters( $eaters ?? array(), $this->eater_ids() ) ) );
+		return $this->min_servings( $eaters, $portions );
+	}
+
+	/**
+	 * The fewest servings a meal may have: what its eaters eat of it
+	 * together, rounded up. A meal planned for fewer servings than are
+	 * eaten is a meal somebody goes hungry at, so every reader and writer
+	 * keeps to this — Mixmymeals_Meal::get_servings() / set_servings(), the
+	 * rows of get_meal_rows() and from_meal_rows(), the planner's items,
+	 * and with_servings_offset(), which takes a reader's "fewer people"
+	 * down to it and no further. More is always allowed (leftovers,
+	 * guests); servings_surplus() says when there is more.
+	 *
+	 * One for a plan without people, so nothing changes there.
+	 *
+	 * @param string[]|null $eaters   Who eats the meal; null for everybody.
+	 * @param array         $portions The meal's own figures (resolve_portions()).
+	 * @return int
+	 */
+	public function min_servings( ?array $eaters = null, array $portions = array() ): int {
+
+		return self::servings_floor( $this->resolve_portions( $portions, self::clean_eaters( $eaters ?? array(), $this->eater_ids() ) ) );
+	}
+
+	/**
+	 * The floor of servings for resolved portions: their sum, rounded up,
+	 * at least one.
+	 *
+	 * @param array<string,float> $portions From resolve_portions().
+	 * @return int
+	 */
+	private static function servings_floor( array $portions ): int {
 
 		// A float sum of quarters is exact, but 2.0000000001 must not become 3.
-		return max( 1, (int) ceil( round( $sum, 3 ) ) );
+		return max( 1, (int) ceil( round( array_sum( $portions ), 3 ) ) );
+	}
+
+	/**
+	 * How many servings a meal plans beyond what its eaters eat — 0 where
+	 * it plans no more than the floor (rounding up 2.5 to 3 is not a
+	 * surplus anybody planned), and 0 on a plan without several people,
+	 * where the servings have always simply been the people.
+	 *
+	 * @param int                 $servings The meal's servings.
+	 * @param array<string,float> $portions Its resolved portions (a row's `portions`).
+	 * @return float
+	 */
+	public function servings_surplus( int $servings, array $portions ): float {
+
+		if ( ! $this->has_eaters() || $servings <= self::servings_floor( $portions ) ) {
+			return 0.0;
+		}
+
+		return round( $servings - array_sum( $portions ), 3 );
+	}
+
+	/**
+	 * The quiet note beside servings that exceed the eaters: "1 serving
+	 * more than eaten", "1,5 servings more than eaten". '' for none.
+	 *
+	 * @param float $surplus From servings_surplus().
+	 * @return string
+	 */
+	public static function servings_surplus_text( float $surplus ): string {
+
+		if ( $surplus <= 0 ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: %s: servings planned beyond what the people eating eat, e.g. "1" or "1,5". */
+			_n( '%s serving more than eaten', '%s servings more than eaten', (int) ceil( $surplus ), 'mixmymeals' ),
+			self::format_portions( $surplus )
+		);
 	}
 
 	/*
@@ -1310,7 +1388,9 @@ class Mixmymeals_Meal_Plan {
 		foreach ( $this->get_meal_rows() as $row ) {
 
 			$servings = (int) $row['servings'];
-			$shown    = max( 1, $servings + $offset );
+			// Fewer people at the table, never fewer servings than the
+			// listed eaters eat (min_servings()).
+			$shown = max( (int) ( $row['min_servings'] ?? 1 ), $servings + $offset );
 
 			if ( $offset > 0 ) {
 				$shown = min( $shown, max( $servings, self::SERVINGS_MEAL_MAX ) );
@@ -1349,11 +1429,19 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public function servings_offset_bounds(): array {
 
-		$servings = array_map( 'intval', array_column( $this->get_meal_rows(), 'servings' ) );
+		$rows = $this->get_meal_rows();
+		$room = array();
+
+		// How far each meal can go down before it reaches its floor; the
+		// meal with the most room decides where taking away stops changing
+		// anything (one serving for a plan without people, as before).
+		foreach ( $rows as $row ) {
+			$room[] = (int) ( $row['min_servings'] ?? 1 ) - (int) $row['servings'];
+		}
 
 		return array(
-			'min' => $servings ? min( 0, 1 - max( $servings ) ) : 0,
-			'max' => $servings ? self::SERVINGS_OFFSET_MAX : 0,
+			'min' => $room ? min( 0, min( $room ) ) : 0,
+			'max' => $rows ? self::SERVINGS_OFFSET_MAX : 0,
 		);
 	}
 

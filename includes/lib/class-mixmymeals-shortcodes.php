@@ -4473,6 +4473,18 @@ class Mixmymeals_Shortcodes {
 		$type      = (string) ( $item['type'] ?? '' );
 		$servings  = (int) ( $item['servings'] ?? 2 );
 
+		// The floor its eaters set and what is planned beyond it, where the
+		// planner lists several people (Mixmymeals_Cart::item_servings()).
+		$mmm_min     = 1;
+		$mmm_surplus = '';
+
+		if ( null !== $plan && $plan->has_eaters() ) {
+			$mmm_info    = ( new Mixmymeals_Cart() )->item_servings( $item );
+			$mmm_min     = $mmm_info['min'];
+			$servings    = $mmm_info['servings'];
+			$mmm_surplus = Mixmymeals_Meal_Plan::servings_surplus_text( $mmm_info['surplus'] );
+		}
+
 		ob_start();
 		?>
 		<li class="mmm-plan-item"
@@ -4538,8 +4550,13 @@ class Mixmymeals_Shortcodes {
 					</select>
 
 					<input type="number" class="mmm-plan-item-servings" data-field="servings"
-						min="1" value="<?php echo esc_attr( (string) $servings ); ?>"
+						min="<?php echo esc_attr( (string) $mmm_min ); ?>" value="<?php echo esc_attr( (string) $servings ); ?>"
 						aria-label="<?php esc_attr_e( 'Servings', 'mixmymeals' ); ?>">
+
+					<?php if ( null !== $plan && $plan->has_eaters() ) : ?>
+						<?php // Quiet: more is allowed (leftovers, guests), it is only said. ?>
+						<span class="mmm-plan-item-surplus" data-servings-surplus<?php echo '' === $mmm_surplus ? ' hidden' : ''; ?>><?php echo esc_html( $mmm_surplus ); ?></span>
+					<?php endif; ?>
 
 					<?php
 					/*

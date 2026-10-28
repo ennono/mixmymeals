@@ -135,9 +135,11 @@ Added:
   and a meal can say otherwise for one of them (1.5 at dinner). Their
   figures scale by it. How finely portions are entered is a setting
   (Meal Plans → Planner: quarters, halves, whole portions or any amount).
-* Servings stay a field of their own — the shopping list, the costs and
-  Bring! do not depend on who eats. New meals start with what their eaters
-  eat together, rounded up.
+* Servings stay a field of their own for the shopping list, the costs and
+  Bring!, but never fall below what a meal's eaters eat together, rounded
+  up: ticking another person or a larger portion raises them. More is
+  allowed (leftovers, guests) and noted quietly in the planner and the
+  Meals box ("1 serving more than eaten").
 
 = 3.69.0 =
 

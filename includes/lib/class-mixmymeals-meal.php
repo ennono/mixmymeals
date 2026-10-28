@@ -240,10 +240,27 @@ class Mixmymeals_Meal {
 
 		if ( array_values( $ids ) === $clean ) {
 			delete_post_meta( $this->post_id, self::META_EATERS );
-			return;
+		} else {
+			update_post_meta( $this->post_id, self::META_EATERS, $clean );
 		}
 
-		update_post_meta( $this->post_id, self::META_EATERS, $clean );
+		$this->raise_servings_to_floor();
+	}
+
+	/**
+	 * Raises the stored servings to what the eaters now eat, where they
+	 * fell below it: somebody ticked more, or a larger portion, is more
+	 * food cooked. Never lowers them — a surplus is the planner's to keep.
+	 *
+	 * @return void
+	 */
+	private function raise_servings_to_floor(): void {
+
+		$min = $this->min_servings();
+
+		if ( $this->get_stored_servings() < $min ) {
+			update_post_meta( $this->post_id, 'servings', $min );
+		}
 	}
 
 	/**
@@ -290,10 +307,11 @@ class Mixmymeals_Meal {
 
 		if ( ! $clean ) {
 			delete_post_meta( $this->post_id, self::META_EATER_PORTIONS );
-			return;
+		} else {
+			update_post_meta( $this->post_id, self::META_EATER_PORTIONS, $clean );
 		}
 
-		update_post_meta( $this->post_id, self::META_EATER_PORTIONS, $clean );
+		$this->raise_servings_to_floor();
 	}
 
 	/**
@@ -302,10 +320,47 @@ class Mixmymeals_Meal {
 	 * @return int The number of servings (minimum 1).
 	 */
 	public function get_servings(): int {
+		return max( $this->min_servings(), $this->get_stored_servings() );
+	}
+
+	/**
+	 * The servings as stored, at least one — without the floor of the
+	 * eaters. For Mixmymeals_Meal_Plan::get_meal_rows(), which applies the
+	 * floor itself from the eaters it has already read.
+	 *
+	 * @return int
+	 */
+	public function get_stored_servings(): int {
 		return max(
 			1,
 			intval( get_post_meta( $this->post_id, 'servings', true ) )
 		);
+	}
+
+	/**
+	 * The fewest servings this meal may have: what its eaters eat of it
+	 * together, rounded up (Mixmymeals_Meal_Plan::min_servings()). One on a
+	 * plan without people.
+	 *
+	 * @return int
+	 */
+	public function min_servings(): int {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return $plan->min_servings( $this->get_eaters(), $this->get_eater_portions_raw() );
+	}
+
+	/**
+	 * Servings beyond what the eaters eat (Mixmymeals_Meal_Plan::servings_surplus()).
+	 *
+	 * @return float
+	 */
+	public function servings_surplus(): float {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return $plan->servings_surplus( $this->get_servings(), $this->get_eater_portions() );
 	}
 
 	/**
@@ -351,10 +406,13 @@ class Mixmymeals_Meal {
 	 * @return void
 	 */
 	public function set_servings( int $servings ): void {
+		// Never below what its eaters eat; set the eaters and their portions
+		// first where both change, or this floors against the old ones (the
+		// read floors again either way).
 		update_post_meta(
 			$this->post_id,
 			'servings',
-			max( 1, $servings )
+			max( $this->min_servings(), $servings )
 		);
 	}
 

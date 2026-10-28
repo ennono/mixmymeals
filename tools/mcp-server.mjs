@@ -1146,7 +1146,7 @@ const TOOLS = [
             properties: {
               recipe_id: { type: "number", description: "Post-ID des Rezepts (Vorrang vor recipe)." },
               recipe:    { type: "string", description: "Alternativ: Rezeptname oder Slug (exakt, sonst Teiltreffer)." },
-              servings:  { type: "number", description: "Ohne Angabe die Summe der Portionen der Esser, aufgerundet." },
+              servings:  { type: "number", description: "Ohne Angabe und als Untergrenze: die Summe der Portionen der Esser, aufgerundet. Mehr ist erlaubt (Reste, Gäste) und wird als servings_surplus gemeldet." },
               eaters:    MEAL_EATERS_SCHEMA,
               eater_portions: MEAL_PORTIONS_SCHEMA,
               type:      { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] },
@@ -1177,7 +1177,7 @@ const TOOLS = [
             properties: {
               recipe_id: { type: "number" },
               recipe:    { type: "string" },
-              servings:  { type: "number", description: "Ohne Angabe die Summe der Portionen der Esser, aufgerundet." },
+              servings:  { type: "number", description: "Ohne Angabe und als Untergrenze: die Summe der Portionen der Esser, aufgerundet. Mehr ist erlaubt (Reste, Gäste) und wird als servings_surplus gemeldet." },
               eaters:    MEAL_EATERS_SCHEMA,
               eater_portions: MEAL_PORTIONS_SCHEMA,
               type:      { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] },
@@ -1205,7 +1205,7 @@ const TOOLS = [
         plan_id:   { type: "number" },
         recipe_id: { type: "number" },
         title:     { type: "string", description: "Leer = wird aus Rezepttitel abgeleitet" },
-        servings:  { type: "number", description: "Ohne Angabe die Summe der Portionen der Esser, aufgerundet." },
+        servings:  { type: "number", description: "Ohne Angabe und als Untergrenze: die Summe der Portionen der Esser, aufgerundet. Mehr ist erlaubt (Reste, Gäste) und wird als servings_surplus gemeldet." },
         eaters:    MEAL_EATERS_SCHEMA,
         eater_portions: MEAL_PORTIONS_SCHEMA,
         type:      { type: "string", description: "breakfast | lunch | dinner | snack | other" },

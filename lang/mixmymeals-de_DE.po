@@ -7770,3 +7770,11 @@ msgstr "Übliche Portionen:"
 #, php-format
 msgid "Portions %s eats of this recipe"
 msgstr "Portionen, die %s von diesem Rezept isst"
+
+#. translators: %s: servings planned beyond what the people eating eat, e.g. "1" or "1,5".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s serving more than eaten"
+msgid_plural "%s servings more than eaten"
+msgstr[0] "%s Portion mehr als gegessen"
+msgstr[1] "%s Portionen mehr als gegessen"

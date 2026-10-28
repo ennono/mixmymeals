@@ -986,7 +986,9 @@ jQuery(function ($) {
         let value = $field.val();
 
         if ($field.hasClass('mmm-plan-item-servings')) {
-            value = Math.max(1, parseInt(value, 10) || 1);
+            // Not below what its eaters eat (the field's min, kept by the server too).
+            value = Math.max(parseInt($field.attr('min'), 10) || 1, parseInt(value, 10) || 1);
+            $field.val(value);
         }
 
         mmmSavePlanChange({
@@ -1592,6 +1594,21 @@ jQuery(function ($) {
             .done(function (response) {
                 if (!response || !response.success) {
                     console.warn('Failed to save cart change', response);
+                    return;
+                }
+
+                // The servings never fall below what the eaters eat; the
+                // server raised them where needed and says whether more is
+                // planned than eaten. Both are taken as they come.
+                const data = response.data || {};
+                const item = $('.mmm-plan-item[data-index="' + change.index + '"]');
+                if (data.item && typeof data.min_servings === 'number') {
+                    item.find('.mmm-plan-item-servings')
+                        .attr('min', data.min_servings)
+                        .val(data.item.servings);
+                }
+                if (typeof data.surplus === 'string') {
+                    item.find('[data-servings-surplus]').text(data.surplus).prop('hidden', !data.surplus);
                 }
             })
             .fail(function () {

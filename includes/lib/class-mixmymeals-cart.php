@@ -222,6 +222,29 @@ class Mixmymeals_Cart {
 		return $plan->clean_portion_overrides( $portions, Mixmymeals_Meal_Plan::clean_eaters( (array) $eaters, $plan->eater_ids() ) );
 	}
 
+	/**
+	 * A planner item's servings and what they say about its eaters: the
+	 * floor (Mixmymeals_Meal_Plan::min_servings()), the servings kept to
+	 * it, and the surplus beyond what is eaten (servings_surplus()).
+	 *
+	 * @param array $item Cart item.
+	 * @return array{min:int, servings:int, surplus:float}
+	 */
+	public function item_servings( array $item ): array {
+
+		$plan     = Mixmymeals_Meal_Plan::from_meal_rows( array(), $this->get_eaters() );
+		$eaters   = Mixmymeals_Meal_Plan::clean_eaters( (array) ( $item['eaters'] ?? array() ), $plan->eater_ids() );
+		$portions = $plan->resolve_portions( (array) ( $item['portions'] ?? array() ), $eaters );
+		$min      = $plan->min_servings( $eaters, (array) ( $item['portions'] ?? array() ) );
+		$servings = max( $min, (int) ( $item['servings'] ?? 1 ) );
+
+		return array(
+			'min'      => $min,
+			'servings' => $servings,
+			'surplus'  => $plan->servings_surplus( $servings, $portions ),
+		);
+	}
+
 	private function get_max_items(): int {
 		$max = (int) get_option( 'mixmymeals_max_items_in_cart', 30 );
 		return max( 1, $max );
@@ -273,6 +296,10 @@ class Mixmymeals_Cart {
 			// Only what differs from each person's usual amount.
 			'portions'  => $this->clean_item_portions( $portions ?? array(), $item_eaters ),
 		);
+
+		// Never fewer servings than its eaters eat.
+		$last                       = array_key_last( $items );
+		$items[ $last ]['servings'] = $this->item_servings( $items[ $last ] )['servings'];
 
 		$this->save_items( $items );
 
@@ -423,6 +450,9 @@ class Mixmymeals_Cart {
 
 		// After the eaters: a figure for somebody who no longer eats it goes.
 		$items[ $index ]['portions'] = $this->clean_item_portions( $items[ $index ]['portions'] ?? array(), $items[ $index ]['eaters'] ?? array() );
+
+		// And the servings never below what the eaters now eat.
+		$items[ $index ]['servings'] = $this->item_servings( $items[ $index ] )['servings'];
 
 		$this->save_items( $items );
 		return true;
@@ -671,14 +701,22 @@ class Mixmymeals_Cart {
 			$item['eaters']
 		);
 
+		// Never fewer servings than its eaters eat — ticking somebody more
+		// raises them — and the answer says so, with the note for a
+		// surplus, so the page can set both without computing anything.
+		$mmm_servings     = $cart->item_servings( $item );
+		$item['servings'] = $mmm_servings['servings'];
+
 		// Item zurück in den Warenkorb setzen
 		$items[ $index ] = $item;
 		$cart->save_items( $items );
 
 		wp_send_json_success( [
-			'code'    => 'updated',
-			'message' => __( 'Item updated.', 'mixmymeals' ),
-			'item'    => $item,
+			'code'         => 'updated',
+			'message'      => __( 'Item updated.', 'mixmymeals' ),
+			'item'         => $item,
+			'min_servings' => $mmm_servings['min'],
+			'surplus'      => Mixmymeals_Meal_Plan::servings_surplus_text( $mmm_servings['surplus'] ),
 		] );
 	}
 
@@ -933,6 +971,7 @@ class Mixmymeals_Cart {
 		foreach ( $items as $i => $item ) {
 			$items[ $i ]['eaters']   = self::clean_item_eaters( (array) ( $item['eaters'] ?? array() ), $ids );
 			$items[ $i ]['portions'] = $cart->clean_item_portions( (array) ( $item['portions'] ?? array() ), $items[ $i ]['eaters'] );
+			$items[ $i ]['servings'] = $cart->item_servings( $items[ $i ] )['servings'];
 		}
 
 		$cart->save_items( $items );

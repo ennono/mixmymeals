@@ -582,7 +582,36 @@ try {
 	$ok( 'a meal of its own: only what differs from the usual is stored', array( 'p2' => 1.5 ) === get_post_meta( $pp_meal['d']->get_id(), Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
 	$ok( 'and read for everybody who eats it', array( 'p1' => 1.0, 'p2' => 1.5 ) === $pp_meal['d']->get_eater_portions() );
 	$ok( 'person 2: half a breakfast, one and a half dinners', abs( $kcal_of( $pp->for_eater( 'p2' ) ) - ( 0.5 * $cal_b + 1.5 * $cal_d ) ) < 0.001 );
-	$ok( 'the shopping list does not move (serialize)', $pp_shopping === serialize( $pp->calc_shopping_list() ) );
+
+	echo PHP_EOL . '-- 10b. Never fewer servings than are eaten' . PHP_EOL;
+
+	$ok( '1 + 1.5 portions do not fit two servings: the dinner is raised to three', 3 === $pp_meal['d']->get_servings() && 3 === (int) get_post_meta( $pp_meal['d']->get_id(), 'servings', true ) );
+	$ok( 'and the plan reads three', 3 === (int) array_column( $pp->get_meal_rows(), 'servings', 'meal_id' )[ $pp_meal['d']->get_id() ] );
+	$pp_meal['d']->set_servings( 1 );
+	$ok( 'setting fewer keeps the floor', 3 === $pp_meal['d']->get_servings() );
+	update_post_meta( $pp_meal['d']->get_id(), 'servings', 1 );
+	$ok( 'a row written past the class is floored on read', 3 === $pp_meal['d']->get_servings() && 3 === (int) array_column( $pp->get_meal_rows(), 'servings', 'meal_id' )[ $pp_meal['d']->get_id() ] );
+	$ok( 'the shopping list follows the floor, not the stored one', serialize( $pp->calc_shopping_list() ) !== $pp_shopping );
+	$pp_meal['d']->set_servings( 3 );
+
+	$pp_shopping = serialize( $pp->calc_shopping_list() );
+	$pp_meal['d']->set_eater_portions( array( 'p2' => 2 ) );
+	$ok( 'portions within the servings leave the shopping list alone (serialize)', $pp_shopping === serialize( $pp->calc_shopping_list() ) && 3 === $pp_meal['d']->get_servings() );
+	$pp_meal['d']->set_eater_portions( array( 'p2' => 1.5 ) );
+
+	$ok( 'no surplus at the floor', 0.0 === $pp_meal['d']->servings_surplus() && '' === Mixmymeals_Meal_Plan::servings_surplus_text( $pp_meal['d']->servings_surplus() ) );
+	$pp_meal['d']->set_servings( 4 );
+	$ok( 'four servings for 2.5 portions: 1.5 more than eaten', 1.5 === $pp_meal['d']->servings_surplus() && '' !== Mixmymeals_Meal_Plan::servings_surplus_text( 1.5 ) );
+	$ok( 'the breakfast at 2 for 1.5 is the floor, no note', 0.0 === $pp_meal['b']->servings_surplus() );
+	$ok( 'a plan without people never notes a surplus', 0.0 === ( new Mixmymeals_Meal_Plan( $plan_id ) )->servings_surplus( 9, array( 'p1' => 1.0 ) ) || ( new Mixmymeals_Meal_Plan( $plan_id ) )->has_eaters() );
+	$pp_meal['d']->set_servings( 3 );
+
+	$bounds = $pp->servings_offset_bounds();
+	$ok( 'both meals at their floor: the plan page offers nothing to take away', 0 === $bounds['min'] );
+	$pp_meal['d']->set_servings( 5 );
+	$ok( 'the dinner at five: two to take away', -2 === $pp->servings_offset_bounds()['min'] );
+	$pp_meal['d']->set_servings( 3 );
+	$ok( 'and an offset of −5 stops there', array( 2, 3 ) === array_map( 'intval', array_column( $pp->with_servings_offset( -5 )->get_meal_rows(), 'servings' ) ) );
 
 	$pp_meal['b']->set_eater_portions( array( 'p2' => 0, 'p1' => -1, 'zz' => 2 ) );
 	$ok( 'zero, negatives and unknown people are not stored', '' === get_post_meta( $pp_meal['b']->get_id(), Mixmymeals_Meal::META_EATER_PORTIONS, true ) );
@@ -645,6 +674,12 @@ try {
 	$meta->render_meal_plan_overview_meta_box( get_post( $pp_id ) );
 	$box = (string) ob_get_clean();
 	$ok( 'the Meals box has a portions field per person', false !== strpos( $box, 'mmm_plan_meals[' . $d_id . '][portions][p2]' ) && false !== strpos( $box, 'value="1.5"' ) );
+	$ok( 'and the servings field its floor', false !== strpos( $box, 'min="3" step="1" name="mmm_plan_meals[' . $d_id . '][servings]"' ) );
+	$pp_meal['d']->set_servings( 4 );
+	ob_start();
+	$meta->render_meal_plan_overview_meta_box( get_post( $pp_id ) );
+	$ok( 'four servings: the box notes the surplus', false !== strpos( (string) ob_get_clean(), 'mmm-plan-meals__surplus' ) );
+	$pp_meal['d']->set_servings( 3 );
 
 	$post_pp( array( $d_id => array( 'eaters_shown' => '1', 'eaters' => array( 'p1', 'p2' ), 'portions' => array( 'p1' => '', 'p2' => '1,25' ) ) ) );
 	$ok( 'Meals box: 1,25 for person 2 is saved', array( 'p1' => 1.0, 'p2' => 1.25 ) === ( new Mixmymeals_Meal( $d_id ) )->get_eater_portions() );
@@ -678,6 +713,18 @@ try {
 	$_POST = array( 'index' => 0, 'portions' => wp_slash( wp_json_encode( array( 'p2' => '2', 'zz' => '1' ) ) ) );
 	$ajax( 'mmm_update_cart_item', $_POST );
 	$ok( 'the planner writes an item\'s portions, unknown people dropped', array( 'p2' => 2.0 ) === ( ( new Mixmymeals_Cart() )->get_items()[0]['portions'] ?? null ) );
+
+	$answer = $ajax( 'mmm_update_cart_item', array( 'index' => 0, 'servings' => 1 ) );
+	// Item 0 is eaten by person 1 (1) and person 2 (2, set just above): three.
+	$ok( 'planner: one serving for 1 + 2 portions is raised to three', 3 === (int) ( $answer['data']['item']['servings'] ?? 0 ) && 3 === ( $answer['data']['min_servings'] ?? 0 ) && '' === ( $answer['data']['surplus'] ?? null ) );
+	$answer = $ajax( 'mmm_update_cart_item', array( 'index' => 0, 'servings' => 4 ) );
+	$ok( 'planner: four servings say "1 serving more than eaten"', 4 === (int) ( $answer['data']['item']['servings'] ?? 0 ) && Mixmymeals_Meal_Plan::servings_surplus_text( 1.0 ) === ( $answer['data']['surplus'] ?? null ) );
+	$answer = $ajax( 'mmm_update_cart_item', array( 'index' => 0, 'eaters' => 'p1' ) );
+	$ok( 'unticking person 2 keeps the four and says "3 more"', 4 === (int) ( $answer['data']['item']['servings'] ?? 0 ) && 1 === ( $answer['data']['min_servings'] ?? 0 ) && Mixmymeals_Meal_Plan::servings_surplus_text( 3.0 ) === ( $answer['data']['surplus'] ?? null ) );
+	$builder = do_shortcode( '[mmm_meal_plan_builder]' );
+	$ok( 'the planner item carries the floor and the note', false !== strpos( $builder, 'min="1" value="4"' ) && false !== strpos( $builder, esc_html( Mixmymeals_Meal_Plan::servings_surplus_text( 3.0 ) ) ) );
+	$answer = $ajax( 'mmm_update_cart_item', array( 'index' => 0, 'eaters' => 'p1,p2', 'portions' => wp_slash( wp_json_encode( array( 'p2' => '4' ) ) ) ) );
+	$ok( 'ticking person 2 back at four portions raises the servings to five', 5 === (int) ( $answer['data']['item']['servings'] ?? 0 ) && '' === ( $answer['data']['surplus'] ?? null ) );
 
 	$ajax( 'mmm_cart_eaters', array( 'op' => 'portions', 'id' => 'p1', 'portions' => '1,5' ) );
 	$ok( 'and a person\'s usual portions', 1.5 === array_column( ( new Mixmymeals_Cart() )->get_eaters(), 'portions', 'id' )['p1'] );
