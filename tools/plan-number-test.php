@@ -155,16 +155,23 @@ mmm_pnt_assert( get_post_field( 'post_name', $plan_id ) === sanitize_title( $exp
 
 $hero = mmm_pnt_hero( $plan_id );
 mmm_pnt_assert( false !== strpos( $hero, esc_html( $expected ) ), 'Hero zeigt den Titel mit der Nummer' );
-mmm_pnt_assert( false === strpos( $hero, 'mmm-plan-hero__number' ), 'Keine zweite Nummer über einem Titel, der sie nennt' );
+mmm_pnt_assert( false === strpos( $hero, 'mmm-plan-number' ), 'Keine zweite Nummer über einem Titel, der sie nennt' );
+mmm_pnt_assert( '' === do_shortcode( '[mmm_meal_plan_number post_id="' . $plan_id . '"]' ), 'Archiv-Etikett: ebenso nichts' );
 
 echo "-- 3. Umbenannt: die Nummer steht über dem Titel\n";
 
 wp_update_post( array( 'ID' => $plan_id, 'post_title' => 'ZZ Vegane Woche' ) );
 $hero = mmm_pnt_hero( $plan_id );
 mmm_pnt_assert(
-	1 === preg_match( '#<p class="mmm-plan-hero__number"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>\s*<h1>#', $hero ),
+	1 === preg_match( '#<p class="mmm-plan-number mmm-plan-hero__number"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>\s*<h1>#', $hero ),
 	'Hero: "#ID" direkt über der Überschrift, mit Text für Screenreader'
 );
+$card = do_shortcode( '[mmm_meal_plan_number post_id="' . $plan_id . '"]' );
+mmm_pnt_assert(
+	1 === preg_match( '#^<p class="mmm-plan-number mmm-plan-number--card"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>$#', $card ),
+	'Archiv-Etikett: dasselbe Markup mit eigenem Modifier'
+);
+mmm_pnt_assert( '' === do_shortcode( '[mmm_meal_plan_number post_id="' . $recipe_id . '"]' ), 'Kein Etikett für ein Rezept' );
 
 echo "-- 4. Gespeichert als Entwurf\n";
 

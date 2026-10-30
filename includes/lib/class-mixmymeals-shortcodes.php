@@ -47,6 +47,9 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_meta_for_posts_in_meal_plan_archive',
 			[ $this, 'mmm_meta_for_posts_in_meal_plan_archive_callback' ] );
 
+		add_shortcode( 'mmm_meal_plan_number',
+			[ $this, 'mmm_meal_plan_number_callback' ] );
+
 		add_shortcode( 'mmm_meal_plan_category_switcher',
 			[ $this, 'mmm_meal_plan_category_switcher_callback' ] );
 
@@ -536,6 +539,49 @@ class Mixmymeals_Shortcodes {
 		$output .= '</div>';
 
 		return $output;
+	}
+
+	/**
+	 * The plan's number as a label, `p.mmm-plan-number` ("#4812") — one
+	 * markup for the hero and for the archive cards, so the two cannot
+	 * drift apart. Empty where the title already states the number, as
+	 * every plan saved from the planner does: "#4812" beside "Essensplan
+	 * #4812" is the same thing twice.
+	 *
+	 * @param int    $plan_id  Meal plan post ID.
+	 * @param string $modifier Extra class for the place it stands in.
+	 * @return string Escaped markup, or ''.
+	 */
+	private static function plan_number_html( int $plan_id, string $modifier = '' ): string {
+
+		if ( Mixmymeals_Meal_Plan::title_states_number( $plan_id, get_the_title( $plan_id ) ) ) {
+			return '';
+		}
+
+		return '<p class="' . esc_attr( trim( 'mmm-plan-number ' . $modifier ) ) . '">'
+			. '<span class="screen-reader-text">' . esc_html__( 'Plan number', 'mixmymeals' ) . ' </span>'
+			. esc_html( Mixmymeals_Meal_Plan::number_label( $plan_id ) )
+			. '</p>';
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plan_number post_id=""].
+	 * The plan's number as a label, for the archive cards; the hero prints
+	 * it itself. Defaults to the current post.
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @return string
+	 */
+	public function mmm_meal_plan_number_callback( $atts = [] ): string {
+
+		$atts    = shortcode_atts( array( 'post_id' => 0 ), $atts, 'mmm_meal_plan_number' );
+		$plan_id = absint( $atts['post_id'] ) ? absint( $atts['post_id'] ) : (int) get_the_ID();
+
+		if ( ! $plan_id || 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			return '';
+		}
+
+		return self::plan_number_html( $plan_id, 'mmm-plan-number--card' );
 	}
 
 	/**
@@ -6175,16 +6221,7 @@ class Mixmymeals_Shortcodes {
 
         <section class="mmm-plan-hero">
             <div class="mmm-plan-hero__blob"></div>
-			<?php
-			/*
-			 * The plan's number above its title — unless the title already
-			 * says it, as every plan saved from the planner does: "#4812"
-			 * over "Essensplan #4812" is the same thing twice.
-			 */
-			if ( ! Mixmymeals_Meal_Plan::title_states_number( (int) $plan_id, $title ) ) :
-				?>
-            <p class="mmm-plan-hero__number"><span class="screen-reader-text"><?php esc_html_e( 'Plan number', 'mixmymeals' ); ?> </span><?php echo esc_html( Mixmymeals_Meal_Plan::number_label( (int) $plan_id ) ); ?></p>
-			<?php endif; ?>
+			<?php echo self::plan_number_html( (int) $plan_id, 'mmm-plan-hero__number' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">

@@ -6123,6 +6123,6 @@ msgstr[1] ""
 msgid "Meal Plan %s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6186
+#: includes/lib/class-mixmymeals-shortcodes.php:562
 msgid "Plan number"
 msgstr ""

@@ -121,8 +121,9 @@ Added:
 * Plan numbers: a plan's post ID is its public number, "#4812". Plans
   saved from the planner are titled after it ("Meal Plan #4812", slug to
   match) instead of after the date, which gave every plan saved on one day
-  the same name. The plan page shows the number above the title, except
-  where the title already states it.
+  the same name. The plan page shows the number as a label above the
+  title, and [mmm_meal_plan_number] puts the same label on archive cards —
+  both except where the title already states it.
 
 = 3.70.0 =
 

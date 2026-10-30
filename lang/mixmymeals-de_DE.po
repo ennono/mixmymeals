@@ -7785,6 +7785,6 @@ msgstr[1] "%s Portionen mehr als gegessen"
 msgid "Meal Plan %s"
 msgstr "Essensplan %s"
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6186
+#: includes/lib/class-mixmymeals-shortcodes.php:562
 msgid "Plan number"
 msgstr "Plannummer"
