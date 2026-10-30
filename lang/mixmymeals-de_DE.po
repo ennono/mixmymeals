@@ -7796,3 +7796,7 @@ msgstr "Nummer des Essensplans, z. B. #4812."
 #: includes/lib/class-mixmymeals-admin-api.php:747
 msgid "The plan number as a framed label, as on the plan page."
 msgstr "Die Plannummer als eingerahmtes Etikett, wie auf der Plan-Seite."
+
+#: includes/lib/class-mixmymeals-subscriptions.php:386
+msgid "Welcome! Your meal plan {{ plan_number }}"
+msgstr "Willkommen! Dein Essensplan {{ plan_number }}"

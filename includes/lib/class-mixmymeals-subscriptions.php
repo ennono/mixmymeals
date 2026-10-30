@@ -383,6 +383,7 @@ class Mixmymeals_Subscriptions {
 			'each-day.html'       => __( 'Your meals today: {{ plan }}', 'mixmymeals' ),
 			'shopping-list.html'  => __( 'Your shopping list: {{ plan }}', 'mixmymeals' ),
 			'rate-recipe.html'    => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
+			'welcome.html'        => __( 'Welcome! Your meal plan {{ plan_number }}', 'mixmymeals' ),
 		);
 
 		return $subjects[ basename( $template ) ] ?? __( '{{ plan }}', 'mixmymeals' );

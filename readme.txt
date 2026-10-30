@@ -125,6 +125,8 @@ Added:
   title, and [mmm_meal_plan_number] puts the same label on archive cards.
   Subscription mails show it too: placeholders {{ plan_number }} and
   {{ plan_number_html }}, and above the confirmation mail's heading.
+  A default subject for a welcome.html template ("Welcome! Your meal plan
+  {{ plan_number }}").
 
 = 3.70.0 =
 
