@@ -6221,8 +6221,18 @@ class Mixmymeals_Shortcodes {
 
         <section class="mmm-plan-hero">
             <div class="mmm-plan-hero__blob"></div>
-			<?php echo self::plan_number_html( (int) $plan_id, 'mmm-plan-hero__number' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+			<?php
+			// Title and number in one row; the theme sets the number at its end.
+			$number = self::plan_number_html( (int) $plan_id, 'mmm-plan-hero__number' );
+			if ( '' !== $number ) :
+				?>
+            <div class="mmm-plan-hero__title-row">
+                <h1><?php echo esc_html( $title ); ?></h1>
+				<?php echo $number; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+            </div>
+			<?php else : ?>
             <h1><?php echo esc_html( $title ); ?></h1>
+			<?php endif; ?>
 
             <div class="mmm-plan-hero__meta">
 				<?php echo self::meal_plan_stat_chips( (int) $plan_id, ( new Mixmymeals_Meal_Plan( (int) $plan_id ) )->requested_servings_offset() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>

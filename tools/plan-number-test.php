@@ -155,16 +155,16 @@ mmm_pnt_assert( get_post_field( 'post_name', $plan_id ) === sanitize_title( $exp
 
 $hero = mmm_pnt_hero( $plan_id );
 mmm_pnt_assert( false !== strpos( $hero, esc_html( $expected ) ), 'Hero zeigt den Titel mit der Nummer' );
-mmm_pnt_assert( false === strpos( $hero, 'mmm-plan-number' ), 'Keine zweite Nummer über einem Titel, der sie nennt' );
+mmm_pnt_assert( false === strpos( $hero, 'mmm-plan-number' ) && false === strpos( $hero, 'mmm-plan-hero__title-row' ), 'Keine zweite Nummer neben einem Titel, der sie nennt, und keine Zeile darum' );
 mmm_pnt_assert( '' === do_shortcode( '[mmm_meal_plan_number post_id="' . $plan_id . '"]' ), 'Archiv-Etikett: ebenso nichts' );
 
-echo "-- 3. Umbenannt: die Nummer steht über dem Titel\n";
+echo "-- 3. Umbenannt: die Nummer steht neben dem Titel\n";
 
 wp_update_post( array( 'ID' => $plan_id, 'post_title' => 'ZZ Vegane Woche' ) );
 $hero = mmm_pnt_hero( $plan_id );
 mmm_pnt_assert(
-	1 === preg_match( '#<p class="mmm-plan-number mmm-plan-hero__number"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>\s*<h1>#', $hero ),
-	'Hero: "#ID" direkt über der Überschrift, mit Text für Screenreader'
+	1 === preg_match( '#<div class="mmm-plan-hero__title-row">\s*<h1>[^<]+</h1>\s*<p class="mmm-plan-number mmm-plan-hero__number"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>\s*</div>#', $hero ),
+	'Hero: "#ID" in einer Zeile mit der Überschrift, mit Text für Screenreader'
 );
 $card = do_shortcode( '[mmm_meal_plan_number post_id="' . $plan_id . '"]' );
 mmm_pnt_assert(
