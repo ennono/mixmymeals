@@ -1649,8 +1649,8 @@ class Mixmymeals_Subscriptions {
 		$greeting    = '' !== $name ? $name : __( 'Hello', 'mixmymeals' );
 		$plan_title  = get_the_title( $plan_id );
 
-		// The plan's number on its own line above the heading, as in the templates.
-		$body  = '<p style="margin:0 0 8px;">' . self::plan_number_html( $plan_id ) . '</p>';
+		// The plan's number on its own line above the heading, right-aligned, as in the templates.
+		$body  = '<p style="margin:0 0 8px;text-align:right;">' . self::plan_number_html( $plan_id ) . '</p>';
 		$body .= '<h1>' . esc_html(
 			sprintf(
 				/* translators: %s: subscriber name. */
