@@ -26,13 +26,62 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Mixmymeals_Subscriptions {
 
 	/**
-	 * Look of the small headings inside a mail's blocks — the meal types, the
-	 * ingredient categories, the title of a nutrition table. One string, so
-	 * they cannot drift apart. In the accent colour, bold and ruled below:
+	 * Default colours of the mails, by role. Neutral on purpose — the
+	 * brand's colours are the theme's, supplied through the
+	 * `mixmymeals_mail_colors` filter (the child theme sets its greens and
+	 * creams there). Until 3.72.0 they were written into this class.
+	 */
+	const MAIL_COLORS = array(
+		'heading'   => '#1d2327', // Section headings, titles, the plan number.
+		'accent'    => '#2271b1', // Buttons and calls to action.
+		'on_accent' => '#ffffff', // Text on the accent colour.
+		'surface'   => '#ffffff', // Background of framed labels.
+		'rule'      => '#dcdcde', // Lines under headings.
+		'text'      => '#1d2327', // Body text in tables.
+		'muted'     => '#50575e', // Secondary text, amounts.
+		'subtle'    => '#787c82', // Notes, separators, per-line details.
+		'link'      => '#2271b1', // Inline links (rate, upload a photo).
+	);
+
+	/**
+	 * One mail colour by role, after the `mixmymeals_mail_colors` filter.
+	 * A value that is not a hex colour falls back to the default, since it
+	 * lands inside a style attribute.
+	 *
+	 * @param string $role Key of MAIL_COLORS.
+	 * @return string
+	 */
+	public static function mail_color( string $role ): string {
+
+		static $colors = null;
+
+		if ( null === $colors ) {
+			$filtered = (array) apply_filters( 'mixmymeals_mail_colors', self::MAIL_COLORS );
+			$colors   = array();
+
+			foreach ( self::MAIL_COLORS as $key => $default ) {
+				$value          = isset( $filtered[ $key ] ) ? sanitize_hex_color( (string) $filtered[ $key ] ) : '';
+				$colors[ $key ] = $value ? $value : $default;
+			}
+		}
+
+		return $colors[ $role ] ?? self::MAIL_COLORS['text'];
+	}
+
+	/**
+	 * Inline style shared by every small heading in the mails — the meal
+	 * types, the ingredient categories, the title of a nutrition table. One string,
+	 * so they cannot drift apart. In the heading colour, bold and ruled below:
 	 * grey 12px capitals were all but indistinguishable from the 14px grey
 	 * text they head.
+	 *
+	 * @return string
 	 */
-	private const SECTION_HEADING_STYLE = 'padding:0 0 4px;border-bottom:1px solid #ECE6D9;color:#3F6F1E;font-size:14px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;';
+	private static function section_heading_style(): string {
+
+		return 'padding:0 0 4px;border-bottom:1px solid ' . self::mail_color( 'rule' ) . ';color:'
+			. self::mail_color( 'heading' ) . ';font-size:14px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;';
+	}
 
 	const POST_TYPE = 'mmm_subscription';
 	const CRON_HOOK = 'mmm_subscription_dispatch';
@@ -1667,7 +1716,7 @@ class Mixmymeals_Subscriptions {
 			)
 		) . '</p>';
 		$body .= '<p><a href="' . esc_url( $confirm_url )
-			. '" style="display:inline-block;padding:11px 18px;border-radius:999px;background:#5C9E2E;color:#ffffff;font-weight:800;text-decoration:none;">'
+			. '" style="display:inline-block;padding:11px 18px;border-radius:999px;background:' . self::mail_color( 'accent' ) . ';color:' . self::mail_color( 'on_accent' ) . ';font-weight:800;text-decoration:none;">'
 			. esc_html__( 'Confirm subscription', 'mixmymeals' ) . '</a></p>';
 		$body .= '<p>'
 			. esc_html__( 'If you did not request this, simply ignore this e-mail — no e-mails will be sent without your confirmation.', 'mixmymeals' )
@@ -1850,7 +1899,7 @@ class Mixmymeals_Subscriptions {
 			return '';
 		}
 
-		return '<p style="font-weight:700;color:#3F6F1E;">'
+		return '<p style="font-weight:700;color:' . self::mail_color( 'heading' ) . ';">'
 			. esc_html(
 				sprintf(
 					/* translators: %s: the day's nutrition figures, already formatted. */
@@ -1977,11 +2026,11 @@ class Mixmymeals_Subscriptions {
 			$indent = in_array( $key, array( 'sugar', 'saturates' ), true ) ? 'padding-left:16px;' : '';
 
 			$rows .= '<tr>'
-				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:#6B665B;font-size:14px;">'
+				. '<td style="' . esc_attr( $indent ) . 'padding:4px 0;color:' . self::mail_color( 'muted' ) . ';font-size:14px;">'
 				. esc_html( $label ) . '</td>'
-				. '<td style="padding:4px 0;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
+				. '<td style="padding:4px 0;text-align:right;color:' . self::mail_color( 'text' ) . ';font-size:14px;white-space:nowrap;">'
 				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $key, $value ) ) . '</td>'
-				. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;">'
+				. '<td style="padding:4px 0 4px 12px;text-align:right;color:' . self::mail_color( 'muted' ) . ';font-size:14px;white-space:nowrap;">'
 				// With "max." or "min." where the 100 % is a ceiling or a
 				// floor: the bare percentage read as "complete" for all of
 				// them, which is the opposite of what salt at 100 % means.
@@ -1995,15 +2044,15 @@ class Mixmymeals_Subscriptions {
 
 		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
 			. '<tr>'
-			. '<th align="left" style="' . self::SECTION_HEADING_STYLE . '">'
+			. '<th align="left" style="' . self::section_heading_style() . '">'
 			. esc_html__( 'Per person, this day', 'mixmymeals' ) . '</th>'
-			. '<th style="border-bottom:1px solid #ECE6D9;"></th>'
-			. '<th align="right" style="' . self::SECTION_HEADING_STYLE . 'padding-left:12px;white-space:nowrap;">'
+			. '<th style="border-bottom:1px solid ' . self::mail_color( 'rule' ) . ';"></th>'
+			. '<th align="right" style="' . self::section_heading_style() . 'padding-left:12px;white-space:nowrap;">'
 			. esc_html__( 'of RI', 'mixmymeals' ) . '</th>'
 			. '</tr>'
 			. $rows
 			. '</table>'
-			. '<p style="margin:0 0 8px;line-height:1.4;color:#6B665B;font-size:12px;">'
+			. '<p style="margin:0 0 8px;line-height:1.4;color:' . self::mail_color( 'muted' ) . ';font-size:12px;">'
 			. esc_html(
 				Mixmymeals_Meal_Plan::reference_intake_note()
 				. ' '
@@ -2057,13 +2106,13 @@ class Mixmymeals_Subscriptions {
 			);
 
 			$rows .= '<tr>'
-				. '<td style="padding:6px 0;color:#2C2A24;font-size:14px;">'
+				. '<td style="padding:6px 0;color:' . self::mail_color( 'text' ) . ';font-size:14px;">'
 				. esc_html( get_the_title( $recipe->get_id() ) )
-				. '<br><span style="color:#8A8478;font-size:12px;">'
+				. '<br><span style="color:' . self::mail_color( 'subtle' ) . ';font-size:12px;">'
 				. esc_html( $types[ $type ] ?? '' ) . '</span></td>'
-				. '<td style="padding:6px 0 6px 12px;text-align:right;color:#2C2A24;font-size:14px;white-space:nowrap;">'
+				. '<td style="padding:6px 0 6px 12px;text-align:right;color:' . self::mail_color( 'text' ) . ';font-size:14px;white-space:nowrap;">'
 				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', (float) $per_serving['calories'] ) )
-				. '<br><span style="color:#8A8478;font-size:12px;">' . esc_html( $macros ) . '</span></td>'
+				. '<br><span style="color:' . self::mail_color( 'subtle' ) . ';font-size:12px;">' . esc_html( $macros ) . '</span></td>'
 				. '</tr>';
 		}
 
@@ -2072,7 +2121,7 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
-			. '<tr><th align="left" colspan="2" style="' . self::SECTION_HEADING_STYLE . '">'
+			. '<tr><th align="left" colspan="2" style="' . self::section_heading_style() . '">'
 			. esc_html__( 'Per serving, by dish', 'mixmymeals' )
 			. '</th></tr>'
 			. $rows
@@ -2135,7 +2184,7 @@ class Mixmymeals_Subscriptions {
 			 */
 			$actions = array(
 				'<a href="' . esc_url( $href )
-				. '" style="color:#E8A33D;text-decoration:underline;">'
+				. '" style="color:' . self::mail_color( 'link' ) . ';text-decoration:underline;">'
 				. esc_html__( 'Rate', 'mixmymeals' ) . '</a>',
 			);
 
@@ -2143,14 +2192,14 @@ class Mixmymeals_Subscriptions {
 
 			if ( '' !== $upload_href ) {
 				$actions[] = '<a href="' . esc_url( $upload_href )
-					. '" style="color:#E8A33D;text-decoration:underline;">'
+					. '" style="color:' . self::mail_color( 'link' ) . ';text-decoration:underline;">'
 					. esc_html__( 'Upload photo', 'mixmymeals' ) . '</a>';
 			}
 
 			$items[] = '<li style="margin:0 0 8px;">'
 				. esc_html( get_the_title( $recipe_id ) )
-				. '<span style="color:#9A958A;"> &middot; </span>'
-				. implode( '<span style="color:#9A958A;"> &middot; </span>', $actions )
+				. '<span style="color:' . self::mail_color( 'subtle' ) . ';"> &middot; </span>'
+				. implode( '<span style="color:' . self::mail_color( 'subtle' ) . ';"> &middot; </span>', $actions )
 				. '</li>';
 		}
 
@@ -2303,7 +2352,8 @@ class Mixmymeals_Subscriptions {
 	 * label the plan page and the archive show (`p.mmm-plan-number`), but
 	 * styled inline, since a mail cannot reach the theme's stylesheet and
 	 * Gmail and Outlook drop the layout's <style> block in some views. The
-	 * colours are the theme's green-700 on white.
+	 * colours are the `heading` and `surface` roles of mail_color(), which the
+	 * child theme sets to its green-700 on white.
 	 *
 	 * @param int $plan_id Meal plan post ID.
 	 * @return string Markup.
@@ -2311,7 +2361,7 @@ class Mixmymeals_Subscriptions {
 	public static function plan_number_html( int $plan_id ): string {
 
 		$style = 'display:inline-block;vertical-align:middle;padding:2px 10px;'
-			. 'border:2px solid #3F6F1E;border-radius:6px;background:#ffffff;color:#3F6F1E;'
+			. 'border:2px solid ' . self::mail_color( 'heading' ) . ';border-radius:6px;background:' . self::mail_color( 'surface' ) . ';color:' . self::mail_color( 'heading' ) . ';'
 			. 'font-size:16px;line-height:1.3;font-weight:700;letter-spacing:0.03em;white-space:nowrap;';
 
 		return '<span class="mmm-plan-number" style="' . esc_attr( $style ) . '">'
@@ -2409,9 +2459,9 @@ class Mixmymeals_Subscriptions {
 				$meta[] = $cal_line;
 			}
 
-			$content = '<a href="' . esc_url( $link ) . '" style="font-weight:700;color:#3F6F1E;text-decoration:none;">' . esc_html( $title ) . '</a>'
-				. '<br><span style="color:#9A9485;font-size:14px;">' . esc_html( implode( ' · ', $meta ) ) . '</span>'
-				. '<br><a href="' . esc_url( $link ) . '" style="display:inline-block;margin-top:4px;color:#5C9E2E;font-weight:700;text-decoration:none;">'
+			$content = '<a href="' . esc_url( $link ) . '" style="font-weight:700;color:' . self::mail_color( 'heading' ) . ';text-decoration:none;">' . esc_html( $title ) . '</a>'
+				. '<br><span style="color:' . self::mail_color( 'subtle' ) . ';font-size:14px;">' . esc_html( implode( ' · ', $meta ) ) . '</span>'
+				. '<br><a href="' . esc_url( $link ) . '" style="display:inline-block;margin-top:4px;color:' . self::mail_color( 'accent' ) . ';font-weight:700;text-decoration:none;">'
 				. esc_html__( 'Cook now', 'mixmymeals' ) . ' →</a>';
 
 			$thumb_id  = (int) $meal->get_recipe_id();
@@ -2462,7 +2512,7 @@ class Mixmymeals_Subscriptions {
 		$list_html = '';
 		foreach ( $items as $type => $rows ) {
 			if ( 'other' !== $type || count( $items ) > 1 ) {
-				$list_html .= '<h3 style="margin:16px 0 4px;font-family:Helvetica,Arial,sans-serif;line-height:1.3;' . self::SECTION_HEADING_STYLE . '">'
+				$list_html .= '<h3 style="margin:16px 0 4px;font-family:Helvetica,Arial,sans-serif;line-height:1.3;' . self::section_heading_style() . '">'
 					. esc_html( $types[ $type ] ) . '</h3>';
 			}
 			$list_html .= '<ul style="list-style-type:none;padding:0;margin:10px 0 8px;">' . implode( '', $rows ) . '</ul>';
@@ -2557,7 +2607,7 @@ class Mixmymeals_Subscriptions {
 				);
 
 				$optional_label = ! empty( $data['optional'] )
-					? ' <span style="color:#6B665B;">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
+					? ' <span style="color:' . self::mail_color( 'muted' ) . ';">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>'
 					: '';
 
 				// The packet the figures assume, where the plan agrees on one,
@@ -2565,13 +2615,13 @@ class Mixmymeals_Subscriptions {
 				$reference_label = Mixmymeals_Shortcodes::shopping_item_product_text( $data );
 
 				$rows .= '<tr>'
-					. '<td style="padding:4px 0;color:#2C2A24;font-size:14px;">'
+					. '<td style="padding:4px 0;color:' . self::mail_color( 'text' ) . ';font-size:14px;">'
 					. esc_html( get_the_title( $ing_id ) ) . $optional_label
 					. ( '' !== $reference_label
-						? '<br><span style="color:#8A8478;font-size:12px;">' . esc_html( $reference_label ) . '</span>'
+						? '<br><span style="color:' . self::mail_color( 'subtle' ) . ';font-size:12px;">' . esc_html( $reference_label ) . '</span>'
 						: '' )
 					. '</td>'
-					. '<td style="padding:4px 0 4px 12px;text-align:right;color:#6B665B;font-size:14px;white-space:nowrap;vertical-align:top;">'
+					. '<td style="padding:4px 0 4px 12px;text-align:right;color:' . self::mail_color( 'muted' ) . ';font-size:14px;white-space:nowrap;vertical-align:top;">'
 					. esc_html( $amount ) . '</td>'
 					. '</tr>';
 			}
@@ -2581,7 +2631,7 @@ class Mixmymeals_Subscriptions {
 			}
 
 			$out .= '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-collapse:collapse;">'
-				. '<tr><th colspan="2" align="left" style="' . self::SECTION_HEADING_STYLE . '">'
+				. '<tr><th colspan="2" align="left" style="' . self::section_heading_style() . '">'
 				. esc_html( (string) $cat_name ) . '</th></tr>'
 				. $rows
 				. '</table>';

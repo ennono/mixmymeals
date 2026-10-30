@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.71.0
+Stable tag: 3.72.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,32 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.72.0 =
+
+Changed:
+* The site search moved from the child theme into the plugin
+  (Mixmymeals_Search: groups(), ids(), archive_link()). Same stages — title,
+  then ingredients resp. the recipes a plan plans, then full text — and the
+  theme now only names the groups. Plans are found through all their meals,
+  not the first 500.
+* Mixmymeals_Meal_Plan::latest_plan_spotlight() gives the front-page teaser
+  its plan, dish, meal, addresses and chip row; the chips are worded like the
+  archive's and carry the advertising label.
+* Mail colours are roles with neutral defaults (Mixmymeals_Subscriptions::
+  mail_color(), filter mixmymeals_mail_colors); the brand's colours come from
+  the theme.
+* The headings in the planner's boxes are worded through the filter
+  mixmymeals_planner_heading; an empty text prints none.
+* frontend.css keeps structure only: the tints, radius and font sizes of the
+  planner's day lists, the start-day selector, preparation notes and steps
+  are the theme's, and the dialog and cook mode take the browser's Canvas
+  colour until a theme sets one. The two inline margins on the planner's
+  message spans are gone.
+
+Fixed:
+* The search's ingredient stage dropped the unlisted clause and could list
+  unlisted recipes.
 
 = 3.71.0 =
 
@@ -2006,6 +2032,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.72.0 =
+Mails use neutral colours unless the theme supplies its own through mixmymeals_mail_colors — update MixMyMeals Astra Child to 1.17.0 alongside.
 
 = 3.35.0 =
 Recipes can now be filtered by diet, time and the ingredients you have.
