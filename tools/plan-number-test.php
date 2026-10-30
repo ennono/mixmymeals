@@ -3,7 +3,7 @@
  * Prüft die Plannummer: Pläne, die aus dem Planer gespeichert werden, heißen
  * nach ihrer Post-ID ("Essensplan #4812", veröffentlicht mit passendem Slug,
  * als Entwurf mit dem Slug erst beim Veröffentlichen), und der Hero zeigt
- * die Nummer über dem Titel — außer der Titel nennt sie schon.
+ * die Nummer als Etikett neben dem Titel und auf den Archiv-Karten.
  *
  * Läuft gegen eine echte Installation (der Speichern-Handler, echte Posts).
  * Legt eigene Posts an und löscht sie wieder; alles heißt "ZZ …" oder trägt
@@ -138,9 +138,6 @@ $created[] = $recipe_id;
 echo "-- 1. Die Nummer\n";
 
 mmm_pnt_assert( '#4812' === Mixmymeals_Meal_Plan::number_label( 4812 ), 'Nummer: "#" und die ID, ohne Tausenderpunkt' );
-mmm_pnt_assert( Mixmymeals_Meal_Plan::title_states_number( 4812, 'Essensplan #4812' ), 'Titel mit der Nummer wird erkannt' );
-mmm_pnt_assert( ! Mixmymeals_Meal_Plan::title_states_number( 4812, 'Essensplan #48120' ), '"#48120" ist nicht "#4812"' );
-mmm_pnt_assert( ! Mixmymeals_Meal_Plan::title_states_number( 4812, 'Vegane Woche 4812' ), 'Ohne "#" ist es keine Nummer' );
 
 echo "-- 2. Gespeichert aus dem Planer, veröffentlicht\n";
 
@@ -155,22 +152,21 @@ mmm_pnt_assert( get_post_field( 'post_name', $plan_id ) === sanitize_title( $exp
 
 $hero = mmm_pnt_hero( $plan_id );
 mmm_pnt_assert( false !== strpos( $hero, esc_html( $expected ) ), 'Hero zeigt den Titel mit der Nummer' );
-mmm_pnt_assert( false === strpos( $hero, 'mmm-plan-number' ) && false === strpos( $hero, 'mmm-plan-hero__title-row' ), 'Keine zweite Nummer neben einem Titel, der sie nennt, und keine Zeile darum' );
-mmm_pnt_assert( '' === do_shortcode( '[mmm_meal_plan_number post_id="' . $plan_id . '"]' ), 'Archiv-Etikett: ebenso nichts' );
-
-echo "-- 3. Umbenannt: die Nummer steht neben dem Titel\n";
-
-wp_update_post( array( 'ID' => $plan_id, 'post_title' => 'ZZ Vegane Woche' ) );
-$hero = mmm_pnt_hero( $plan_id );
 mmm_pnt_assert(
 	1 === preg_match( '#<div class="mmm-plan-hero__title-row">\s*<h1>[^<]+</h1>\s*<p class="mmm-plan-number mmm-plan-hero__number"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>\s*</div>#', $hero ),
-	'Hero: "#ID" in einer Zeile mit der Überschrift, mit Text für Screenreader'
+	'Hero: Etikett "#ID" in einer Zeile mit der Überschrift, auch wenn der Titel die Nummer nennt'
 );
 $card = do_shortcode( '[mmm_meal_plan_number post_id="' . $plan_id . '"]' );
 mmm_pnt_assert(
 	1 === preg_match( '#^<p class="mmm-plan-number mmm-plan-number--card"><span class="screen-reader-text">[^<]+</span>\#' . $plan_id . '</p>$#', $card ),
-	'Archiv-Etikett: dasselbe Markup mit eigenem Modifier'
+	'Archiv-Etikett: dasselbe Markup mit eigenem Modifier, auch hier trotz Nummer im Titel'
 );
+
+echo "-- 3. Umbenannt: das Etikett bleibt\n";
+
+wp_update_post( array( 'ID' => $plan_id, 'post_title' => 'ZZ Vegane Woche' ) );
+$hero = mmm_pnt_hero( $plan_id );
+mmm_pnt_assert( false !== strpos( $hero, 'mmm-plan-hero__number"><span class="screen-reader-text">' ) && false !== strpos( $hero, '#' . $plan_id . '</p>' ), 'Hero: Etikett auch über einem eigenen Namen' );
 mmm_pnt_assert( '' === do_shortcode( '[mmm_meal_plan_number post_id="' . $recipe_id . '"]' ), 'Kein Etikett für ein Rezept' );
 
 echo "-- 4. Gespeichert als Entwurf\n";

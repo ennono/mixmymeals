@@ -544,19 +544,15 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * The plan's number as a label, `p.mmm-plan-number` ("#4812") — one
 	 * markup for the hero and for the archive cards, so the two cannot
-	 * drift apart. Empty where the title already states the number, as
-	 * every plan saved from the planner does: "#4812" beside "Essensplan
-	 * #4812" is the same thing twice.
+	 * drift apart. Printed on every plan, also where the title states the
+	 * number ("Essensplan #4812"), by the site owner's decision: the label
+	 * is the place a reader looks for it.
 	 *
 	 * @param int    $plan_id  Meal plan post ID.
 	 * @param string $modifier Extra class for the place it stands in.
-	 * @return string Escaped markup, or ''.
+	 * @return string Escaped markup.
 	 */
 	private static function plan_number_html( int $plan_id, string $modifier = '' ): string {
-
-		if ( Mixmymeals_Meal_Plan::title_states_number( $plan_id, get_the_title( $plan_id ) ) ) {
-			return '';
-		}
 
 		return '<p class="' . esc_attr( trim( 'mmm-plan-number ' . $modifier ) ) . '">'
 			. '<span class="screen-reader-text">' . esc_html__( 'Plan number', 'mixmymeals' ) . ' </span>'
@@ -6223,16 +6219,11 @@ class Mixmymeals_Shortcodes {
             <div class="mmm-plan-hero__blob"></div>
 			<?php
 			// Title and number in one row; the theme sets the number at its end.
-			$number = self::plan_number_html( (int) $plan_id, 'mmm-plan-hero__number' );
-			if ( '' !== $number ) :
-				?>
+			?>
             <div class="mmm-plan-hero__title-row">
                 <h1><?php echo esc_html( $title ); ?></h1>
-				<?php echo $number; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+				<?php echo self::plan_number_html( (int) $plan_id, 'mmm-plan-hero__number' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
             </div>
-			<?php else : ?>
-            <h1><?php echo esc_html( $title ); ?></h1>
-			<?php endif; ?>
 
             <div class="mmm-plan-hero__meta">
 				<?php echo self::meal_plan_stat_chips( (int) $plan_id, ( new Mixmymeals_Meal_Plan( (int) $plan_id ) )->requested_servings_offset() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>

@@ -903,18 +903,6 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * Whether a title already states the plan's number, as the ones saved
-	 * from the planner do ("Essensplan #4812"). "#48120" is not "#4812".
-	 *
-	 * @param int    $plan_id Meal plan post ID.
-	 * @param string $title   The title as printed.
-	 * @return bool
-	 */
-	public static function title_states_number( int $plan_id, string $title ): bool {
-		return 1 === preg_match( '/' . preg_quote( self::number_label( $plan_id ), '/' ) . '(?!\d)/', $title );
-	}
-
-	/**
 	 * Names a plan after its own number ("Essensplan #4812") — the title
 	 * of a plan saved from the planner. Only possible once the post exists,
 	 * since the number is its ID, so the plan is created first and renamed
