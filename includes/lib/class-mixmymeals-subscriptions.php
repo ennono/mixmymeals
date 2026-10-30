@@ -1655,7 +1655,7 @@ class Mixmymeals_Subscriptions {
 				__( '%s, please confirm your subscription', 'mixmymeals' ),
 				$greeting
 			)
-		) . '</h1>';
+		) . ' ' . self::plan_number_html( $plan_id ) . '</h1>';
 		$body .= '<p>' . esc_html(
 			sprintf(
 				/* translators: %s: meal plan title. */
@@ -1733,6 +1733,9 @@ class Mixmymeals_Subscriptions {
 	 *
 	 * Available placeholders:
 	 *  - {{ plan }} {{ plan_url }} {{ unsubscribe_url }} {{ weekday }} {{ greeting }}
+	 *  - {{ plan_number }}           The plan's number, "#4812".
+	 *  - {{ plan_number_html }}      The same as a framed label, styled inline
+	 *                                (plan_number_html()).
 	 *  - {{ meal_list_html }}        The day's meals (thumbnail + "cook now" link),
 	 *                                or a "no meals" notice.
 	 *  - {{ meal_images_html }}      A row of the day's meal images (linked), or empty.
@@ -1787,6 +1790,8 @@ class Mixmymeals_Subscriptions {
 
 		return array(
 			'plan'                 => get_the_title( $plan->get_id() ),
+			'plan_number'          => Mixmymeals_Meal_Plan::number_label( $plan->get_id() ),
+			'plan_number_html'     => self::plan_number_html( $plan->get_id() ),
 			'plan_url'             => (string) get_permalink( $plan->get_id() ),
 			'unsubscribe_url'      => $unsubscribe_url,
 			'weekday'              => $this->weekday_name( $day ),
@@ -2288,6 +2293,27 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return ! empty( $range ) ? (int) $range[0] : 1;
+	}
+
+	/**
+	 * The plan's number as a label for a mail ("#4812"): the same framed
+	 * label the plan page and the archive show (`p.mmm-plan-number`), but
+	 * styled inline, since a mail cannot reach the theme's stylesheet and
+	 * Gmail and Outlook drop the layout's <style> block in some views. The
+	 * colours are the theme's green-700 on white.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string Markup.
+	 */
+	public static function plan_number_html( int $plan_id ): string {
+
+		$style = 'display:inline-block;vertical-align:middle;padding:2px 10px;'
+			. 'border:2px solid #3F6F1E;border-radius:6px;background:#ffffff;color:#3F6F1E;'
+			. 'font-size:16px;line-height:1.3;font-weight:700;letter-spacing:0.03em;white-space:nowrap;';
+
+		return '<span class="mmm-plan-number" style="' . esc_attr( $style ) . '">'
+			. esc_html( Mixmymeals_Meal_Plan::number_label( $plan_id ) )
+			. '</span>';
 	}
 
 	/**

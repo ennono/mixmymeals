@@ -743,6 +743,8 @@ class Mixmymeals_Admin_API {
 			'{{ greeting }}'             => __( 'Salutation, including the subscriber name when given.', 'mixmymeals' ),
 			'{{ weekday }}'              => __( 'Name of the weekday the mail is about.', 'mixmymeals' ),
 			'{{ plan }}'                 => __( 'Title of the meal plan.', 'mixmymeals' ),
+			'{{ plan_number }}'          => __( 'Number of the meal plan, e.g. #4812.', 'mixmymeals' ),
+			'{{ plan_number_html }}'     => __( 'The plan number as a framed label, as on the plan page.', 'mixmymeals' ),
 			'{{ plan_url }}'             => __( 'Link to the meal plan.', 'mixmymeals' ),
 			'{{ unsubscribe_url }}'      => __( 'Unsubscribe link (the layout already adds one in the footer).', 'mixmymeals' ),
 			'{{ meal_list_html }}'       => __( 'The day’s meals as a ready-made list, each with a thumbnail and “Cook now” link.', 'mixmymeals' ),

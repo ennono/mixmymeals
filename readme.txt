@@ -123,6 +123,8 @@ Added:
   match) instead of after the date, which gave every plan saved on one day
   the same name. The plan page shows the number as a label beside the
   title, and [mmm_meal_plan_number] puts the same label on archive cards.
+  Subscription mails show it too: placeholders {{ plan_number }} and
+  {{ plan_number_html }}, and the confirmation mail's heading.
 
 = 3.70.0 =
 

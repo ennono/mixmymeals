@@ -6126,3 +6126,11 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php:562
 msgid "Plan number"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php:746
+msgid "Number of the meal plan, e.g. #4812."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-admin-api.php:747
+msgid "The plan number as a framed label, as on the plan page."
+msgstr ""
