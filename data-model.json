@@ -180,6 +180,12 @@
           "description": "Endtag des Plans. Kann kleiner als start_day sein (Wochenüberschreitung, z. B. Sa–Di).",
           "getter": "get_end_day()",
           "setter": "set_end_day(int)"
+        },
+        "_mmm_plan_eaters": {
+          "type": "array<{id:string, name:string, profile:string, portions:float}>",
+          "description": "Die Personen des Plans (3.70.0), geordnet; id stabil (p1, p2 …), name nur für Redakteure (nie öffentlich), profile bisher nur adult, portions = übliche Portionen (Standard 1). Fehlt die Zeile: eine Person, die alles isst.",
+          "getter": "get_eaters() (ohne Namen) / get_eater_names()",
+          "setter": "set_eaters(array)"
         }
       },
       "taxonomies": ["mmm_meal_plan_category", "mmm_meal_plan_tag"],
@@ -228,6 +234,18 @@
           "description": "Wochentag der Mahlzeit innerhalb des Plans. 1 = Montag, 7 = Sonntag.",
           "getter": "get_day()",
           "setter": "set_day(int)"
+        },
+        "_mmm_eaters": {
+          "type": "string[]",
+          "description": "Wer die Mahlzeit isst: IDs der Personen des Plans (3.70.0). Fehlt die Zeile (oder bleibt nach der Prüfung niemand übrig): alle.",
+          "getter": "get_eaters()",
+          "setter": "set_eaters(array)"
+        },
+        "_mmm_eater_portions": {
+          "type": "object<string,float>",
+          "description": "Portionen einzelner Esser von dieser Mahlzeit, nur wo sie vom üblichen Wert der Person abweichen (3.70.0). Fehlt ein Eintrag: üblicher Wert.",
+          "getter": "get_eater_portions()",
+          "setter": "set_eater_portions(array)"
         }
       }
     },
@@ -356,8 +374,11 @@
       "recipe_id": "int — Post-ID des mmm_recipe",
       "servings": "int — gewünschte Portionen",
       "type": "string — Mahlzeitentyp (breakfast/lunch/dinner/snack/other)",
-      "day": "int|null — Wochentag (1–7) oder null"
+      "day": "int|null — Wochentag (1–7) oder null",
+      "eaters": "string[] — wer mitisst (IDs der Planer-Personen), leer = alle (3.70.0)",
+      "portions": "object<string,float> — abweichende Portionen je Esser, leer = übliche (3.70.0)"
     },
+    "eaters_storage": "User Meta mixmymeals_cart_eaters bzw. Transient mixmymeals_cart_{uuid}_eaters — nur IDs und Profil, keine Namen (3.70.0)",
     "max_items_option": "mixmymeals_max_items_in_cart"
   },
 

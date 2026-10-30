@@ -208,6 +208,14 @@ class Mixmymeals_Post_Meta {
 		// that does not render this table must not wipe the meals by not
 		// posting them.
 		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_meals' ) );
+
+		// The plan's people, in a box of their own and saved before the
+		// meals (priority 9), which check who eats them against this list.
+		add_action(
+			'add_meta_boxes_mmm_meal_plan',
+			array( $this, 'add_meal_plan_eaters_meta_box' )
+		);
+		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_eaters' ), 9 );
 	}
 
 	/*
@@ -1063,6 +1071,11 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'Day', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Servings', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Diet', 'mixmymeals' ) . '</th>';
+		// Only where the plan lists several people; with one there is no
+		// one else to eat along.
+		if ( $plan->has_eaters() ) {
+			echo '<th>' . esc_html__( 'Eats along', 'mixmymeals' ) . '</th>';
+		}
 		echo '<th>' . esc_html__( 'Meal', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
 		echo '</tr></thead><tbody>';
@@ -1078,13 +1091,22 @@ class Mixmymeals_Post_Meta {
 			echo '<td>' . self::meal_type_select( $field . '[type]', $meal_obj->get_type() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 			echo '<td>' . self::meal_day_select( $field . '[day]', $days, (int) $meal_obj->get_day() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 
+			// Not below what its eaters eat; more is allowed and noted.
+			$mmm_surplus = $plan->has_eaters() ? Mixmymeals_Meal_Plan::servings_surplus_text( $meal_obj->servings_surplus() ) : '';
+
 			printf(
-				'<td><input type="number" min="1" step="1" name="%s" value="%s" class="small-text"></td>',
+				'<td><input type="number" min="%1$s" step="1" name="%2$s" value="%3$s" class="small-text">%4$s</td>',
+				esc_attr( (string) $meal_obj->min_servings() ),
 				esc_attr( $field . '[servings]' ),
-				esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) )
+				esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) ),
+				'' === $mmm_surplus ? '' : '<br><span class="description mmm-plan-meals__surplus">' . esc_html( $mmm_surplus ) . '</span>'
 			);
 
 			echo '<td>' . self::meal_diet_select( $field . '[diet]', new Mixmymeals_Recipe( $meal_obj->get_recipe_id() ), $meal_obj->get_diet() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+
+			if ( $plan->has_eaters() ) {
+				echo '<td>' . self::meal_eaters_checkboxes( $field, $plan, $meal_obj->get_eaters(), $meal_obj->get_eater_portions_raw() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			}
 
 			// The meal keeps its own screen: notes, status and everything else
 			// this table deliberately does not carry live there.
@@ -1123,8 +1145,16 @@ class Mixmymeals_Post_Meta {
 		echo '<td>' . self::meal_recipe_select( 'mmm_plan_meals[new][recipe_id]', $recipes, 0 ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 		echo '<td>' . self::meal_type_select( 'mmm_plan_meals[new][type]', 'dinner' ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 		echo '<td>' . self::meal_day_select( 'mmm_plan_meals[new][day]', $days, 0 ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-		echo '<td><input type="number" min="1" step="1" name="mmm_plan_meals[new][servings]" value="" class="small-text" placeholder="1"></td>';
+		// One serving per person to start with; the field stays free, for
+		// leftovers and guests.
+		printf(
+			'<td><input type="number" min="1" step="1" name="mmm_plan_meals[new][servings]" value="" class="small-text" placeholder="%s"></td>',
+			esc_attr( (string) $plan->default_servings() )
+		);
 		echo '<td>' . self::meal_diet_select( 'mmm_plan_meals[new][diet]', null, '' ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+		if ( $plan->has_eaters() ) {
+			echo '<td>' . self::meal_eaters_checkboxes( 'mmm_plan_meals[new]', $plan, $plan->eater_ids() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+		}
 		echo '<td colspan="2"><span class="description">' . esc_html__( 'Pick a recipe to add a meal.', 'mixmymeals' ) . '</span></td>';
 		/*
 		 * The block editor posts the meta boxes without re-rendering them, so
@@ -1243,6 +1273,56 @@ class Mixmymeals_Post_Meta {
 		}
 
 		return $out . '</select>';
+	}
+
+	/**
+	 * Who eats one meal: a checkbox per person of the plan, named by the
+	 * editor's name where there is one (this is wp-admin) and by position
+	 * otherwise. A hidden marker says the column was there, so unticking
+	 * everybody is told apart from a screen that never showed it — and
+	 * means "all", as nobody always does.
+	 *
+	 * Beside each box the portions that person eats of this meal: empty is
+	 * their usual amount (People box), which the placeholder shows.
+	 *
+	 * @param string               $field    Row's field prefix.
+	 * @param Mixmymeals_Meal_Plan $plan     The plan.
+	 * @param string[]             $current  Ids ticked.
+	 * @param array                $portions The meal's own figures, id => portions.
+	 * @return string
+	 */
+	private static function meal_eaters_checkboxes( string $field, Mixmymeals_Meal_Plan $plan, array $current, array $portions = array() ): string {
+
+		$names = $plan->get_eater_names();
+		$step  = Mixmymeals_Meal_Plan::portion_step();
+		$out   = '<input type="hidden" name="' . esc_attr( $field . '[eaters_shown]' ) . '" value="1">';
+
+		foreach ( $plan->get_eaters() as $person ) {
+			$name = (string) ( $names[ $person['id'] ] ?? '' );
+			$own  = in_array( $person['id'], $current, true ) ? Mixmymeals_Meal_Plan::normalise_portion( $portions[ $person['id'] ] ?? null, false ) : null;
+			$out .= sprintf(
+				'<span class="mmm-plan-meals__eater-group"><label class="mmm-plan-meals__eater"><input type="checkbox" name="%1$s" value="%2$s"%3$s> %4$s</label> <input type="number" class="small-text mmm-plan-meals__portions" name="%5$s" value="%6$s" placeholder="%7$s" min="%8$s" max="%9$s" step="%10$s" aria-label="%11$s"></span> ',
+				esc_attr( $field . '[eaters][]' ),
+				esc_attr( $person['id'] ),
+				in_array( $person['id'], $current, true ) ? ' checked' : '',
+				esc_html( '' !== $name ? $name : $person['label'] ),
+				esc_attr( $field . '[portions][' . $person['id'] . ']' ),
+				null === $own ? '' : esc_attr( (string) $own ),
+				esc_attr( (string) $person['portions'] ),
+				esc_attr( (string) ( $step > 0 ? $step : 0.05 ) ),
+				esc_attr( (string) Mixmymeals_Meal_Plan::PORTIONS_MAX ),
+				esc_attr( $step > 0 ? (string) $step : 'any' ),
+				esc_attr(
+					sprintf(
+						/* translators: %s: name or neutral label of a person. */
+						__( 'Portions %s eats of this meal', 'mixmymeals' ),
+						'' !== $name ? $name : $person['label']
+					)
+				)
+			);
+		}
+
+		return $out;
 	}
 
 	/**
@@ -1375,6 +1455,227 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
+	 * Registers the people box on the plan screen.
+	 *
+	 * @return void
+	 */
+	public function add_meal_plan_eaters_meta_box(): void {
+		add_meta_box(
+			'mixmymeals_plan_eaters_box',
+			__( 'People', 'mixmymeals' ),
+			array( $this, 'render_meal_plan_eaters_meta_box' ),
+			'mmm_meal_plan',
+			'normal'
+		);
+	}
+
+	/**
+	 * The plan's people: who the "per day and person" figures are asked for.
+	 *
+	 * One row per person — the position the public page names them by
+	 * ("Person 2"), a name for the editors and a profile — plus the empty
+	 * row that adds one. The name is for this screen only: a saved plan is
+	 * a public page, and it never shows there, in the plan's serialization
+	 * for guests, in the mails or in a planner loaded from the plan.
+	 *
+	 * @param WP_Post $post The meal plan.
+	 * @return void
+	 */
+	public function render_meal_plan_eaters_meta_box( WP_Post $post ): void {
+
+		wp_nonce_field( 'mmm_plan_eaters_meta_box', 'mmm_plan_eaters_nonce' );
+
+		$plan     = new Mixmymeals_Meal_Plan( $post->ID );
+		$names    = $plan->get_eater_names();
+		$profiles = Mixmymeals_Meal_Plan::eater_profiles();
+		$eaters   = $plan->get_eaters();
+
+		echo '<p class="description">' . esc_html__( 'Who eats from this plan. Each meal says which of them eat along (column "Eats along" under Meals); the nutrition per day and person is then given per person. Names are shown here only — the public page says "Person 1", "Person 2".', 'mixmymeals' ) . '</p>';
+
+		echo '<table class="widefat striped mmm-plan-eaters-admin">';
+		echo '<thead><tr>';
+		echo '<th>' . esc_html__( 'Person', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Name (wp-admin only)', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Profile', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Usual portions', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Remove', 'mixmymeals' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $eaters as $person ) {
+
+			$field = 'mmm_plan_eaters[' . $person['id'] . ']';
+
+			echo '<tr>';
+			echo '<td>' . esc_html( $person['label'] ) . '</td>';
+			printf(
+				'<td><input type="text" name="%1$s" value="%2$s" maxlength="%3$d" class="regular-text"></td>',
+				esc_attr( $field . '[name]' ),
+				esc_attr( (string) ( $names[ $person['id'] ] ?? '' ) ),
+				(int) Mixmymeals_Meal_Plan::EATER_NAME_MAX
+			);
+			echo '<td>' . self::eater_profile_select( $field . '[profile]', $profiles, $person['profile'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td>' . self::eater_portions_input( $field . '[portions]', (float) $person['portions'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+
+			// The last person cannot go: a plan without people is a plan
+			// of one person eating everything, which is what the list says.
+			if ( count( $eaters ) > 1 ) {
+				printf(
+					'<td><label><input type="checkbox" name="%1$s" value="1"><span class="screen-reader-text">%2$s</span></label></td>',
+					esc_attr( $field . '[delete]' ),
+					/* translators: %s: neutral label of a person, e.g. "Person 2". */
+					esc_html( sprintf( __( 'Remove %s', 'mixmymeals' ), $person['label'] ) )
+				);
+			} else {
+				echo '<td><span aria-hidden="true">—</span></td>';
+			}
+
+			echo '</tr>';
+		}
+
+		if ( count( $eaters ) < Mixmymeals_Meal_Plan::EATERS_MAX ) {
+			echo '<tr class="mmm-plan-eaters-admin__new">';
+			echo '<td><label><input type="checkbox" name="mmm_plan_eaters[new][add]" value="1"> ' . esc_html__( 'Add a person', 'mixmymeals' ) . '</label></td>';
+			printf(
+				'<td><input type="text" name="mmm_plan_eaters[new][name]" value="" maxlength="%d" class="regular-text"></td>',
+				(int) Mixmymeals_Meal_Plan::EATER_NAME_MAX
+			);
+			echo '<td>' . self::eater_profile_select( 'mmm_plan_eaters[new][profile]', $profiles, Mixmymeals_Meal_Plan::DEFAULT_PROFILE ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td>' . self::eater_portions_input( 'mmm_plan_eaters[new][portions]', Mixmymeals_Meal_Plan::DEFAULT_PORTION ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
+			echo '<td></td>';
+			// The block editor's second Save would add the person twice.
+			printf(
+				'<input type="hidden" name="mmm_plan_eaters[new][token]" value="%s">',
+				esc_attr( wp_generate_uuid4() )
+			);
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * How much one person usually eats, in portions of a recipe — the
+	 * figure every meal starts from. Stepped as the setting says.
+	 *
+	 * @param string $name  Field name.
+	 * @param float  $value Current portions.
+	 * @return string
+	 */
+	private static function eater_portions_input( string $name, float $value ): string {
+
+		$step = Mixmymeals_Meal_Plan::portion_step();
+
+		return sprintf(
+			'<input type="number" class="small-text" name="%1$s" value="%2$s" min="%3$s" max="%4$s" step="%5$s">',
+			esc_attr( $name ),
+			esc_attr( (string) $value ),
+			esc_attr( (string) ( $step > 0 ? $step : 0.05 ) ),
+			esc_attr( (string) Mixmymeals_Meal_Plan::PORTIONS_MAX ),
+			esc_attr( $step > 0 ? (string) $step : 'any' )
+		);
+	}
+
+	/**
+	 * The profile chooser of one person.
+	 *
+	 * @param string               $name     Field name.
+	 * @param array<string,string> $profiles Mixmymeals_Meal_Plan::eater_profiles().
+	 * @param string               $current  Chosen profile.
+	 * @return string
+	 */
+	private static function eater_profile_select( string $name, array $profiles, string $current ): string {
+
+		$out = '<select name="' . esc_attr( $name ) . '">';
+
+		foreach ( $profiles as $slug => $label ) {
+			$out .= sprintf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( (string) $slug ),
+				selected( $current, $slug, false ),
+				esc_html( (string) $label )
+			);
+		}
+
+		return $out . '</select>';
+	}
+
+	/**
+	 * Saves the people box. Its own nonce and hook, at priority 9 so the
+	 * meals saved after it are checked against the list as it now stands.
+	 *
+	 * Only rows posted are touched — a person missing from the POST stays,
+	 * since the block editor may post a box rendered before the last save.
+	 *
+	 * @param int $post_id Meal plan ID.
+	 * @return void
+	 */
+	public function save_plan_eaters( int $post_id ): void {
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		if (
+			! isset( $_POST['mmm_plan_eaters_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['mmm_plan_eaters_nonce'] ) ),
+				'mmm_plan_eaters_meta_box'
+			)
+		) {
+			return;
+		}
+
+		if ( ! isset( $_POST['mmm_plan_eaters'] ) || ! is_array( $_POST['mmm_plan_eaters'] ) ) {
+			return;
+		}
+
+		// Sanitised by Mixmymeals_Meal_Plan::sanitize_eaters() below.
+		$rows  = wp_unslash( $_POST['mmm_plan_eaters'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised in set_eaters().
+		$plan  = new Mixmymeals_Meal_Plan( $post_id );
+		$names = $plan->get_eater_names();
+		$list  = array();
+
+		foreach ( $plan->get_eaters() as $person ) {
+
+			$row = isset( $rows[ $person['id'] ] ) && is_array( $rows[ $person['id'] ] ) ? $rows[ $person['id'] ] : null;
+
+			if ( null !== $row && ! empty( $row['delete'] ) ) {
+				continue;
+			}
+
+			$list[] = array(
+				'id'       => $person['id'],
+				'name'     => null !== $row && isset( $row['name'] ) ? (string) $row['name'] : (string) ( $names[ $person['id'] ] ?? '' ),
+				'profile'  => null !== $row && isset( $row['profile'] ) ? (string) $row['profile'] : $person['profile'],
+				// An emptied field is the default portion, not a deletion.
+				'portions' => null !== $row && isset( $row['portions'] ) ? (string) $row['portions'] : $person['portions'],
+			);
+		}
+
+		// Removing everybody leaves the one person a plan always has.
+		$new = isset( $rows['new'] ) && is_array( $rows['new'] ) ? $rows['new'] : array();
+
+		if ( ! empty( $new['add'] ) && $this->spend_new_row_token( 'plan_eater', $new['token'] ?? '' ) ) {
+			// A plan of one person gets its second: the first stays as it
+			// is, under its id, so every meal keeps eating with it.
+			if ( ! $list ) {
+				$list[] = array( 'id' => Mixmymeals_Meal_Plan::DEFAULT_EATER );
+			}
+			$list[] = array(
+				'name'     => (string) ( $new['name'] ?? '' ),
+				'profile'  => (string) ( $new['profile'] ?? '' ),
+				'portions' => (string) ( $new['portions'] ?? '' ),
+			);
+		}
+
+		$plan->set_eaters( $list );
+	}
+
+	/**
 	 * Uses up a new row's one-shot token.
 	 *
 	 * The block editor posts the meta boxes without re-rendering them, so a
@@ -1444,8 +1745,19 @@ class Mixmymeals_Post_Meta {
 			$meal->set_day( absint( $row['day'] ) );
 		}
 
+		// Only where the column was shown; nobody ticked is everybody. The
+		// portions after the eaters, which they are checked against.
+		if ( ! empty( $row['eaters_shown'] ) ) {
+			$meal->set_eaters( array_map( 'sanitize_key', array_map( 'strval', (array) ( $row['eaters'] ?? array() ) ) ) );
+			$meal->set_eater_portions( is_array( $row['portions'] ?? null ) ? $row['portions'] : array() );
+		}
+
 		if ( isset( $row['servings'] ) && '' !== $row['servings'] ) {
 			$meal->set_servings( max( 1, absint( $row['servings'] ) ) );
+		} elseif ( ! empty( $row['token'] ) ) {
+			// The new row left empty: what its eaters eat of it together,
+			// rounded up (Mixmymeals_Meal_Plan::default_servings()).
+			$meal->set_servings( ( new Mixmymeals_Meal_Plan( (int) $meal->get_parent_plan_id() ) )->default_servings( $meal->get_eaters(), $meal->get_eater_portions_raw() ) );
 		}
 
 		// After the recipe, because set_diet() checks the diet against it,

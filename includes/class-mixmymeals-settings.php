@@ -637,6 +637,15 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'          => 'eater_portion_step',
+					'label'       => __( 'Portions per person', 'mixmymeals' ),
+					'description' => __( 'How finely the portions a person eats are entered — in the People box of a plan, its Meals box and the planner. Values already stored stay as they are.',
+						'mixmymeals' ),
+					'default'     => Mixmymeals_Meal_Plan::PORTION_STEP_DEFAULT,
+					'placeholder' => '',
+					'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_portion_step' ),
+				),
+				array(
 					'id'          => 'individual_tab_label',
 					'label'       => __( 'Individual Tab Label', 'mixmymeals' ),
 					'description' => __( 'Label for the "Individual" tab in the meal plan switcher.',
@@ -1264,6 +1273,41 @@ class Mixmymeals_Settings {
 				'default'     => '',
 				'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_reference_intake' ),
 			);
+		}
+
+		/*
+		 * One more group per profile a person on a plan can have
+		 * (Mixmymeals_Meal_Plan::eater_profiles()) beyond the adult, whose
+		 * figures are the ones above. None exists yet; a profile added
+		 * through `mixmymeals_eater_profiles` gets its group here, its
+		 * options are mixmymeals_reference_intake_profile_<profile>_<key>,
+		 * and an empty field takes the adult's figure.
+		 */
+		foreach ( Mixmymeals_Meal_Plan::eater_profiles() as $profile => $profile_label ) {
+
+			if ( Mixmymeals_Meal_Plan::DEFAULT_PROFILE === $profile ) {
+				continue;
+			}
+
+			$fields[] = array(
+				'id'          => 'mealplans_group_reference_intake_profile_' . $profile,
+				'type'        => 'heading',
+				/* translators: %s: name of a profile of the people on a plan, e.g. "Child". */
+				'label'       => sprintf( __( 'Reference intake: %s', 'mixmymeals' ), $profile_label ),
+				'description' => __( 'For people on a plan with this profile. Empty fields use the figure above.', 'mixmymeals' ),
+			);
+
+			foreach ( Mixmymeals_Meal_Plan::NUTRITION_KEYS as $key ) {
+				$fields[] = array(
+					'id'          => substr( Mixmymeals_Meal_Plan::reference_intake_profile_option( $profile, $key ), strlen( 'mixmymeals_' ) ),
+					'label'       => Mixmymeals_Ingredient::nutrition_label( $key ),
+					'description' => '',
+					'unit'        => 'calories' === $key ? __( 'kcal', 'mixmymeals' ) : __( 'g', 'mixmymeals' ),
+					'placeholder' => number_format_i18n( Mixmymeals_Meal_Plan::reference_intake( Mixmymeals_Meal_Plan::DEFAULT_PROFILE )[ $key ] ),
+					'default'     => '',
+					'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_reference_intake' ),
+				);
+			}
 		}
 
 		return $fields;

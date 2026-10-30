@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.69.0
+Stable tag: 3.70.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,32 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.70.0 =
+
+Added:
+* Eaters: a plan can list its people, and each meal says which of them eat
+  it — a breakfast for one, the dinner for all. The nutrition per day and
+  person, the plan rating, the traffic lights in the plan table, the rows
+  under the planner's days and the product comparison are then given per
+  person, each divided by the days that person has meals; "too little" only
+  where that person has breakfast, lunch and dinner. A switch above the
+  figures chooses the person on the plan page (?mmm_eater=p2) and in the
+  planner. A plan without people has one person who eats everything, which
+  is exactly what every plan was before.
+* The plan screen has a "People" box (a name per person for the editors,
+  never published, and a profile) and a column "Eats along" in its Meals
+  box. The planner adds and removes people by number and ticks on each
+  recipe who eats it. REST and MCP carry `eaters` on plans and meals.
+* Portions per person: each person has a usual amount (a child at 0.5),
+  and a meal can say otherwise for one of them (1.5 at dinner). Their
+  figures scale by it. How finely portions are entered is a setting
+  (Meal Plans → Planner: quarters, halves, whole portions or any amount).
+* Servings stay a field of their own for the shopping list, the costs and
+  Bring!, but never fall below what a meal's eaters eat together, rounded
+  up: ticking another person or a larger portion raises them. More is
+  allowed (leftovers, guests) and noted quietly in the planner and the
+  Meals box ("1 serving more than eaten").
 
 = 3.69.0 =
 

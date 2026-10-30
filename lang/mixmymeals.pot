@@ -3265,8 +3265,8 @@ msgstr[1] ""
 #. translators: %d: number of days.
 #: includes/lib/class-mixmymeals-privacy.php:512
 #, php-format
-msgid "Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d day. The copy is frozen: later changes to one's own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type and weekday are stored — no identifier of the person sharing. No copy exists unless someone shares."
-msgid_plural "Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d days. The copy is frozen: later changes to one's own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type and weekday are stored — no identifier of the person sharing. No copy exists unless someone shares."
+msgid "Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d day. The copy is frozen: later changes to one's own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares."
+msgid_plural "Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d days. The copy is frozen: later changes to one's own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -5966,3 +5966,153 @@ msgstr ""
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "Shopping list of this plan"
 msgstr ""
+
+#. translators: %s: name of a profile of the people on a plan, e.g. "Child".
+#: includes/class-mixmymeals-settings.php
+#, php-format
+msgid "Reference intake: %s"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "For people on a plan with this profile. Empty fields use the figure above."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-cart.php
+msgid "No more people can be added to this planner."
+msgstr ""
+
+#. translators: Profile of a person eating from a meal plan.
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgctxt "eater profile"
+msgid "Adult"
+msgstr ""
+
+#. translators: %d: position of a person in a meal plan's list of people.
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "Person %d"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Eats along"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "People"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Who eats from this plan. Each meal says which of them eat along (column \"Eats along\" under Meals); the nutrition per day and person is then given per person. Names are shown here only — the public page says \"Person 1\", \"Person 2\"."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Person"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Name (wp-admin only)"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Profile"
+msgstr ""
+
+#. translators: %s: neutral label of a person, e.g. "Person 2".
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "Remove %s"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Add a person"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "Where the planner lists several people, it also stores how many there are, which of them eat each recipe and how many portions each of them eats; they are numbered only (“Person 1”, “Person 2”), no names are asked for."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "Where a plan lists several people, which of them eat each meal and how many portions each eats is saved with it and the page shows nutrition figures for each of them, naming them by number only (“Person 1”, “Person 2”); names our editors may note for them in the administration are not published."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "This person eats none of the planned meals."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "This person eats none of the planned meals yet."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Whose nutrition"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Nutrition for:"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Who eats along:"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Tick on each recipe who eats it."
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "Portions per person"
+msgstr ""
+
+#: includes/class-mixmymeals-settings.php
+msgid "How finely the portions a person eats are entered — in the People box of a plan, its Meals box and the planner. Values already stored stay as they are."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "Quarters (0.25, 0.5, 0.75 …)"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "Halves (0.5, 1, 1.5 …)"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "Whole portions only"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "Any amount (e.g. 0.7)"
+msgstr ""
+
+#. translators: %s: name or neutral label of a person.
+#: includes/lib/class-mixmymeals-post-meta.php
+#, php-format
+msgid "Portions %s eats of this meal"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Usual portions"
+msgstr ""
+
+#. translators: %s: neutral label of a person, e.g. "Person 2".
+#: includes/lib/class-mixmymeals-shortcodes.php
+#, php-format
+msgid "Portions %s usually eats"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Usual portions:"
+msgstr ""
+
+#. translators: %s: neutral label of a person, e.g. "Person 2".
+#: includes/lib/class-mixmymeals-shortcodes.php
+#, php-format
+msgid "Portions %s eats of this recipe"
+msgstr ""
+
+#. translators: %s: servings planned beyond what the people eating eat, e.g. "1" or "1,5".
+#: includes/lib/class-mixmymeals-meal-plan.php
+#, php-format
+msgid "%s serving more than eaten"
+msgid_plural "%s servings more than eaten"
+msgstr[0] ""
+msgstr[1] ""

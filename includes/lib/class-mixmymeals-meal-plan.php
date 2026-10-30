@@ -56,13 +56,21 @@ class Mixmymeals_Meal_Plan {
 	 * The span is the whole week: days without meals do not count anywhere,
 	 * so the plan's eventual start and end change none of the figures.
 	 *
-	 * @param array $rows Each with recipe_id, servings, day (1-7 or empty), type.
+	 * The people come along where they are given — the planner's own list,
+	 * or the plan's when a plan derives one of rows from itself — and each
+	 * row's `eaters` is checked against them (clean_eaters()). Without a
+	 * list the plan has its one person, who eats every row.
+	 *
+	 * @param array      $rows   Each with recipe_id, servings, day (1-7 or empty), type, eaters.
+	 * @param array|null $eaters The plan's people (sanitize_eaters()), null for none.
 	 * @return self
 	 */
-	public static function from_meal_rows( array $rows ): self {
+	public static function from_meal_rows( array $rows, ?array $eaters = null ): self {
 
-		$plan       = new self( 0 );
-		$plan->rows = array();
+		$plan         = new self( 0 );
+		$plan->rows   = array();
+		$plan->eaters = self::sanitize_eaters( $eaters ?? array() );
+		$ids          = $plan->eater_ids();
 
 		foreach ( $rows as $row ) {
 
@@ -72,24 +80,34 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$day  = (int) ( $row['day'] ?? 0 );
-			$type = (string) ( $row['type'] ?? '' );
+			$day      = (int) ( $row['day'] ?? 0 );
+			$type     = (string) ( $row['type'] ?? '' );
+			$eating   = self::clean_eaters( $row['eaters'] ?? array(), $ids );
+			$portions = $plan->resolve_portions( (array) ( $row['portions'] ?? array() ), $eating );
+			$floor    = self::servings_floor( $portions );
 
 			$plan->rows[] = array(
 				// Kept where the row came from a saved meal, so a plan
 				// derived from one — with_servings_offset() — can still say
 				// which meal each of its rows is.
-				'meal_id'   => max( 0, (int) ( $row['meal_id'] ?? 0 ) ),
-				'recipe_id' => $recipe_id,
-				// Mixmymeals_Meal::get_servings() floors at 1; so does this.
-				'servings'  => max( 1, (int) ( $row['servings'] ?? 1 ) ),
-				'day'       => ( $day >= 1 && $day <= 7 ) ? $day : null,
-				'type'      => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
+				'meal_id'      => max( 0, (int) ( $row['meal_id'] ?? 0 ) ),
+				'recipe_id'    => $recipe_id,
+				// Never fewer than its eaters eat (min_servings()), the floor
+				// Mixmymeals_Meal::get_servings() keeps too.
+				'servings'     => max( $floor, (int) ( $row['servings'] ?? 1 ) ),
+				'day'          => ( $day >= 1 && $day <= 7 ) ? $day : null,
+				'type'         => array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '',
 				// Resolved, not validated: row_recipe() asks the recipe,
 				// which is the one place that knows what it can be cooked as.
 				// NONE (the original recipe) is kept, since it settles the dish too.
-				'diet'      => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
-			);
+				'diet'         => self::row_diet( (string) ( $row['diet'] ?? '' ) ),
+				// Who eats it; never empty — nobody named means everybody.
+				'eaters'       => $eating,
+				// How much each of them eats: their own figure for this meal,
+				// else their usual one (resolve_portions()).
+				'portions'     => $portions,
+				'min_servings' => $floor,
+			) + ( isset( $row['portion'] ) ? array( 'portion' => (float) $row['portion'] ) : array() );
 		}
 
 		return $plan;
@@ -104,7 +122,13 @@ class Mixmymeals_Meal_Plan {
 	 * `diet` is what the meal cooks its recipe as; read the dish through
 	 * row_recipe(), never through `new Mixmymeals_Recipe( $row['recipe_id'] )`.
 	 *
-	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string, diet:string}>
+	 * `eaters` is who eats it (clean_eaters(): never empty), `portions` how
+	 * many portions each of them eats (resolve_portions()). Only the
+	 * per-person figures read them — for_eater() — never the shopping list.
+	 * A row of for_eater() carries `portion`, that one person's factor,
+	 * which calc_nutrition() and get_ingredient_portion_weights() apply.
+	 *
+	 * @return array<int, array{meal_id:int, recipe_id:int, servings:int, day:int|null, type:string, diet:string, eaters:string[], portions:array<string,float>}>
 	 */
 	public function get_meal_rows(): array {
 
@@ -113,18 +137,26 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		$rows = array();
+		$ids  = $this->eater_ids();
 
 		foreach ( $this->get_meals() as $meal_post ) {
 
-			$meal = new Mixmymeals_Meal( $meal_post->ID );
+			$meal     = new Mixmymeals_Meal( $meal_post->ID );
+			$eating   = self::clean_eaters( $meal->get_eaters_raw(), $ids );
+			$portions = $this->resolve_portions( $meal->get_eater_portions_raw(), $eating );
+			$floor    = self::servings_floor( $portions );
 
 			$rows[] = array(
-				'meal_id'   => (int) $meal_post->ID,
-				'recipe_id' => (int) $meal->get_recipe_id(),
-				'servings'  => (int) $meal->get_servings(),
-				'day'       => $meal->get_day(),
-				'type'      => (string) $meal->get_type(),
-				'diet'      => $meal->get_diet(),
+				'meal_id'      => (int) $meal_post->ID,
+				'recipe_id'    => (int) $meal->get_recipe_id(),
+				'servings'     => max( $floor, (int) $meal->get_stored_servings() ),
+				'day'          => $meal->get_day(),
+				'type'         => (string) $meal->get_type(),
+				'diet'         => $meal->get_diet(),
+				'eaters'       => $eating,
+				'portions'     => $portions,
+				// The fewest servings that feed its eaters.
+				'min_servings' => $floor,
 			);
 		}
 
@@ -163,6 +195,692 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		return ( new Mixmymeals_Recipe( (int) ( $row['recipe_id'] ?? 0 ) ) )->for_diet( (string) ( $row['diet'] ?? '' ) );
+	}
+
+	/*
+	 * ---------------------------------------------------------------------
+	 * Eaters: who eats which meal
+	 * ---------------------------------------------------------------------
+	 *
+	 * A plan carries an ordered list of people, and each meal says which of
+	 * them eat it. Every figure "per day and person" is then asked per
+	 * person: for_eater() is the plan as one of them eats it, and the
+	 * methods a whole plan is read with read that unchanged. A plan without
+	 * a list has one person who eats everything — which is what every plan
+	 * was before, so nothing is migrated.
+	 *
+	 * The servings stay a field of their own: they say how many portions are
+	 * cooked, which is also "cook double, freeze half" and the guests nobody
+	 * listed, so the shopping list, the costs and Bring! keep reading only
+	 * them.
+	 *
+	 * Saved plans are public pages. Everything public names a person by
+	 * position ("Person 2", eater_label()); the name an editor may give one
+	 * is read only by get_eater_names(), for wp-admin and for REST clients
+	 * that may edit the plan.
+	 */
+
+	/** Plan meta holding the list: id, name, profile per person. */
+	const EATERS_META = '_mmm_plan_eaters';
+
+	/** The most people one plan lists. */
+	const EATERS_MAX = 12;
+
+	/** The id of the one person of a plan without a list. */
+	const DEFAULT_EATER = 'p1';
+
+	/** The profile every person has until another one exists. */
+	const DEFAULT_PROFILE = 'adult';
+
+	/** Longest name an editor may give a person. */
+	const EATER_NAME_MAX = 60;
+
+	/**
+	 * The people of a plan built from rows; null for a plan read from its post.
+	 *
+	 * @var array<int, array{id:string, name:string, profile:string}>|null
+	 */
+	private $eaters = null;
+
+	/**
+	 * The profiles a person can have, slug => label.
+	 *
+	 * Only `adult` for now, whose reference intake is reference_intake() as
+	 * it has always been. A profile added through the filter gets its own
+	 * group of reference intakes on the Meal Plans tab
+	 * (reference_intake_profile_option()) and its own branch of the
+	 * `mixmymeals_reference_intake` filter, which receives the profile.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function eater_profiles(): array {
+
+		$profiles = (array) apply_filters(
+			'mixmymeals_eater_profiles',
+			array(
+				/* translators: Profile of a person eating from a meal plan. */
+				self::DEFAULT_PROFILE => _x( 'Adult', 'eater profile', 'mixmymeals' ),
+			)
+		);
+
+		$out = array();
+
+		foreach ( $profiles as $slug => $label ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( '' !== $slug ) {
+				$out[ $slug ] = (string) $label;
+			}
+		}
+
+		// The default cannot be filtered away: it is what a person without
+		// a stated profile is.
+		if ( ! isset( $out[ self::DEFAULT_PROFILE ] ) ) {
+			$out = array( self::DEFAULT_PROFILE => _x( 'Adult', 'eater profile', 'mixmymeals' ) ) + $out;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * How a person is named in public: by position, "Person 1", "Person 2".
+	 *
+	 * @param int $position 1-based place in the plan's list.
+	 * @return string
+	 */
+	public static function eater_label( int $position ): string {
+
+		/* translators: %d: position of a person in a meal plan's list of people. */
+		return sprintf( __( 'Person %d', 'mixmymeals' ), max( 1, $position ) );
+	}
+
+	/**
+	 * Whether a string is an eater id: "p" and a number, as eaters_sanitize()
+	 * hands them out.
+	 *
+	 * @param string $id Candidate.
+	 * @return bool
+	 */
+	public static function is_eater_id( string $id ): bool {
+
+		return 1 === preg_match( '/^p[1-9]\d{0,2}$/', $id );
+	}
+
+	/**
+	 * A list of people as stored: each with a stable id, a name ('' for
+	 * none) and a known profile, at most EATERS_MAX, ids unique.
+	 *
+	 * An entry without a valid id gets the next free one, so a client may
+	 * add a person without inventing an id; an id once given is never
+	 * reused within the list, so a meal pointing at it keeps pointing at
+	 * the same person when another is removed.
+	 *
+	 * @param mixed $people Raw list.
+	 * @return array<int, array{id:string, name:string, profile:string}>
+	 */
+	public static function sanitize_eaters( $people ): array {
+
+		$people   = is_array( $people ) ? array_values( $people ) : array();
+		$profiles = self::eater_profiles();
+		$out      = array();
+		$taken    = array();
+		$pending  = array();
+
+		foreach ( $people as $entry ) {
+
+			if ( count( $out ) + count( $pending ) >= self::EATERS_MAX ) {
+				break;
+			}
+
+			$entry   = is_array( $entry ) ? $entry : array();
+			$id      = sanitize_key( (string) ( $entry['id'] ?? '' ) );
+			$profile = sanitize_key( (string) ( $entry['profile'] ?? '' ) );
+			$name    = mb_substr( trim( sanitize_text_field( (string) ( $entry['name'] ?? '' ) ) ), 0, self::EATER_NAME_MAX );
+
+			$person = array(
+				'id'       => '',
+				'name'     => $name,
+				'profile'  => isset( $profiles[ $profile ] ) ? $profile : self::DEFAULT_PROFILE,
+				// How much this person usually eats, in portions of a recipe.
+				'portions' => self::normalise_portion( $entry['portions'] ?? null ) ?? self::DEFAULT_PORTION,
+			);
+
+			if ( self::is_eater_id( $id ) && ! isset( $taken[ $id ] ) ) {
+				$person['id'] = $id;
+				$taken[ $id ] = true;
+				$out[]        = $person;
+			} else {
+				// Placed where it stood, id given once every stated id is known.
+				$pending[ count( $out ) + count( $pending ) ] = $person;
+
+				$out[] = null;
+			}
+		}
+
+		$next = 1;
+
+		foreach ( $pending as $position => $person ) {
+			while ( isset( $taken[ 'p' . $next ] ) ) {
+				++$next;
+			}
+			$person['id']           = 'p' . $next;
+			$taken[ $person['id'] ] = true;
+			$out[ $position ]       = $person;
+		}
+
+		return array_values( array_filter( $out ) );
+	}
+
+	/**
+	 * The people as stored, names included. Private on purpose: everything
+	 * outside reads get_eaters(), which has no names, or get_eater_names().
+	 *
+	 * @return array<int, array{id:string, name:string, profile:string}>
+	 */
+	private function eaters_raw(): array {
+
+		if ( null !== $this->eaters ) {
+			$list = $this->eaters;
+		} else {
+			$list = $this->post_id > 0 ? self::sanitize_eaters( get_post_meta( $this->post_id, self::EATERS_META, true ) ) : array();
+		}
+
+		if ( ! $list ) {
+			$list = array(
+				array(
+					'id'       => self::DEFAULT_EATER,
+					'name'     => '',
+					'profile'  => self::DEFAULT_PROFILE,
+					'portions' => self::DEFAULT_PORTION,
+				),
+			);
+		}
+
+		return $list;
+	}
+
+	/**
+	 * The plan's people, in order, as they may be shown anywhere: id,
+	 * position, the neutral label ("Person 2") and the profile. No names —
+	 * see get_eater_names().
+	 *
+	 * A plan without a list has one: DEFAULT_EATER, eating everything.
+	 *
+	 * `portions` is how much the person usually eats, in portions of a
+	 * recipe — what each meal starts from (resolve_portions()).
+	 *
+	 * @return array<int, array{id:string, position:int, label:string, profile:string, portions:float}>
+	 */
+	public function get_eaters(): array {
+
+		$out = array();
+
+		foreach ( $this->eaters_raw() as $i => $person ) {
+			$out[] = array(
+				'id'       => $person['id'],
+				'position' => $i + 1,
+				'label'    => self::eater_label( $i + 1 ),
+				'profile'  => $person['profile'],
+				'portions' => (float) ( $person['portions'] ?? self::DEFAULT_PORTION ),
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The names an editor gave the people, id => name ('' for none).
+	 *
+	 * For wp-admin and for REST clients that may edit the plan only. Never
+	 * into public markup, the plan's serialization for guests, the schema,
+	 * the mails or a shared planner: a saved plan is a public page.
+	 *
+	 * @return array<string,string>
+	 */
+	public function get_eater_names(): array {
+
+		return array_column( $this->eaters_raw(), 'name', 'id' );
+	}
+
+	/**
+	 * Stores the plan's people. A list of one person without a name is the
+	 * same as no list and deletes the row.
+	 *
+	 * Meals pointing at a person no longer listed lose that person on the
+	 * next read (clean_eaters()); a meal left with nobody is eaten by all.
+	 *
+	 * @param array $people Each with id (optional for a new person), name, profile.
+	 * @return void
+	 */
+	public function set_eaters( array $people ): void {
+
+		if ( $this->post_id <= 0 ) {
+			$this->eaters = self::sanitize_eaters( $people );
+			return;
+		}
+
+		$people = self::sanitize_eaters( $people );
+
+		if ( ! $people || ( 1 === count( $people ) && '' === $people[0]['name'] && self::DEFAULT_PROFILE === $people[0]['profile'] && self::DEFAULT_EATER === $people[0]['id'] && self::DEFAULT_PORTION === $people[0]['portions'] ) ) {
+			delete_post_meta( $this->post_id, self::EATERS_META );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::EATERS_META, $people );
+	}
+
+	/**
+	 * The ids of the plan's people, in order.
+	 *
+	 * @return string[]
+	 */
+	public function eater_ids(): array {
+
+		return array_column( $this->eaters_raw(), 'id' );
+	}
+
+	/**
+	 * Whether the plan lists more than one person — the only case in which
+	 * there is anything to choose between, and the only one in which any
+	 * markup changes.
+	 *
+	 * @return bool
+	 */
+	public function has_eaters(): bool {
+
+		return count( $this->eaters_raw() ) > 1;
+	}
+
+	/**
+	 * Who eats a meal, validated against the plan's people.
+	 *
+	 * The one rule for every reader and writer: unknown ids are dropped, the
+	 * order is the plan's, and nobody left means everybody — a meal eaten by
+	 * no one is not a meal anybody planned.
+	 *
+	 * @param mixed    $value Raw list of ids (or one id).
+	 * @param string[] $ids   The plan's ids, eater_ids().
+	 * @return string[]
+	 */
+	public static function clean_eaters( $value, array $ids ): array {
+
+		$value = is_array( $value ) ? $value : ( '' === (string) $value ? array() : array( $value ) );
+		$value = array_map( static fn( $v ) => sanitize_key( (string) $v ), $value );
+		$found = array_values( array_intersect( $ids, $value ) );
+
+		return $found ? $found : array_values( $ids );
+	}
+
+	/**
+	 * The id of a person of this plan, or the first person's for anything
+	 * else — a stale link names somebody who is no longer listed.
+	 *
+	 * @param string $id Candidate.
+	 * @return string
+	 */
+	public function resolve_eater( string $id ): string {
+
+		$ids = $this->eater_ids();
+
+		return in_array( $id, $ids, true ) ? $id : (string) reset( $ids );
+	}
+
+	/**
+	 * The profile of one person; DEFAULT_PROFILE for anyone unknown.
+	 *
+	 * @param string $id Eater id.
+	 * @return string
+	 */
+	public function eater_profile( string $id ): string {
+
+		foreach ( $this->eaters_raw() as $person ) {
+			if ( $person['id'] === $id ) {
+				return $person['profile'];
+			}
+		}
+
+		return self::DEFAULT_PROFILE;
+	}
+
+	/**
+	 * The plan as one person eats it: only the meals that person eats, each
+	 * at the portions they eat of it (the row's `portion`).
+	 *
+	 * The one method behind every figure "per day and person" for a plan
+	 * with several people. Nothing is computed here — the result is a plan
+	 * of rows (from_meal_rows()) that keeps this plan's ID and people, read
+	 * with the methods any plan is read with. So the days that count for
+	 * calc_nutrition_per_day_person() are the days *this person* has meals,
+	 * covers_whole_days() asks whether *they* have breakfast, lunch and
+	 * dinner, and the planner and the plan page render one table from one
+	 * object.
+	 *
+	 * A plan without several people is returned as it is: its one person
+	 * eats everything, and the figures must not move by a byte.
+	 *
+	 * @param string $id Eater id; anything unknown is the first person.
+	 * @return self
+	 */
+	public function for_eater( string $id ): self {
+
+		$id   = $this->resolve_eater( $id );
+		$rows = array();
+		$same = ! $this->has_eaters();
+
+		foreach ( $this->get_meal_rows() as $row ) {
+			if ( in_array( $id, (array) ( $row['eaters'] ?? array() ), true ) ) {
+				$row['portion'] = (float) ( $row['portions'][ $id ] ?? self::DEFAULT_PORTION );
+				$same           = $same && self::DEFAULT_PORTION === $row['portion'];
+				$rows[]         = $row;
+			}
+		}
+
+		/*
+		 * A plan whose one person eats one portion of everything is that
+		 * person already: handing it back unchanged is what keeps every
+		 * figure of a plan without people byte for byte what it was.
+		 */
+		if ( $same ) {
+			return $this;
+		}
+
+		$plan          = self::from_meal_rows( $rows, $this->eaters_raw() );
+		$plan->post_id = $this->post_id;
+
+		return $plan;
+	}
+
+	/**
+	 * The query parameter naming whose figures the plan page shows:
+	 * ?mmm_eater=p2. A view parameter like ?mmm_persons_to_add — nothing is
+	 * stored, the page is noindex while it carries one.
+	 *
+	 * @var string
+	 */
+	const EATER_QUERY_VAR = 'mmm_eater';
+
+	/**
+	 * The person the current request asks for on this plan — the first
+	 * person when it asks for none or for somebody not listed.
+	 *
+	 * The one place the parameter is read.
+	 *
+	 * @return string
+	 */
+	public function requested_eater(): string {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view parameter, validated by resolve_eater().
+		$raw = isset( $_GET[ self::EATER_QUERY_VAR ] ) ? sanitize_key( wp_unslash( (string) $_GET[ self::EATER_QUERY_VAR ] ) ) : '';
+
+		return $this->resolve_eater( $raw );
+	}
+
+	/**
+	 * Whether the current request carries ?mmm_eater at all.
+	 *
+	 * @return bool
+	 */
+	public static function has_eater_param(): bool {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presence only.
+		return isset( $_GET[ self::EATER_QUERY_VAR ] );
+	}
+
+	/**
+	 * The servings a new meal of this plan starts with: what its people
+	 * usually eat together, rounded up to whole servings (two adults and a
+	 * child at half a portion start at three). Only a default — servings
+	 * stay free, for leftovers and guests, and the shopping list reads
+	 * nothing else.
+	 *
+	 * @param string[]|null $eaters   Who eats the meal; null for everybody.
+	 * @param array         $portions What they eat of it where it differs
+	 *                                from their usual (resolve_portions()).
+	 * @return int
+	 */
+	public function default_servings( ?array $eaters = null, array $portions = array() ): int {
+
+		return $this->min_servings( $eaters, $portions );
+	}
+
+	/**
+	 * The fewest servings a meal may have: what its eaters eat of it
+	 * together, rounded up. A meal planned for fewer servings than are
+	 * eaten is a meal somebody goes hungry at, so every reader and writer
+	 * keeps to this — Mixmymeals_Meal::get_servings() / set_servings(), the
+	 * rows of get_meal_rows() and from_meal_rows(), the planner's items,
+	 * and with_servings_offset(), which takes a reader's "fewer people"
+	 * down to it and no further. More is always allowed (leftovers,
+	 * guests); servings_surplus() says when there is more.
+	 *
+	 * One for a plan without people, so nothing changes there.
+	 *
+	 * @param string[]|null $eaters   Who eats the meal; null for everybody.
+	 * @param array         $portions The meal's own figures (resolve_portions()).
+	 * @return int
+	 */
+	public function min_servings( ?array $eaters = null, array $portions = array() ): int {
+
+		return self::servings_floor( $this->resolve_portions( $portions, self::clean_eaters( $eaters ?? array(), $this->eater_ids() ) ) );
+	}
+
+	/**
+	 * The floor of servings for resolved portions: their sum, rounded up,
+	 * at least one.
+	 *
+	 * @param array<string,float> $portions From resolve_portions().
+	 * @return int
+	 */
+	private static function servings_floor( array $portions ): int {
+
+		// A float sum of quarters is exact, but 2.0000000001 must not become 3.
+		return max( 1, (int) ceil( round( array_sum( $portions ), 3 ) ) );
+	}
+
+	/**
+	 * How many servings a meal plans beyond what its eaters eat — 0 where
+	 * it plans no more than the floor (rounding up 2.5 to 3 is not a
+	 * surplus anybody planned), and 0 on a plan without several people,
+	 * where the servings have always simply been the people.
+	 *
+	 * @param int                 $servings The meal's servings.
+	 * @param array<string,float> $portions Its resolved portions (a row's `portions`).
+	 * @return float
+	 */
+	public function servings_surplus( int $servings, array $portions ): float {
+
+		if ( ! $this->has_eaters() || $servings <= self::servings_floor( $portions ) ) {
+			return 0.0;
+		}
+
+		return round( $servings - array_sum( $portions ), 3 );
+	}
+
+	/**
+	 * The quiet note beside servings that exceed the eaters: "1 serving
+	 * more than eaten", "1,5 servings more than eaten". '' for none.
+	 *
+	 * @param float $surplus From servings_surplus().
+	 * @return string
+	 */
+	public static function servings_surplus_text( float $surplus ): string {
+
+		if ( $surplus <= 0 ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: %s: servings planned beyond what the people eating eat, e.g. "1" or "1,5". */
+			_n( '%s serving more than eaten', '%s servings more than eaten', (int) ceil( $surplus ), 'mixmymeals' ),
+			self::format_portions( $surplus )
+		);
+	}
+
+	/*
+	 * ---------------------------------------------------------------------
+	 * Portions per person
+	 * ---------------------------------------------------------------------
+	 *
+	 * How much a person eats is two numbers: what they usually eat
+	 * (`portions` on the person) and, where a meal differs, what they eat
+	 * of that meal (Mixmymeals_Meal::META_EATER_PORTIONS). Both are portions
+	 * of a recipe — one serving as the recipe defines it — so a child at
+	 * 0.5 eats half of every figure a serving states.
+	 */
+
+	/** The portions a person eats where nobody said otherwise. */
+	const DEFAULT_PORTION = 1.0;
+
+	/** The most portions one person can eat of one meal. */
+	const PORTIONS_MAX = 10.0;
+
+	/** Option: how finely portions per person are entered. */
+	const PORTION_STEP_OPTION = 'mixmymeals_eater_portion_step';
+
+	/** The step a site gets before it sets one. */
+	const PORTION_STEP_DEFAULT = '0.25';
+
+	/**
+	 * The steps the setting offers, value => label. "any" is any amount.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function portion_steps(): array {
+
+		return array(
+			'0.25' => __( 'Quarters (0.25, 0.5, 0.75 …)', 'mixmymeals' ),
+			'0.5'  => __( 'Halves (0.5, 1, 1.5 …)', 'mixmymeals' ),
+			'1'    => __( 'Whole portions only', 'mixmymeals' ),
+			'any'  => __( 'Any amount (e.g. 0.7)', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The step in force: 0.25, 0.5 or 1, or 0.0 for any amount.
+	 *
+	 * @return float
+	 */
+	public static function portion_step(): float {
+
+		$stored = (string) get_option( self::PORTION_STEP_OPTION, self::PORTION_STEP_DEFAULT );
+		$stored = isset( self::portion_steps()[ $stored ] ) ? $stored : self::PORTION_STEP_DEFAULT;
+
+		return 'any' === $stored ? 0.0 : (float) $stored;
+	}
+
+	/**
+	 * Sanitiser of the step setting.
+	 *
+	 * @param mixed $input Posted value.
+	 * @return string
+	 */
+	public static function sanitize_portion_step( $input ): string {
+
+		$input = (string) $input;
+
+		return isset( self::portion_steps()[ $input ] ) ? $input : self::PORTION_STEP_DEFAULT;
+	}
+
+	/**
+	 * A number of portions as entered: a decimal comma is fine, it is
+	 * snapped to the step in force (never below one step), and nothing,
+	 * zero, a negative or more than PORTIONS_MAX is null — "not stated".
+	 * Not eating a meal is said by not ticking it, not by a zero.
+	 *
+	 * @param mixed $raw  Value.
+	 * @param bool  $snap Snap to the step; reads leave stored values alone,
+	 *                    so changing the setting rewrites nothing.
+	 * @return float|null
+	 */
+	public static function normalise_portion( $raw, bool $snap = true ): ?float {
+
+		if ( null === $raw || is_array( $raw ) ) {
+			return null;
+		}
+
+		$raw = str_replace( ',', '.', trim( (string) $raw ) );
+
+		if ( '' === $raw || ! is_numeric( $raw ) ) {
+			return null;
+		}
+
+		$value = (float) $raw;
+
+		if ( $value <= 0 || $value > self::PORTIONS_MAX ) {
+			return null;
+		}
+
+		$step = $snap ? self::portion_step() : 0.0;
+
+		if ( $step > 0 ) {
+			$value = max( $step, round( $value / $step ) * $step );
+		}
+
+		return round( $value, 3 );
+	}
+
+	/**
+	 * How many portions each eater of a meal eats: their own figure for the
+	 * meal where it is a valid one, else what the person usually eats.
+	 *
+	 * @param array    $given  Raw per-meal figures, id => portions.
+	 * @param string[] $eaters Who eats the meal (clean_eaters()).
+	 * @return array<string,float>
+	 */
+	public function resolve_portions( array $given, array $eaters ): array {
+
+		$usual = array_column( $this->eaters_raw(), 'portions', 'id' );
+		$out   = array();
+
+		foreach ( $eaters as $id ) {
+			$out[ $id ] = self::normalise_portion( $given[ $id ] ?? null, false )
+				?? (float) ( $usual[ $id ] ?? self::DEFAULT_PORTION );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The per-meal figures worth storing: valid, snapped, only for people
+	 * who eat the meal, and only where they differ from what that person
+	 * usually eats — so changing the person's usual amount reaches every
+	 * meal that never said otherwise.
+	 *
+	 * @param mixed    $given  Raw id => portions (or a JSON object string).
+	 * @param string[] $eaters Who eats the meal.
+	 * @return array<string,float>
+	 */
+	public function clean_portion_overrides( $given, array $eaters ): array {
+
+		if ( is_string( $given ) ) {
+			$given = json_decode( $given, true );
+		}
+
+		$usual = array_column( $this->eaters_raw(), 'portions', 'id' );
+		$out   = array();
+
+		foreach ( (array) $given as $id => $raw ) {
+			$id    = sanitize_key( (string) $id );
+			$value = self::normalise_portion( $raw );
+
+			if ( null !== $value && in_array( $id, $eaters, true ) && abs( $value - (float) ( $usual[ $id ] ?? self::DEFAULT_PORTION ) ) > 0.0001 ) {
+				$out[ $id ] = $value;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * A number of portions as printed: "1", "0,5", "1,25".
+	 *
+	 * @param float $portions Portions.
+	 * @return string
+	 */
+	public static function format_portions( float $portions ): string {
+
+		$decimals = abs( $portions - round( $portions ) ) < 0.0001 ? 0 : ( abs( $portions * 2 - round( $portions * 2 ) ) < 0.0001 ? 1 : 2 );
+
+		return number_format_i18n( $portions, $decimals );
 	}
 
 	public function get_id(): int {
@@ -670,7 +1388,9 @@ class Mixmymeals_Meal_Plan {
 		foreach ( $this->get_meal_rows() as $row ) {
 
 			$servings = (int) $row['servings'];
-			$shown    = max( 1, $servings + $offset );
+			// Fewer people at the table, never fewer servings than the
+			// listed eaters eat (min_servings()).
+			$shown = max( (int) ( $row['min_servings'] ?? 1 ), $servings + $offset );
 
 			if ( $offset > 0 ) {
 				$shown = min( $shown, max( $servings, self::SERVINGS_MEAL_MAX ) );
@@ -680,7 +1400,7 @@ class Mixmymeals_Meal_Plan {
 			$rows[]          = $row;
 		}
 
-		$plan          = self::from_meal_rows( $rows );
+		$plan          = self::from_meal_rows( $rows, $this->eaters_raw() );
 		$plan->post_id = $this->post_id;
 
 		return $plan;
@@ -709,11 +1429,19 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public function servings_offset_bounds(): array {
 
-		$servings = array_map( 'intval', array_column( $this->get_meal_rows(), 'servings' ) );
+		$rows = $this->get_meal_rows();
+		$room = array();
+
+		// How far each meal can go down before it reaches its floor; the
+		// meal with the most room decides where taking away stops changing
+		// anything (one serving for a plan without people, as before).
+		foreach ( $rows as $row ) {
+			$room[] = (int) ( $row['min_servings'] ?? 1 ) - (int) $row['servings'];
+		}
 
 		return array(
-			'min' => $servings ? min( 0, 1 - max( $servings ) ) : 0,
-			'max' => $servings ? self::SERVINGS_OFFSET_MAX : 0,
+			'min' => $room ? min( 0, min( $room ) ) : 0,
+			'max' => $rows ? self::SERVINGS_OFFSET_MAX : 0,
 		);
 	}
 
@@ -1339,9 +2067,10 @@ class Mixmymeals_Meal_Plan {
 	 *
 	 * @return array<string,float>
 	 */
-	public static function reference_intake(): array {
+	public static function reference_intake( string $profile = '' ): array {
 
-		$values = self::REFERENCE_INTAKE;
+		$profile = '' !== $profile ? $profile : self::$reference_profile;
+		$values  = self::REFERENCE_INTAKE;
 
 		foreach ( self::NUTRITION_KEYS as $key ) {
 			$stored = (float) get_option( self::REFERENCE_INTAKE_OPTION_PREFIX . $key, '' );
@@ -1351,7 +2080,23 @@ class Mixmymeals_Meal_Plan {
 			}
 		}
 
-		$values = (array) apply_filters( 'mixmymeals_reference_intake', $values );
+		/*
+		 * Another profile starts from the site's adult figures and replaces
+		 * what its own group on the Meal Plans tab states. No such profile
+		 * exists yet — the vocabulary is eater_profiles() — so this branch
+		 * is the place its figures arrive, not a set of invented ones.
+		 */
+		if ( self::DEFAULT_PROFILE !== $profile && isset( self::eater_profiles()[ $profile ] ) ) {
+			foreach ( self::NUTRITION_KEYS as $key ) {
+				$stored = (float) get_option( self::reference_intake_profile_option( $profile, $key ), '' );
+
+				if ( $stored > 0 ) {
+					$values[ $key ] = $stored;
+				}
+			}
+		}
+
+		$values = (array) apply_filters( 'mixmymeals_reference_intake', $values, $profile );
 
 		// A filter returning nonsense must not turn into a division by zero
 		// wherever a percentage is worked out.
@@ -1362,6 +2107,53 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		return $values;
+	}
+
+	/**
+	 * The profile reference_intake() answers for when it is not named —
+	 * '' and DEFAULT_PROFILE are the adult. Set only for the length of
+	 * with_reference_profile().
+	 *
+	 * @var string
+	 */
+	private static $reference_profile = self::DEFAULT_PROFILE;
+
+	/**
+	 * Option holding one reference figure of a profile other than the adult:
+	 * mixmymeals_reference_intake_profile_<profile>_<key>.
+	 *
+	 * @param string $profile Profile slug.
+	 * @param string $key     Nutrition key.
+	 * @return string
+	 */
+	public static function reference_intake_profile_option( string $profile, string $key ): string {
+
+		return self::REFERENCE_INTAKE_OPTION_PREFIX . 'profile_' . sanitize_key( $profile ) . '_' . $key;
+	}
+
+	/**
+	 * Runs $callback with a person's profile in force for reference_intake().
+	 *
+	 * Every percentage, bar, rating and note reads reference_intake()
+	 * without arguments, and they are called deep inside the renderers. Rather
+	 * than threading a profile through each of them — and missing one — the
+	 * renderer of one person's figures runs inside this, and all of them
+	 * follow. Restored afterwards, also when the callback throws.
+	 *
+	 * @param string   $profile  Profile slug, from eater_profile().
+	 * @param callable $callback What to run.
+	 * @return mixed What the callback returns.
+	 */
+	public static function with_reference_profile( string $profile, callable $callback ) {
+
+		$before                  = self::$reference_profile;
+		self::$reference_profile = isset( self::eater_profiles()[ $profile ] ) ? $profile : self::DEFAULT_PROFILE;
+
+		try {
+			return $callback();
+		} finally {
+			self::$reference_profile = $before;
+		}
 	}
 
 	/**
@@ -1725,16 +2517,19 @@ class Mixmymeals_Meal_Plan {
 
 			$per_serving   = $recipe->calculate_nutrition_per_serving();
 			$meal_servings = max( 0.01, (float) $row['servings'] );
+			// One portion per meal, unless the plan is one person's
+			// (for_eater()) and they eat more or less of this one.
+			$portion = (float) ( $row['portion'] ?? self::DEFAULT_PORTION );
 
 			$result['servings']      += $meal_servings;
-			$result['weight_person'] += (float) ( $per_serving['weight_per_serving'] ?? 0.0 );
+			$result['weight_person'] += (float) ( $per_serving['weight_per_serving'] ?? 0.0 ) * $portion;
 			++$result['meals'];
 
 			foreach ( self::NUTRITION_KEYS as $key ) {
 				$value = (float) ( $per_serving[ $key ] ?? 0.0 );
 
 				$result['totals'][ $key ]     += $value * $meal_servings;
-				$result['per_person'][ $key ] += $value;
+				$result['per_person'][ $key ] += $value * $portion;
 			}
 		}
 
@@ -2295,7 +3090,8 @@ class Mixmymeals_Meal_Plan {
 				continue;
 			}
 
-			$servings = max( 1.0, (float) $recipe->get_servings() );
+			// The portions one person eats of this meal (for_eater()), else one.
+			$servings = max( 1.0, (float) $recipe->get_servings() ) / (float) ( $row['portion'] ?? self::DEFAULT_PORTION );
 
 			/*
 			 * get_ingredients_scaled() returns one row per step, so an

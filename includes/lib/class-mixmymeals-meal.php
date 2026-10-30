@@ -29,6 +29,20 @@ class Mixmymeals_Meal {
 	 */
 	const META_DIET = '_mmm_diet';
 
+	/**
+	 * Who eats the meal: ids of the parent plan's people
+	 * (Mixmymeals_Meal_Plan::get_eaters()). No row means everybody — every
+	 * meal from before the field, and every meal eaten by all.
+	 */
+	const META_EATERS = '_mmm_eaters';
+
+	/**
+	 * How much each eater eats of this meal, where it differs from what the
+	 * person usually eats: id => portions. No row, or no entry for a person,
+	 * is their usual amount (Mixmymeals_Meal_Plan::resolve_portions()).
+	 */
+	const META_EATER_PORTIONS = '_mmm_eater_portions';
+
 	/** Option guarding the one-off move of `note` meta into the text. */
 	const TEXT_MIGRATION_OPTION  = 'mixmymeals_meal_text_version';
 	const TEXT_MIGRATION_VERSION = '1';
@@ -184,15 +198,169 @@ class Mixmymeals_Meal {
 	}
 
 	/**
+	 * Who eats the meal as stored, unchecked. For
+	 * Mixmymeals_Meal_Plan::get_meal_rows(), which checks it against the
+	 * plan's people it has already read; everything else reads get_eaters().
+	 *
+	 * @return string[]
+	 */
+	public function get_eaters_raw(): array {
+
+		$stored = get_post_meta( $this->post_id, self::META_EATERS, true );
+
+		return is_array( $stored ) ? array_map( 'strval', $stored ) : array();
+	}
+
+	/**
+	 * Who eats the meal: ids of the parent plan's people, in the plan's
+	 * order, never empty (Mixmymeals_Meal_Plan::clean_eaters()).
+	 *
+	 * @return string[]
+	 */
+	public function get_eaters(): array {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return Mixmymeals_Meal_Plan::clean_eaters( $this->get_eaters_raw(), $plan->eater_ids() );
+	}
+
+	/**
+	 * Settles who eats the meal. Checked against the parent plan's people,
+	 * so set the plan first; an unknown id is dropped, and a list that ends
+	 * up naming everybody — or nobody — is stored as no row, which is
+	 * "everybody": a person added to the plan later then eats it too.
+	 *
+	 * @param array $eaters Ids of the plan's people.
+	 * @return void
+	 */
+	public function set_eaters( array $eaters ): void {
+
+		$ids   = ( new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() ) )->eater_ids();
+		$clean = Mixmymeals_Meal_Plan::clean_eaters( $eaters, $ids );
+
+		if ( array_values( $ids ) === $clean ) {
+			delete_post_meta( $this->post_id, self::META_EATERS );
+		} else {
+			update_post_meta( $this->post_id, self::META_EATERS, $clean );
+		}
+
+		$this->raise_servings_to_floor();
+	}
+
+	/**
+	 * Raises the stored servings to what the eaters now eat, where they
+	 * fell below it: somebody ticked more, or a larger portion, is more
+	 * food cooked. Never lowers them — a surplus is the planner's to keep.
+	 *
+	 * @return void
+	 */
+	private function raise_servings_to_floor(): void {
+
+		$min = $this->min_servings();
+
+		if ( $this->get_stored_servings() < $min ) {
+			update_post_meta( $this->post_id, 'servings', $min );
+		}
+	}
+
+	/**
+	 * The per-meal portions as stored, unchecked. For
+	 * Mixmymeals_Meal_Plan::get_meal_rows(); everything else reads
+	 * get_eater_portions().
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function get_eater_portions_raw(): array {
+
+		$stored = get_post_meta( $this->post_id, self::META_EATER_PORTIONS, true );
+
+		return is_array( $stored ) ? $stored : array();
+	}
+
+	/**
+	 * How many portions each eater eats of this meal, id => portions, for
+	 * everybody who eats it: their figure for this meal, else their usual.
+	 *
+	 * @return array<string,float>
+	 */
+	public function get_eater_portions(): array {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return $plan->resolve_portions( $this->get_eater_portions_raw(), $this->get_eaters() );
+	}
+
+	/**
+	 * Stores how much each eater eats of this meal. Checked against the
+	 * parent plan and who eats the meal, so set the plan and the eaters
+	 * first; a figure equal to the person's usual amount is not stored, and
+	 * neither is an invalid one (Mixmymeals_Meal_Plan::clean_portion_overrides()).
+	 *
+	 * @param array|string $portions id => portions (or a JSON object); empty
+	 *                               returns everybody to their usual amount.
+	 * @return void
+	 */
+	public function set_eater_portions( $portions ): void {
+
+		$plan  = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+		$clean = $plan->clean_portion_overrides( $portions, $this->get_eaters() );
+
+		if ( ! $clean ) {
+			delete_post_meta( $this->post_id, self::META_EATER_PORTIONS );
+		} else {
+			update_post_meta( $this->post_id, self::META_EATER_PORTIONS, $clean );
+		}
+
+		$this->raise_servings_to_floor();
+	}
+
+	/**
 	 * Returns the number of servings for the meal.
 	 *
 	 * @return int The number of servings (minimum 1).
 	 */
 	public function get_servings(): int {
+		return max( $this->min_servings(), $this->get_stored_servings() );
+	}
+
+	/**
+	 * The servings as stored, at least one — without the floor of the
+	 * eaters. For Mixmymeals_Meal_Plan::get_meal_rows(), which applies the
+	 * floor itself from the eaters it has already read.
+	 *
+	 * @return int
+	 */
+	public function get_stored_servings(): int {
 		return max(
 			1,
 			intval( get_post_meta( $this->post_id, 'servings', true ) )
 		);
+	}
+
+	/**
+	 * The fewest servings this meal may have: what its eaters eat of it
+	 * together, rounded up (Mixmymeals_Meal_Plan::min_servings()). One on a
+	 * plan without people.
+	 *
+	 * @return int
+	 */
+	public function min_servings(): int {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return $plan->min_servings( $this->get_eaters(), $this->get_eater_portions_raw() );
+	}
+
+	/**
+	 * Servings beyond what the eaters eat (Mixmymeals_Meal_Plan::servings_surplus()).
+	 *
+	 * @return float
+	 */
+	public function servings_surplus(): float {
+
+		$plan = new Mixmymeals_Meal_Plan( (int) $this->get_parent_plan_id() );
+
+		return $plan->servings_surplus( $this->get_servings(), $this->get_eater_portions() );
 	}
 
 	/**
@@ -238,10 +406,13 @@ class Mixmymeals_Meal {
 	 * @return void
 	 */
 	public function set_servings( int $servings ): void {
+		// Never below what its eaters eat; set the eaters and their portions
+		// first where both change, or this floors against the old ones (the
+		// read floors again either way).
 		update_post_meta(
 			$this->post_id,
 			'servings',
-			max( 1, $servings )
+			max( $this->min_servings(), $servings )
 		);
 	}
 

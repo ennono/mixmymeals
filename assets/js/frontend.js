@@ -159,6 +159,13 @@ jQuery(function ($) {
 
         mmmClosePlannerDialog();
 
+        // On the planner itself, a new meal starts with what its people
+        // usually eat together; the field stays free.
+        const plannerServings = parseInt($('.mmm-plan-builder').attr('data-default-servings'), 10) || 0;
+        if (plannerServings > 0) {
+            defaultServings = plannerServings;
+        }
+
         let typeOptions = '<option value="">' + (labels.no_type || '—') + '</option>';
         Object.keys(types).forEach(function (key) {
             typeOptions += '<option value="' + key + '">' + types[key] + '</option>';
@@ -684,6 +691,9 @@ jQuery(function ($) {
        ========================================================== */
     let mmmNutritionTimer = null;
     let mmmNutritionRequest = null;
+    // Whose figures the planner shows, where it lists several people; the
+    // server answers with the person it used, the first for anything else.
+    let mmmPlannerEater = '';
 
     function mmmRefreshPlannerNutrition() {
         const $box = $('[data-planner-nutrition]');
@@ -710,10 +720,13 @@ jQuery(function ($) {
                 show_details: $shop.attr('data-show-details') === '1' ? 1 : 0,
                 sort_by_category: $shop.attr('data-sort-by-category') === '1' ? 1 : 0
             } : {};
+            extra.eater = mmmPlannerEater;
 
             mmmNutritionRequest = mmmPost('mmm_planner_nutrition', extra)
                 .done(function (response) {
                     if (!response || !response.success || !response.data) return;
+
+                    mmmPlannerEater = response.data.eater || '';
 
                     // Keep the table open across refreshes if it was open.
                     const open = $box.find('.mmm-planner-nutrition__details').prop('open');
@@ -766,6 +779,123 @@ jQuery(function ($) {
                     $box.add($days).add($prep).add($shop).removeAttr('aria-busy');
                 });
         }, 400);
+    }
+
+    /* The switch between the planner's people: the figures, the table and
+       the row under each day become that person's. */
+    $(document).on('click', '[data-planner-nutrition] .mmm-eater-switch__item', function (e) {
+        e.preventDefault();
+        mmmPlannerEater = this.getAttribute('data-eater') || '';
+        mmmRefreshPlannerNutrition();
+    });
+
+    /* Adding or removing a person changes every item's checkboxes, which
+       are the server's to render: reload once the cart has the list. */
+    /* What one of the planner's people usually eats: every recipe that does
+       not say otherwise follows, so the page is drawn again. */
+    $(document).on('change', '[data-plan-eaters] .mmm-plan-eaters__portions', function () {
+        const $field = $(this);
+        mmmSetBusy($field, true);
+
+        mmmPost('mmm_cart_eaters', { op: 'portions', id: $field.attr('data-eater'), portions: $field.val() })
+            .done(function (response) {
+                if (response && response.success) {
+                    window.location.reload();
+                    return;
+                }
+                mmmSetBusy($field, false);
+                mmmHandleAjaxError(response, { fallbackMessage: 'Error.' });
+            })
+            .fail(function (xhr) {
+                mmmSetBusy($field, false);
+                mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
+            });
+    });
+
+    $(document).on('click', '[data-plan-eaters] [data-eater-add], [data-plan-eaters] [data-eater-remove]', function (e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const remove = $btn.is('[data-eater-remove]');
+        mmmSetBusy($btn, true);
+
+        mmmPost('mmm_cart_eaters', remove ? { op: 'remove', id: $btn.attr('data-eater-remove') } : { op: 'add' })
+            .done(function (response) {
+                if (response && response.success) {
+                    window.location.reload();
+                    return;
+                }
+                mmmSetBusy($btn, false);
+                mmmHandleAjaxError(response, { fallbackMessage: 'Error.' });
+            })
+            .fail(function (xhr) {
+                mmmSetBusy($btn, false);
+                mmmHandleRequestFail(xhr, { failMessage: 'Request failed.' });
+            });
+    });
+
+    /* Who eats a planner item, saved as it changes like the servings.
+       Nobody ticked is everybody, so the boxes say so at once. */
+    $(document).on('change', '.mmm-plan-item-eater__input', function () {
+        const $set = $(this).closest('.mmm-plan-item-eaters');
+        const item = $(this).closest('.mmm-plan-item');
+
+        if (!$set.find('.mmm-plan-item-eater__input:checked').length) {
+            $set.find('.mmm-plan-item-eater__input').prop('checked', true);
+        }
+
+        // A person's portions only count while they eat along.
+        $set.find('.mmm-plan-item-eater__input').each(function () {
+            $(this).closest('.mmm-plan-item-eater-group')
+                .find('.mmm-plan-item-eater__portions').prop('disabled', !this.checked);
+        });
+
+        mmmSavePlanChange({
+            index: item.data('index'),
+            field: 'eaters',
+            value: mmmItemEaters(item).join(',')
+        }).always(mmmRefreshPlannerNutrition);
+    });
+
+    /* How much one person eats of a planner item; empty is their usual. */
+    $(document).on('change', '.mmm-plan-item-eater__portions', function () {
+        const item = $(this).closest('.mmm-plan-item');
+
+        mmmSavePlanChange({
+            index: item.data('index'),
+            field: 'portions',
+            value: JSON.stringify(mmmItemPortions(item))
+        }).always(mmmRefreshPlannerNutrition);
+    });
+
+    /**
+     * The portions entered on a planner item for the people who eat it,
+     * {id: portions}; an empty field is that person's usual amount.
+     *
+     * @param {jQuery} item The .mmm-plan-item.
+     * @return {Object}
+     */
+    function mmmItemPortions(item) {
+        const out = {};
+        item.find('.mmm-plan-item-eater__portions:enabled').each(function () {
+            const value = (this.value || '').trim();
+            if (value !== '') {
+                out[this.getAttribute('data-eater')] = value;
+            }
+        });
+        return out;
+    }
+
+    /**
+     * The ids ticked on a planner item; [] where it has no boxes, which is
+     * everybody.
+     *
+     * @param {jQuery} item The .mmm-plan-item.
+     * @return {string[]}
+     */
+    function mmmItemEaters(item) {
+        return item.find('.mmm-plan-item-eater__input:checked').map(function () {
+            return this.value;
+        }).get();
     }
 
     /* ==========================================================
@@ -856,7 +986,9 @@ jQuery(function ($) {
         let value = $field.val();
 
         if ($field.hasClass('mmm-plan-item-servings')) {
-            value = Math.max(1, parseInt(value, 10) || 1);
+            // Not below what its eaters eat (the field's min, kept by the server too).
+            value = Math.max(parseInt($field.attr('min'), 10) || 1, parseInt(value, 10) || 1);
+            $field.val(value);
         }
 
         mmmSavePlanChange({
@@ -1007,6 +1139,8 @@ jQuery(function ($) {
                 servings: el.find('.mmm-plan-item-servings').val(),
                 type: el.find('.mmm-plan-item-type').val(),
                 diet: el.find('.mmm-plan-item-diet').val() || '',
+                eaters: mmmItemEaters(el).join(','),
+                portions: JSON.stringify(mmmItemPortions(el)),
                 note: el.find('.mmm-plan-item-note').val(),
                 day: (dayList >= 1 && dayList <= 7) ? dayList : null
             });
@@ -1316,6 +1450,65 @@ jQuery(function ($) {
      * the difference is counted here; what it does to the amounts is the
      * server's answer.
      */
+    /* ==========================================================
+       PLAN PAGE: WHOSE NUTRITION
+
+       A plan listing several people shows one person's figures, with a
+       switch of links (?mmm_eater=p2) above them. The links work on their
+       own; with the script the overview, and the per-weekday table and
+       product comparison where the page has them, are swapped from the
+       `mmm_plan_nutrition` answer, computed on the server like the page.
+       ========================================================== */
+    let mmmPlanNutritionRequest = null;
+
+    $(document).on('click', '[data-plan-nutrition] a.mmm-eater-switch__item', function (e) {
+        const $box = $(this).closest('[data-plan-nutrition]');
+        const href = this.getAttribute('href') || '';
+
+        e.preventDefault();
+
+        if (mmmPlanNutritionRequest && mmmPlanNutritionRequest.abort) {
+            mmmPlanNutritionRequest.abort();
+        }
+
+        $box.attr('aria-busy', 'true');
+
+        mmmPlanNutritionRequest = mmmPost('mmm_plan_nutrition', {
+            meal_plan_id: $box.attr('data-plan-nutrition'),
+            eater: this.getAttribute('data-eater') || '',
+            page_url: window.location.href.split('#')[0]
+        })
+            .done(function (response) {
+                if (!response || !response.success || !response.data || !response.data.html) {
+                    window.location.href = href;
+                    return;
+                }
+
+                const parts = response.data.parts || {};
+                $('[data-plan-eater-part]').each(function () {
+                    const html = parts[this.getAttribute('data-plan-eater-part')];
+                    if (typeof html === 'string') {
+                        $(this).html(html);
+                    }
+                });
+
+                const $new = $(response.data.html);
+                $box.replaceWith($new);
+                $new.find('.mmm-eater-switch__item.is-current').trigger('focus');
+
+                if (window.history && window.history.replaceState && href) {
+                    window.history.replaceState(null, '', href.split('#')[0]);
+                }
+            })
+            .fail(function (xhr) {
+                if (xhr && xhr.statusText === 'abort') return;
+                window.location.href = href;
+            })
+            .always(function () {
+                $box.removeAttr('aria-busy');
+            });
+    });
+
     $(document).on('click', '[data-plan-shopping] a.mmm-plan-servings__step', function (e) {
         e.preventDefault();
         const $link = $(this);
@@ -1401,6 +1594,21 @@ jQuery(function ($) {
             .done(function (response) {
                 if (!response || !response.success) {
                     console.warn('Failed to save cart change', response);
+                    return;
+                }
+
+                // The servings never fall below what the eaters eat; the
+                // server raised them where needed and says whether more is
+                // planned than eaten. Both are taken as they come.
+                const data = response.data || {};
+                const item = $('.mmm-plan-item[data-index="' + change.index + '"]');
+                if (data.item && typeof data.min_servings === 'number') {
+                    item.find('.mmm-plan-item-servings')
+                        .attr('min', data.min_servings)
+                        .val(data.item.servings);
+                }
+                if (typeof data.surplus === 'string') {
+                    item.find('[data-servings-surplus]').text(data.surplus).prop('hidden', !data.surplus);
                 }
             })
             .fail(function () {

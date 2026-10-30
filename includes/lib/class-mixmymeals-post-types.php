@@ -1459,10 +1459,11 @@ class Mixmymeals_Post_Types {
 		 * plan with other amounts, at as many addresses as there are
 		 * numbers. Any value counts, valid or not — the page exists either
 		 * way. No canonical: the plan page is the one indexed, and `follow`
-		 * leads there.
+		 * leads there. The same for ?mmm_eater, the figures of one of the
+		 * plan's people.
 		 */
 		$noindex = is_singular( self::NOINDEX_POST_TYPES )
-			|| ( is_singular( 'mmm_meal_plan' ) && Mixmymeals_Meal_Plan::has_servings_param() );
+			|| ( is_singular( 'mmm_meal_plan' ) && ( Mixmymeals_Meal_Plan::has_servings_param() || Mixmymeals_Meal_Plan::has_eater_param() ) );
 
 		/**
 		 * Allows forcing the noindex on or off for the current view.

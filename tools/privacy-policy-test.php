@@ -103,6 +103,13 @@ mmm_ppt_assert( $has( 'user agent' ), 'Kommentarformular: IP und User-Agent gena
 mmm_ppt_assert( $has( 'links for rating its recipes and sharing photos' ), 'der Mail-Inhalt wird genannt' );
 mmm_ppt_assert( ! str_contains( Mixmymeals_Subscriptions::consent_text(), 'accept' ), 'der Einwilligungssatz lässt die Erklärung nicht mehr „akzeptieren“' );
 
+echo "-- 1c. Esser (3.70.0): nur Nummern, keine Namen\n";
+
+mmm_ppt_assert( $has( 'which of them eat each recipe and how many portions' ) && $has( 'no names are asked for' ), 'Planer: wer was isst wird gespeichert, nummeriert, ohne Namen' );
+mmm_ppt_assert( $has( 'which of the numbered people eat along, with their portions, are stored' ), 'geteilte Kopie: die nummerierten Esser stehen in der Liste des Gespeicherten' );
+mmm_ppt_assert( $has( 'naming them by number only' ) && $has( 'are not published' ), 'gespeicherter Plan: Personen nur als Nummer, Namen aus der Verwaltung nicht öffentlich' );
+mmm_ppt_assert( array() === array_diff_key( Mixmymeals_Cart::strip_eater_names( array( array( 'id' => 'p1', 'name' => 'X', 'profile' => 'adult' ) ) )[0], array( 'id' => 1, 'profile' => 1, 'name' => 1 ) ) && '' === Mixmymeals_Cart::strip_eater_names( array( array( 'id' => 'p1', 'name' => 'X', 'profile' => 'adult' ) ) )[0]['name'], 'was der Text zusagt, hält der Code: der Planer verwirft Namen' );
+
 echo "-- 2. Bedingte Sätze stehen nur da, wo ihre Bedingung gilt\n";
 
 mmm_ppt_assert( $has( 'No IP address is stored as proof of consent' ) && ! $has( 'full IP address' ), 'Einwilligungs-IP aus: sagt das, und nur das' );
