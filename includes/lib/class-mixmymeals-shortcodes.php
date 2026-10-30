@@ -784,6 +784,63 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * The short chip row of a teaser: disclosure, energy, categories, tags —
+	 * as `span.mmm-meta__item` items without a wrapper, worded like the
+	 * archive's chips. Used by the child theme's front-page masthead through
+	 * Mixmymeals_Meal_Plan::latest_plan_spotlight(), which used to round and
+	 * word the kcal figure itself and carried no advertising label.
+	 *
+	 * @param int $recipe_id Recipe post ID.
+	 * @return string
+	 */
+	public static function spotlight_meta_chips( int $recipe_id ): string {
+
+		if ( ! $recipe_id ) {
+			return '';
+		}
+
+		$items = array();
+
+		$disclosure = self::disclosure_chip( $recipe_id, 'mmm-meta__item' );
+		if ( '' !== $disclosure ) {
+			$items[] = $disclosure;
+		}
+
+		$nutrition = ( new Mixmymeals_Recipe( $recipe_id ) )->calculate_nutrition_per_serving();
+
+		if ( ! empty( $nutrition['calories'] ) ) {
+			$items[] = '<span class="mmm-meta__item mmm-meta__item--calories">'
+				. esc_html(
+					self::chip_text(
+						'archive_energy',
+						array( 'kcal' => number_format_i18n( round( $nutrition['calories'] ) ) )
+					)
+				)
+				. '</span>';
+		}
+
+		foreach ( array( 'mmm_recipe_category' => 'category', 'mmm_recipe_tag' => 'tag' ) as $taxonomy => $kind ) {
+
+			$terms = get_the_terms( $recipe_id, $taxonomy );
+
+			if ( empty( $terms ) || is_wp_error( $terms ) ) {
+				continue;
+			}
+
+			usort( $terms, fn( $a, $b ) => strcasecmp( $a->name, $b->name ) );
+
+			foreach ( $terms as $term ) {
+				$text    = 'category' === $kind
+					? self::chip_text( 'category', array( 'category' => $term->name ) )
+					: $term->name;
+				$items[] = '<span class="mmm-meta__item mmm-meta__item--' . $kind . '">' . esc_html( $text ) . '</span>';
+			}
+		}
+
+		return implode( '', $items );
+	}
+
+	/**
 	 * Builds the meta-chip block (calories, cost, categories, tags, diet) for a
 	 * single recipe. Shared by the per-card archive shortcode and the
 	 * category-grouped recipe index so both render identical chips.
@@ -4699,8 +4756,7 @@ class Mixmymeals_Shortcodes {
 
             <!-- Unassigned Items -->
             <div class="mmm-plan-unassigned">
-                <h3><?php echo esc_html__( 'Unassigned Recipes',
-						'mixmymeals' ); ?></h3>
+                <?php echo self::planner_heading( 'unassigned', 'mmm-plan-unassigned__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 
                 <ul class="mmm-plan-day-list" data-day-list="0">
 
@@ -4934,7 +4990,7 @@ class Mixmymeals_Shortcodes {
 		?>
         <a href="#"
            class="mmm-clear-cart-link"><?php echo esc_html( $atts['text'] ); ?></a>
-        <span class="mmm-clear-cart-message" style="margin-left:10px;"></span>
+        <span class="mmm-clear-cart-message"></span>
 		<?php
 		return ob_get_clean();
 	}
@@ -4964,8 +5020,7 @@ class Mixmymeals_Shortcodes {
 			?>
             <a href="#"
                class="mmm-create-meal-plan-link"><?php echo esc_html( $atts['text'] ); ?></a>
-            <span class="mmm-create-meal-plan-message"
-                  style="margin-left:10px;"></span>
+            <span class="mmm-create-meal-plan-message"></span>
 			<?php
 			echo self::input_notice( 'plan' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 		} else {
@@ -8677,6 +8732,36 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * A heading inside one of the planner's boxes: the unassigned list, the
+	 * nutrition box and the shopping list.
+	 *
+	 * The wording is page copy and so the theme's, through the filter
+	 * `mixmymeals_planner_heading` ( $text, $key ); an empty text prints no
+	 * heading at all. A filter rather than a shortcode attribute because the
+	 * nutrition and shopping boxes are re-rendered over AJAX, where the
+	 * attributes the page was built with are gone. The default keeps the
+	 * plugin usable without a theme that sets one.
+	 *
+	 * @param string $key   'unassigned', 'nutrition' or 'shopping'.
+	 * @param string $class Class of the heading.
+	 * @return string An h3, or '' when the text is empty.
+	 */
+	public static function planner_heading( string $key, string $class ): string {
+
+		$defaults = array(
+			'unassigned' => __( 'Unassigned Recipes', 'mixmymeals' ),
+			'nutrition'  => __( 'Average nutrition per day and person', 'mixmymeals' ),
+			'shopping'   => __( 'Shopping list', 'mixmymeals' ),
+		);
+
+		$text = trim( (string) apply_filters( 'mixmymeals_planner_heading', $defaults[ $key ] ?? '', $key ) );
+
+		return '' === $text
+			? ''
+			: '<h3 class="' . esc_attr( $class ) . '">' . esc_html( $text ) . '</h3>';
+	}
+
+	/**
 	 * The planner's shopping list: a heading and the list exactly as the plan
 	 * page renders it (render_shopping_list()).
 	 *
@@ -8691,8 +8776,7 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return '<h3 class="mmm-planner-shopping__title">'
-		       . esc_html__( 'Shopping list', 'mixmymeals' ) . '</h3>'
+		return self::planner_heading( 'shopping', 'mmm-planner-shopping__title' )
 		       . $this->render_shopping_list( $plan, $show_details, $sort_by_category );
 	}
 
@@ -8763,7 +8847,7 @@ class Mixmymeals_Shortcodes {
 
 		ob_start();
 		?>
-		<h3 class="mmm-planner-nutrition__title"><?php esc_html_e( 'Average nutrition per day and person', 'mixmymeals' ); ?></h3>
+		<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 		<?php if ( $per_day['days'] < 1 && $planner->has_eaters() && ! $plan->get_meal_rows() ) : ?>
 			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'This person eats none of the planned meals yet.', 'mixmymeals' ); ?></p>
 		<?php elseif ( $per_day['days'] < 1 ) : ?>

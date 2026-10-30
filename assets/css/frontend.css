@@ -1,8 +1,6 @@
 .mmm-plan-day-list {
     min-height: 80px;
     padding: 0.5em;
-    background: color-mix(in srgb, var(--mmm-primary) 4%, transparent);
-    border-radius: var(--ast-border-radius);
 }
 
 /* Per-day start selector – structural basics (design lives in theme) */
@@ -11,15 +9,13 @@
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    font-size: 0.85em;
-}
-.mmm-plan-day-list.drop-target {
-    background: color-mix(in srgb, var(--mmm-primary) 12%, transparent);
 }
 
 /* ==========================================================
    Einplanen-Dialog (Planner Dialog) – Struktur.
-   Optik (Radius, Schatten, Abstände) liegt im Theme.
+   Optik (Farben, Radius, Schatten, Abstände) liegt im Theme. Canvas /
+   CanvasText sind die Systemfarben des Browsers: ein Dialog muss deckend
+   sein, um bedienbar zu sein, aber welche Farbe er hat, sagt das Theme.
    ========================================================== */
 .mmm-planner-dialog-backdrop {
     position: fixed;
@@ -32,7 +28,8 @@
 }
 
 .mmm-planner-dialog {
-    background: #fff;
+    background: Canvas;
+    color: CanvasText;
     width: min(90vw, 360px);
 }
 
@@ -71,7 +68,8 @@ body.mmm-cook-mode-open {
 .mmm-cook-mode {
     position: fixed;
     inset: 0;
-    background: #fff;
+    background: Canvas;
+    color: CanvasText;
     z-index: 99999;
     display: flex;
     flex-direction: column;
@@ -483,16 +481,11 @@ body.mmm-cook-mode-open {
     list-style: none;
 }
 
-.mmm-prep-note__task {
-    font-weight: 600;
-}
-
 /* A preparation step on the recipe and meal page. */
 .mmm-step-prep {
     display: inline-flex;
     align-items: center;
     gap: 0.4em;
-    font-size: 0.85em;
 }
 
 /* Embeds — [mmm_recipe_embed] and [mmm_meal_plan_embed], one recipe or plan

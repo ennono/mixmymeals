@@ -26,6 +26,14 @@ class Mixmymeals_Meal_Plan {
 	private static $cached_random_recipe_id = null;
 
 	/**
+	 * The meal the cached random recipe was drawn from, so a link to it
+	 * names the same planning the title and picture describe.
+	 *
+	 * @var int
+	 */
+	private static $cached_random_meal_id = 0;
+
+	/**
 	 * Constructor.
 	 *
 	 * Initializes the meal plan object with a given post ID.
@@ -3806,7 +3814,8 @@ class Mixmymeals_Meal_Plan {
 
 		shuffle( $meal_ids );
 
-		$fallback_id = 0;
+		$fallback_id      = 0;
+		$fallback_meal_id = 0;
 
 		foreach ( $meal_ids as $meal_id ) {
 			$meal = new Mixmymeals_Meal( absint( $meal_id ) );
@@ -3822,7 +3831,8 @@ class Mixmymeals_Meal_Plan {
 			}
 
 			if ( ! $fallback_id ) {
-				$fallback_id = $recipe_id;
+				$fallback_id      = $recipe_id;
+				$fallback_meal_id = absint( $meal_id );
 			}
 
 			// Prefer a recipe with a real featured image.
@@ -3831,10 +3841,12 @@ class Mixmymeals_Meal_Plan {
 			}
 
 			self::$cached_random_recipe_id = $recipe_id;
+			self::$cached_random_meal_id   = absint( $meal_id );
 			return $recipe_id;
 		}
 
 		self::$cached_random_recipe_id = $fallback_id;
+		self::$cached_random_meal_id   = $fallback_meal_id;
 		return $fallback_id;
 	}
 
@@ -3887,6 +3899,48 @@ class Mixmymeals_Meal_Plan {
 
 	public static function get_random_recipe_id_from_latest_plan(): int {
 		return self::get_random_recipe_id_from_latest_plan_cached();
+	}
+
+	/**
+	 * Everything a teaser of the newest plan needs: the plan, one of its
+	 * dishes drawn at random (the same draw as the title and image methods
+	 * above, so the three agree), the meal it was drawn from, their addresses
+	 * and the recipe's chip row.
+	 *
+	 * Data, not markup — the child theme's [mmm_home_masthead] builds the
+	 * section around it. It used to run these queries itself and print its
+	 * own kcal figure next to the archive's.
+	 *
+	 * @return array{plan_id:int, plan_url:string, recipe_id:int, recipe_title:string, recipe_url:string, meal_id:int, meal_url:string, meta_html:string}|array{} Empty when there is no plan or no dish.
+	 */
+	public static function latest_plan_spotlight(): array {
+
+		$recipe_id = self::get_random_recipe_id_from_latest_plan_cached();
+
+		if ( ! $recipe_id ) {
+			return array();
+		}
+
+		$recipe_url = (string) get_permalink( $recipe_id );
+		$title      = get_the_title( $recipe_id );
+
+		if ( '' === $recipe_url || ! is_string( $title ) || '' === $title ) {
+			return array();
+		}
+
+		$meal_id = self::$cached_random_meal_id;
+		$plan_id = $meal_id ? (int) wp_get_post_parent_id( $meal_id ) : 0;
+
+		return array(
+			'plan_id'      => $plan_id,
+			'plan_url'     => $plan_id ? (string) get_permalink( $plan_id ) : '',
+			'recipe_id'    => $recipe_id,
+			'recipe_title' => $title,
+			'recipe_url'   => $recipe_url,
+			'meal_id'      => $meal_id,
+			'meal_url'     => $meal_id ? (string) get_permalink( $meal_id ) : '',
+			'meta_html'    => Mixmymeals_Shortcodes::spotlight_meta_chips( $recipe_id ),
+		);
 	}
 
 	public function calculate_avg_cost_per_serving(): float {
