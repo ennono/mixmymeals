@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.70.0
+Stable tag: 3.71.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.71.0 =
+
+Added:
+* Plan numbers: a plan's post ID is its public number, "#4812". Plans
+  saved from the planner are titled after it ("Meal Plan #4812", slug to
+  match) instead of after the date, which gave every plan saved on one day
+  the same name. The plan page shows the number as a label beside the
+  title, and [mmm_meal_plan_number] puts the same label on archive cards.
+  Subscription mails show it too: placeholders {{ plan_number }} and
+  {{ plan_number_html }}, and above the confirmation mail's heading.
+  A default subject for a welcome.html template ("Welcome! Your meal plan
+  {{ plan_number }}").
 
 = 3.70.0 =
 

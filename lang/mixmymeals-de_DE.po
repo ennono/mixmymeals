@@ -7778,3 +7778,25 @@ msgid "%s serving more than eaten"
 msgid_plural "%s servings more than eaten"
 msgstr[0] "%s Portion mehr als gegessen"
 msgstr[1] "%s Portionen mehr als gegessen"
+
+#. translators: %s: the plan's number with its leading "#", e.g. "#4812".
+#: includes/lib/class-mixmymeals-meal-plan.php:929
+#, php-format
+msgid "Meal Plan %s"
+msgstr "Essensplan %s"
+
+#: includes/lib/class-mixmymeals-shortcodes.php:562
+msgid "Plan number"
+msgstr "Plannummer"
+
+#: includes/lib/class-mixmymeals-admin-api.php:746
+msgid "Number of the meal plan, e.g. #4812."
+msgstr "Nummer des Essensplans, z. B. #4812."
+
+#: includes/lib/class-mixmymeals-admin-api.php:747
+msgid "The plan number as a framed label, as on the plan page."
+msgstr "Die Plannummer als eingerahmtes Etikett, wie auf der Plan-Seite."
+
+#: includes/lib/class-mixmymeals-subscriptions.php:386
+msgid "Welcome! Your meal plan {{ plan_number }}"
+msgstr "Willkommen! Dein Essensplan {{ plan_number }}"

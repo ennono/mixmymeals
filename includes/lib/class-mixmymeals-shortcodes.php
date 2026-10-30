@@ -47,6 +47,9 @@ class Mixmymeals_Shortcodes {
 		add_shortcode( 'mmm_meta_for_posts_in_meal_plan_archive',
 			[ $this, 'mmm_meta_for_posts_in_meal_plan_archive_callback' ] );
 
+		add_shortcode( 'mmm_meal_plan_number',
+			[ $this, 'mmm_meal_plan_number_callback' ] );
+
 		add_shortcode( 'mmm_meal_plan_category_switcher',
 			[ $this, 'mmm_meal_plan_category_switcher_callback' ] );
 
@@ -536,6 +539,45 @@ class Mixmymeals_Shortcodes {
 		$output .= '</div>';
 
 		return $output;
+	}
+
+	/**
+	 * The plan's number as a label, `p.mmm-plan-number` ("#4812") — one
+	 * markup for the hero and for the archive cards, so the two cannot
+	 * drift apart. Printed on every plan, also where the title states the
+	 * number ("Essensplan #4812"), by the site owner's decision: the label
+	 * is the place a reader looks for it.
+	 *
+	 * @param int    $plan_id  Meal plan post ID.
+	 * @param string $modifier Extra class for the place it stands in.
+	 * @return string Escaped markup.
+	 */
+	private static function plan_number_html( int $plan_id, string $modifier = '' ): string {
+
+		return '<p class="' . esc_attr( trim( 'mmm-plan-number ' . $modifier ) ) . '">'
+			. '<span class="screen-reader-text">' . esc_html__( 'Plan number', 'mixmymeals' ) . ' </span>'
+			. esc_html( Mixmymeals_Meal_Plan::number_label( $plan_id ) )
+			. '</p>';
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plan_number post_id=""].
+	 * The plan's number as a label, for the archive cards; the hero prints
+	 * it itself. Defaults to the current post.
+	 *
+	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @return string
+	 */
+	public function mmm_meal_plan_number_callback( $atts = [] ): string {
+
+		$atts    = shortcode_atts( array( 'post_id' => 0 ), $atts, 'mmm_meal_plan_number' );
+		$plan_id = absint( $atts['post_id'] ) ? absint( $atts['post_id'] ) : (int) get_the_ID();
+
+		if ( ! $plan_id || 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			return '';
+		}
+
+		return self::plan_number_html( $plan_id, 'mmm-plan-number--card' );
 	}
 
 	/**
@@ -5308,9 +5350,11 @@ class Mixmymeals_Shortcodes {
 
 		try {
 			$meal_plan = Mixmymeals_Meal_Plan::create(
-				__( 'Meal Plan', 'mixmymeals' ) . ' ' . wp_date( 'd.m.Y' ),
+				__( 'Meal Plan', 'mixmymeals' ),
 				$post_status
 			);
+			// Named after its number, which exists only now ("Essensplan #4812").
+			$meal_plan->apply_number_title();
 		} catch ( \Exception $e ) {
 			wp_send_json_error(
 				[
@@ -6173,7 +6217,13 @@ class Mixmymeals_Shortcodes {
 
         <section class="mmm-plan-hero">
             <div class="mmm-plan-hero__blob"></div>
-            <h1><?php echo esc_html( $title ); ?></h1>
+			<?php
+			// Title and number in one row; the theme sets the number at its end.
+			?>
+            <div class="mmm-plan-hero__title-row">
+                <h1><?php echo esc_html( $title ); ?></h1>
+				<?php echo self::plan_number_html( (int) $plan_id, 'mmm-plan-hero__number' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+            </div>
 
             <div class="mmm-plan-hero__meta">
 				<?php echo self::meal_plan_stat_chips( (int) $plan_id, ( new Mixmymeals_Meal_Plan( (int) $plan_id ) )->requested_servings_offset() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
