@@ -124,7 +124,7 @@ Added:
   the same name. The plan page shows the number as a label beside the
   title, and [mmm_meal_plan_number] puts the same label on archive cards.
   Subscription mails show it too: placeholders {{ plan_number }} and
-  {{ plan_number_html }}, and the confirmation mail's heading.
+  {{ plan_number_html }}, and above the confirmation mail's heading.
 
 = 3.70.0 =
 
