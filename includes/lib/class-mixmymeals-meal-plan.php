@@ -888,6 +888,59 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * The plan's public number: its post ID with a leading "#" ("#4812").
+	 *
+	 * No thousands separator — "#4.812" reads as two numbers, and the
+	 * number is what somebody types to find the plan again. It is the post
+	 * ID and nothing else, so it shares WordPress's counter with every
+	 * other post: plan numbers grow with gaps, never one by one.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return string
+	 */
+	public static function number_label( int $plan_id ): string {
+		return '#' . $plan_id;
+	}
+
+	/**
+	 * Whether a title already states the plan's number, as the ones saved
+	 * from the planner do ("Essensplan #4812"). "#48120" is not "#4812".
+	 *
+	 * @param int    $plan_id Meal plan post ID.
+	 * @param string $title   The title as printed.
+	 * @return bool
+	 */
+	public static function title_states_number( int $plan_id, string $title ): bool {
+		return 1 === preg_match( '/' . preg_quote( self::number_label( $plan_id ), '/' ) . '(?!\d)/', $title );
+	}
+
+	/**
+	 * Names a plan after its own number ("Essensplan #4812") — the title
+	 * of a plan saved from the planner. Only possible once the post exists,
+	 * since the number is its ID, so the plan is created first and renamed
+	 * here. A published plan gets the matching slug at once; a draft keeps
+	 * none, and WordPress derives it from this title when it is published.
+	 *
+	 * @return void
+	 */
+	public function apply_number_title(): void {
+
+		/* translators: %s: the plan's number with its leading "#", e.g. "#4812". */
+		$title = sprintf( __( 'Meal Plan %s', 'mixmymeals' ), self::number_label( $this->post_id ) );
+
+		$update = array(
+			'ID'         => $this->post_id,
+			'post_title' => $title,
+		);
+
+		if ( 'publish' === get_post_status( $this->post_id ) ) {
+			$update['post_name'] = sanitize_title( $title );
+		}
+
+		wp_update_post( $update );
+	}
+
+	/**
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, string $status = 'draft', string $content = '' ): self {

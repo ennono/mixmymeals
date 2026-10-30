@@ -5308,9 +5308,11 @@ class Mixmymeals_Shortcodes {
 
 		try {
 			$meal_plan = Mixmymeals_Meal_Plan::create(
-				__( 'Meal Plan', 'mixmymeals' ) . ' ' . wp_date( 'd.m.Y' ),
+				__( 'Meal Plan', 'mixmymeals' ),
 				$post_status
 			);
+			// Named after its number, which exists only now ("Essensplan #4812").
+			$meal_plan->apply_number_title();
 		} catch ( \Exception $e ) {
 			wp_send_json_error(
 				[
@@ -6173,6 +6175,16 @@ class Mixmymeals_Shortcodes {
 
         <section class="mmm-plan-hero">
             <div class="mmm-plan-hero__blob"></div>
+			<?php
+			/*
+			 * The plan's number above its title — unless the title already
+			 * says it, as every plan saved from the planner does: "#4812"
+			 * over "Essensplan #4812" is the same thing twice.
+			 */
+			if ( ! Mixmymeals_Meal_Plan::title_states_number( (int) $plan_id, $title ) ) :
+				?>
+            <p class="mmm-plan-hero__number"><span class="screen-reader-text"><?php esc_html_e( 'Plan number', 'mixmymeals' ); ?> </span><?php echo esc_html( Mixmymeals_Meal_Plan::number_label( (int) $plan_id ) ); ?></p>
+			<?php endif; ?>
             <h1><?php echo esc_html( $title ); ?></h1>
 
             <div class="mmm-plan-hero__meta">

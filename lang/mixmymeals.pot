@@ -6116,3 +6116,13 @@ msgid "%s serving more than eaten"
 msgid_plural "%s servings more than eaten"
 msgstr[0] ""
 msgstr[1] ""
+
+#. translators: %s: the plan's number with its leading "#", e.g. "#4812".
+#: includes/lib/class-mixmymeals-meal-plan.php:929
+#, php-format
+msgid "Meal Plan %s"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php:6186
+msgid "Plan number"
+msgstr ""
