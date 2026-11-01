@@ -6141,3 +6141,27 @@ msgstr ""
 
 msgid "All recipes will be removed from the planner. Continue?"
 msgstr ""
+
+msgid "%1$s–%2$s servings"
+msgstr ""
+
+msgid "One serving fewer at every meal"
+msgstr ""
+
+msgid "One serving more at every meal"
+msgstr ""
+
+msgid "For %s serving"
+msgid_plural "For %s servings"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Servings: %s at every meal"
+msgstr ""
+
+msgid "Number of servings"
+msgstr ""
+
+msgctxt "action"
+msgid "Share"
+msgstr ""

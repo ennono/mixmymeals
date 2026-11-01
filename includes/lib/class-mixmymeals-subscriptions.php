@@ -106,6 +106,21 @@ class Mixmymeals_Subscriptions {
 	const DEFAULT_RETENTION     = 365;
 	const DISPATCH_BATCH        = 100;
 
+	/*
+	 * The id the "Subscribe" action in
+	 * Mixmymeals_Shortcodes::meal_plan_action_items() points at. One constant
+	 * rather than the string twice: an anchor that agrees with nothing
+	 * scrolls nowhere.
+	 *
+	 * The form carries it by default, which is right wherever the form stands
+	 * on its own. A theme that wraps it in a section of its own — heading,
+	 * introduction, then the form — wants the jump to land on the heading
+	 * instead, so it puts the id on that section and empties the filter below
+	 * for the one call; two elements with one id would leave which of them
+	 * wins to the browser.
+	 */
+	const FORM_ANCHOR = 'mmm-subscribe';
+
 	/**
 	 * Constructor: registers the CPT, cron, endpoints, AJAX and the shortcode.
 	 *
@@ -633,6 +648,34 @@ class Mixmymeals_Subscriptions {
 	 * ---------------------------------------------------------- */
 
 	/**
+	 * Can this plan be subscribed to at all?
+	 *
+	 * The three conditions render_form() renders nothing without:
+	 * subscriptions switched on, a meal plan, and at least one send rule —
+	 * without a rule a confirmed subscriber would never receive anything.
+	 *
+	 * Public for the same reason plan_subscribe_offer_mode() is: the
+	 * "Subscribe" action in the plan's button row has to know whether there
+	 * is a form to lead to, and a second place deciding on its own would
+	 * sooner or later offer a subscription the page does not have.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return bool
+	 */
+	public static function is_offered( int $plan_id ): bool {
+
+		if ( ! self::is_enabled() ) {
+			return false;
+		}
+
+		if ( ! $plan_id || get_post_type( $plan_id ) !== 'mmm_meal_plan' ) {
+			return false;
+		}
+
+		return ! empty( self::get_triggers() );
+	}
+
+	/**
 	 * Renders the subscribe form. Registered as the [mmm_meal_plan_subscribe]
 	 * shortcode from Mixmymeals_Shortcodes.
 	 *
@@ -640,10 +683,6 @@ class Mixmymeals_Subscriptions {
 	 * @return string
 	 */
 	public static function render_form( $atts = array() ): string {
-
-		if ( ! self::is_enabled() ) {
-			return '';
-		}
 
 		$atts    = shortcode_atts(
 			array(
@@ -663,19 +702,27 @@ class Mixmymeals_Subscriptions {
 			$plan_id = get_the_ID();
 		}
 
-		if ( ! $plan_id || get_post_type( $plan_id ) !== 'mmm_meal_plan' ) {
-			return '';
-		}
-
-		if ( empty( self::get_triggers() ) ) {
+		if ( ! self::is_offered( $plan_id ) ) {
 			return '';
 		}
 
 		$consent = self::consent_text();
 
+		/**
+		 * Filters the id the subscribe form carries, FORM_ANCHOR by default.
+		 *
+		 * Empty means the form prints no id: a theme that puts the anchor on
+		 * a section around the form returns '' for that call, so the jump
+		 * lands on its heading and the id stays unique on the page.
+		 *
+		 * @param string $anchor  The id, '' for none.
+		 * @param int    $plan_id Meal plan post ID.
+		 */
+		$anchor = (string) apply_filters( 'mixmymeals_subscribe_form_anchor', self::FORM_ANCHOR, $plan_id );
+
 		ob_start();
 		?>
-		<form class="mmm-subscribe-form" data-plan-id="<?php echo esc_attr( $plan_id ); ?>">
+		<form class="mmm-subscribe-form"<?php echo '' !== $anchor ? ' id="' . esc_attr( $anchor ) . '"' : ''; ?> data-plan-id="<?php echo esc_attr( $plan_id ); ?>">
 			<div class="mmm-subscribe-field">
 				<label><?php esc_html_e( 'Your first name (optional)', 'mixmymeals' ); ?>
 					<input type="text" class="mmm-subscribe-name" autocomplete="given-name" maxlength="100">

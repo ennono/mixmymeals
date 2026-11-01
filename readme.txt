@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.72.1
+Stable tag: 3.73.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,34 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.73.0 =
+
+Added:
+* A meal plan's button row offers "Subscribe", leading to the subscribe form
+  further down the page. It appears only where there is one to reach —
+  subscriptions on, with at least one send rule
+  (Mixmymeals_Subscriptions::is_offered(), new and public for it) — and the
+  form carries the id it points at (Mixmymeals_Subscriptions::FORM_ANCHOR).
+* New filter `mixmymeals_subscribe_form_anchor` ( $anchor, $plan_id ) for that
+  id, '' for none: a theme that wraps the form in a section of its own puts
+  the anchor on that section instead, so the jump lands on its heading rather
+  than in the first field. MixMyMeals Astra Child 1.18.0 does.
+* An action of a meal plan can ask to be shown without its visible caption:
+  `icon_only` in the `mixmymeals_meal_plan_actions` filter. The buttons in
+  [mmm_meal_plan_hero] then show the icon alone and keep the caption as the
+  button's accessible name. MixMyMeals Astra Child 1.18.0 offers this per
+  button under Appearance -> Theme Settings, together with switching a button
+  off and reordering the row — both of which the filter could already do.
+* "Share" on a meal plan (first action, hero and action bar) and in the
+  recipe hero: the phone's share sheet, else a copy of the link to the
+  clipboard. A plan shares the servings the reader set.
+
+Fixed:
+* Servings are called servings: the day heads in [mmm_meals_in_a_single_meal_plan]
+  and the field above the shopping list said "people" for what is a number of
+  servings since plans can list their eaters. One formatter,
+  Mixmymeals_Meal_Plan::format_servings(), for those and the plan's chip.
 
 = 3.72.1 =
 
@@ -2039,6 +2067,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.73.0 =
+A meal plan's button row gained "Subscribe". Which buttons it shows, in which order and with or without their captions is set in MixMyMeals Astra Child 1.18.0.
 
 = 3.72.1 =
 The save bar's new "Clear Plan" link is styled by MixMyMeals Astra Child 1.17.1.

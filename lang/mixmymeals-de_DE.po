@@ -7803,3 +7803,27 @@ msgstr "Willkommen! Dein Essensplan {{ plan_number }}"
 
 msgid "All recipes will be removed from the planner. Continue?"
 msgstr "Alle Rezepte werden aus dem Planer entfernt. Fortfahren?"
+
+msgid "%1$s–%2$s servings"
+msgstr "%1$s–%2$s Portionen"
+
+msgid "One serving fewer at every meal"
+msgstr "Eine Portion weniger bei jeder Mahlzeit"
+
+msgid "One serving more at every meal"
+msgstr "Eine Portion mehr bei jeder Mahlzeit"
+
+msgid "For %s serving"
+msgid_plural "For %s servings"
+msgstr[0] "Für %s Portion"
+msgstr[1] "Für %s Portionen"
+
+msgid "Servings: %s at every meal"
+msgstr "Portionen: %s bei jeder Mahlzeit"
+
+msgid "Number of servings"
+msgstr "Anzahl Portionen"
+
+msgctxt "action"
+msgid "Share"
+msgstr "Teilen"

@@ -2771,7 +2771,7 @@ class Mixmymeals_Shortcodes {
 		 */
 		$mmm_offset     = $meal_plan->requested_servings_offset();
 		$mmm_changes    = $meal_plan->servings_changes( $mmm_offset );
-		$mmm_day_people = 0 === $meal_plan->servings_base() ? $meal_plan->servings_by_day() : array();
+		$mmm_day_servings = 0 === $meal_plan->servings_base() ? $meal_plan->servings_by_day() : array();
 
 		/*
 		 * Plan ohne Mahlzeiten: Der Tages-Rail wäre sonst eine leere Hülle, weil
@@ -2940,8 +2940,8 @@ class Mixmymeals_Shortcodes {
 						<?php if ( $is_today ) : ?>
                             <span class="mmm-badge"><?php esc_html_e( 'Today', 'mixmymeals' ); ?></span>
 						<?php endif; ?>
-						<?php if ( isset( $mmm_day_people[ $day_number ] ) ) : ?>
-                            <span class="mmm-rail-day__servings" data-plan-servings-day="<?php echo esc_attr( (string) $day_number ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_people( $mmm_day_people[ $day_number ]['min'], $mmm_day_people[ $day_number ]['max'] ) ); ?><?php echo self::servings_delta_html( $mmm_changes['days'][ $day_number ] ?? null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
+						<?php if ( isset( $mmm_day_servings[ $day_number ] ) ) : ?>
+                            <span class="mmm-rail-day__servings" data-plan-servings-day="<?php echo esc_attr( (string) $day_number ); ?>"><?php echo esc_html( Mixmymeals_Meal_Plan::format_servings( $mmm_day_servings[ $day_number ]['min'], $mmm_day_servings[ $day_number ]['max'] ) ); ?><?php echo self::servings_delta_html( $mmm_changes['days'][ $day_number ] ?? null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
 						<?php endif; ?>
 						<?php if ( $day_head_info ) : ?>
                             <span class="mmm-rail-day__kcal mmm-rail-day__kcal--day"><?php echo esc_html( $day_head_info ); ?></span>
@@ -3329,12 +3329,14 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * The servings field above a plan's shopping list.
 	 *
-	 * Adds the same number of people to every meal — a difference, never a
+	 * Adds the same number of servings to every meal — a difference, never a
 	 * factor (see Mixmymeals_Meal_Plan::with_servings_offset()). One quiet
 	 * line rather than a panel: it is a setting of the list below it, not a
 	 * section of its own. A plan whose meals all agree reads "For − 5 +
-	 * people", the number being the resulting count; a mixed one reads
-	 * "People: − +1 + at every meal", because there no single count exists.
+	 * servings", the number being the resulting count; a mixed one reads
+	 * "Servings: − +1 + at every meal", because there no single count exists.
+	 * Servings, not people: what is bought follows what is cooked, and the
+	 * plan's people are a number of their own (see Eaters).
 	 * What the difference does per meal and per day is appended to the
 	 * servings the rail already prints ("3 Portionen +1"), so the field does
 	 * not repeat it.
@@ -3366,8 +3368,8 @@ class Mixmymeals_Shortcodes {
 			}
 
 			$label = 'down' === $dir
-				? __( 'One person fewer at every meal', 'mixmymeals' )
-				: __( 'One person more at every meal', 'mixmymeals' );
+				? __( 'One serving fewer at every meal', 'mixmymeals' )
+				: __( 'One serving more at every meal', 'mixmymeals' );
 
 			return '<a class="' . esc_attr( $class ) . '" rel="nofollow"'
 				. ' href="' . esc_url( $plan->add_servings_arg( $page, $to ) . '#' . $anchor ) . '"'
@@ -3378,12 +3380,12 @@ class Mixmymeals_Shortcodes {
 		if ( $base > 0 ) {
 			$count    = max( 1, $base + $offset );
 			$value    = number_format_i18n( $count );
-			/* translators: %s: − the number of people +. Keep the %s. */
-			$sentence = _n( 'For %s person', 'For %s people', $count, 'mixmymeals' );
+			/* translators: %s: − the number of servings +. Keep the %s. */
+			$sentence = _n( 'For %s serving', 'For %s servings', $count, 'mixmymeals' );
 		} else {
 			$value    = 0 === $offset ? '±0' : Mixmymeals_Meal_Plan::format_servings_delta( $offset, $offset );
 			/* translators: %s: − the change +. Keep the %s. */
-			$sentence = __( 'People: %s at every meal', 'mixmymeals' );
+			$sentence = __( 'Servings: %s at every meal', 'mixmymeals' );
 		}
 
 		$controls = $step( $offset - 1, 'down' )
@@ -3392,7 +3394,7 @@ class Mixmymeals_Shortcodes {
 
 		$parts = explode( '%s', $sentence, 2 );
 		$line  = ( '' !== trim( $parts[0] ) ? '<span class="mmm-plan-servings__text">' . esc_html( trim( $parts[0] ) ) . '</span>' : '' )
-			. '<span class="mmm-plan-servings__controls" role="group" aria-label="' . esc_attr__( 'Number of people', 'mixmymeals' ) . '">' . $controls . '</span>'
+			. '<span class="mmm-plan-servings__controls" role="group" aria-label="' . esc_attr__( 'Number of servings', 'mixmymeals' ) . '">' . $controls . '</span>'
 			. ( isset( $parts[1] ) && '' !== trim( $parts[1] ) ? '<span class="mmm-plan-servings__text">' . esc_html( trim( $parts[1] ) ) . '</span>' : '' );
 
 		// Changing single days is the planner's job; this hands the plan
@@ -4383,6 +4385,31 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return '<div class="mmm-recipe-actions">' . $button . '</div>';
+	}
+
+	/**
+	 * "Share" for a recipe: a link to its page that frontend.js turns into
+	 * the phone's share sheet, or a copy to the clipboard where there is
+	 * none — the same [data-share] the plan's action carries. Without a
+	 * script it is just the link, which is still what one would share.
+	 *
+	 * Only in the hero: [mmm_recipe_actions] also sits on every archive card,
+	 * where a share button on each would be noise.
+	 *
+	 * @param int    $post_id Recipe ID.
+	 * @param string $class   Classes of the surrounding row's items.
+	 * @return string '' for anything not published.
+	 */
+	public static function render_share_button( int $post_id, string $class ): string {
+
+		if ( 'publish' !== get_post_status( $post_id ) ) {
+			return '';
+		}
+
+		return '<a href="' . esc_url( (string) get_permalink( $post_id ) ) . '" class="' . esc_attr( $class ) . '"'
+			. ' data-share data-share-title="' . esc_attr( get_the_title( $post_id ) ) . '">'
+			. '<i class="mmm-icon fa-solid fa-share-nodes" aria-hidden="true"></i>'
+			. esc_html( _x( 'Share', 'action', 'mixmymeals' ) ) . '</a>';
 	}
 
 	/**
@@ -5796,6 +5823,12 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
+		/*
+		 * `icon_only` is not read here, see the filter in
+		 * meal_plan_action_items(): this row has no icon in the plugin's
+		 * markup — a theme may put a glyph before the item through ::before —
+		 * so a hidden caption would leave an empty link behind.
+		 */
 		$html = '';
 		foreach ( self::meal_plan_action_items( (int) $meal_plan_id, (string) $atts['cart_url'] ) as $key => $item ) {
 
@@ -5827,7 +5860,7 @@ class Mixmymeals_Shortcodes {
 	 *
 	 * @param int    $plan_id  Meal plan post ID.
 	 * @param string $cart_url Where "Adjust" leads after loading the plan.
-	 * @return array<string,array{label:string,icon:string,url:string,new_tab:bool,attrs:string}>
+	 * @return array<string,array{label:string,icon:string,icon_only:bool,url:string,new_tab:bool,attrs:string}>
 	 *         Keyed by action; `attrs` is a ready, escaped attribute string.
 	 */
 	public static function meal_plan_action_items( int $plan_id, string $cart_url = '' ): array {
@@ -5845,6 +5878,20 @@ class Mixmymeals_Shortcodes {
 		$mail_body = sprintf( __( "My Meal Plan:\n\n%s", 'mixmymeals' ), $url );
 
 		$items = array(
+			// The phone's share sheet, else the clipboard (frontend.js,
+			// [data-share]). The address follows ?mmm_persons_to_add, so a
+			// reader shares the list they are looking at; without a script
+			// it is simply a link to the plan.
+			'share'          => array(
+				'label'    => _x( 'Share', 'action', 'mixmymeals' ),
+				'icon'     => 'share-nodes',
+				'url'      => (string) $url,
+				'servings' => true,
+				'data'     => array(
+					'share'       => '',
+					'share-title' => $title,
+				),
+			),
 			'mail'           => array(
 				'label' => __( 'Send via Email', 'mixmymeals' ),
 				'icon'  => 'envelope',
@@ -5868,6 +5915,23 @@ class Mixmymeals_Shortcodes {
 			),
 		);
 
+		/*
+		 * Leads to the subscribe form further down the page — the same label
+		 * its own submit button carries. Only where there is a form to reach:
+		 * Mixmymeals_Subscriptions::is_offered() is the one place that knows,
+		 * and an action pointing at an anchor that is not on the page would
+		 * scroll nowhere. Whether the theme prints the form at all is beyond
+		 * this: a theme that leaves [mmm_meal_plan_subscribe] out drops the
+		 * action through the filter below.
+		 */
+		if ( class_exists( 'Mixmymeals_Subscriptions' ) && Mixmymeals_Subscriptions::is_offered( $plan_id ) ) {
+			$items['subscribe'] = array(
+				'label' => __( 'Subscribe', 'mixmymeals' ),
+				'icon'  => 'envelope-open-text',
+				'url'   => '#' . Mixmymeals_Subscriptions::FORM_ANCHOR,
+			);
+		}
+
 		/**
 		 * Filters the actions offered for a meal plan.
 		 *
@@ -5880,6 +5944,14 @@ class Mixmymeals_Shortcodes {
 		 * request's difference and frontend.js keeps it current, so the
 		 * action gets what the reader is looking at; MixMyMeals Printer sets
 		 * it for the PDF). Order is print order.
+		 *
+		 * `icon_only` (true) asks for the button without its visible
+		 * caption. It is honoured where the icon is rendered — the buttons in
+		 * [mmm_meal_plan_hero], which keep the caption as the button's
+		 * accessible name — and ignored by the action bar, whose markup has no
+		 * icon of its own, so hiding the caption would leave nothing there. An
+		 * item without an icon keeps its caption either way; a button with
+		 * neither would be an empty box.
 		 *
 		 * @param array $items   Actions so far.
 		 * @param int   $plan_id Meal plan post ID.
@@ -5909,12 +5981,19 @@ class Mixmymeals_Shortcodes {
 				$attrs .= ' data-servings-link';
 			}
 
+			$icon = sanitize_html_class( (string) ( $item['icon'] ?? '' ) );
+
 			$clean[ $key ] = array(
-				'label'   => (string) $item['label'],
-				'icon'    => sanitize_html_class( (string) ( $item['icon'] ?? '' ) ),
-				'url'     => $url,
-				'new_tab' => ! empty( $item['new_tab'] ),
-				'attrs'   => $attrs,
+				'label'     => (string) $item['label'],
+				'icon'      => $icon,
+				// An icon is optional for an add-on's item, so the request for
+				// a caption-less button only counts where there is one to show.
+				// Here rather than in either action row: this is the one place
+				// both of them read.
+				'icon_only' => ! empty( $item['icon_only'] ) && '' !== $icon,
+				'url'       => $url,
+				'new_tab'   => ! empty( $item['new_tab'] ),
+				'attrs'     => $attrs,
 			);
 		}
 
@@ -6305,13 +6384,26 @@ class Mixmymeals_Shortcodes {
 					if ( '' === $action['url'] ) {
 						$class .= ' mmm-meal-plan-actions__item--' . $key;
 					}
+
+					/*
+					 * Icon-only keeps the caption as the button's accessible
+					 * name instead of dropping it: the icon carries
+					 * aria-hidden, so without this span the button would have
+					 * no name at all. `screen-reader-text` is this file's form
+					 * for that (plan_number_html(), the rating stars).
+					 */
+					$label_html = esc_html( $action['label'] );
+
+					if ( ! empty( $action['icon_only'] ) ) {
+						$label_html = '<span class="screen-reader-text">' . $label_html . '</span>';
+					}
 					?>
                 <a href="<?php echo esc_url( '' !== $action['url'] ? $action['url'] : '#' ); ?>"
                    class="<?php echo esc_attr( $class ); ?>"<?php
 					echo $action['new_tab'] ? ' target="_blank" rel="noopener noreferrer"' : '';
 					echo $action['attrs']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in meal_plan_action_items().
 					?>>
-					<?php if ( '' !== $action['icon'] ) : ?><i class="mmm-icon fa-solid fa-<?php echo esc_attr( $action['icon'] ); ?>" aria-hidden="true"></i><?php endif; ?><?php echo esc_html( $action['label'] ); ?>
+					<?php if ( '' !== $action['icon'] ) : ?><i class="mmm-icon fa-solid fa-<?php echo esc_attr( $action['icon'] ); ?>" aria-hidden="true"></i><?php endif; ?><?php echo $label_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?>
                 </a>
 				<?php endforeach; ?>
             </div>
@@ -6379,6 +6471,7 @@ class Mixmymeals_Shortcodes {
 				);
 
 				echo $mmm_planner_button; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
+				echo self::render_share_button( (int) $recipe_id, 'mmm-btn mmm-btn--ghost mmm-plan-hero__action mmm-plan-hero__action--share' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
 				?>
             </div>
         </section>

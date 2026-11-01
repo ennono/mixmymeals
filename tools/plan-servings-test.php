@@ -379,7 +379,8 @@ try {
 	$ok( 'per weekday, in plan order', array( 1, 2, 3 ) === array_keys( $by_day ) && 10 === $by_day[3]['max'] );
 	$ok( 'mixed plan has no base', 0 === $mixed->servings_base() );
 	$ok( 'uniform plan has one', 1 === $tins->servings_base() );
-	$ok( 'a day of 2 and 4 reads as a range', Mixmymeals_Meal_Plan::format_people( 2, 4 ) === sprintf( __( '%1$s–%2$s people', 'mixmymeals' ), '2', '4' ) );
+	$ok( 'a day of 2 and 4 reads as a range', Mixmymeals_Meal_Plan::format_servings( 2, 4 ) === sprintf( __( '%1$s–%2$s servings', 'mixmymeals' ), '2', '4' ) );
+	$ok( 'the plan chip and the day heads word servings alike', $mixed->get_servings_range_string() === Mixmymeals_Meal_Plan::format_servings( 3, 9 ) );
 
 	echo '-- 4. Packs are rounded over the sum, not per meal' . PHP_EOL;
 	$tin_amount = function ( Mixmymeals_Meal_Plan $plan ) use ( $row_of, $tomato ): float {
@@ -443,9 +444,9 @@ try {
 
 	$rail = $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'meal_plan_id' => $mixed_id ) );
 	$ok( 'meal cards link with the difference', false !== strpos( $rail, 'mmm_persons_to_add=1' ) );
-	$ok( 'each day says its people', 3 === substr_count( $rail, 'mmm-rail-day__servings' ) );
+	$ok( 'each day says its servings', 3 === substr_count( $rail, 'mmm-rail-day__servings' ) );
 	$ok( 'cards and days keep the stored number and append "+1"', 6 === substr_count( $rail, '<span class="mmm-servings-delta">+1</span>' ) );
-	$ok( 'the stored number stays', false !== strpos( $rail, '>' . esc_html( Mixmymeals_Meal_Plan::format_people( 3, 3 ) ) . ' <span class="mmm-servings-delta">+1</span>' ) );
+	$ok( 'the stored number stays', false !== strpos( $rail, '>' . esc_html( Mixmymeals_Meal_Plan::format_servings( 3, 3 ) ) . ' <span class="mmm-servings-delta">+1</span>' ) );
 
 	$ok( 'Bring! is handed the parameter', false !== strpos( Mixmymeals_Meal_Plan::bring_deeplink( $mixed_id, 1 ), rawurlencode( 'mmm_persons_to_add=1' ) ) );
 

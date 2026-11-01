@@ -1326,7 +1326,7 @@ class Mixmymeals_Meal_Plan {
 
 	/**
 	 * Returns the servings range string for the plan.
-	 * Example: "2–4 Servings" or "2 Servings".
+	 * Example: "2–4 servings" or "2 servings" (format_servings()).
 	 *
 	 * @return string The servings range string.
 	 */
@@ -1346,31 +1346,7 @@ class Mixmymeals_Meal_Plan {
 			return '';
 		}
 
-		$min = min( $servings );
-		$max = max( $servings );
-
-		if ( $min === $max ) {
-			if ( $min === 1 ) {
-				return sprintf(
-					'%d %s',
-					$min,
-					esc_html__( 'Serving', 'mixmymeals' )
-				);
-			}
-
-			return sprintf(
-				'%d %s',
-				$min,
-				esc_html__( 'Servings', 'mixmymeals' )
-			);
-		}
-
-		return sprintf(
-			'%d–%d %s',
-			$min,
-			$max,
-			esc_html__( 'Servings', 'mixmymeals' )
-		);
+		return self::format_servings( min( $servings ), max( $servings ) );
 	}
 
 	/*
@@ -1458,7 +1434,7 @@ class Mixmymeals_Meal_Plan {
 	/**
 	 * The servings every meal of the plan shares, or 0 when they differ (or
 	 * there are no meals). Decides whether the field reads "for − 4 +
-	 * people" or "people: − ±0 + at every meal".
+	 * servings" or "servings: − ±0 + at every meal".
 	 *
 	 * @return int
 	 */
@@ -1733,20 +1709,42 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
-	 * "4 people", or "2–4 people" where a day's meals differ.
+	 * "4 servings", or "2–4 servings" where meals differ — what is cooked,
+	 * for the hero's chip and the day heads alike. Not people: since a plan
+	 * can list its eaters, servings and people are two numbers (see
+	 * min_servings()), and people are said by format_people().
 	 *
 	 * @param int $min Lowest servings.
 	 * @param int $max Highest servings.
 	 * @return string
 	 */
+	public static function format_servings( int $min, int $max ): string {
+
+		if ( $min === $max ) {
+			/* translators: %s: number of servings. */
+			return sprintf( _n( '%s serving', '%s servings', $max, 'mixmymeals' ), number_format_i18n( $max ) );
+		}
+
+		/* translators: 1: lowest, 2: highest number of servings. */
+		return sprintf( __( '%1$s–%2$s servings', 'mixmymeals' ), number_format_i18n( $min ), number_format_i18n( $max ) );
+	}
+
+	/**
+	 * "4 people" — the eaters of a plan or planner, never servings
+	 * (format_servings()).
+	 *
+	 * @param int $min Lowest count.
+	 * @param int $max Highest count.
+	 * @return string
+	 */
 	public static function format_people( int $min, int $max ): string {
 
 		if ( $min === $max ) {
-			/* translators: %s: number of people a meal is planned for. */
+			/* translators: %s: number of people. */
 			return sprintf( _n( '%s person', '%s people', $max, 'mixmymeals' ), number_format_i18n( $max ) );
 		}
 
-		/* translators: 1: lowest, 2: highest number of people meals of one day are planned for. */
+		/* translators: 1: lowest, 2: highest number of people. */
 		return sprintf( __( '%1$s–%2$s people', 'mixmymeals' ), number_format_i18n( $min ), number_format_i18n( $max ) );
 	}
 

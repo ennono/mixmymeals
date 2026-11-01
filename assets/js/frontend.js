@@ -1324,6 +1324,36 @@ jQuery(function ($) {
             });
     });
 
+    /**
+     * "Share" on a plan or a recipe: the phone's share sheet where there is
+     * one, the clipboard otherwise — what the planner's own button does. The
+     * address is read at the click, so a plan shares the servings the
+     * reader set (the servings field rewrites it, data-servings-link).
+     */
+    $(document).on('click', '[data-share]', function (e) {
+        e.preventDefault();
+
+        const url = this.href;
+        const title = this.getAttribute('data-share-title') || document.title;
+        const labels = (window.mixmymeals && mixmymeals.planner_dialog && mixmymeals.planner_dialog.share) || {};
+
+        if (navigator.share) {
+            navigator.share({ title: title, url: url })
+                .catch(function () { /* dismissed; nothing to report */ });
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(
+                function () { mmmAnnounce(labels.copied || url); },
+                function () { mmmAnnounce(url); }
+            );
+            return;
+        }
+
+        mmmAnnounce(url);
+    });
+
     /** The server's own wording where there is one, ours otherwise. */
     function mmmMessageOf(response, fallback) {
         return (response && response.data && response.data.message) ? response.data.message : (fallback || '');
