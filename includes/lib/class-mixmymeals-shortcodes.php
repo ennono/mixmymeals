@@ -4388,31 +4388,6 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * "Share" for a recipe: a link to its page that frontend.js turns into
-	 * the phone's share sheet, or a copy to the clipboard where there is
-	 * none — the same [data-share] the plan's action carries. Without a
-	 * script it is just the link, which is still what one would share.
-	 *
-	 * Only in the hero: [mmm_recipe_actions] also sits on every archive card,
-	 * where a share button on each would be noise.
-	 *
-	 * @param int    $post_id Recipe ID.
-	 * @param string $class   Classes of the surrounding row's items.
-	 * @return string '' for anything not published.
-	 */
-	public static function render_share_button( int $post_id, string $class ): string {
-
-		if ( 'publish' !== get_post_status( $post_id ) ) {
-			return '';
-		}
-
-		return '<a href="' . esc_url( (string) get_permalink( $post_id ) ) . '" class="' . esc_attr( $class ) . '"'
-			. ' data-share data-share-title="' . esc_attr( get_the_title( $post_id ) ) . '">'
-			. '<i class="mmm-icon fa-solid fa-share-nodes" aria-hidden="true"></i>'
-			. esc_html( _x( 'Share', 'action', 'mixmymeals' ) ) . '</a>';
-	}
-
-	/**
 	 * Shortcode: [mmm_recipe_meta]
 	 * Zeigt Meta-Informationen für ein einzelnes Rezept an (Calories, Prep Time, Servings, Categories).
 	 */
@@ -6471,7 +6446,6 @@ class Mixmymeals_Shortcodes {
 				);
 
 				echo $mmm_planner_button; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
-				echo self::render_share_button( (int) $recipe_id, 'mmm-btn mmm-btn--ghost mmm-plan-hero__action mmm-plan-hero__action--share' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the renderer.
 				?>
             </div>
         </section>

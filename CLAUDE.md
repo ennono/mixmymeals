@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.73.0, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
+MixMyMeals is a WordPress plugin (v3.73.1, text domain `mixmymeals`) for meal planning. It manages recipes, ingredients, meals, and meal plans with a shopping list generator and a frontend cart for building custom plans. Instagram/Pinterest publishing lives in the companion plugin `mixmymeals-social`, the PDF export of a plan in `mixmymeals-printer`; both reach this one only through the extension points listed below — this plugin makes no external API calls itself.
 
 ## Development commands
 
@@ -525,9 +525,9 @@ Without the add-on the button is simply absent: nothing in this plugin knows a P
 
 Since Printer 2.0.0 the PDF is built from templates (cover, week overview, nutrition, shopping list, recipes; backgrounds, photos, brand fonts) — see that repository's CLAUDE.md and `templates/README.md`. Its context class is the one place there that reads this plugin, so the list of methods above is what to check before changing a signature.
 
-### Sharing a plan or a recipe
+### Sharing a plan
 
-**"Share" is a link carrying `data-share`**, nothing more: `frontend.js` turns any such link into the phone's share sheet (`navigator.share`), or a copy to the clipboard announced through `mmmAnnounce()` ("Link kopiert.", `planner_dialog.share.copied`), reading `href` at the click. On a plan it is the `share` action of `meal_plan_action_items()` with `servings => true`, so the address carries the `?mmm_persons_to_add` the reader set and the field keeps it current; on a recipe `Mixmymeals_Shortcodes::render_share_button()` puts it in `[mmm_recipe_hero]` only — `[mmm_recipe_actions]` also sits on every archive card, where it would be noise. Without a script it is the page's own link. Not the planner's "Share planner", which stores a copy of the cart first (see *Cart*).
+**"Share" is a link carrying `data-share`**, nothing more: `frontend.js` turns any such link into the phone's share sheet (`navigator.share`), or a copy to the clipboard announced through `mmmAnnounce()` ("Link kopiert.", `planner_dialog.share.copied`), reading `href` at the click. It is the `share` action of `meal_plan_action_items()` with `servings => true`, so the address carries the `?mmm_persons_to_add` the reader set and the field keeps it current. Without a script it is the page's own link. Recipes have no such button, by the site owner's decision (one was in 3.73.0 and removed again in 3.73.1). Not the planner's "Share planner", which stores a copy of the cart first (see *Cart*).
 
 ### Structured data, social tags and Bring!
 
