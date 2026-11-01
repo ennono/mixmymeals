@@ -378,6 +378,12 @@ class Mixmymeals {
 					'confirm' => __( 'Continue', 'mixmymeals' ),
 					'cancel'  => __( 'Cancel', 'mixmymeals' ),
 				),
+				'clear_cart_dialog'      => array(
+					'title'   => __( 'Clear Plan', 'mixmymeals' ),
+					'message' => __( 'All recipes will be removed from the planner. Continue?', 'mixmymeals' ),
+					'confirm' => __( 'Clear Plan', 'mixmymeals' ),
+					'cancel'  => __( 'Cancel', 'mixmymeals' ),
+				),
 				'planner_dialog'         => array(
 					'title'    => __( 'Plan this recipe as a meal', 'mixmymeals' ),
 					'servings' => __( 'Servings', 'mixmymeals' ),

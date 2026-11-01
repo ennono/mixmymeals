@@ -334,7 +334,8 @@ jQuery(function ($) {
      * section the theme wraps the form in — or, without one, the block the
      * button sits in. A click scrolls there and puts the focus into the
      * first field (name or address where the plan can be subscribed to,
-     * else the button), so the next keystroke lands in the form.
+     * else the button), so the next keystroke lands in the form. Where the
+     * page has [mmm_clear_cart], the bar offers clearing the planner too.
      */
     let mmmSaveBar = null;
     let mmmSaveTargetVisible = true;
@@ -349,7 +350,7 @@ jQuery(function ($) {
         const labels = (window.mixmymeals && mixmymeals.planner_dialog) || {};
 
         mmmSaveBar = $('<div class="mmm-save-bar" hidden></div>');
-        $('<a class="mmm-save-bar__link"></a>')
+        $('<a class="mmm-save-bar__link mmm-save-bar__link--save"></a>')
             .attr('href', target.attr('id') ? '#' + target.attr('id') : '#')
             .text(labels.save_plan || button.text().trim())
             .on('click', function (e) {
@@ -360,6 +361,20 @@ jQuery(function ($) {
                 (field.length ? field : button).get(0).focus({ preventScroll: true });
             })
             .appendTo(mmmSaveBar);
+
+        // Beside it the planner's own "Clear Plan" link, where the page has
+        // one: a click on it runs that link's handler, so wording, request
+        // and message stay the shortcode's.
+        const clear = $('.mmm-clear-cart-link').first();
+        if (clear.length) {
+            $('<a href="#" class="mmm-save-bar__link mmm-save-bar__link--clear"></a>')
+                .text(clear.text().trim())
+                .on('click', function (e) {
+                    e.preventDefault();
+                    clear.trigger('click');
+                })
+                .appendTo(mmmSaveBar);
+        }
 
         $('body').append(mmmSaveBar);
 
@@ -1049,10 +1064,27 @@ jQuery(function ($) {
     /* ==========================================================
        CLEAR CART
        ========================================================== */
+    // Asked first, from every place that clears: the link of
+    // [mmm_clear_cart] and the save bar's, which clicks that link.
     $(document).on('click', '.mmm-clear-cart-link', function (e) {
         e.preventDefault();
 
         const link = $(this);
+        const labels = mixmymeals.clear_cart_dialog || {};
+
+        mmmOpenConfirmDialog({
+            title: labels.title,
+            message: labels.message,
+            confirm: labels.confirm,
+            cancel: labels.cancel,
+            onConfirm: function (ctx) {
+                ctx.close();
+                mmmClearCart(link);
+            }
+        });
+    });
+
+    function mmmClearCart(link) {
         const msgBox = link.next('.mmm-clear-cart-message');
         mmmSetBusy(link, true);
         mmmShowInlineMessage(msgBox, 'Clearing...', 'ok');
@@ -1078,7 +1110,7 @@ jQuery(function ($) {
                 mmmSetBusy(link, false);
                 mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
             });
-    });
+    }
 
     /* ==========================================================
        SUBSCRIBE WHILE SAVING THE PLAN

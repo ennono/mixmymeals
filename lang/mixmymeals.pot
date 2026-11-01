@@ -6138,3 +6138,6 @@ msgstr ""
 #: includes/lib/class-mixmymeals-subscriptions.php:386
 msgid "Welcome! Your meal plan {{ plan_number }}"
 msgstr ""
+
+msgid "All recipes will be removed from the planner. Continue?"
+msgstr ""

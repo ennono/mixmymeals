@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.72.0
+Stable tag: 3.72.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.72.1 =
+
+Changed:
+* The planner's save bar offers "Clear Plan" beside "Save Plan" wherever the
+  page has [mmm_clear_cart]; it runs that link.
+* Clearing the planner asks first, from the bar and from the link alike.
 
 = 3.72.0 =
 
@@ -2032,6 +2039,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 3.72.1 =
+The save bar's new "Clear Plan" link is styled by MixMyMeals Astra Child 1.17.1.
 
 = 3.72.0 =
 Mails use neutral colours unless the theme supplies its own through mixmymeals_mail_colors — update MixMyMeals Astra Child to 1.17.0 alongside.
