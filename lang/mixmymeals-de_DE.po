@@ -7827,3 +7827,40 @@ msgstr "Anzahl Portionen"
 msgctxt "action"
 msgid "Share"
 msgstr "Teilen"
+
+#: includes/lib/class-mixmymeals-post-meta.php:1123
+msgid "Pick a recipe and add it — the plan itself needs no saving."
+msgstr "Rezept wählen und hinzufügen — der Plan selbst muss nicht gespeichert werden."
+
+#: includes/lib/class-mixmymeals-post-meta.php:1124
+msgid "Add meal"
+msgstr "Mahlzeit hinzufügen"
+
+#: includes/lib/class-mixmymeals-post-meta.php:1533
+msgid "Unknown meal plan."
+msgstr "Unbekannter Essensplan."
+
+#: includes/lib/class-mixmymeals-post-meta.php:1579
+msgid "Please pick a recipe."
+msgstr "Bitte ein Rezept wählen."
+
+#: includes/lib/class-mixmymeals-post-meta.php:1596
+#: includes/lib/class-mixmymeals-post-meta.php:1633
+msgid "Unknown meal."
+msgstr "Unbekannte Mahlzeit."
+
+#: includes/lib/class-mixmymeals-post-meta.php:1640
+msgid "Could not be deleted."
+msgstr "Konnte nicht gelöscht werden."
+
+#: includes/class-mixmymeals.php:582
+msgid "Meal added."
+msgstr "Mahlzeit hinzugefügt."
+
+#: includes/class-mixmymeals.php:583
+msgid "Meal deleted."
+msgstr "Mahlzeit gelöscht."
+
+#: includes/class-mixmymeals.php:585
+msgid "Delete this meal? This cannot be undone."
+msgstr "Diese Mahlzeit löschen? Das lässt sich nicht widerrufen."

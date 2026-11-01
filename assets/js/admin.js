@@ -1051,4 +1051,219 @@ jQuery(document).ready(function ($) {
         });
     }
 
+
+    /* ===========================
+       THE MEALS OF A PLAN
+       — write, add and delete without saving the post
+    ============================ */
+    if ($('.mmm-plan-meals').length && window.MixMyMealsPlanMeals) {
+
+        const pm = window.MixMyMealsPlanMeals;
+
+        /*
+         * The class the rendered box waits for: it carries both ways of
+         * deleting and both hints, and CSS shows the ones that are true once
+         * this script is running. Set on the body rather than done to the
+         * box, because the block editor re-fetches the whole meta-box area
+         * after every save of the post — anything edited in place here would
+         * silently revert. Which is also why every handler below is bound to
+         * the document and not to the table: the table the page started with
+         * is not the one a second save leaves behind.
+         */
+        $('body').addClass('mmm-plan-meals-js');
+
+        let pmStatusTimer = null;
+
+        const pmSay = (text, ok) => {
+            window.clearTimeout(pmStatusTimer);
+
+            const $status = $('.mmm-plan-meals__status');
+
+            $status.text(text).toggleClass('is-error', !ok);
+
+            if (ok) {
+                pmStatusTimer = window.setTimeout(() => $status.text(''), 4000);
+            }
+        };
+
+        const pmMessage = (response, fallback) =>
+            (response && response.data && response.data.message) ? response.data.message : fallback;
+
+        // The plan is in the markup; on post-new.php it is an auto-draft and
+        // has an ID all the same.
+        const pmPlanId = ($row) => $row.closest('.mmm-plan-meals').data('plan');
+
+        /*
+         * A row posts its own fields, under the names the box rendered them
+         * with, so the server reads it through the very same apply_meal_row()
+         * as a save of the post — no second description of what a row is.
+         */
+        const pmPost = (action, $row, mealId) => $.ajax({
+            url: pm.ajaxurl,
+            method: 'POST',
+            data: $.param({
+                action: action,
+                nonce: pm.nonce,
+                plan_id: pmPlanId($row),
+                meal_id: mealId
+            }) + '&' + $row.find('select, input, textarea').serialize()
+        });
+
+        // Beside the title, not in a column of its own: the table is wide
+        // enough, and this is gone again in a moment.
+        const pmMark = ($row, text) => {
+            const $cell = $row.children('td').last().prev();
+
+            $cell.find('.mmm-plan-meals__state').remove();
+
+            const $state = $('<span class="mmm-plan-meals__state"></span>').text(text);
+
+            $cell.append(' ', $state);
+
+            window.setTimeout(() => $state.fadeOut(400, function () {
+                $(this).remove();
+            }), 2500);
+        };
+
+        /* --- Writing a row --- */
+
+        const pmSaveRow = ($row) => {
+
+            const id = String($row.attr('data-id') || '');
+
+            if (!id || $row.data('mmm-busy')) {
+                return;
+            }
+
+            $row.data('mmm-busy', true).addClass('is-busy');
+
+            /*
+             * The answer replaces the row, because half of it depends on the
+             * other half: a changed recipe brings its own diet options, and
+             * changed eaters their own minimum servings and surplus note. So
+             * remember what has the cursor and give it back afterwards —
+             * selects fire their change while still focused.
+             */
+            const active = document.activeElement;
+            const $active = (active && $.contains($row[0], active)) ? $(active) : $();
+            const focusName = $active.attr('name') || '';
+            const focusValue = $active.is(':checkbox, :radio') ? ($active.val() || '') : '';
+
+            pmPost('mmm_plan_meal_save', $row, id).done(function (response) {
+
+                if (!response || !response.success || !response.data || !response.data.html) {
+                    pmSay(pmMessage(response, pm.failed), false);
+                    return;
+                }
+
+                const $fresh = $(response.data.html);
+
+                $row.replaceWith($fresh);
+                pmMark($fresh, pm.saved);
+
+                if (focusName) {
+                    let $again = $fresh.find('[name="' + focusName + '"]');
+
+                    if (focusValue) {
+                        $again = $again.filter('[value="' + focusValue + '"]');
+                    }
+
+                    $again.first().trigger('focus');
+                }
+            }).fail(function (xhr) {
+                pmSay(pmMessage(xhr && xhr.responseJSON, pm.failed), false);
+            }).always(function () {
+                // The row may be gone by now; the replacement carries neither
+                // the flag nor the class.
+                $row.removeData('mmm-busy').removeClass('is-busy');
+            });
+        };
+
+        $(document).on(
+            'change',
+            '.mmm-plan-meals tbody tr[data-id] select, .mmm-plan-meals tbody tr[data-id] input',
+            function () {
+                pmSaveRow($(this).closest('tr[data-id]'));
+            }
+        );
+
+        /* --- Adding --- */
+
+        $(document).on('click', '.mmm-plan-meals__add', function () {
+
+            const $btn = $(this);
+            const $new = $btn.closest('tr');
+
+            $btn.prop('disabled', true);
+
+            // No recipe is the server's refusal to make, so its wording is
+            // the one shown — this script does not word it a second time.
+            pmPost('mmm_plan_meal_save', $new, 'new').done(function (response) {
+
+                if (!response || !response.success || !response.data || !response.data.html) {
+                    pmSay(pmMessage(response, pm.failed), false);
+                    return;
+                }
+
+                const $fresh = $(response.data.html);
+
+                $fresh.insertBefore($new);
+                pmMark($fresh, pm.added);
+
+                /*
+                 * The recipe is cleared and the rest stays: a day usually gets
+                 * several meals, and clearing it is also what keeps the post's
+                 * own save from planning this one a second time.
+                 */
+                $new.find('.mmm-plan-meals__recipe').val('').trigger('focus');
+            }).fail(function (xhr) {
+                pmSay(pmMessage(xhr && xhr.responseJSON, pm.failed), false);
+            }).always(function () {
+                $btn.prop('disabled', false);
+            });
+        });
+
+        /* --- Deleting --- */
+
+        $(document).on('click', '.mmm-plan-meals__delete', function () {
+
+            const $btn = $(this);
+            const $row = $btn.closest('tr[data-id]');
+            const id = String($row.attr('data-id') || '');
+
+            // Gone for good, not into the bin, so it is worth asking.
+            if (!id || !window.confirm(pm.confirmDelete)) {
+                return;
+            }
+
+            $btn.prop('disabled', true);
+            $row.addClass('is-busy');
+
+            $.ajax({
+                url: pm.ajaxurl,
+                method: 'POST',
+                data: {
+                    action: 'mmm_plan_meal_delete',
+                    nonce: pm.nonce,
+                    plan_id: pmPlanId($row),
+                    meal_id: id
+                }
+            }).done(function (response) {
+
+                if (response && response.success) {
+                    $row.remove();
+                    pmSay(pm.removed, true);
+                    return;
+                }
+
+                pmSay(pmMessage(response, pm.failed), false);
+            }).fail(function (xhr) {
+                pmSay(pmMessage(xhr && xhr.responseJSON, pm.failed), false);
+            }).always(function () {
+                $btn.prop('disabled', false);
+                $row.removeClass('is-busy');
+            });
+        });
+    }
+
 });

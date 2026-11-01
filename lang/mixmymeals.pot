@@ -6165,3 +6165,40 @@ msgstr ""
 msgctxt "action"
 msgid "Share"
 msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php:1123
+msgid "Pick a recipe and add it — the plan itself needs no saving."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php:1124
+msgid "Add meal"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php:1533
+msgid "Unknown meal plan."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php:1579
+msgid "Please pick a recipe."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php:1596
+#: includes/lib/class-mixmymeals-post-meta.php:1633
+msgid "Unknown meal."
+msgstr ""
+
+#: includes/lib/class-mixmymeals-post-meta.php:1640
+msgid "Could not be deleted."
+msgstr ""
+
+#: includes/class-mixmymeals.php:582
+msgid "Meal added."
+msgstr ""
+
+#: includes/class-mixmymeals.php:583
+msgid "Meal deleted."
+msgstr ""
+
+#: includes/class-mixmymeals.php:585
+msgid "Delete this meal? This cannot be undone."
+msgstr ""

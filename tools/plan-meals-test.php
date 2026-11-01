@@ -140,6 +140,151 @@ $ok( 'Thursday offered and selected', (bool) preg_match( '/value="4"\s+selected/
 $post_rows( array( $ids[0] => array( 'servings' => 2 ) ) );
 $ok( 'saving does not move it', 4 === ( new Mixmymeals_Meal( $ids[0] ) )->get_day() );
 
+echo "-- 14. The same table through AJAX: one row written" . PHP_EOL;
+
+/*
+ * wp_send_json ends in a bare `die` unless WordPress thinks it is doing AJAX;
+ * with that it goes through wp_die, which a filter can take over. Without
+ * both, the first handler called would end the script.
+ */
+if ( ! defined( 'DOING_AJAX' ) ) {
+	define( 'DOING_AJAX', true );
+}
+
+$thrower = static function () {
+	return static function () {
+		throw new \RuntimeException( 'wp_die' );
+	};
+};
+add_filter( 'wp_die_handler', $thrower );
+add_filter( 'wp_die_ajax_handler', $thrower );
+
+// One handler call: the row's fields under the names the box renders them
+// with, which is exactly what the script posts.
+$ajax = function ( string $method, $meal_id, array $row = array(), $nonce = null ) use ( $plan, $meta ) {
+	$_POST = array(
+		'nonce'          => null === $nonce ? wp_create_nonce( 'mmm_plan_meals_ajax' ) : $nonce,
+		'plan_id'        => $plan,
+		'meal_id'        => (string) $meal_id,
+		'mmm_plan_meals' => array( (string) $meal_id => $row ),
+	);
+	$_REQUEST = $_POST;
+
+	ob_start();
+	try {
+		$meta->$method();
+	} catch ( \RuntimeException $e ) {
+		unset( $e );
+	}
+	$raw   = ob_get_clean();
+	$_POST = array();
+
+	return json_decode( $raw, true );
+};
+
+// People on the plan, so the eaters column and the surplus note are in play.
+( new Mixmymeals_Meal_Plan( $plan ) )->set_eaters( array(
+	array( 'name' => 'ZZTest One', 'portions' => 1 ),
+	array( 'name' => 'ZZTest Two', 'portions' => 0.5 ),
+) );
+
+$ids    = array_values( $meals_of() );
+$held   = count( $ids );
+$answer = $ajax(
+	'ajax_save_plan_meal',
+	$ids[0],
+	array(
+		'recipe_id'    => $recipe_b,
+		'type'         => 'breakfast',
+		'day'          => 7,
+		'servings'     => 5,
+		'eaters_shown' => 1,
+		'eaters'       => array( 'p1' ),
+		'portions'     => array( 'p1' => '' ),
+	)
+);
+
+$ok( 'the write is accepted', ! empty( $answer['success'] ) );
+$m = new Mixmymeals_Meal( $ids[0] );
+$ok( 'recipe written', (int) $m->get_recipe_id() === (int) $recipe_b );
+$ok( 'type written', 'breakfast' === $m->get_type() );
+$ok( 'day written', 7 === $m->get_day() );
+$ok( 'servings written', 5 === $m->get_servings() );
+$ok( 'eaters written', array( 'p1' ) === $m->get_eaters() );
+$ok( 'writing a row creates none', $held === count( $meals_of() ) );
+
+// The answer is the row re-rendered, which is the whole point: a changed
+// recipe brings its own diet options and changed eaters their own minimum.
+$row_html = (string) ( $answer['data']['html'] ?? '' );
+$ok( 'the answer is that row', false !== strpos( $row_html, 'data-id="' . $ids[0] . '"' ) );
+$ok( 'the answer carries the written servings', false !== strpos( $row_html, 'value="5"' ) );
+$ok( 'the answer carries the eaters column', false !== strpos( $row_html, 'mmm-plan-meals__eater' ) );
+$ok( 'the answer notes the surplus', false !== strpos( $row_html, 'mmm-plan-meals__surplus' ) );
+$ok( 'the answer carries a delete button', false !== strpos( $row_html, 'mmm-plan-meals__delete"' ) );
+
+echo "-- 15. Adding through AJAX, once per press" . PHP_EOL;
+$before = count( $meals_of() );
+$new    = array(
+	'recipe_id'    => $recipe_a,
+	'type'         => 'lunch',
+	'day'          => 6,
+	'servings'     => '',
+	'eaters_shown' => 1,
+	'eaters'       => array( 'p1', 'p2' ),
+	'portions'     => array( 'p1' => '', 'p2' => '' ),
+	'token'        => wp_generate_uuid4(),
+);
+
+$first = $ajax( 'ajax_save_plan_meal', 'new', $new );
+$ok( 'the add is accepted', ! empty( $first['success'] ) );
+$ok( 'one meal more', $before + 1 === count( $meals_of() ) );
+
+$added = new Mixmymeals_Meal( (int) $first['data']['id'] );
+$ok( 'the new meal has the picked recipe', (int) $added->get_recipe_id() === (int) $recipe_a );
+$ok( 'the new meal has the picked day', 6 === $added->get_day() );
+// One portion and a half, rounded up.
+$ok( 'an empty servings field becomes what its eaters eat', 2 === $added->get_servings() );
+
+/*
+ * The one-shot token is deliberately not spent here. It guards against the
+ * block editor posting the meta boxes twice on one save of the post; a button
+ * pressed twice means two meals, and spending it would swallow the second.
+ */
+$second = $ajax( 'ajax_save_plan_meal', 'new', $new );
+$ok( 'the same row twice plans two meals', ! empty( $second['success'] ) );
+$ok( 'and the second is a meal of its own', (int) $second['data']['id'] !== (int) $first['data']['id'] );
+$ok( 'two meals more than before', $before + 2 === count( $meals_of() ) );
+
+echo "-- 16. What AJAX refuses" . PHP_EOL;
+$no_recipe = $ajax( 'ajax_save_plan_meal', 'new', array( 'recipe_id' => '', 'type' => 'lunch' ) );
+$ok( 'no recipe is refused', isset( $no_recipe['success'] ) && false === $no_recipe['success'] );
+
+$not_recipe = $ajax( 'ajax_save_plan_meal', 'new', array( 'recipe_id' => $plan ) );
+$ok( 'a plan is not planned as a recipe', isset( $not_recipe['success'] ) && false === $not_recipe['success'] );
+
+$outsider = $ajax( 'ajax_save_plan_meal', $foreign->get_id(), array( 'servings' => 1 ) );
+$ok( "a meal of another plan is refused", isset( $outsider['success'] ) && false === $outsider['success'] );
+$ok( 'and untouched', 9 === ( new Mixmymeals_Meal( $foreign->get_id() ) )->get_servings() );
+
+$unsigned = $ajax( 'ajax_save_plan_meal', $ids[0], array( 'servings' => 12 ), 'not-the-nonce' );
+$ok( 'a wrong nonce is refused', null === $unsigned || empty( $unsigned['success'] ) );
+$ok( 'and writes nothing', 5 === ( new Mixmymeals_Meal( $ids[0] ) )->get_servings() );
+
+echo "-- 17. Deleting through AJAX" . PHP_EOL;
+$doomed = (int) $second['data']['id'];
+$count  = count( $meals_of() );
+$gone   = $ajax( 'ajax_delete_plan_meal', $doomed );
+$ok( 'the delete is accepted', ! empty( $gone['success'] ) );
+$ok( 'one meal fewer', $count - 1 === count( $meals_of() ) );
+$ok( 'gone for good, not in the trash', null === get_post( $doomed ) );
+
+$twice = $ajax( 'ajax_delete_plan_meal', $doomed );
+$ok( 'deleting it again is refused', isset( $twice['success'] ) && false === $twice['success'] );
+
+$outsider = $ajax( 'ajax_delete_plan_meal', $foreign->get_id() );
+$ok( 'a meal of another plan cannot be deleted from here', isset( $outsider['success'] ) && false === $outsider['success'] );
+$ok( 'and survives', null !== get_post( $foreign->get_id() ) );
+
 // Clean up.
 foreach ( $meals_of() as $id ) {
 	wp_delete_post( $id, true );

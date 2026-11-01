@@ -1163,6 +1163,59 @@ tbody > tr:first-child.mmm-products__head {
     font-style: italic;
 }
 
+/* The two ways of adding and the two of deleting are both rendered; the body
+   class says which one is live. Doing it here rather than in JavaScript is
+   what lets the box survive the block editor re-fetching the whole meta-box
+   area after every save of the post. */
+
+.mmm-plan-meals__hint-js,
+.mmm-plan-meals__add,
+.mmm-plan-meals__delete {
+    display: none;
+}
+
+.mmm-plan-meals-js .mmm-plan-meals__hint,
+.mmm-plan-meals-js .mmm-plan-meals__delete-box {
+    display: none;
+}
+
+.mmm-plan-meals-js .mmm-plan-meals__hint-js,
+.mmm-plan-meals-js .mmm-plan-meals__add,
+.mmm-plan-meals-js .mmm-plan-meals__delete {
+    display: inline;
+}
+
+.mmm-plan-meals-js .mmm-plan-meals__add {
+    display: inline-block;
+}
+
+.mmm-plan-meals__delete {
+    color: var(--mmm-ad-danger);
+}
+
+/* A row waiting for its answer stays readable and stays put: dimming it
+   rather than replacing it keeps the column widths while the request runs. */
+.mmm-plan-meals tr.is-busy {
+    opacity: 0.6;
+}
+
+.mmm-plan-meals__state {
+    color: var(--mmm-ad-brand-d);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.mmm-plan-meals__status {
+    min-height: 1.4em;
+    margin: 6px 0 0;
+    color: var(--mmm-ad-brand-d);
+    font-size: 12px;
+}
+
+.mmm-plan-meals__status.is-error {
+    color: var(--mmm-ad-danger);
+}
+
 /* ==========================================================
    Equipment on the recipe screen.
 

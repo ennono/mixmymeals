@@ -209,6 +209,12 @@ class Mixmymeals_Post_Meta {
 		// posting them.
 		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_meals' ) );
 
+		// The same table without the reload: one row written, one row deleted,
+		// and the answer is the row re-rendered by the box itself. The post's
+		// own save above stays the way through for a browser without the script.
+		add_action( 'wp_ajax_mmm_plan_meal_save', array( $this, 'ajax_save_plan_meal' ) );
+		add_action( 'wp_ajax_mmm_plan_meal_delete', array( $this, 'ajax_delete_plan_meal' ) );
+
 		// The plan's people, in a box of their own and saved before the
 		// meals (priority 9), which check who eats them against this list.
 		add_action(
@@ -1064,7 +1070,10 @@ class Mixmymeals_Post_Meta {
 			}
 		);
 
-		echo '<table class="widefat striped mmm-plan-meals">';
+		// The plan travels in the markup: the AJAX handlers check every meal
+		// against it, and the box is rendered on post-new.php too, where the
+		// plan is an auto-draft with an ID all the same.
+		printf( '<table class="widefat striped mmm-plan-meals" data-plan="%d">', (int) $post->ID );
 		echo '<thead><tr>';
 		echo '<th>' . esc_html__( 'Recipe', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Type', 'mixmymeals' ) . '</th>';
@@ -1081,61 +1090,7 @@ class Mixmymeals_Post_Meta {
 		echo '</tr></thead><tbody>';
 
 		foreach ( (array) $meals as $meal ) {
-
-			$meal_obj = new Mixmymeals_Meal( $meal->ID );
-			$field    = 'mmm_plan_meals[' . (int) $meal->ID . ']';
-
-			echo '<tr data-id="' . esc_attr( (string) $meal->ID ) . '">';
-
-			echo '<td>' . self::meal_recipe_select( $field . '[recipe_id]', $recipes, $meal_obj->get_recipe_id() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-			echo '<td>' . self::meal_type_select( $field . '[type]', $meal_obj->get_type() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-			echo '<td>' . self::meal_day_select( $field . '[day]', $days, (int) $meal_obj->get_day() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-
-			// Not below what its eaters eat; more is allowed and noted.
-			$mmm_surplus = $plan->has_eaters() ? Mixmymeals_Meal_Plan::servings_surplus_text( $meal_obj->servings_surplus() ) : '';
-
-			printf(
-				'<td><input type="number" min="%1$s" step="1" name="%2$s" value="%3$s" class="small-text">%4$s</td>',
-				esc_attr( (string) $meal_obj->min_servings() ),
-				esc_attr( $field . '[servings]' ),
-				esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) ),
-				'' === $mmm_surplus ? '' : '<br><span class="description mmm-plan-meals__surplus">' . esc_html( $mmm_surplus ) . '</span>'
-			);
-
-			echo '<td>' . self::meal_diet_select( $field . '[diet]', new Mixmymeals_Recipe( $meal_obj->get_recipe_id() ), $meal_obj->get_diet() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-
-			if ( $plan->has_eaters() ) {
-				echo '<td>' . self::meal_eaters_checkboxes( $field, $plan, $meal_obj->get_eaters(), $meal_obj->get_eater_portions_raw() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
-			}
-
-			// The meal keeps its own screen: notes, status and everything else
-			// this table deliberately does not carry live there.
-			$link = get_edit_post_link( $meal->ID );
-
-			printf(
-				'<td>%s</td>',
-				$link
-					? sprintf(
-						'<a href="%s" target="_blank" rel="noopener">%s</a>',
-						esc_url( $link ),
-						esc_html( self::meal_row_title( $meal ) )
-					)
-					: esc_html( self::meal_row_title( $meal ) )
-			);
-
-			printf(
-				'<td><label><input type="checkbox" name="%s" value="1"><span class="screen-reader-text">%s</span></label></td>',
-				esc_attr( $field . '[delete]' ),
-				esc_html(
-					sprintf(
-						/* translators: %s: name of the meal. */
-						__( 'Delete %s', 'mixmymeals' ),
-						self::meal_row_title( $meal )
-					)
-				)
-			);
-
-			echo '</tr>';
+			echo self::meal_row_html( $plan, $meal, $recipes, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 		}
 
 		// The empty row at the foot, like the units box: adding a meal is the
@@ -1155,7 +1110,20 @@ class Mixmymeals_Post_Meta {
 		if ( $plan->has_eaters() ) {
 			echo '<td>' . self::meal_eaters_checkboxes( 'mmm_plan_meals[new]', $plan, $plan->eater_ids() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the helper.
 		}
-		echo '<td colspan="2"><span class="description">' . esc_html__( 'Pick a recipe to add a meal.', 'mixmymeals' ) . '</span></td>';
+
+		/*
+		 * Both hints, and CSS shows the one that is true: without the script the
+		 * meal is added by the post's own save, with it by the button beside
+		 * them. Same reason as the delete cell above — this box is re-fetched
+		 * after every save, so nothing here may depend on JavaScript having
+		 * edited it.
+		 */
+		echo '<td colspan="2">';
+		echo '<span class="description mmm-plan-meals__hint">' . esc_html__( 'Pick a recipe to add a meal.', 'mixmymeals' ) . '</span>';
+		echo '<span class="description mmm-plan-meals__hint-js">' . esc_html__( 'Pick a recipe and add it — the plan itself needs no saving.', 'mixmymeals' ) . '</span> ';
+		echo '<button type="button" class="button mmm-plan-meals__add">' . esc_html__( 'Add meal', 'mixmymeals' ) . '</button>';
+		echo '</td>';
+
 		/*
 		 * The block editor posts the meta boxes without re-rendering them, so
 		 * a second Save sends the filled-in new row a second time and would
@@ -1169,6 +1137,11 @@ class Mixmymeals_Post_Meta {
 		echo '</tr>';
 
 		echo '</tbody></table>';
+
+		// What the script says about a row it just wrote; beside the table, not
+		// in a cell, because a message inside one shifts every column while it
+		// shows. Empty and silent without the script.
+		echo '<p class="mmm-plan-meals__status" role="status" aria-live="polite"></p>';
 
 		if ( ! $days ) {
 			echo '<p class="description">' . esc_html__( 'This plan has no days yet — set its first and last day in the plan settings.', 'mixmymeals' ) . '</p>';
@@ -1189,6 +1162,92 @@ class Mixmymeals_Post_Meta {
 
 		/* translators: %d: ID of the meal, used when it has no title. */
 		return sprintf( __( 'Meal #%d', 'mixmymeals' ), $meal->ID );
+	}
+
+	/**
+	 * One meal of the plan as a row of the table.
+	 *
+	 * Rendered here rather than inline in the box so that the AJAX handlers can
+	 * hand back the very same row. Almost every cell depends on another: the
+	 * recipe decides which diets are on offer, the eaters decide the minimum
+	 * servings and the surplus note, and the title comes from the post. A row
+	 * rebuilt in JavaScript would have to know all of that a second time, and
+	 * would drift from this one the first time any of it changed.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan    The plan the meal belongs to.
+	 * @param WP_Post              $meal    The meal.
+	 * @param WP_Post[]            $recipes All recipes, for the chooser.
+	 * @param int[]                $days    The plan's days, in its own order.
+	 * @return string
+	 */
+	private static function meal_row_html( Mixmymeals_Meal_Plan $plan, WP_Post $meal, array $recipes, array $days ): string {
+
+		$meal_obj = new Mixmymeals_Meal( $meal->ID );
+		$field    = 'mmm_plan_meals[' . (int) $meal->ID . ']';
+
+		$out = '<tr data-id="' . esc_attr( (string) $meal->ID ) . '">';
+
+		$out .= '<td>' . self::meal_recipe_select( $field . '[recipe_id]', $recipes, $meal_obj->get_recipe_id() ) . '</td>';
+		$out .= '<td>' . self::meal_type_select( $field . '[type]', $meal_obj->get_type() ) . '</td>';
+		$out .= '<td>' . self::meal_day_select( $field . '[day]', $days, (int) $meal_obj->get_day() ) . '</td>';
+
+		// Not below what its eaters eat; more is allowed and noted.
+		$surplus = $plan->has_eaters() ? Mixmymeals_Meal_Plan::servings_surplus_text( $meal_obj->servings_surplus() ) : '';
+
+		$out .= sprintf(
+			'<td><input type="number" min="%1$s" step="1" name="%2$s" value="%3$s" class="small-text">%4$s</td>',
+			esc_attr( (string) $meal_obj->min_servings() ),
+			esc_attr( $field . '[servings]' ),
+			esc_attr( (string) max( 1, (int) $meal_obj->get_servings() ) ),
+			'' === $surplus ? '' : '<br><span class="description mmm-plan-meals__surplus">' . esc_html( $surplus ) . '</span>'
+		);
+
+		$out .= '<td>' . self::meal_diet_select( $field . '[diet]', new Mixmymeals_Recipe( $meal_obj->get_recipe_id() ), $meal_obj->get_diet() ) . '</td>';
+
+		if ( $plan->has_eaters() ) {
+			$out .= '<td>' . self::meal_eaters_checkboxes( $field, $plan, $meal_obj->get_eaters(), $meal_obj->get_eater_portions_raw() ) . '</td>';
+		}
+
+		// The meal keeps its own screen: notes, status and everything else this
+		// table deliberately does not carry live there.
+		$link  = get_edit_post_link( $meal->ID );
+		$title = self::meal_row_title( $meal );
+
+		$out .= sprintf(
+			'<td>%s</td>',
+			$link
+				? sprintf(
+					'<a href="%s" target="_blank" rel="noopener">%s</a>',
+					esc_url( $link ),
+					esc_html( $title )
+				)
+				: esc_html( $title )
+		);
+
+		/*
+		 * Two ways out, both rendered, and CSS picks between them by the body
+		 * class the script sets: without it the checkbox marks the meal and the
+		 * post's own save deletes it, with it the button deletes the meal on the
+		 * spot and the checkbox is hidden, so a later save cannot delete a
+		 * second time what is already gone. Rendered rather than switched in
+		 * JavaScript because the block editor re-fetches this whole box after
+		 * every save of the post and would undo anything done to it by hand.
+		 */
+		$label = sprintf(
+			/* translators: %s: name of the meal. */
+			__( 'Delete %s', 'mixmymeals' ),
+			$title
+		);
+
+		$out .= sprintf(
+			'<td><label class="mmm-plan-meals__delete-box"><input type="checkbox" name="%1$s" value="1"><span class="screen-reader-text">%2$s</span></label><button type="button" class="button-link mmm-plan-meals__delete" aria-label="%3$s">%4$s</button></td>',
+			esc_attr( $field . '[delete]' ),
+			esc_html( $label ),
+			esc_attr( $label ),
+			esc_html__( 'Delete', 'mixmymeals' )
+		);
+
+		return $out . '</tr>';
 	}
 
 	/**
@@ -1452,6 +1511,136 @@ class Mixmymeals_Post_Meta {
 				}
 			}
 		}
+	}
+
+	/**
+	 * The plan an AJAX call from the meals box is about, checked.
+	 *
+	 * Answers the failure itself and never returns on one: both handlers below
+	 * want exactly this, and there is nothing either could do with a refusal.
+	 * Both have verified the nonce before calling it.
+	 *
+	 * @return int Plan ID.
+	 */
+	private function plan_meals_request_plan(): int {
+
+		// The nonce is checked by the caller, which is also what reads the rest
+		// of the request — the sniff wants both in one place, and so does
+		// anybody reading one of the two handlers on its own.
+		$plan_id = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked by the caller.
+
+		if ( ! $plan_id || 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown meal plan.', 'mixmymeals' ) ), 400 );
+		}
+
+		if ( ! current_user_can( 'edit_post', $plan_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'mixmymeals' ) ), 403 );
+		}
+
+		return $plan_id;
+	}
+
+	/**
+	 * Writes one row of the meals box without saving the plan.
+	 *
+	 * The script posts the row's own fields under the names the box rendered
+	 * them with, so a row arrives here in the shape save_plan_meals() already
+	 * knows and goes through the same apply_meal_row(). What comes back is the
+	 * row re-rendered: a changed recipe brings its own diet options, changed
+	 * eaters their own minimum servings, and neither is worked out twice.
+	 *
+	 * The new row's token is deliberately not spent here. It guards against the
+	 * block editor posting the meta boxes twice on one save; a button pressed
+	 * three times means three meals, and spending it would swallow two of them.
+	 *
+	 * @return void
+	 */
+	public function ajax_save_plan_meal(): void {
+
+		check_ajax_referer( 'mmm_plan_meals_ajax', 'nonce' );
+
+		$plan_id = $this->plan_meals_request_plan();
+		$plan    = new Mixmymeals_Meal_Plan( $plan_id );
+
+		// Sanitised element by element in apply_meal_row(); the sniff only sees
+		// the array as it arrives.
+		$rows = isset( $_POST['mmm_plan_meals'] ) && is_array( $_POST['mmm_plan_meals'] )
+			? wp_unslash( $_POST['mmm_plan_meals'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per element in apply_meal_row().
+			: array();
+
+		$key = isset( $_POST['meal_id'] ) ? sanitize_key( wp_unslash( $_POST['meal_id'] ) ) : '';
+		$row = isset( $rows[ $key ] ) && is_array( $rows[ $key ] ) ? (array) $rows[ $key ] : array();
+
+		if ( 'new' === $key ) {
+
+			$recipe = empty( $row['recipe_id'] ) ? null : get_post( absint( $row['recipe_id'] ) );
+
+			if ( ! $recipe || 'mmm_recipe' !== $recipe->post_type ) {
+				wp_send_json_error( array( 'message' => __( 'Please pick a recipe.', 'mixmymeals' ) ), 400 );
+			}
+
+			// create() throws; a 500 with a message beats an exception trace in
+			// the middle of a JSON answer.
+			try {
+				$meal = Mixmymeals_Meal::create( (string) $recipe->post_title, $plan_id );
+			} catch ( \Exception $e ) {
+				unset( $e );
+				wp_send_json_error( array( 'message' => __( 'Could not be created.', 'mixmymeals' ) ), 500 );
+			}
+		} else {
+
+			$meal_id = absint( $key );
+			$post    = $meal_id ? get_post( $meal_id ) : null;
+
+			if ( ! $post || 'mmm_meal' !== $post->post_type || (int) $post->post_parent !== $plan_id ) {
+				wp_send_json_error( array( 'message' => __( 'Unknown meal.', 'mixmymeals' ) ), 400 );
+			}
+
+			$meal = new Mixmymeals_Meal( $meal_id );
+		}
+
+		$this->apply_meal_row( $meal, $row );
+
+		$rendered = get_post( $meal->get_id() );
+
+		if ( ! $rendered ) {
+			wp_send_json_error( array( 'message' => __( 'Could not be saved.', 'mixmymeals' ) ), 500 );
+		}
+
+		wp_send_json_success(
+			array(
+				'id'   => $meal->get_id(),
+				'html' => self::meal_row_html( $plan, $rendered, Mixmymeals_Recipe::get_all_recipes(), $plan->get_day_range() ),
+			)
+		);
+	}
+
+	/**
+	 * Deletes one meal of a plan without saving the plan.
+	 *
+	 * @return void
+	 */
+	public function ajax_delete_plan_meal(): void {
+
+		check_ajax_referer( 'mmm_plan_meals_ajax', 'nonce' );
+
+		$plan_id = $this->plan_meals_request_plan();
+
+		$meal_id = isset( $_POST['meal_id'] ) ? absint( $_POST['meal_id'] ) : 0;
+		$meal    = $meal_id ? get_post( $meal_id ) : null;
+
+		if ( ! $meal || 'mmm_meal' !== $meal->post_type || (int) $meal->post_parent !== $plan_id ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown meal.', 'mixmymeals' ) ), 400 );
+		}
+
+		// Deleted for good, not trashed, the way save_plan_meals() does it: a
+		// meal is a planning of a recipe inside one plan and has no life of its
+		// own, and a trashed one would sit in the bin forever.
+		if ( ! wp_delete_post( $meal_id, true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Could not be deleted.', 'mixmymeals' ) ), 500 );
+		}
+
+		wp_send_json_success( array( 'id' => $meal_id ) );
 	}
 
 	/**

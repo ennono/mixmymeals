@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.73.1
+Stable tag: 3.74.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.74.0 =
+
+Added:
+* The meals of a plan are now edited, added and deleted straight in the
+  plan's "Meals" box, without saving the plan: a changed field is written
+  on the spot, the "Add meal" button plans one meal per press instead of
+  one per save, and a meal is deleted by its own button. The written row
+  comes back rendered by the box itself, so a changed recipe brings its
+  own diet options and changed eaters their own minimum servings.
+* Without JavaScript the box works exactly as before — the delete
+  checkbox and the plan's own save are still there and still do it.
 
 = 3.73.1 =
 

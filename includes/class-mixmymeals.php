@@ -567,6 +567,25 @@ class Mixmymeals {
 			)
 		);
 
+		/*
+		 * The meals of a plan are written, added and deleted from the plan's own
+		 * screen without saving the post. The answers are rows rendered in PHP,
+		 * so only what the script says itself travels here.
+		 */
+		wp_localize_script(
+			'mixmymeals-admin',
+			'MixMyMealsPlanMeals',
+			array(
+				'ajaxurl'       => admin_url( 'admin-ajax.php' ),
+				'nonce'         => wp_create_nonce( 'mmm_plan_meals_ajax' ),
+				'saved'         => __( 'Saved', 'mixmymeals' ),
+				'added'         => __( 'Meal added.', 'mixmymeals' ),
+				'removed'       => __( 'Meal deleted.', 'mixmymeals' ),
+				'failed'        => __( 'Could not be saved.', 'mixmymeals' ),
+				'confirmDelete' => __( 'Delete this meal? This cannot be undone.', 'mixmymeals' ),
+			)
+		);
+
 		wp_localize_script(
 			'mixmymeals-admin',
 			'MixMyMealsAmounts',
