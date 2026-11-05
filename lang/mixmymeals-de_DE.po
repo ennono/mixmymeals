@@ -7813,6 +7813,12 @@ msgstr "Eine Portion weniger bei jeder Mahlzeit"
 msgid "One serving more at every meal"
 msgstr "Eine Portion mehr bei jeder Mahlzeit"
 
+msgid "One serving fewer"
+msgstr "Eine Portion weniger"
+
+msgid "One serving more"
+msgstr "Eine Portion mehr"
+
 msgid "For %s serving"
 msgid_plural "For %s servings"
 msgstr[0] "Für %s Portion"

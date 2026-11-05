@@ -471,6 +471,37 @@ try {
 
 	unset( $_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] );
 
+	// The meal page's own field: the plan's parameter, the meal's count.
+	$meal_id   = (int) $meals[0]['meal_id'];
+	$meal_html = static function () use ( $shortcodes, $meal_id ): string {
+		return $shortcodes->mmm_meal_ingredients_callback( array( 'meal_id' => $meal_id ) );
+	};
+	$html = $meal_html();
+	$ok( 'a meal page has a servings field with its own count', false !== strpos( $html, 'mmm-plan-servings--meal' ) && false !== strpos( $html, '<output class="mmm-plan-servings__value">3</output>' ) );
+	$ok( 'its + leads to +1 on the meal page', false !== strpos( $html, 'mmm_persons_to_add=1#mmm-meal-servings-' . $meal_id ) );
+	$ok( 'its − leads to −1', false !== strpos( $html, 'mmm_persons_to_add=-1#mmm-meal-servings-' . $meal_id ) );
+	$ok( 'the meal answers each step through the plan', 5 === ( new Mixmymeals_Meal( $meal_id ) )->servings_with_offset( 2 ) && 1 === ( new Mixmymeals_Meal( $meal_id ) )->servings_with_offset( -9 ) );
+
+	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '-5';
+	$html = $meal_html();
+	$ok( 'at one serving the field shows 1', false !== strpos( $html, '<output class="mmm-plan-servings__value">1</output>' ) );
+	$ok( 'and offers no − that changes nothing', false !== strpos( $html, 'mmm-plan-servings__step--down is-disabled' ) );
+	$ok( 'its + is the difference that gives 2 (−1), not −4', false !== strpos( $html, 'mmm_persons_to_add=-1#' ) && false === strpos( $html, 'mmm_persons_to_add=-4' ) );
+
+	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '1';
+	$html = $meal_html();
+	$ok( 'under +1 the field shows 4 and − returns to the plain address', false !== strpos( $html, '<output class="mmm-plan-servings__value">4</output>' ) && false === strpos( $html, 'mmm_persons_to_add=0' ) );
+	$ok( 'and the list is scaled with it', false !== strpos( $html, 'mmm-ingredient' ) );
+
+	$_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] = '20';
+	$ok( 'at the plan\'s upper bound + is disabled', false !== strpos( $meal_html(), 'mmm-plan-servings__step--up is-disabled' ) );
+	unset( $_GET[ Mixmymeals_Meal_Plan::SERVINGS_QUERY_VAR ] );
+
+	$ok( 'servings_control="0" leaves the list alone', false === strpos( $shortcodes->mmm_meal_ingredients_callback( array( 'meal_id' => $meal_id, 'servings_control' => '0' ) ), 'mmm-plan-servings' ) );
+	wp_update_post( array( 'ID' => $mixed_id, 'post_status' => 'draft' ) );
+	$ok( 'a meal of an unpublished plan gets no field', false === strpos( $meal_html(), 'mmm-plan-servings' ) );
+	wp_update_post( array( 'ID' => $mixed_id, 'post_status' => 'publish' ) );
+
 	$uniform = $shortcodes->mmm_shopping_list_for_a_single_meal_plan_callback( array( 'meal_plan_id' => $tins_id ) );
 	$ok( 'a uniform plan shows the count', false !== strpos( $uniform, 'mmm-plan-servings--uniform' ) && false !== strpos( $uniform, '<output class="mmm-plan-servings__value">1</output>' ) );
 	$ok( 'and nothing appended without a difference', false === strpos( $shortcodes->mmm_meals_in_a_single_meal_plan_callback( array( 'meal_plan_id' => $tins_id ) ), '<span class="mmm-servings-delta">' ) );

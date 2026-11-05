@@ -6151,6 +6151,14 @@ msgstr ""
 msgid "One serving more at every meal"
 msgstr ""
 
+#: includes/lib/class-mixmymeals-shortcodes.php:5622
+msgid "One serving fewer"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-shortcodes.php:5623
+msgid "One serving more"
+msgstr ""
+
 msgid "For %s serving"
 msgid_plural "For %s servings"
 msgstr[0] ""

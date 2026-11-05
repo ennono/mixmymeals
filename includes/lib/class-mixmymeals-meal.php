@@ -384,14 +384,30 @@ class Mixmymeals_Meal {
 			return $this->get_servings();
 		}
 
-		$plan   = new Mixmymeals_Meal_Plan( $plan_id );
-		$offset = $plan->requested_servings_offset();
+		return $this->servings_with_offset( ( new Mixmymeals_Meal_Plan( $plan_id ) )->requested_servings_offset() );
+	}
 
-		if ( 0 !== $offset ) {
-			foreach ( $plan->with_servings_offset( $offset )->get_meal_rows() as $row ) {
-				if ( (int) $row['meal_id'] === $this->post_id ) {
-					return (int) $row['servings'];
-				}
+	/**
+	 * The servings of this meal once a difference is applied to its plan —
+	 * the plan's own row of with_servings_offset(), so the floor (its
+	 * eaters) and the cap on additions are the plan's rule and nobody
+	 * else's. The meal page's servings field asks it for every value it
+	 * offers.
+	 *
+	 * @param int $offset Difference, as ?mmm_persons_to_add carries it.
+	 * @return int
+	 */
+	public function servings_with_offset( int $offset ): int {
+
+		$plan_id = (int) $this->get_parent_plan_id();
+
+		if ( 0 === $offset || $plan_id <= 0 ) {
+			return $this->get_servings();
+		}
+
+		foreach ( ( new Mixmymeals_Meal_Plan( $plan_id ) )->with_servings_offset( $offset )->get_meal_rows() as $row ) {
+			if ( (int) $row['meal_id'] === $this->post_id ) {
+				return (int) $row['servings'];
 			}
 		}
 

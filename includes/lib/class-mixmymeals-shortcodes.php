@@ -5520,16 +5520,19 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_meal_ingredients].
-	 * Renders a scaled ingredient list for the specified meal.
+	 * Renders a scaled ingredient list for the specified meal, with the
+	 * servings field above it (see render_meal_servings_control()).
 	 *
-	 * @param array|string $atts Shortcode attributes: meal_id.
+	 * @param array|string $atts Shortcode attributes: meal_id,
+	 *                           servings_control (default on).
 	 * @return string
 	 */
 	public function mmm_meal_ingredients_callback( $atts ): string {
 
 		$atts = shortcode_atts(
 			array(
-				'meal_id' => 0,
+				'meal_id'          => 0,
+				'servings_control' => true,
 			),
 			$atts
 		);
@@ -5558,8 +5561,88 @@ class Mixmymeals_Shortcodes {
 		$factor          = $meal_servings / $recipe_servings;
 
 		$ingredients_raw = $recipe->get_ingredients_scaled( $factor );
+		$list            = $this->render_ingredients_list( $ingredients_raw );
 
-		return $this->render_ingredients_list( $ingredients_raw );
+		if ( ! filter_var( $atts['servings_control'], FILTER_VALIDATE_BOOLEAN ) ) {
+			return $list;
+		}
+
+		return $this->render_meal_servings_control( $meal ) . $list;
+	}
+
+	/**
+	 * The servings field of a meal page — the plan's field
+	 * (render_servings_control()) for one meal, with its markup and classes,
+	 * so it reads and looks the same.
+	 *
+	 * It writes the same ?mmm_persons_to_add the plan page does: a difference
+	 * applied to the plan, of which this page shows its own meal
+	 * (Mixmymeals_Meal::servings_with_offset()). That keeps one parameter
+	 * with one meaning — the link back to the plan carries it, and the plan
+	 * then shows its list for the servings chosen here. The field states
+	 * the meal's count ("For − 5 + servings"), and each step is the
+	 * difference that actually produces the next count, so − stops where
+	 * the meal's eaters stop it, not one click later.
+	 *
+	 * − and + are links that reload the page: on a meal page the amount
+	 * changes the ingredients, the steps, the nutrition table and the
+	 * calculator alike, and all of them are rendered from it on the server.
+	 *
+	 * @param Mixmymeals_Meal $meal The meal.
+	 * @return string '' for a meal without a published plan.
+	 */
+	private function render_meal_servings_control( Mixmymeals_Meal $meal ): string {
+
+		$meal_id = $meal->get_id();
+		$plan_id = (int) $meal->get_parent_plan_id();
+
+		if ( $plan_id <= 0 || 'publish' !== get_post_status( $plan_id ) ) {
+			return '';
+		}
+
+		$plan   = new Mixmymeals_Meal_Plan( $plan_id );
+		$stored = $meal->get_servings();
+		$shown  = $meal->get_shown_servings();
+		$page   = (string) get_permalink( $meal_id );
+		$anchor = 'mmm-meal-servings-' . $meal_id;
+
+		$step = static function ( int $to, string $dir ) use ( $meal, $plan, $stored, $page, $anchor ): string {
+
+			$class  = 'mmm-plan-servings__step mmm-plan-servings__step--' . $dir;
+			$glyph  = 'down' === $dir ? "\u{2212}" : '+';
+			$offset = $to - $stored;
+
+			// Offered only where the plan accepts the difference and it
+			// really gives this count — a floor or the cap would otherwise
+			// make a step that changes nothing.
+			if ( $to < 1 || null === $plan->parse_servings_value( (string) $offset ) || $meal->servings_with_offset( $offset ) !== $to ) {
+				return '<span class="' . esc_attr( $class ) . ' is-disabled" aria-hidden="true">' . esc_html( $glyph ) . '</span>';
+			}
+
+			$label = 'down' === $dir
+				? __( 'One serving fewer', 'mixmymeals' )
+				: __( 'One serving more', 'mixmymeals' );
+
+			return '<a class="' . esc_attr( $class ) . '" rel="nofollow"'
+				. ' href="' . esc_url( $plan->add_servings_arg( $page, $offset ) . '#' . $anchor ) . '"'
+				. ' aria-label="' . esc_attr( $label ) . '">' . esc_html( $glyph ) . '</a>';
+		};
+
+		/* translators: %s: − the number of servings +. Keep the %s. */
+		$sentence = _n( 'For %s serving', 'For %s servings', $shown, 'mixmymeals' );
+		$controls = $step( $shown - 1, 'down' )
+			. '<output class="mmm-plan-servings__value">' . esc_html( number_format_i18n( $shown ) ) . '</output>'
+			. $step( $shown + 1, 'up' );
+
+		$parts = explode( '%s', $sentence, 2 );
+		$line  = ( '' !== trim( $parts[0] ) ? '<span class="mmm-plan-servings__text">' . esc_html( trim( $parts[0] ) ) . '</span>' : '' )
+			. '<span class="mmm-plan-servings__controls" role="group" aria-label="' . esc_attr__( 'Number of servings', 'mixmymeals' ) . '">' . $controls . '</span>'
+			. ( isset( $parts[1] ) && '' !== trim( $parts[1] ) ? '<span class="mmm-plan-servings__text">' . esc_html( trim( $parts[1] ) ) . '</span>' : '' );
+
+		return '<div class="mmm-plan-servings mmm-plan-servings--uniform mmm-plan-servings--meal"'
+			. ' id="' . esc_attr( $anchor ) . '" data-offset="' . esc_attr( (string) ( $shown - $stored ) ) . '">'
+			. '<span class="mmm-plan-servings__line">' . $line . '</span>'
+			. '</div>';
 	}
 
 	/**

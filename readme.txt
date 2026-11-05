@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.74.0
+Stable tag: 3.75.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.75.0 =
+
+Added:
+* A meal page has the plan page's servings field above its ingredients,
+  "For − 3 + servings". It changes the same ?mmm_persons_to_add the plan
+  page uses, so ingredients, steps, nutrition and calculator follow, and the
+  link back to the plan brings the reader to the list for the servings
+  chosen there. − stops where the meal's eaters stop it.
+  Switch off with [mmm_meal_ingredients servings_control="0"].
 
 = 3.74.0 =
 
