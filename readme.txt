@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.75.0
+Stable tag: 3.75.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.75.1 =
+
+Fixed:
+* With EWWW Image Optimizer's Lazy Load active, deactivating the Social
+  add-on took every front-end page down with a bare 500: the add-on was the
+  only place that switched off EWWW's PNG placeholders, which it draws with
+  GD and which kill the PHP process on the live host. MixMyMeals now does it
+  itself. Independent of any plugin:
+  define( 'EWWW_IMAGE_OPTIMIZER_USE_PIIP', false ); in wp-config.php.
 
 = 3.75.0 =
 

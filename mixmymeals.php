@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 3.75.0
+ * Version: 3.75.1
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner and nutrition data.
  * Author: Timo Fricke
@@ -22,6 +22,23 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/*
+ * EWWW Image Optimizer: keine PNG-Platzhalter (PIIP) für Lazy Load.
+ *
+ * EWWW zeichnet sie mit GD, einmal je Bildgröße, und auf dem Live-Host reißt
+ * ein GD, das dabei stirbt, den ganzen PHP-Prozess mit: kein Fehler, keine
+ * Logzeile, ein nackter 500er im Frontend, während wp-admin weiterläuft. EWWW
+ * nimmt dann seinen mitgelieferten SVG-Platzhalter, der genauso aussieht.
+ *
+ * Bisher stand das nur im Social-Add-on — wer es deaktivierte, legte die
+ * Seite lahm. Hier hält es, solange MixMyMeals aktiv ist. Bewusst auf
+ * Dateiebene vor allen require_once: EWWW liest den Filter in seinem eigenen
+ * Konstruktor, und er muss auch gelten, wenn eine Klassendatei nicht lädt.
+ * Unabhängig von jedem Plugin wirkt nur die Konstante in der wp-config.php:
+ * define( 'EWWW_IMAGE_OPTIMIZER_USE_PIIP', false );
+ */
+add_filter( 'eio_use_piip', '__return_false' );
 
 // Load plugin class files.
 require_once 'includes/class-mixmymeals.php';
@@ -85,7 +102,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '3.75.0' );
+	$instance = Mixmymeals::instance( __FILE__, '3.75.1' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
