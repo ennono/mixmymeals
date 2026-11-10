@@ -1374,7 +1374,8 @@ class Mixmymeals_Shortcodes {
 
 			echo '<article class="mmm-recipe-row__card' . ( $thumb ? '' : ' mmm-recipe-row__card--noimg' ) . '">';
 			if ( $thumb ) {
-				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '">'
+				echo '<a class="mmm-recipe-row__media" href="' . esc_url( $permalink ) . '"'
+					. ' aria-label="' . esc_attr( self::card_media_label( $id ) ) . '">'
 					. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
 					. $disclosure // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 					. '</a>';
@@ -1701,8 +1702,9 @@ class Mixmymeals_Shortcodes {
 
 			if ( '' !== $thumb ) {
 				printf(
-					'<a class="mmm-recipe-row__media" href="%s">',
-					esc_url( $permalink )
+					'<a class="mmm-recipe-row__media" href="%s" aria-label="%s">',
+					esc_url( $permalink ),
+					esc_attr( self::card_media_label( $id ) )
 				);
 
 				/*
@@ -1741,6 +1743,32 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Accessible name of a browse card's picture link.
+	 *
+	 * The pictures carry alt="" (the title beside them says the same), which
+	 * left the link around them without a name — a screen reader announced
+	 * "link" and nothing else, and Lighthouse counts every card. Hiding the
+	 * link as the embed does (aria-hidden) is not an option here: the
+	 * disclosure pill sits inside it, and "Werbung" must stay audible. So the
+	 * name is the title, followed by the label where there is one — an
+	 * aria-label replaces the content, so the pill's text has to be in it.
+	 *
+	 * @param int $post_id Recipe or plan ID.
+	 * @return string Plain text; the caller escapes.
+	 */
+	private static function card_media_label( int $post_id ): string {
+
+		$label = wp_strip_all_tags( get_the_title( $post_id ) );
+		$pill  = self::disclosure_label_for( $post_id );
+
+		if ( ! empty( $pill ) ) {
+			$label .= ' – ' . $pill['text'];
+		}
+
+		return $label;
 	}
 
 	/**
