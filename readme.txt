@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.75.1
+Stable tag: 3.76.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.76.0 =
+
+Added:
+* Recipe structured data: every step (HowToStep) now carries a `url` to
+  its anchor on the recipe page and, where the step has its own picture,
+  an `image`. Search Console reported both as missing on every recipe.
+* WordPress authors get their picture back in the author box: a
+  "Profile Picture" field under "Author box" on the user profile, served
+  from this site. Gravatar stays out (removed in 3.33.0 because every
+  visitor's browser would have asked Automattic for it). Only for accounts
+  that may upload media, so visitor accounts' saved plans keep showing just
+  the display name. A post naming an external author keeps that author's
+  own picture and never falls back to the account's.
 
 = 3.75.1 =
 

@@ -4438,7 +4438,7 @@ class Mixmymeals_Post_Meta {
 			. ( '' === $image_url ? ' style="display:none;"' : '' ) . '>'
 			. esc_html__( 'Remove', 'mixmymeals' ) . '</button>'
 			. '</p><p class="description">'
-			. esc_html__( 'Shown like a WordPress author’s profile picture. Only used for an external author; without a name the WordPress author’s own avatar is shown.', 'mixmymeals' )
+			. esc_html__( 'Only used for an external author. Without a name the box shows the WordPress author with the picture from their user profile.', 'mixmymeals' )
 			. '</p></div></td></tr>';
 
 		echo '<tr><th scope="row"><label for="mmm_author_url">'

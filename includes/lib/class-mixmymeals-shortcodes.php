@@ -6900,26 +6900,7 @@ class Mixmymeals_Shortcodes {
 		if ( '' !== $name ) {
 			$bio = Mixmymeals_Post_Meta::get_author_text( $post_id );
 
-			// Square source, the avatar/photo classes some themes and
-			// microformat parsers key on, plus the box's own class the theme
-			// sizes and rounds. Without a picture the media block is simply
-			// omitted — which is now the only thing that happens, since the
-			// box no longer falls back to a remote avatar service.
 			$image_id = Mixmymeals_Post_Meta::get_author_image_id( $post_id );
-
-			if ( $image_id ) {
-				$avatar = wp_get_attachment_image(
-					$image_id,
-					'thumbnail',
-					false,
-					array(
-						'class'  => 'avatar avatar-' . $size . ' photo mmm-author-box__avatar',
-						'alt'    => $name,
-						'width'  => $size,
-						'height' => $size,
-					)
-				);
-			}
 		} else {
 			$author_id = (int) get_post_field( 'post_author', $post_id );
 			if ( $author_id <= 0 ) {
@@ -6934,16 +6915,31 @@ class Mixmymeals_Shortcodes {
 			$bio = wpautop( esc_html( trim( (string) get_the_author_meta( 'description', $author_id ) ) ) );
 
 			/*
-			 * No picture for a WordPress author, and deliberately no
-			 * get_avatar() either. That call is served by Gravatar unless a
-			 * plugin intercepts it, which means every visitor's browser
-			 * requests an image from Automattic in the US and hands over its
-			 * IP address plus a hash of the author's e-mail — a third-party
-			 * transfer on every recipe page, to show a picture nobody on this
-			 * site chose. An author who wants one uses the author box's own
-			 * picture field, which is served from this site.
+			 * The picture from the account's profile, served from this site —
+			 * deliberately never get_avatar(). That call is served by Gravatar
+			 * unless a plugin intercepts it, which means every visitor's
+			 * browser requests an image from Automattic in the US and hands
+			 * over its IP address plus a hash of the author's e-mail — a
+			 * third-party transfer on every recipe page.
 			 */
-			$avatar = '';
+			$image_id = Mixmymeals_Author::get_user_image_id( $author_id );
+		}
+
+		// Square source, the avatar/photo classes some themes and microformat
+		// parsers key on, plus the box's own class the theme sizes and rounds.
+		// Without a picture the media block is simply omitted.
+		if ( $image_id ) {
+			$avatar = (string) wp_get_attachment_image(
+				$image_id,
+				'thumbnail',
+				false,
+				array(
+					'class'  => 'avatar avatar-' . $size . ' photo mmm-author-box__avatar',
+					'alt'    => $name,
+					'width'  => $size,
+					'height' => $size,
+				)
+			);
 		}
 
 		$url       = Mixmymeals_Post_Meta::get_author_url( $post_id );

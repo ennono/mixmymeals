@@ -4341,9 +4341,16 @@ class Mixmymeals_Recipe {
 			$schema['recipeIngredient'] = $ingredients;
 		}
 
-		// Instructions as HowToStep list.
-		$steps = array();
-		foreach ( (array) $this->get_steps() as $step ) {
+		/*
+		 * Instructions as HowToStep list. Each step links to its own anchor
+		 * on the recipe page (the index is the one the renderers pass to
+		 * Mixmymeals_Shortcodes::step_anchor(), so both read get_steps()),
+		 * and carries the step's own picture where it has one — never the
+		 * recipe's, which would claim every step looks like the dish.
+		 */
+		$permalink = (string) get_permalink( $recipe_id );
+		$steps     = array();
+		foreach ( (array) $this->get_steps() as $index => $step ) {
 			$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) ( $step['description'] ?? '' ) ) ) );
 			$name = trim( wp_strip_all_tags( (string) ( $step['title'] ?? '' ) ) );
 			if ( '' === $text && '' === $name ) {
@@ -4354,7 +4361,15 @@ class Mixmymeals_Recipe {
 				$how_to['name'] = $name;
 			}
 			$how_to['text'] = '' !== $text ? $text : $name;
-			$steps[]        = $how_to;
+			if ( '' !== $permalink ) {
+				$how_to['url'] = $permalink . '#' . Mixmymeals_Shortcodes::step_anchor( (int) $index );
+			}
+			$image_id = (int) ( $step['image'] ?? 0 );
+			$image    = $image_id ? wp_get_attachment_image_url( $image_id, 'full' ) : false;
+			if ( $image ) {
+				$how_to['image'] = $image;
+			}
+			$steps[] = $how_to;
 		}
 		if ( $steps ) {
 			$schema['recipeInstructions'] = $steps;

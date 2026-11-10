@@ -2588,7 +2588,13 @@ msgid "Profile Picture"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:3590
-msgid "Shown like a WordPress author’s profile picture. Only used for an external author; without a name the WordPress author’s own avatar is shown."
+msgid "Only used for an external author. Without a name the box shows the WordPress author with the picture from their user profile."
+msgstr ""
+
+msgid "Author box"
+msgstr ""
+
+msgid "Shown in the author box of recipes and meal plans this account wrote, unless the post names an external author. Served from this site — no Gravatar."
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:3594

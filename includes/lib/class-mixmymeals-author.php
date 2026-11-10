@@ -629,4 +629,145 @@ class Mixmymeals_Author {
 
 		self::save_term_data( $term_id, $data );
 	}
+
+	/* ---------------------------------------------------------------------
+	 * Profile picture of a WordPress author
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Registers the picture field on the user profile screens. Once per
+	 * request, like register_term_admin().
+	 *
+	 * @return void
+	 */
+	public static function register_user_admin(): void {
+
+		static $done = false;
+
+		if ( $done ) {
+			return;
+		}
+
+		$done = true;
+
+		add_action( 'show_user_profile', array( __CLASS__, 'render_user_fields' ) );
+		add_action( 'edit_user_profile', array( __CLASS__, 'render_user_fields' ) );
+		add_action( 'personal_options_update', array( __CLASS__, 'save_user_fields' ) );
+		add_action( 'edit_user_profile_update', array( __CLASS__, 'save_user_fields' ) );
+	}
+
+	/**
+	 * Whether a user can carry an author picture: only accounts that may
+	 * upload media, i.e. the site's own editors and authors.
+	 *
+	 * Visitor accounts (meal mixers) save plans whose author box falls back to
+	 * their account; the privacy text promises that only the display name is
+	 * shown there. Checking on read as well as write keeps that true even for
+	 * a picture stored before the account lost the capability.
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	public static function user_may_have_image( int $user_id ): bool {
+		return $user_id > 0 && user_can( $user_id, 'upload_files' );
+	}
+
+	/**
+	 * The author-box picture of a WordPress user, or 0.
+	 *
+	 * Replaces the Gravatar the box used to show (removed in 3.33.0, because
+	 * every visitor's browser would have asked Automattic for it). This one is
+	 * an attachment of this site. A deleted attachment or a non-image reads
+	 * as no picture.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int Attachment ID.
+	 */
+	public static function get_user_image_id( int $user_id ): int {
+
+		if ( ! self::user_may_have_image( $user_id ) ) {
+			return 0;
+		}
+
+		$image_id = (int) get_user_meta( $user_id, self::IMAGE, true );
+
+		return $image_id > 0 && wp_attachment_is_image( $image_id ) ? $image_id : 0;
+	}
+
+	/**
+	 * Stores or clears the author-box picture of a user. 0 or a non-image
+	 * deletes the row.
+	 *
+	 * @param int $user_id  User ID.
+	 * @param int $image_id Attachment ID.
+	 * @return void
+	 */
+	public static function set_user_image_id( int $user_id, int $image_id ): void {
+
+		if ( $image_id > 0 && wp_attachment_is_image( $image_id ) && self::user_may_have_image( $user_id ) ) {
+			update_user_meta( $user_id, self::IMAGE, $image_id );
+			return;
+		}
+
+		delete_user_meta( $user_id, self::IMAGE );
+	}
+
+	/**
+	 * Picture field on the profile screen. Same markup as the post's author
+	 * box, so admin.js's media picker drives it unchanged.
+	 *
+	 * @param WP_User $user Edited user.
+	 * @return void
+	 */
+	public static function render_user_fields( $user ): void {
+
+		if ( ! $user instanceof WP_User || ! self::user_may_have_image( (int) $user->ID ) ) {
+			return;
+		}
+
+		$image_id  = self::get_user_image_id( (int) $user->ID );
+		$image_url = $image_id ? (string) wp_get_attachment_image_url( $image_id, 'thumbnail' ) : '';
+
+		wp_nonce_field( 'mmm_author_user_image', 'mmm_author_user_image_nonce' );
+
+		echo '<h2>' . esc_html__( 'Author box', 'mixmymeals' ) . '</h2>'
+			. '<table class="form-table" role="presentation"><tr>'
+			. '<th scope="row"><label for="mmm_author_image_button">' . esc_html__( 'Profile Picture', 'mixmymeals' ) . '</label></th>'
+			. '<td><div class="mmm-author-image-field">'
+			. '<input type="hidden" class="mmm-author-image-id" id="mmm_author_image" name="mmm_author_image" value="'
+			. esc_attr( $image_id ? (string) $image_id : '' ) . '" />'
+			. '<img src="' . esc_url( $image_url ) . '" class="mmm-author-image-preview" alt=""'
+			. ( '' === $image_url ? ' style="display:none;"' : '' ) . ' />'
+			. '<p>'
+			. '<button type="button" class="button mmm-author-image-select" id="mmm_author_image_button">'
+			. esc_html__( 'Select Image', 'mixmymeals' ) . '</button> '
+			. '<button type="button" class="button-link mmm-author-image-remove"'
+			. ( '' === $image_url ? ' style="display:none;"' : '' ) . '>'
+			. esc_html__( 'Remove', 'mixmymeals' ) . '</button>'
+			. '</p><p class="description">'
+			. esc_html__( 'Shown in the author box of recipes and meal plans this account wrote, unless the post names an external author. Served from this site — no Gravatar.', 'mixmymeals' )
+			. '</p></div></td></tr></table>';
+	}
+
+	/**
+	 * Saves the picture field of the profile screen.
+	 *
+	 * @param int $user_id Edited user.
+	 * @return void
+	 */
+	public static function save_user_fields( int $user_id ): void {
+
+		if ( ! isset( $_POST['mmm_author_user_image_nonce'] )
+			|| ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['mmm_author_user_image_nonce'] ) ), 'mmm_author_user_image' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			return;
+		}
+
+		$image_id = isset( $_POST['mmm_author_image'] ) ? absint( wp_unslash( $_POST['mmm_author_image'] ) ) : 0;
+
+		self::set_user_image_id( $user_id, $image_id );
+	}
 }
