@@ -324,7 +324,8 @@ class Mixmymeals_Subscriptions {
 	 */
 	public static function create_pending( int $plan_id, string $email, string $name, string $start = '' ) {
 
-		if ( get_post_type( $plan_id ) !== 'mmm_meal_plan' || 'publish' !== get_post_status( $plan_id ) ) {
+		// The mails print the plan: nobody subscribes to one they are locked out of.
+		if ( get_post_type( $plan_id ) !== 'mmm_meal_plan' || 'publish' !== get_post_status( $plan_id ) || Mixmymeals_Post_Types::is_locked( $plan_id ) ) {
 			return new WP_Error( 'plan_unavailable', __( 'This meal plan is not available.', 'mixmymeals' ) );
 		}
 

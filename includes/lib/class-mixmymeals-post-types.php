@@ -72,6 +72,79 @@ class Mixmymeals_Post_Types {
 	}
 
 	/**
+	 * The post whose password protects this one: a meal is protected by its
+	 * plan (a meal has no password field of its own worth setting — it is
+	 * a page of the plan), everything else by itself.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return WP_Post|null
+	 */
+	private static function password_owner( int $post_id ): ?WP_Post {
+
+		$post = get_post( $post_id );
+
+		if ( ! $post instanceof WP_Post ) {
+			return null;
+		}
+
+		if ( 'mmm_meal' === $post->post_type && $post->post_parent > 0 && '' === (string) $post->post_password ) {
+			$parent = get_post( $post->post_parent );
+
+			return $parent instanceof WP_Post ? $parent : $post;
+		}
+
+		return $post;
+	}
+
+	/**
+	 * Whether the post is password-protected at all — the question of every
+	 * channel that has no visitor who could have entered the password:
+	 * listings, structured data, social tags, the page Bring! fetches, REST.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function has_password( int $post_id ): bool {
+
+		$owner = self::password_owner( $post_id );
+
+		return null !== $owner && '' !== (string) $owner->post_password;
+	}
+
+	/**
+	 * Whether this visitor is still locked out of the post: it is
+	 * password-protected and they have not entered the password (core's
+	 * post_password_required(), asked of the plan for a meal).
+	 *
+	 * **Core protects the_content() and nothing else.** A template or
+	 * endpoint that prints a recipe, plan or meal any other way — the child
+	 * theme's singles, every AJAX answer about one plan — has to ask here
+	 * first; the form to print instead is password_form().
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_locked( int $post_id ): bool {
+
+		$owner = self::password_owner( $post_id );
+
+		return null !== $owner && post_password_required( $owner );
+	}
+
+	/**
+	 * Core's password form for the post that protects this one.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function password_form( int $post_id ): string {
+
+		$owner = self::password_owner( $post_id );
+
+		return null !== $owner ? get_the_password_form( $owner ) : '';
+	}
+
+	/**
 	 * Sets or clears the flag. Listed posts carry no meta at all.
 	 *
 	 * @param int  $post_id  Post ID.
@@ -109,6 +182,12 @@ class Mixmymeals_Post_Types {
 	 * @return array
 	 */
 	public static function exclude_unlisted( array $args ): array {
+
+		// A password-protected post is not listed either: a card would show
+		// its dishes and figures to everybody.
+		if ( ! array_key_exists( 'has_password', $args ) ) {
+			$args['has_password'] = false;
+		}
 
 		$existing = isset( $args['meta_query'] ) && is_array( $args['meta_query'] )
 			? $args['meta_query']
@@ -171,6 +250,12 @@ class Mixmymeals_Post_Types {
 		$meta_query[] = self::unlisted_clause();
 
 		$query->set( 'meta_query', $meta_query );
+
+		// Nor password-protected ones, on the plugin's own archives. The
+		// site search is left to core: it also lists posts and pages.
+		if ( ! $query->is_search() ) {
+			$query->set( 'has_password', false );
+		}
 	}
 
 	/**
@@ -1463,6 +1548,7 @@ class Mixmymeals_Post_Types {
 		 * plan's people.
 		 */
 		$noindex = is_singular( self::NOINDEX_POST_TYPES )
+			|| ( is_singular() && self::has_password( (int) get_queried_object_id() ) )
 			|| ( is_singular( 'mmm_meal_plan' ) && ( Mixmymeals_Meal_Plan::has_servings_param() || Mixmymeals_Meal_Plan::has_eater_param() ) );
 
 		/**
@@ -1536,6 +1622,12 @@ class Mixmymeals_Post_Types {
 		 * @param bool $enabled Default true.
 		 */
 		if ( ! apply_filters( 'mixmymeals_seo_schema_enabled', true ) ) {
+			return;
+		}
+
+		// Structured data is the whole recipe or plan, for a reader who
+		// enters no password.
+		if ( is_singular() && self::has_password( (int) get_queried_object_id() ) ) {
 			return;
 		}
 
@@ -1692,7 +1784,7 @@ class Mixmymeals_Post_Types {
 	public static function meta_description( int $post_id ): string {
 
 		$post = get_post( $post_id );
-		if ( ! $post ) {
+		if ( ! $post || self::has_password( $post_id ) ) {
 			return '';
 		}
 

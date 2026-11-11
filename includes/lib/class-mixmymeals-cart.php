@@ -978,7 +978,7 @@ class Mixmymeals_Cart {
 		$meal_plan_id = intval( $_POST['meal_plan_id'] ?? 0 );
 
 		$post = get_post( $meal_plan_id );
-		if ( ! $post || $post->post_type !== 'mmm_meal_plan' || $post->post_status !== 'publish' ) {
+		if ( ! $post || $post->post_type !== 'mmm_meal_plan' || $post->post_status !== 'publish' || Mixmymeals_Post_Types::is_locked( $meal_plan_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Meal Plan not found.', 'mixmymeals' ) ) );
 		}
 

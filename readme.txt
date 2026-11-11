@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.76.2
+Stable tag: 3.76.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,25 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.76.3 =
+
+Security:
+* Password protection of a meal plan is honoured beyond its text.
+  WordPress protects only the post content, and a plan is mostly not
+  content: its meals, shopping list and figures were readable on the
+  Bring! page, through "load into planner", over REST and on listing
+  cards, password or not. A protected plan now gives none of them to a
+  visitor who has not entered the password, its meals are protected by
+  the plan's password, and it is left out of listings, structured data,
+  social tags and descriptions and marked noindex. Recipes with a
+  password are treated the same over REST and in listings.
+* A theme that prints a plan, meal or recipe through shortcodes outside
+  the post content must ask `Mixmymeals_Post_Types::is_locked()` first
+  and print `password_form()` instead; the MixMyMeals Astra child theme
+  does so from 1.18.3.
+* REST: `GET /product-impact` checked neither status nor password and
+  now does, like the other read routes.
 
 = 3.76.2 =
 

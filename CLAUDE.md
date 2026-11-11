@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.76.2, text domain `mixmymeals`, PHP 8.0+) for meal planning: recipes, ingredients, products, meals and meal plans, with a shopping list generator and a frontend planner (the "cart") for building custom plans. Two companion plugins depend on it but are unknown to it: `mixmymeals-social` (Instagram/Pinterest) and `mixmymeals-printer` (PDF export). They reach this plugin only through the extension points listed under *Add-ons*. This plugin makes no external API calls.
+MixMyMeals is a WordPress plugin (v3.76.3, text domain `mixmymeals`, PHP 8.0+) for meal planning: recipes, ingredients, products, meals and meal plans, with a shopping list generator and a frontend planner (the "cart") for building custom plans. Two companion plugins depend on it but are unknown to it: `mixmymeals-social` (Instagram/Pinterest) and `mixmymeals-printer` (PDF export). They reach this plugin only through the extension points listed under *Add-ons*. This plugin makes no external API calls.
 
 ## Development commands
 
@@ -30,7 +30,7 @@ wp --exec="define('DB_HOST','localhost:<socket>');" \
    eval-file wp-content/plugins/mixmymeals/tools/diet-test.php
 ```
 
-Test posts are titled `T …` or `R<n>` and carry the brand `ZZ`, so a run cut short leaves something recognisable to clean up. One script per subject — `diet`, `meal-diet`, `excluded-products`, `reference-product`, `product-usage`, `bulk-update`, `cooking-factor`, `nutrition-coverage`, `traffic-light`, `reference-intake`, `prep-steps`, `meal-text`, `plan-meals`, `plan-number`, `plan-servings`, `plan-eaters`, `plan-subscribe`, `planner-shopping`, `planner-templates`, `cart-share`, `equipment`, `privacy-policy`, `admin-structure`, `author-image`. Run the one for the subject you touched.
+Test posts are titled `T …` or `R<n>` and carry the brand `ZZ`, so a run cut short leaves something recognisable to clean up. One script per subject — `diet`, `meal-diet`, `excluded-products`, `reference-product`, `product-usage`, `bulk-update`, `cooking-factor`, `nutrition-coverage`, `traffic-light`, `reference-intake`, `prep-steps`, `meal-text`, `password`, `plan-meals`, `plan-number`, `plan-servings`, `plan-eaters`, `plan-subscribe`, `planner-shopping`, `planner-templates`, `cart-share`, `equipment`, `privacy-policy`, `admin-structure`, `author-image`. Run the one for the subject you touched.
 
 Conventions the scripts rely on:
 - Save callbacks are tested by a **round trip through the callback**, not through the setter behind it (see *Recipes*).
@@ -68,6 +68,7 @@ These are the lessons behind most of the bugs this codebase has had. Each sectio
 - **Bulk endpoints: per-item failures continue, a caller bug (unknown enum, unknown key) rejects the whole request** before anything is written.
 - **Plugin computes, theme presents** (see *Plugin vs. theme*).
 - **Anything touching personal data changes `Mixmymeals_Privacy::policy_section_html()`**; **anything that deletes data calls `Mixmymeals_Cleanup::record()`**.
+- **Core protects `the_content()` and nothing else.** A password on a plan, recipe or meal is honoured only where code asks: `Mixmymeals_Post_Types::is_locked( $id )` for a visitor who may have entered it (pages, AJAX, "load into planner", subscribing), `has_password( $id )` for channels with nobody to enter it (REST via `may_read()`, the Bring! page, schema, OG tags, `meta_description()`, noindex), `password_form( $id )` for what to print instead. A meal is protected by its plan's password. `exclude_unlisted()` and the archive main query leave protected posts out (`has_password => false`). A new way to read a plan needs one of these; the child theme's singles call `mmm_render_locked_single()`. Not covered: the Printer's PDF endpoint.
 - **Public names (slugs, query vars, action names, CSS classes used by the theme or add-ons) are API.** Before adding a path under `/rezepte/`, check existing recipe slugs. Before renaming a tab, add the old key to `TAB_ALIASES`. Before changing a method the Printer calls, see *Add-ons*.
 
 ## Architecture

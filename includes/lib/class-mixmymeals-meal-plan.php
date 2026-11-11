@@ -4326,7 +4326,14 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		$plan_id = (int) get_queried_object_id();
-		$plan    = new self( $plan_id );
+
+		// Bring! fetches this page itself and enters no password: a
+		// protected plan answers with its ordinary page, which asks for it.
+		if ( Mixmymeals_Post_Types::has_password( $plan_id ) ) {
+			return;
+		}
+
+		$plan = new self( $plan_id );
 
 		// ?mmm_persons_to_add travels along from bring_deeplink(); invalid is ignored.
 		$schema = $plan->with_servings_offset( $plan->requested_servings_offset() )->get_bring_recipe_schema();

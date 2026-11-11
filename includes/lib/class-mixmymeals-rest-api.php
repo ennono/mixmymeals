@@ -726,10 +726,28 @@ class Mixmymeals_Rest_Api {
 	 * @return WP_Error|null WP_Error (403) when not allowed, otherwise null.
 	 */
 	private function require_can_read( int $id ): ?WP_Error {
-		if ( 'publish' !== get_post_status( $id ) && ! current_user_can( 'edit_post', $id ) ) {
+		if ( ! $this->may_read( $id ) ) {
 			return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		}
 		return null;
+	}
+
+	/**
+	 * Whether the caller may read the post: published and not
+	 * password-protected (a meal by its plan's password), or theirs to
+	 * edit. A REST caller enters no password, so a protected post is an
+	 * editor's only.
+	 *
+	 * @param int $id Post ID.
+	 * @return bool
+	 */
+	private function may_read( int $id ): bool {
+
+		if ( current_user_can( 'edit_post', $id ) ) {
+			return true;
+		}
+
+		return 'publish' === get_post_status( $id ) && ! Mixmymeals_Post_Types::has_password( $id );
 	}
 
 	/**
@@ -756,6 +774,12 @@ class Mixmymeals_Rest_Api {
 	 * @return WP_REST_Response
 	 */
 	private function paged_response( array $items, WP_REST_Request $request, callable $serialize ): WP_REST_Response {
+
+		// A password-protected post is listed for those who may edit it only.
+		$items = array_filter(
+			$items,
+			fn( $item ) => ! $item instanceof WP_Post || '' === (string) $item->post_password || current_user_can( 'edit_post', $item->ID )
+		);
 
 		$total    = count( $items );
 		$per_page = (int) $request->get_param( 'per_page' );
@@ -897,6 +921,14 @@ class Mixmymeals_Rest_Api {
 		$post_id = (int) $request->get_param( 'post_id' );
 		$type    = get_post_type( $post_id );
 		$recipe  = null;
+
+		// Published and not behind a password, like every other read — a
+		// meal by its plan as well. This route checked neither.
+		$parent_id = 'mmm_meal' === $type ? (int) wp_get_post_parent_id( $post_id ) : 0;
+
+		if ( $type && ( ! $this->may_read( $post_id ) || ( $parent_id > 0 && ! $this->may_read( $parent_id ) ) ) ) {
+			return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
 
 		if ( 'mmm_meal' === $type ) {
 			// As the meal cooks it, the way [mmm_meal_product_impact] reads it.
@@ -1368,7 +1400,7 @@ class Mixmymeals_Rest_Api {
 			return $this->require_can_edit( $id ) ?? $post;
 		}
 
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) {
+		if ( ! $this->may_read( (int) $id ) ) {
 			return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		}
 
@@ -1701,7 +1733,7 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( $this->serialize_recipe( $id ), 200 );
 	}
 
@@ -1740,7 +1772,7 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		$recipe = new Mixmymeals_Recipe( $id );
 		return new WP_REST_Response( array(
 			'per_serving'      => $recipe->calculate_nutrition_per_serving(),
@@ -1753,7 +1785,7 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( ( new Mixmymeals_Recipe( $id ) )->get_ingredients_scaled( floatval( $request->get_param( 'scale' ) ) ), 200 );
 	}
 
@@ -1768,7 +1800,7 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || 'mmm_recipe' !== $post->post_type ) return new WP_Error( 'not_found', 'Recipe not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		$equipment_ids = ( new Mixmymeals_Recipe( $id ) )->get_equipment();
 		$items = array_filter( array_map(
 			fn( $eq_id ) => Mixmymeals_Equipment::exists_by_id( $eq_id ) ? $this->serialize_equipment( $eq_id ) : null,
@@ -1999,7 +2031,7 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || $post->post_type !== 'mmm_meal_plan' ) return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( $this->serialize_meal_plan( $id ), 200 );
 	}
 
@@ -2058,7 +2090,7 @@ class Mixmymeals_Rest_Api {
 		$id   = $request->get_param( 'id' );
 		$post = get_post( $id );
 		if ( ! $post || $post->post_type !== 'mmm_meal_plan' ) return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		$plan = new Mixmymeals_Meal_Plan( $id );
 		return new WP_REST_Response(
 			array_map( fn( $m ) => $this->serialize_meal( $m->ID ), $plan->get_meals() ),
@@ -2070,7 +2102,7 @@ class Mixmymeals_Rest_Api {
 		$plan_id = $request->get_param( 'id' );
 		$post    = get_post( $plan_id );
 		if ( ! $post || $post->post_type !== 'mmm_meal_plan' ) return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $plan_id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $plan_id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		$plan   = new Mixmymeals_Meal_Plan( $plan_id );
 		$raw    = $plan->calc_shopping_list();
 		$result = array();
@@ -2116,7 +2148,7 @@ class Mixmymeals_Rest_Api {
 		$plan_id = $request->get_param( 'id' );
 		$post    = get_post( $plan_id );
 		if ( ! $post || $post->post_type !== 'mmm_meal_plan' ) return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
-		if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', $plan_id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $this->may_read( (int) $plan_id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		$equipment_ids = ( new Mixmymeals_Meal_Plan( $plan_id ) )->get_required_equipment();
 		return new WP_REST_Response( array_map( fn( $id ) => $this->serialize_equipment( $id ), $equipment_ids ), 200 );
 	}
@@ -2260,7 +2292,7 @@ class Mixmymeals_Rest_Api {
 		if ( ! $post || $post->post_type !== 'mmm_meal' ) return new WP_Error( 'not_found', 'Meal not found.', array( 'status' => 404 ) );
 		$plan_id   = ( new Mixmymeals_Meal( $id ) )->get_parent_plan_id();
 		$plan_post = $plan_id ? get_post( $plan_id ) : null;
-		if ( ! $plan_post || ( 'publish' !== $plan_post->post_status && ! current_user_can( 'edit_post', $plan_id ) ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		if ( ! $plan_post || ! $this->may_read( (int) $plan_id ) || ! $this->may_read( (int) $id ) ) return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
 		return new WP_REST_Response( $this->serialize_meal( $id ), 200 );
 	}
 
