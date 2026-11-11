@@ -5287,6 +5287,18 @@ class Mixmymeals_Shortcodes {
 					400
 				);
 			}
+
+			// The sign-up form's own limit, for guests and accounts alike:
+			// every save with an address sends a mail to that address.
+			if ( '' !== $sub_email && Mixmymeals_Subscriptions::signup_rate_limited() ) {
+				wp_send_json_error(
+					[
+						'code'    => 'subscribe_rate_limit',
+						'message' => __( 'Too many requests. Please try again later.', 'mixmymeals' ),
+					],
+					429
+				);
+			}
 		}
 
 		// Quota to limit meal plan posting per IP for non-logged-in visitors:
@@ -5336,9 +5348,11 @@ class Mixmymeals_Shortcodes {
 			);
 		}
 
-		// Max-Items hart erzwingen (auch wenn jemand POST fälscht)
-		$max = (int) get_option( 'mixmymeals_max_items_in_cart', 0 );
-		if ( $max > 0 && count( $items ) > $max ) {
+		// Max-Items hart erzwingen (auch wenn jemand POST fälscht). The
+		// planner's own limit, read where the planner reads it: this used
+		// to default to "no limit" and took any number of meals in one post.
+		$max = Mixmymeals_Cart::max_items();
+		if ( count( $items ) > $max ) {
 			wp_send_json_error(
 				[
 					'code'    => 'max_items',
@@ -5355,28 +5369,35 @@ class Mixmymeals_Shortcodes {
 		// Strikt säubern/validieren
 		$clean_items = [];
 
+		// Servings above the usual cap pass only where the planner already
+		// holds as many — a plan loaded into it may have come with more.
+		$cart_servings = array_map(
+			static fn( $cart_item ) => (int) ( $cart_item['servings'] ?? 0 ),
+			( new Mixmymeals_Cart() )->get_items()
+		);
+		$known_servings = $cart_servings ? max( $cart_servings ) : 0;
+
 		foreach ( $items as $item ) {
+
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
 
 			$recipe_id = isset( $item['recipe_id'] ) ? (int) $item['recipe_id']
 				: 0;
-			if ( $recipe_id <= 0 ) {
+
+			// A published recipe, nothing else: the saved plan is a public
+			// page that prints the recipe in full.
+			if ( ! Mixmymeals_Cart::recipe_is_plannable( $recipe_id ) ) {
 				continue;
 			}
 
-			// Rezept muss existieren und richtiger Post-Type
-			if ( get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
-				continue;
-			}
-
-			$day = isset( $item['day'] ) ? (int) $item['day'] : null;
-			if ( $day !== null && ( $day < 1 || $day > 7 ) ) {
-				$day = null;
-			}
+			$day = Mixmymeals_Cart::clean_day( $item['day'] ?? null );
 
 			$clean_items[] = [
 				'recipe_id' => $recipe_id,
-				'servings'  => max( 1, (int) ( $item['servings'] ?? 1 ) ),
-				'type'      => sanitize_text_field( $item['type'] ?? '' ),
+				'servings'  => Mixmymeals_Cart::clean_servings( $item['servings'] ?? 1, $known_servings ),
+				'type'      => Mixmymeals_Cart::clean_type( $item['type'] ?? '' ),
 				//'note'      => sanitize_textarea_field( $item['note'] ?? '' ),
 				'day'       => $day,
 				// Checked again by set_diet() against the recipe.
@@ -5528,6 +5549,7 @@ class Mixmymeals_Shortcodes {
 		$subscribed = false;
 
 		if ( '' !== $sub_email && $sub_agree && 'publish' === $post_status ) {
+			Mixmymeals_Subscriptions::count_signup();
 			$sub_id     = Mixmymeals_Subscriptions::create_pending( $meal_plan_id, $sub_email, $sub_name );
 			$subscribed = ! is_wp_error( $sub_id );
 		}
@@ -5845,11 +5867,8 @@ class Mixmymeals_Shortcodes {
 						</span>
 							<?php
 							$mmm_pinned = (string) ( $ingredient['pinned'] ?? '0' );
-							echo $this->row_product_markup( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
-								(int) $ingredient['id'],
-								(int) $mmm_pinned,
-								0 === strpos( $mmm_pinned, 'open:' ) ? substr( $mmm_pinned, 5 ) : ''
-							);
+							$mmm_open   = 0 === strpos( $mmm_pinned, 'open:' ) ? substr( $mmm_pinned, 5 ) : '';
+							echo $this->row_product_markup( (int) $ingredient['id'], (int) $mmm_pinned, $mmm_open ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 							?>
 
 							<?php if ( ! empty( $ingredient['amount'] ) ) :

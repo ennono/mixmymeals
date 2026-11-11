@@ -1,13 +1,12 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 3.76.1
+ * Version: 3.76.2
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner and nutrition data.
  * Author: Timo Fricke
  * Requires PHP: 8.0
  * Requires at least: 6.0
- * Tested up to: 7.0
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -102,7 +101,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '3.76.1' );
+	$instance = Mixmymeals::instance( __FILE__, '3.76.2' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );

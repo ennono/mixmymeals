@@ -17,6 +17,7 @@
 
 # Stray tooling / build artefacts (must never ship)
 *.phar
+*.whl
 /wp-cli.phar
 
 # Composer & dev tooling

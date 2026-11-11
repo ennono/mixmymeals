@@ -718,6 +718,64 @@ class Mixmymeals_Rest_Api {
 	}
 
 	/**
+	 * Object-level read guard: a published post, or one the current user
+	 * may edit. The public read routes of ingredients, units and products
+	 * answered for drafts as well.
+	 *
+	 * @param int $id Post ID.
+	 * @return WP_Error|null WP_Error (403) when not allowed, otherwise null.
+	 */
+	private function require_can_read( int $id ): ?WP_Error {
+		if ( 'publish' !== get_post_status( $id ) && ! current_user_can( 'edit_post', $id ) ) {
+			return new WP_Error( 'forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
+		return null;
+	}
+
+	/**
+	 * How many items a public listing returns per page, and the most a
+	 * caller may ask for.
+	 */
+	const LIST_PER_PAGE     = 50;
+	const LIST_PER_PAGE_MAX = 100;
+
+	/**
+	 * One page of a listing, serialised.
+	 *
+	 * The public listings answered with everything at once — several
+	 * hundred kilobytes built from scratch on every call, for anybody. A
+	 * caller who may edit still gets the whole list unless it asks for
+	 * pages (the MCP server reads these routes that way); everybody else
+	 * gets `per_page` items (default LIST_PER_PAGE, at most
+	 * LIST_PER_PAGE_MAX) of page `page`. Either way the totals travel in
+	 * `X-WP-Total` and `X-WP-TotalPages`, as core's own routes send them.
+	 *
+	 * @param array           $items     Everything the listing holds.
+	 * @param WP_REST_Request $request   Request (`page`, `per_page`).
+	 * @param callable        $serialize Turns one item into its response.
+	 * @return WP_REST_Response
+	 */
+	private function paged_response( array $items, WP_REST_Request $request, callable $serialize ): WP_REST_Response {
+
+		$total    = count( $items );
+		$per_page = (int) $request->get_param( 'per_page' );
+		$pages    = $total > 0 ? 1 : 0;
+
+		if ( $per_page > 0 || ! current_user_can( 'edit_others_posts' ) ) {
+			$per_page = max( 1, min( self::LIST_PER_PAGE_MAX, $per_page > 0 ? $per_page : self::LIST_PER_PAGE ) );
+			$page     = max( 1, (int) $request->get_param( 'page' ) );
+			$pages    = (int) ceil( $total / $per_page );
+			$items    = array_slice( $items, ( $page - 1 ) * $per_page, $per_page );
+		}
+
+		$response = new WP_REST_Response( array_map( $serialize, array_values( $items ) ), 200 );
+		$response->header( 'X-WP-Total', (string) $total );
+		$response->header( 'X-WP-TotalPages', (string) $pages );
+
+		return $response;
+	}
+
+	/**
 	 * Object-level write guard: the current user must be able to edit THIS post.
 	 *
 	 * @param int $id Post ID.
@@ -918,6 +976,12 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'not_found', 'Product not found.', array( 'status' => 404 ) );
 		}
 
+		// A product is as public as the ingredient it belongs to.
+		$guard = $this->require_can_read( $id ) ?? $this->require_can_read( $product->get_ingredient_id() );
+		if ( $guard ) {
+			return $guard;
+		}
+
 		return new WP_REST_Response( $this->serialize_product( $id ), 200 );
 	}
 
@@ -926,6 +990,11 @@ class Mixmymeals_Rest_Api {
 
 		if ( ! ( new Mixmymeals_Ingredient( $ingredient_id ) )->is_valid() ) {
 			return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		}
+
+		$guard = $this->require_can_read( $ingredient_id );
+		if ( $guard ) {
+			return $guard;
 		}
 
 		$out = array();
@@ -1593,7 +1662,7 @@ class Mixmymeals_Rest_Api {
 			'orderby'        => 'title',
 			'order'          => 'ASC',
 		) );
-		return new WP_REST_Response( array_map( fn( $p ) => $this->serialize_recipe( $p->ID ), $posts ), 200 );
+		return $this->paged_response( $posts, $request, fn( $p ) => $this->serialize_recipe( $p->ID ) );
 	}
 
 	public function create_recipe( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -1713,16 +1782,15 @@ class Mixmymeals_Rest_Api {
 	// =========================================================
 
 	public function get_ingredients( WP_REST_Request $request ): WP_REST_Response {
-		return new WP_REST_Response(
-			array_map( fn( $p ) => $this->serialize_ingredient( $p->ID ), Mixmymeals_Ingredient::get_all_ingredients() ),
-			200
-		);
+		return $this->paged_response( Mixmymeals_Ingredient::get_all_ingredients(), $request, fn( $p ) => $this->serialize_ingredient( $p->ID ) );
 	}
 
 	public function get_ingredient( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$id  = $request->get_param( 'id' );
 		$ing = new Mixmymeals_Ingredient( $id );
 		if ( ! $ing->is_valid() ) return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_read( (int) $id );
+		if ( $guard ) return $guard;
 		return new WP_REST_Response( $this->serialize_ingredient( $id ), 200 );
 	}
 
@@ -1823,6 +1891,8 @@ class Mixmymeals_Rest_Api {
 		$id  = $request->get_param( 'id' );
 		$ing = new Mixmymeals_Ingredient( $id );
 		if ( ! $ing->is_valid() ) return new WP_Error( 'not_found', 'Ingredient not found.', array( 'status' => 404 ) );
+		$guard = $this->require_can_read( (int) $id );
+		if ( $guard ) return $guard;
 		return new WP_REST_Response(
 			array_map( fn( $u ) => $this->serialize_ingr_unit( $u->ID ), $ing->get_units() ),
 			200
@@ -1865,6 +1935,12 @@ class Mixmymeals_Rest_Api {
 			return new WP_Error( 'not_found', 'Unit not found.', array( 'status' => 404 ) );
 		}
 
+		// A unit is as public as the ingredient it belongs to.
+		$guard = $this->require_can_read( $unit->get_parent_ingredient_id() );
+		if ( $guard ) {
+			return $guard;
+		}
+
 		return new WP_REST_Response( $this->serialize_ingr_unit( $id ), 200 );
 	}
 
@@ -1892,11 +1968,7 @@ class Mixmymeals_Rest_Api {
 	// =========================================================
 
 	public function get_meal_plans( WP_REST_Request $request ): WP_REST_Response {
-		$plans = Mixmymeals_Meal_Plan::get_all_meal_plans();
-		return new WP_REST_Response(
-			array_map( fn( $p ) => $this->serialize_meal_plan( $p->ID ), $plans ),
-			200
-		);
+		return $this->paged_response( Mixmymeals_Meal_Plan::get_all_meal_plans(), $request, fn( $p ) => $this->serialize_meal_plan( $p->ID ) );
 	}
 
 	public function create_meal_plan( WP_REST_Request $request ): WP_REST_Response|WP_Error {

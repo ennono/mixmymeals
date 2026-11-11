@@ -101,7 +101,65 @@ echo '-- 6. An empty planner has nothing to share' . PHP_EOL;
 $cart->clear();
 $ok( 'refused', empty( $call( 'mmm_share_cart_ajax_callback', array() )['success'] ) );
 
+echo '-- 7. Only a published recipe can be planned' . PHP_EOL;
+$draft = wp_insert_post( array( 'post_type' => 'mmm_recipe', 'post_title' => 'ZZ Share Entwurf', 'post_status' => 'draft' ) );
+$ok( 'a draft is refused', empty( $call( 'mmm_add_recipe_to_cart_ajax_callback', array( 'recipe_id' => $draft ) )['success'] ) );
+$ok( 'and nothing is in the planner', 0 === count( $cart->get_items() ) );
+$ok( 'a published one is taken', ! empty( $call( 'mmm_add_recipe_to_cart_ajax_callback', array( 'recipe_id' => $r1, 'servings' => 999999, 'type' => 'erfunden', 'day' => 9 ) )['success'] ) );
+$item = $cart->get_items()[0] ?? array();
+$ok( 'servings stop at the cap', Mixmymeals_Meal_Plan::SERVINGS_MEAL_MAX === (int) ( $item['servings'] ?? 0 ) );
+$ok( 'an unknown type is none', '' === ( $item['type'] ?? null ) );
+$ok( 'a day outside the week is none', array_key_exists( 'day', $item ) && null === $item['day'] );
+
+echo '-- 8. Changing an item is checked like adding one' . PHP_EOL;
+$res  = $call( 'mmm_update_cart_item_ajax_callback', array( 'index' => 0, 'servings' => 777, 'type' => 'frei erfunden', 'day' => 42, 'note' => 'ZZ Notiz' ) );
+$item = $cart->get_items()[0] ?? array();
+$ok( 'answered success', ! empty( $res['success'] ) );
+$ok( 'servings stop at the cap', Mixmymeals_Meal_Plan::SERVINGS_MEAL_MAX === (int) ( $item['servings'] ?? 0 ) );
+$ok( 'an unknown type is none', '' === ( $item['type'] ?? null ) );
+$ok( 'a day outside the week is none', array_key_exists( 'day', $item ) && null === $item['day'] );
+$ok( 'no note is kept', ! array_key_exists( 'note', $item ) );
+$call( 'mmm_update_cart_item_ajax_callback', array( 'index' => 0, 'servings' => 3, 'type' => 'lunch', 'day' => 2 ) );
+$item = $cart->get_items()[0] ?? array();
+$ok( 'valid values are stored', 3 === (int) $item['servings'] && 'lunch' === $item['type'] && 2 === $item['day'] );
+$cart->save_items( array( array( 'recipe_id' => $r1, 'servings' => 80, 'type' => '', 'day' => null ) ) );
+$call( 'mmm_update_cart_item_ajax_callback', array( 'index' => 0, 'servings' => 80, 'day' => 1 ) );
+$ok( 'servings a loaded plan came with are kept', 80 === (int) $cart->get_items()[0]['servings'] );
+
+echo '-- 9. One limit, read in one place' . PHP_EOL;
+update_option( 'mixmymeals_max_items_in_cart', 0 );
+$ok( 'zero is the default, not one and not unlimited', Mixmymeals_Cart::DEFAULT_MAX_ITEMS === Mixmymeals_Cart::max_items() );
+delete_option( 'mixmymeals_max_items_in_cart' );
+$ok( 'never saved is the default', Mixmymeals_Cart::DEFAULT_MAX_ITEMS === Mixmymeals_Cart::max_items() );
+update_option( 'mixmymeals_max_items_in_cart', 100000 );
+$ok( 'the field\'s maximum caps it', Mixmymeals_Cart::MAX_ITEMS_CEILING === Mixmymeals_Cart::max_items() );
+update_option( 'mixmymeals_max_items_in_cart', 2 );
+$cart->clear();
+$cart->add( $r1 );
+$cart->add( $r1 );
+$ok( 'the planner stops at the limit', false === $cart->add( $r1 ) && 2 === count( $cart->get_items() ) );
+
+echo '-- 10. Sharing is limited per address' . PHP_EOL;
+$share_limit = static fn() => 2;
+add_filter( 'mixmymeals_share_rate_limit_per_hour', $share_limit );
+$share_key = 'mmm_rl_share_ip_' . wp_hash( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? 'unknown' ) ) );
+delete_transient( $share_key );
+$made = array();
+foreach ( array( 1, 2, 3 ) as $n ) {
+	$res = $call( 'mmm_share_cart_ajax_callback', array() );
+	if ( ! empty( $res['data']['token'] ) ) {
+		$made[] = $res['data']['token'];
+	}
+}
+$ok( 'two copies are made, the third is refused', 2 === count( $made ) && 'rate_limit' === ( $res['data']['code'] ?? '' ) );
+remove_filter( 'mixmymeals_share_rate_limit_per_hour', $share_limit );
+delete_transient( $share_key );
+foreach ( $made as $made_token ) {
+	delete_transient( Mixmymeals_Cart::SHARE_PREFIX . $made_token );
+}
+
 // Clean up.
+wp_delete_post( $draft, true );
 delete_transient( Mixmymeals_Cart::SHARE_PREFIX . $token );
 $cart->clear();
 wp_delete_post( $r1, true );

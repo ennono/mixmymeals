@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.76.0, text domain `mixmymeals`, PHP 8.0+) for meal planning: recipes, ingredients, products, meals and meal plans, with a shopping list generator and a frontend planner (the "cart") for building custom plans. Two companion plugins depend on it but are unknown to it: `mixmymeals-social` (Instagram/Pinterest) and `mixmymeals-printer` (PDF export). They reach this plugin only through the extension points listed under *Add-ons*. This plugin makes no external API calls.
+MixMyMeals is a WordPress plugin (v3.76.2, text domain `mixmymeals`, PHP 8.0+) for meal planning: recipes, ingredients, products, meals and meal plans, with a shopping list generator and a frontend planner (the "cart") for building custom plans. Two companion plugins depend on it but are unknown to it: `mixmymeals-social` (Instagram/Pinterest) and `mixmymeals-printer` (PDF export). They reach this plugin only through the extension points listed under *Add-ons*. This plugin makes no external API calls.
 
 ## Development commands
 
@@ -334,7 +334,9 @@ A plan carries an ordered list of people; each meal says who eats it and how muc
 
 ### Planner (cart)
 
-`Mixmymeals_Cart` stores items (`recipe_id`, servings, type, day, diet, eaters, portions) in user meta `mixmymeals_cart` (logged in) or a transient keyed by the UUID in cookie `mixmymeals_cart_uuid` (guests). The guest cart merges on login. Max size: `mixmymeals_max_items_in_cart`.
+`Mixmymeals_Cart` stores items (`recipe_id`, servings, type, day, diet, eaters, portions) in user meta `mixmymeals_cart` (logged in) or a transient keyed by the UUID in cookie `mixmymeals_cart_uuid` (guests). The guest cart merges on login. The cookie's value is used as a key only when it is a UUID.
+
+**What a visitor may put in is decided in one place each**, for `mmm_add_to_cart`, `mmm_update_cart_item`, the shared copy and `mmm_create_meal_plan` (which reads its meals from the POST, not from the cart): `Mixmymeals_Cart::recipe_is_plannable()` (published only — a draft planned by its ID would be printed in full on a saved plan), `max_items()` (the only reader of `mixmymeals_max_items_in_cart`; empty/0 = `DEFAULT_MAX_ITEMS` 30, capped at `MAX_ITEMS_CEILING` 100), `clean_servings()` (1 … `SERVINGS_MEAL_MAX`, or what the item already has), `clean_type()`, `clean_day()`. A new visitor-facing write path calls these rather than checking again. Sign-ups are counted once per address for every way to sign up (`Mixmymeals_Subscriptions::signup_rate_limited()` / `count_signup()`), shared copies by `share_within_rate_limit()` (`SHARE_RATE_LIMIT` 20/h, filter `mixmymeals_share_rate_limit_per_hour`).
 
 **Live figures from the same calculation.** `[mmm_planner_nutrition]` (server-rendered first) and AJAX `mmm_planner_nutrition` (nonce `mmm_frontend_nonce`, guests too) answer with:
 - `html`: tiles "Ø …" per day and person (`render_nutrition_tiles()`, shared with the plan page), the table in a `details` (the plan page prints the same table via `[mmm_nutrition_overview_for_a_single_meal_plan]`);
@@ -413,7 +415,7 @@ No SEO class — each post type builds its structure, printing is central:
 
 ### REST API and MCP
 
-Namespace `mixmymeals/v1` (`Mixmymeals_Rest_Api`), base capability `edit_others_posts`: CRUD for recipes, ingredients, units, products, plans, meals; recipe search; post status; `/meal-plans/build` (bulk builder); `/meals/bulk`; `/audit`; the bulk endpoints above. MCP (`tools/mcp-server.mjs`) mirrors them. The Social add-on registers into the same namespace on purpose (MCP addresses those paths).
+Namespace `mixmymeals/v1` (`Mixmymeals_Rest_Api`), base capability `edit_others_posts`: CRUD for recipes, ingredients, units, products, plans, meals; recipe search; post status; `/meal-plans/build` (bulk builder); `/meals/bulk`; `/audit`; the bulk endpoints above. MCP (`tools/mcp-server.mjs`) mirrors them. The read routes are public: each answers only for a published post unless the caller may edit it (`require_can_read()`; units and products follow their ingredient), and the listings `/recipes`, `/ingredients`, `/meal-plans` go through `paged_response()` — paged for the public (`per_page` ≤ 100, default 50), whole for editors unless they ask for pages. The Social add-on registers into the same namespace on purpose (MCP addresses those paths).
 
 **Images**: `POST /media` takes exactly one of multipart `file`, `url` or `attachment_id`, routed through core (`media_handle_upload()` / `media_sideload_image()`); `post_id` sets the parent, `featured: true` the featured image; needs `upload_files`. Recipes/plans carry `featured_image` (0 removes) and read-only `featured_image_url` (`apply_featured_image()`). MCP `mmm_upload_image` posts local files as multipart.
 

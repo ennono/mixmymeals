@@ -1119,7 +1119,7 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'disable_wp_emoji',
 					'label'       => __( 'WordPress emoji', 'mixmymeals' ),
-					'description' => __( 'Do not load WordPress\'s emoji script and emoji images from s.w.org (WordPress Foundation, USA). Browsers show emoji themselves; switched off, the site makes no request to a third party for them and the privacy policy needs no section on it.', 'mixmymeals' ),
+					'description' => __( 'Do not load WordPress\'s emoji script and emoji images from WordPress’s own servers (WordPress Foundation, USA). Browsers show emoji themselves; switched off, the site makes no request to a third party for them and the privacy policy needs no section on it.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'public_mode_callback' ),

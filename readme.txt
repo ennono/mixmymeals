@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.76.1
+Stable tag: 3.76.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,49 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 3.76.2 =
+
+Security:
+* Only published recipes can be planned. The planner and "Save Plan"
+  checked the post type but not the status, so a visitor who knew or
+  guessed the ID of a draft or private recipe could read its title,
+  ingredients and figures in the planner and, where visitors may save
+  plans, publish it in full as a meal of a saved plan.
+* "Save Plan" keeps to the planner's limit. It read the setting with a
+  default of "no limit" and took any number of meals in one request;
+  servings had no upper bound either. Meals are now limited as in the
+  planner, servings to 50 per meal (more only where a plan loaded into
+  the planner already had more).
+* Signing up while saving a plan counts against the same hourly limit
+  per address as the form on a plan's page (5, filter
+  `mixmymeals_subscribe_rate_limit_per_hour`). It had none, so every
+  save could send a confirmation mail to any address.
+* Changing a planner item is checked like adding one: only known meal
+  types, days 1–7, servings within the cap. The `note` it still stored
+  is gone — nothing read it.
+* The planner cookie must hold a UUID before it is used as a storage
+  key, and shared planner copies are limited to 20 per hour and address
+  (filter `mixmymeals_share_rate_limit_per_hour`, 0 = no limit). The
+  privacy-policy section names the counter.
+* REST: `GET /ingredients/{id}`, its `/units` and `/products`,
+  `/units/{id}` and `/products/{id}` no longer answer for an
+  unpublished ingredient unless the caller may edit it.
+
+Changed:
+* "Max. meals in planner": empty or 0 now means 30 everywhere, at most
+  100. Before, 0 meant one meal in the planner and no limit on save.
+* REST: the public listings `GET /recipes`, `/ingredients` and
+  `/meal-plans` are paged for callers who may not edit (`per_page`,
+  default 50, at most 100; `page`), with `X-WP-Total` and
+  `X-WP-TotalPages`. Editors, and with them the MCP server, still get
+  the whole list unless they pass `per_page`.
+
+Fixed:
+* Plugin Check: the "Tested up to" line is in the readme only, three
+  outputs are escaped where the check can see it, and the emoji
+  setting's description no longer names a host the check takes for an
+  offloaded asset. A stray Python wheel is kept out of the package.
 
 = 3.76.1 =
 

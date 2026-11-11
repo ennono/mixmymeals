@@ -376,7 +376,6 @@ class Mixmymeals_Post_Meta {
 		$prep        = Mixmymeals_Recipe::step_prep( $step );
 		$prep_amount = $prep ? (string) $prep['amount'] : '1';
 		$prep_unit   = $prep ? $prep['unit'] : 'days';
-		$disabled    = $prep ? '' : ' disabled';
 
 		echo '<p class="mixmymeals-step-prep' . ( $prep ? ' is-prep' : '' ) . '">';
 		echo '<label class="mixmymeals-step-prep-switch"><input type="checkbox" class="mixmymeals-step-prep-toggle" name="mmm_recipe_steps['
@@ -384,8 +383,8 @@ class Mixmymeals_Post_Meta {
 			. esc_html__( 'Preparation ahead', 'mixmymeals' ) . '</label> ';
 		echo '<span class="mixmymeals-step-prep-timing">';
 		echo '<input type="number" min="1" step="1" class="small-text mixmymeals-step-prep-amount" name="mmm_recipe_steps['
-			. absint( $index ) . '][prep_amount]" value="' . esc_attr( $prep_amount ) . '"' . $disabled . '> ';
-		echo '<select class="mixmymeals-step-prep-unit" name="mmm_recipe_steps[' . absint( $index ) . '][prep_unit]"' . $disabled . '>';
+			. absint( $index ) . '][prep_amount]" value="' . esc_attr( $prep_amount ) . '"' . disabled( (bool) $prep, false, false ) . '> ';
+		echo '<select class="mixmymeals-step-prep-unit" name="mmm_recipe_steps[' . absint( $index ) . '][prep_unit]"' . disabled( (bool) $prep, false, false ) . '>';
 		foreach ( array(
 			'days'  => __( 'days before', 'mixmymeals' ),
 			'hours' => __( 'hours before', 'mixmymeals' ),
@@ -3927,12 +3926,16 @@ class Mixmymeals_Post_Meta {
 		foreach ( $equipment as $piece ) {
 			// One builder for the rendered row and the one AJAX appends, or
 			// a piece added without a reload would differ from its neighbours.
-			echo self::equipment_row( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
+			$mmm_row = self::equipment_row(
 				(int) $piece->ID,
 				(string) $piece->post_title,
 				in_array( (int) $piece->ID, $selected, true ),
 				(int) ( $counts[ (int) $piece->ID ] ?? 0 )
 			);
+
+			// On one line: an ignore above a call spread over several lines
+			// covers only the first of them.
+			echo $mmm_row; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the builder.
 		}
 
 		// The empty row: a piece of equipment that does not exist yet is the

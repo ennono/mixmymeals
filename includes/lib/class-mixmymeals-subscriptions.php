@@ -821,14 +821,11 @@ class Mixmymeals_Subscriptions {
 			wp_send_json_error( array( 'message' => __( 'Please confirm your consent to continue.', 'mixmymeals' ) ), 400 );
 		}
 
-		// Rate limit per IP.
-		$ip     = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
-		$rl_key = 'mmm_sub_rl_' . wp_hash( $ip ); // Keyed, so the counter cannot be reversed to the IP.
-		$count  = (int) get_transient( $rl_key );
-		if ( $count >= (int) apply_filters( 'mixmymeals_subscribe_rate_limit_per_hour', 5 ) ) {
+		// Rate limit per IP, shared with the planner's sign-up.
+		if ( self::signup_rate_limited() ) {
 			wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again later.', 'mixmymeals' ) ), 429 );
 		}
-		set_transient( $rl_key, $count + 1, HOUR_IN_SECONDS );
+		self::count_signup();
 
 		$sub_id = self::create_pending( $plan_id, $email, $name, $start );
 
@@ -846,6 +843,48 @@ class Mixmymeals_Subscriptions {
 		}
 
 		wp_send_json_success( $response );
+	}
+
+	/**
+	 * The key of the caller's sign-up counter: the address as a keyed hash,
+	 * so the counter cannot be reversed to the IP.
+	 *
+	 * @return string
+	 */
+	private static function signup_rate_key(): string {
+
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+
+		return 'mmm_sub_rl_' . wp_hash( $ip );
+	}
+
+	/**
+	 * Whether the caller's address has used up its sign-ups for this hour
+	 * (filter `mixmymeals_subscribe_rate_limit_per_hour`, default 5).
+	 *
+	 * One counter for every way to sign up — the form on a plan's page and
+	 * the field beside "Save Plan". The second had none of its own: each
+	 * save sent a confirmation mail to whatever address it was given, as
+	 * often as asked.
+	 *
+	 * @return bool
+	 */
+	public static function signup_rate_limited(): bool {
+
+		return (int) get_transient( self::signup_rate_key() )
+			>= (int) apply_filters( 'mixmymeals_subscribe_rate_limit_per_hour', 5 );
+	}
+
+	/**
+	 * Counts one sign-up against the caller's address, for an hour.
+	 *
+	 * @return void
+	 */
+	public static function count_signup(): void {
+
+		$key = self::signup_rate_key();
+
+		set_transient( $key, (int) get_transient( $key ) + 1, HOUR_IN_SECONDS );
 	}
 
 	/* ----------------------------------------------------------

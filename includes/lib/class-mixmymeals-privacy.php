@@ -518,8 +518,8 @@ class Mixmymeals_Privacy {
 		$items['share'] = sprintf(
 			/* translators: %d: number of days. */
 			_n(
-				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d day. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares.',
-				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d days. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares.',
+				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d day. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares. To limit abuse, the IP address is stored in hashed (pseudonymised) form as a counter for at most one hour when a copy is created.',
+				'Sharing the planner: using the share button deliberately creates a copy of the recipe selection. It is stored on the server under a random identifier of its own, can be opened by anyone holding the generated link, and is deleted automatically after %d days. The copy is frozen: later changes to one\'s own planner do not appear in it, and the link gives no access to the planner itself. Only recipe IDs, servings, meal type, weekday and which of the numbered people eat along, with their portions, are stored — no identifier of the person sharing. No copy exists unless someone shares. To limit abuse, the IP address is stored in hashed (pseudonymised) form as a counter for at most one hour when a copy is created.',
 				$share_days,
 				'mixmymeals'
 			),
@@ -624,7 +624,7 @@ class Mixmymeals_Privacy {
 				$sub .= ' ' . __( 'Giving an e-mail address when saving a plan is voluntary; the plan is saved without it.', 'mixmymeals' );
 			}
 
-			$sub .= ' ' . __( 'Stored are the e-mail address, optionally a name, the subscribed meal plan, the times of sign-up and confirmation, and an access token that the links in the e-mails rely on. To limit abuse, the IP address is additionally stored in hashed form for at most one hour when signing up on a plan\'s page.', 'mixmymeals' );
+			$sub .= ' ' . __( 'Stored are the e-mail address, optionally a name, the subscribed meal plan, the times of sign-up and confirmation, and an access token that the links in the e-mails rely on. To limit abuse, the IP address is additionally stored in hashed form for at most one hour when signing up.', 'mixmymeals' );
 
 			$sub .= ' ' . ( 'on' === get_option( Mixmymeals_Subscriptions::OPT_LOG_IP, '' )
 				? __( 'As proof of consent, the full IP address used to sign up is also stored with the subscription record and deleted with it.', 'mixmymeals' )

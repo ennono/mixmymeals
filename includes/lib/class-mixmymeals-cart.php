@@ -23,6 +23,15 @@ class Mixmymeals_Cart {
 	const EATERS_META_KEY   = 'mixmymeals_cart_eaters';
 	const EATERS_KEY_SUFFIX = '_eaters';
 
+	/** Meals a planner holds while the setting says nothing. */
+	const DEFAULT_MAX_ITEMS = 30;
+
+	/** The most the setting's field accepts. */
+	const MAX_ITEMS_CEILING = 100;
+
+	/** Shared copies one address may create per hour (share_rate_limit()). */
+	const SHARE_RATE_LIMIT = 20;
+
 	/**
 	 * Returns true if user is logged in.
 	 */
@@ -39,7 +48,9 @@ class Mixmymeals_Cart {
 			? sanitize_text_field( wp_unslash( $_COOKIE[ self::COOKIE_NAME ] ) )
 			: '';
 
-		if ( empty( $uuid ) ) {
+		// The cookie is the visitor's to edit, and its value becomes part of
+		// a storage key: anything that is not a UUID of ours is no key.
+		if ( ! wp_is_uuid( $uuid, 4 ) ) {
 			$uuid = wp_generate_uuid4();
 
 			setcookie(
@@ -245,9 +256,114 @@ class Mixmymeals_Cart {
 		);
 	}
 
-	private function get_max_items(): int {
-		$max = (int) get_option( 'mixmymeals_max_items_in_cart', 30 );
-		return max( 1, $max );
+	/**
+	 * How many meals a planner, and a plan saved from it, may hold.
+	 *
+	 * The one reader of the setting. It used to be read in three places with
+	 * three defaults — 30 here, "no limit" a few lines further down and "no
+	 * limit" again where a plan is saved — so a stored 0 meant one meal in
+	 * the planner and any number in a forged save. Empty, zero and anything
+	 * else that is no count mean the default; the field's own maximum caps it.
+	 *
+	 * @return int
+	 */
+	public static function max_items(): int {
+
+		$max = (int) get_option( 'mixmymeals_max_items_in_cart', 0 );
+
+		if ( $max < 1 ) {
+			return self::DEFAULT_MAX_ITEMS;
+		}
+
+		return min( $max, self::MAX_ITEMS_CEILING );
+	}
+
+	/**
+	 * Whether a visitor may plan this recipe: a published recipe, nothing
+	 * else. Planning shows a recipe's title, ingredients and figures, and a
+	 * saved plan shows its steps — a draft or private recipe planned by its
+	 * ID would be published that way.
+	 *
+	 * @param int $recipe_id Post ID.
+	 * @return bool
+	 */
+	public static function recipe_is_plannable( int $recipe_id ): bool {
+
+		return $recipe_id > 0
+			&& 'mmm_recipe' === get_post_type( $recipe_id )
+			&& 'publish' === get_post_status( $recipe_id );
+	}
+
+	/**
+	 * Servings as a visitor may set them: at least one, at most
+	 * Mixmymeals_Meal_Plan::SERVINGS_MEAL_MAX — or what the item already
+	 * has, where a plan loaded into the planner came with more.
+	 *
+	 * @param mixed $servings Raw value.
+	 * @param int   $current  Servings the item has now (0 = new).
+	 * @return int
+	 */
+	public static function clean_servings( $servings, int $current = 0 ): int {
+
+		$cap = max( Mixmymeals_Meal_Plan::SERVINGS_MEAL_MAX, $current );
+
+		return max( 1, min( $cap, (int) $servings ) );
+	}
+
+	/**
+	 * A meal type as a visitor may set it: one of the known types, or none.
+	 *
+	 * @param mixed $type Raw value.
+	 * @return string
+	 */
+	public static function clean_type( $type ): string {
+
+		$type = is_string( $type ) ? sanitize_key( $type ) : '';
+
+		return array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ? $type : '';
+	}
+
+	/**
+	 * A weekday as a visitor may set it: 1–7, or none.
+	 *
+	 * @param mixed $day Raw value.
+	 * @return int|null
+	 */
+	public static function clean_day( $day ): ?int {
+
+		$day = is_scalar( $day ) ? (int) $day : 0;
+
+		return ( $day >= 1 && $day <= 7 ) ? $day : null;
+	}
+
+	/**
+	 * Counts one shared copy against the caller's address and says whether
+	 * it is still within the hourly limit (filter
+	 * `mixmymeals_share_rate_limit_per_hour`, 0 = no limit). Every copy is a
+	 * row kept for SHARE_EXPIRATION, and the nonce a guest needs is on every
+	 * page. The address is kept as a keyed hash only.
+	 *
+	 * @return bool
+	 */
+	private static function share_within_rate_limit(): bool {
+
+		$limit = (int) apply_filters( 'mixmymeals_share_rate_limit_per_hour', self::SHARE_RATE_LIMIT );
+
+		if ( $limit <= 0 ) {
+			return true;
+		}
+
+		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key   = 'mmm_rl_share_ip_' . wp_hash( $ip );
+		$count = (int) get_transient( $key );
+
+		if ( $count >= $limit ) {
+			return false;
+		}
+
+		set_transient( $key, $count + 1, HOUR_IN_SECONDS );
+
+		return true;
 	}
 
 	/**
@@ -270,14 +386,7 @@ class Mixmymeals_Cart {
 
 		$items = $this->get_items();
 
-		$max = (int) get_option('mixmymeals_max_items_in_cart', 0); // 0 = unbegrenzt
-
-		if ($max > 0 && count($items) >= $max) {
-			return false; // Limit erreicht
-		}
-
-		// Limit prüfen
-		if ( count( $items ) >= $this->get_max_items() ) {
+		if ( count( $items ) >= self::max_items() ) {
 			return false;
 		}
 
@@ -389,7 +498,12 @@ class Mixmymeals_Cart {
 		}
 
 		$uuid = sanitize_text_field( wp_unslash( $_COOKIE[ self::COOKIE_NAME ] ) );
-		$key  = self::TRANSIENT_PREFIX . $uuid;
+
+		if ( ! wp_is_uuid( $uuid, 4 ) ) {
+			return;
+		}
+
+		$key = self::TRANSIENT_PREFIX . $uuid;
 
 		$guest_items = get_transient( $key );
 		if ( ! is_array( $guest_items ) || empty( $guest_items ) ) {
@@ -402,7 +516,7 @@ class Mixmymeals_Cart {
 		$merged_items = array_merge( $user_items, $guest_items );
 
 		// Limit auch beim Merge erzwingen
-		$max = $this->get_max_items();
+		$max = self::max_items();
 		if ( count( $merged_items ) > $max ) {
 			$merged_items = array_slice( $merged_items, 0, $max );
 		}
@@ -526,7 +640,7 @@ class Mixmymeals_Cart {
 		$recipe_id = isset( $_POST['recipe_id'] )
 			? intval( $_POST['recipe_id'] ) : 0;
 
-		if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+		if ( ! self::recipe_is_plannable( $recipe_id ) ) {
 			wp_send_json_error( [
 				'code'    => 'invalid_recipe_id',
 				'message' => __( 'Invalid recipe ID.', 'mixmymeals' ),
@@ -542,18 +656,16 @@ class Mixmymeals_Cart {
 		*/
 
 		$servings = isset( $_POST['servings'] )
-			? max( 1, intval( $_POST['servings'] ) )
+			? self::clean_servings( sanitize_text_field( wp_unslash( $_POST['servings'] ) ) )
 			: 1;
 
 		$type = isset( $_POST['type'] )
-			? sanitize_text_field( wp_unslash( $_POST['type'] ) )
+			? self::clean_type( sanitize_text_field( wp_unslash( $_POST['type'] ) ) )
 			: '';
-		if ( ! array_key_exists( $type, Mixmymeals_Meal::get_plaintext_meal_type_map() ) ) {
-			$type = '';
-		}
 
-		$day = isset( $_POST['day'] ) ? intval( $_POST['day'] ) : 0;
-		$day = ( $day >= 1 && $day <= 7 ) ? $day : null;
+		$day = isset( $_POST['day'] )
+			? self::clean_day( sanitize_text_field( wp_unslash( $_POST['day'] ) ) )
+			: null;
 
 		// Optional; add() drops a diet the recipe cannot be cooked as.
 		$diet = isset( $_POST['diet'] ) ? sanitize_key( wp_unslash( $_POST['diet'] ) ) : '';
@@ -678,14 +790,24 @@ class Mixmymeals_Cart {
 			], 404 );
 		}
 
-		$item             = $items[ $index ];
+		/*
+		 * Checked like mmm_add_to_cart checks them. This handler used to
+		 * store any servings, any text as a meal type and any number as a
+		 * day, and a `note` nothing reads: a visitor cannot give a meal a
+		 * text (Mixmymeals_Meal::set_text() is an editor's), so none is
+		 * kept here, and one stored by an earlier version is dropped.
+		 */
+		$item = $items[ $index ];
+		unset( $item['note'] );
+
 		$item['servings'] = isset( $_POST['servings'] )
-			? intval( $_POST['servings'] ) : $item['servings'] ?? 1;
+			? self::clean_servings( sanitize_text_field( wp_unslash( $_POST['servings'] ) ), (int) ( $item['servings'] ?? 0 ) )
+			: $item['servings'] ?? 1;
 		$item['type']     = isset( $_POST['type'] )
-			? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : $item['type'] ?? '';
-		$item['note']     = isset( $_POST['note'] )
-			? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : $item['note'] ?? '';
-		$item['day']      = isset( $_POST['day'] ) ? intval( $_POST['day'] )
+			? self::clean_type( sanitize_text_field( wp_unslash( $_POST['type'] ) ) )
+			: $item['type'] ?? '';
+		$item['day']      = isset( $_POST['day'] )
+			? self::clean_day( sanitize_text_field( wp_unslash( $_POST['day'] ) ) )
 			: $item['day'] ?? null;
 		$item['diet']     = isset( $_POST['diet'] )
 			? self::clean_diet( (int) ( $item['recipe_id'] ?? 0 ), sanitize_key( wp_unslash( $_POST['diet'] ) ) )
@@ -751,6 +873,16 @@ class Mixmymeals_Cart {
 			);
 		}
 
+		if ( ! self::share_within_rate_limit() ) {
+			wp_send_json_error(
+				array(
+					'code'    => 'rate_limit',
+					'message' => __( 'Too many requests. Please try again later.', 'mixmymeals' ),
+				),
+				429
+			);
+		}
+
 		$token = wp_generate_uuid4();
 
 		set_transient(
@@ -810,15 +942,15 @@ class Mixmymeals_Cart {
 
 			// The recipes are re-checked rather than trusted: one of them may
 			// have been unpublished since the link was made.
-			if ( $recipe_id <= 0 || get_post_type( $recipe_id ) !== 'mmm_recipe' ) {
+			if ( ! self::recipe_is_plannable( $recipe_id ) ) {
 				continue;
 			}
 
 			$cart->add(
 				$recipe_id,
 				max( 1, intval( $item['servings'] ?? 1 ) ),
-				sanitize_text_field( (string) ( $item['type'] ?? '' ) ),
-				isset( $item['day'] ) ? intval( $item['day'] ) : null,
+				self::clean_type( $item['type'] ?? '' ),
+				self::clean_day( $item['day'] ?? null ),
 				(string) ( $item['diet'] ?? '' ),
 				(array) ( $item['eaters'] ?? array() ),
 				(array) ( $item['portions'] ?? array() )
