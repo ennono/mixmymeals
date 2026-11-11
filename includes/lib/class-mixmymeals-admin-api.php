@@ -43,7 +43,9 @@ class Mixmymeals_Admin_API {
 	 * @return string|bool Generated HTML string when $echo is false, true after echoing.
 	 */
 	public function display_field(
-		array $data = array(), ?object $post = null, bool $echo = true
+		array $data = array(),
+		?object $post = null,
+		bool $echo = true
 	): string|bool {
 
 		$field = $data['field'] ?? $data;
@@ -53,7 +55,7 @@ class Mixmymeals_Admin_API {
 			$option_name = $data['prefix'];
 		}
 
-		$data        = '';
+		$data         = '';
 		$option_name .= $field['id'];
 		if ( $post ) {
 			$option = get_post_meta( $post->ID, $field['id'], true );
@@ -139,7 +141,7 @@ class Mixmymeals_Admin_API {
 
 				if ( $data ) {
 					$image_url = wp_get_attachment_image_url( $data, 'thumbnail' );
-					$html .= '<img src="' . esc_url( $image_url ) . '" 
+					$html     .= '<img src="' . esc_url( $image_url ) . '" 
                 class="media-preview" 
                 style="max-width:120px; display:block; margin-bottom:10px;" />';
 				}
@@ -151,11 +153,6 @@ class Mixmymeals_Admin_API {
 				$html .= '</div>';
 				break;
 
-
-
-
-
-
 			case 'all_recipes_description':
 			case 'all_ingredients_description':
 			case 'all_equipment_description':
@@ -163,18 +160,17 @@ class Mixmymeals_Admin_API {
 			case 'individual_meal_plans_description':
 			case 'recipe_steps_notice':
 			case 'mail_footer':
-
 				$editor_id    = esc_attr( $field['id'] );
 				$editor_name  = esc_attr( $option_name );
 				$editor_value = $data;
 
-				$settings = [
+				$settings = array(
 					'textarea_name' => $editor_name,
 					'textarea_rows' => 8,
 					'media_buttons' => false,
 					'teeny'         => true,
 					'quicktags'     => true,
-				];
+				);
 
 				ob_start();
 				wp_editor( $editor_value, $editor_id, $settings );
@@ -197,11 +193,11 @@ class Mixmymeals_Admin_API {
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
 				$html .= '<input id="' . esc_attr( $field['id'] )
-				         . '" type="text" name="' . esc_attr( $option_name )
-				         . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" /><p class="description">'
-				         . esc_html( $field['description'] ) . '</p>';
+						. '" type="text" name="' . esc_attr( $option_name )
+						. '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" /><p class="description">'
+						. esc_html( $field['description'] ) . '</p>';
 				break;
 
 			// Same input as the plain text fields above, but the full width: a
@@ -210,11 +206,11 @@ class Mixmymeals_Admin_API {
 			case 'chip_text':
 			case 'term_diet_none':
 				$html .= '<input id="' . esc_attr( $field['id'] )
-				         . '" class="regular-text" type="text" name="'
-				         . esc_attr( $option_name ) . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" /><p class="description">'
-				         . esc_html( $field['description'] ) . '</p>';
+						. '" class="regular-text" type="text" name="'
+						. esc_attr( $option_name ) . '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" /><p class="description">'
+						. esc_html( $field['description'] ) . '</p>';
 				break;
 
 			// Two thresholds per figure, stored as one option so a light is
@@ -230,12 +226,12 @@ class Mixmymeals_Admin_API {
 					) as $end => $end_label
 				) {
 					$html .= '<label class="mmm-traffic-light-field">'
-					         . esc_html( $end_label ) . ' '
-					         . '<input class="small-text" type="number" min="0" step="any" name="'
-					         . esc_attr( $option_name . '[' . $end . ']' ) . '" value="'
-					         . esc_attr( (string) ( $pair[ $end ] ?? '' ) ) . '" /> '
-					         . esc_html( $unit )
-					         . '</label> ';
+							. esc_html( $end_label ) . ' '
+							. '<input class="small-text" type="number" min="0" step="any" name="'
+							. esc_attr( $option_name . '[' . $end . ']' ) . '" value="'
+							. esc_attr( (string) ( $pair[ $end ] ?? '' ) ) . '" /> '
+							. esc_html( $unit )
+							. '</label> ';
 				}
 
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
@@ -245,13 +241,13 @@ class Mixmymeals_Admin_API {
 			// which the placeholder shows.
 			case 'reference_intake':
 				$html .= '<label class="mmm-traffic-light-field">'
-				         . '<input class="small-text" type="number" min="0" step="any" name="'
-				         . esc_attr( $option_name ) . '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
-				         . esc_attr( (string) ( $field['placeholder'] ?? '' ) ) . '" value="'
-				         . esc_attr( (string) $data ) . '" /> '
-				         . esc_html( (string) ( $field['unit'] ?? '' ) )
-				         . '</label>'
-				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+						. '<input class="small-text" type="number" min="0" step="any" name="'
+						. esc_attr( $option_name ) . '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
+						. esc_attr( (string) ( $field['placeholder'] ?? '' ) ) . '" value="'
+						. esc_attr( (string) $data ) . '" /> '
+						. esc_html( (string) ( $field['unit'] ?? '' ) )
+						. '</label>'
+						. '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
 			// The plan's day rating: the ends a figure's direction allows,
@@ -270,11 +266,11 @@ class Mixmymeals_Admin_API {
 					}
 
 					$html .= '<label class="mmm-traffic-light-field">'
-					         . esc_html( $end_label ) . ' '
-					         . '<input class="small-text" type="number" min="0" step="any" name="'
-					         . esc_attr( $option_name . '[' . $end . ']' ) . '" value="'
-					         . esc_attr( (string) ( $pair[ $end ] ?? '' ) ) . '" /> %'
-					         . '</label> ';
+							. esc_html( $end_label ) . ' '
+							. '<input class="small-text" type="number" min="0" step="any" name="'
+							. esc_attr( $option_name . '[' . $end . ']' ) . '" value="'
+							. esc_attr( (string) ( $pair[ $end ] ?? '' ) ) . '" /> %'
+							. '</label> ';
 				}
 
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
@@ -282,12 +278,12 @@ class Mixmymeals_Admin_API {
 
 			case 'light_portion_share':
 				$html .= '<label class="mmm-traffic-light-field">'
-				         . '<input class="small-text" type="number" min="0" max="100" step="any" name="'
-				         . esc_attr( $option_name ) . '" id="' . esc_attr( $field['id'] ) . '" value="'
-				         . esc_attr( (string) $data ) . '" /> '
-				         . esc_html__( '% of the reference intake', 'mixmymeals' )
-				         . '</label>'
-				         . '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+						. '<input class="small-text" type="number" min="0" max="100" step="any" name="'
+						. esc_attr( $option_name ) . '" id="' . esc_attr( $field['id'] ) . '" value="'
+						. esc_attr( (string) $data ) . '" /> '
+						. esc_html__( '% of the reference intake', 'mixmymeals' )
+						. '</label>'
+						. '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
 			// Columns of a nutrition table: show / heading per column, the
@@ -299,14 +295,14 @@ class Mixmymeals_Admin_API {
 				$stored  = is_array( $stored ) ? $stored : array();
 
 				$html .= '<table class="mmm-nutrition-table-field"><thead><tr><th>'
-				         . esc_html__( 'Column', 'mixmymeals' ) . '</th><th>'
-				         . esc_html__( 'Show', 'mixmymeals' ) . '</th><th>'
-				         . esc_html__( 'Heading', 'mixmymeals' ) . '</th></tr></thead><tbody>';
+						. esc_html__( 'Column', 'mixmymeals' ) . '</th><th>'
+						. esc_html__( 'Show', 'mixmymeals' ) . '</th><th>'
+						. esc_html__( 'Heading', 'mixmymeals' ) . '</th></tr></thead><tbody>';
 
 				$html .= '<tr><td>' . esc_html__( 'Nutrient names', 'mixmymeals' ) . '</td><td>&mdash;</td><td>'
-				         . '<input type="text" class="regular-text" name="' . esc_attr( $option_name . '[label]' )
-				         . '" placeholder="' . esc_attr( Mixmymeals_Nutrition_Table::default_label() )
-				         . '" value="' . esc_attr( (string) ( $stored['label'] ?? '' ) ) . '" /></td></tr>';
+						. '<input type="text" class="regular-text" name="' . esc_attr( $option_name . '[label]' )
+						. '" placeholder="' . esc_attr( Mixmymeals_Nutrition_Table::default_label() )
+						. '" value="' . esc_attr( (string) ( $stored['label'] ?? '' ) ) . '" /></td></tr>';
 
 				foreach ( Mixmymeals_Nutrition_Table::available_columns( $context ) as $col => $def ) {
 
@@ -321,29 +317,29 @@ class Mixmymeals_Admin_API {
 					}
 
 					$html .= '</td><td><input type="checkbox" value="1" name="' . esc_attr( $name . '[show]' ) . '"'
-					         . checked( $shown, true, false ) . ' /></td><td>'
-					         . '<input type="text" class="regular-text" name="' . esc_attr( $name . '[title]' )
-					         . '" placeholder="' . esc_attr( $def['title'] )
-					         . '" value="' . esc_attr( is_array( $saved ) ? (string) ( $saved['title'] ?? '' ) : '' ) . '" /></td></tr>';
+							. checked( $shown, true, false ) . ' /></td><td>'
+							. '<input type="text" class="regular-text" name="' . esc_attr( $name . '[title]' )
+							. '" placeholder="' . esc_attr( $def['title'] )
+							. '" value="' . esc_attr( is_array( $saved ) ? (string) ( $saved['title'] ?? '' ) : '' ) . '" /></td></tr>';
 				}
 
 				$html .= '</tbody></table>'
-				         . '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[light]' ) . '"'
-				         . checked( $config['light'], true, false ) . ' /> '
-				         . esc_html__( 'Show the traffic light in this table', 'mixmymeals' ) . '</label></p>'
-				         . ( isset( Mixmymeals_Nutrition_Table::available_columns( $context )['ri'] )
-					         ? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[ri_note]' ) . '"'
-					           . checked( $config['ri_note'], true, false ) . ' /> '
-					           . esc_html__( 'Explain the reference intake under the table (when its column is shown)', 'mixmymeals' ) . '</label></p>'
-					         : '' )
-				         . ( in_array( $context, Mixmymeals_Nutrition_Table::COOKING_CONTEXTS, true )
-					         ? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[cooked_note]' ) . '"'
-					           . checked( $config['cooked_note'], true, false ) . ' /> '
-					           . esc_html__( 'Mark the cooked weight and name the cooking factors under the table', 'mixmymeals' ) . '</label></p>'
-					         : '' )
-				         . '<p class="description">'
-				         . esc_html__( 'The thresholds are set under Settings → Ingredients. Switching the light off here also hides it where it is printed on its own.', 'mixmymeals' )
-				         . '</p>';
+						. '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[light]' ) . '"'
+						. checked( $config['light'], true, false ) . ' /> '
+						. esc_html__( 'Show the traffic light in this table', 'mixmymeals' ) . '</label></p>'
+						. ( isset( Mixmymeals_Nutrition_Table::available_columns( $context )['ri'] )
+							? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[ri_note]' ) . '"'
+								. checked( $config['ri_note'], true, false ) . ' /> '
+								. esc_html__( 'Explain the reference intake under the table (when its column is shown)', 'mixmymeals' ) . '</label></p>'
+							: '' )
+						. ( in_array( $context, Mixmymeals_Nutrition_Table::COOKING_CONTEXTS, true )
+							? '<p><label><input type="checkbox" value="1" name="' . esc_attr( $option_name . '[cooked_note]' ) . '"'
+								. checked( $config['cooked_note'], true, false ) . ' /> '
+								. esc_html__( 'Mark the cooked weight and name the cooking factors under the table', 'mixmymeals' ) . '</label></p>'
+							: '' )
+						. '<p class="description">'
+						. esc_html__( 'The thresholds are set under Settings → Ingredients. Switching the light off here also hides it where it is printed on its own.', 'mixmymeals' )
+						. '</p>';
 				break;
 
 			case 'recipe_disclaimer_text':
@@ -353,11 +349,11 @@ class Mixmymeals_Admin_API {
 			case 'notice_subscribe':
 			case 'notice_plan':
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
-				         . '" rows="4" cols="60" name="'
-				         . esc_attr( $option_name ) . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '">'
-				         . esc_html( $data )
-				         . '</textarea>';
+						. '" rows="4" cols="60" name="'
+						. esc_attr( $option_name ) . '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '">'
+						. esc_html( $data )
+						. '</textarea>';
 				if ( ! empty( $field['description'] ) ) {
 					$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				}
@@ -376,14 +372,14 @@ class Mixmymeals_Admin_API {
 
 			case 'max_items_in_cart':
 				$html .= '<input min="1" max="100" type="number" name="'
-				         . esc_attr( $option_name ) . '" '
-				         . 'id="' . esc_attr( $field['id'] )
-				         . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" />'
-				         . '<p class="description">'
-				         . esc_html( $field['description'] )
-				         . '</p>';
+						. esc_attr( $option_name ) . '" '
+						. 'id="' . esc_attr( $field['id'] )
+						. '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" />'
+						. '<p class="description">'
+						. esc_html( $field['description'] )
+						. '</p>';
 				break;
 
 			case 'enable_cleanup':
@@ -403,34 +399,34 @@ class Mixmymeals_Admin_API {
 					$checked = 'checked="checked"';
 				}
 				$html .= '<label><input id="' . esc_attr( $field['id'] )
-				         . '" type="checkbox" name="' . esc_attr( $option_name )
-				         . '" ' . $checked . '/>'
-				         . esc_html( $field['description'] )
-				         . '</label>';
+						. '" type="checkbox" name="' . esc_attr( $option_name )
+						. '" ' . $checked . '/>'
+						. esc_html( $field['description'] )
+						. '</label>';
 				break;
 
 			case 'cleanup_min_age_days':
 				$html .= '<input min="1" max="3650" type="number" name="'
-				         . esc_attr( $option_name ) . '" '
-				         . 'id="' . esc_attr( $field['id'] )
-				         . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" />'
-				         . '<p class="description">'
-				         . esc_html( $field['description'] )
-				         . '</p>';
+						. esc_attr( $option_name ) . '" '
+						. 'id="' . esc_attr( $field['id'] )
+						. '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" />'
+						. '<p class="description">'
+						. esc_html( $field['description'] )
+						. '</p>';
 				break;
 
 			case 'published_meal_plans_per_hour_limit':
 				$html .= '<input min="1" max="10" type="number" name="'
-				         . esc_attr( $option_name ) . '" '
-				         . 'id="' . esc_attr( $field['id'] )
-				         . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" />'
-				         . '<p class="description">'
-				         . esc_html( $field['description'] )
-				         . '</p>';
+						. esc_attr( $option_name ) . '" '
+						. 'id="' . esc_attr( $field['id'] )
+						. '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" />'
+						. '<p class="description">'
+						. esc_html( $field['description'] )
+						. '</p>';
 				break;
 
 			case 'plan_undated_meals':
@@ -441,10 +437,10 @@ class Mixmymeals_Admin_API {
 					$checked = 'checked="checked"';
 				}
 				$html .= '<label><input id="' . esc_attr( $field['id'] )
-				         . '" type="checkbox" name="' . esc_attr( $option_name )
-				         . '" ' . $checked . '/>'
-				         . esc_html( $field['description'] )
-				         . '</label>';
+						. '" type="checkbox" name="' . esc_attr( $option_name )
+						. '" ' . $checked . '/>'
+						. esc_html( $field['description'] )
+						. '</label>';
 				break;
 
 			case 'page_id_to_redirect_after_plan_created':
@@ -454,16 +450,17 @@ class Mixmymeals_Admin_API {
 			case 'subscription_unsubscribe_page':
 			case 'subscription_rate_page':
 			case 'subscription_upload_page':
-
 				$current = (int) get_option( $option_name, 0 );
 
-				$pages = get_posts( [
-					'post_type'      => 'page',
-					'post_status'    => 'publish',
-					'posts_per_page' => -1,
-					'orderby'        => 'title',
-					'order'          => 'ASC',
-				] );
+				$pages = get_posts(
+					array(
+						'post_type'      => 'page',
+						'post_status'    => 'publish',
+						'posts_per_page' => -1,
+						'orderby'        => 'title',
+						'order'          => 'ASC',
+					)
+				);
 
 				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
 				/*
@@ -490,38 +487,38 @@ class Mixmymeals_Admin_API {
 				$html .= '</select>';
 
 				$html .= '<p><label for="' . esc_attr( $field['id'] ) . '">'
-				         . esc_html( $field['description'] )
-				         . '</label></p>';
+						. esc_html( $field['description'] )
+						. '</label></p>';
 
 				break;
 
 			case 'mail_from_email':
 			case 'cleanup_report_recipient':
 				$html .= '<input id="' . esc_attr( $field['id'] )
-				         . '" type="email" name="' . esc_attr( $option_name )
-				         . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" class="regular-text" /><p class="description">'
-				         . esc_html( $field['description'] ) . '</p>';
+						. '" type="email" name="' . esc_attr( $option_name )
+						. '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" class="regular-text" /><p class="description">'
+						. esc_html( $field['description'] ) . '</p>';
 				break;
 
 			case 'mail_suppression_list':
 				$list  = is_array( $data ) ? $data : array();
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
-				         . '" rows="6" cols="60" name="'
-				         . esc_attr( $option_name ) . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '">'
-				         . esc_textarea( implode( "\n", $list ) )
-				         . '</textarea><p class="description">'
-				         . esc_html( $field['description'] ) . '</p>';
+						. '" rows="6" cols="60" name="'
+						. esc_attr( $option_name ) . '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '">'
+						. esc_textarea( implode( "\n", $list ) )
+						. '</textarea><p class="description">'
+						. esc_html( $field['description'] ) . '</p>';
 				break;
 
 			case 'subscription_pending_hours':
 			case 'subscription_retention_days':
 				$html .= '<input type="number" min="1" name="' . esc_attr( $option_name )
-				         . '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data )
-				         . '" /><p class="description">' . esc_html( $field['description'] ) . '</p>';
+						. '" id="' . esc_attr( $field['id'] ) . '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data )
+						. '" /><p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
 			case 'plan_thumbs_mode':
@@ -581,21 +578,20 @@ class Mixmymeals_Admin_API {
 
 			case 'plan_thumbs_max':
 				$html .= '<input min="0" max="50" type="number" name="'
-				         . esc_attr( $option_name ) . '" '
-				         . 'id="' . esc_attr( $field['id'] )
-				         . '" placeholder="'
-				         . esc_attr( $field['placeholder'] ) . '" value="'
-				         . esc_attr( $data ) . '" />'
-				         . '<p class="description">'
-				         . esc_html( $field['description'] )
-				         . '</p>';
+						. esc_attr( $option_name ) . '" '
+						. 'id="' . esc_attr( $field['id'] )
+						. '" placeholder="'
+						. esc_attr( $field['placeholder'] ) . '" value="'
+						. esc_attr( $data ) . '" />'
+						. '<p class="description">'
+						. esc_html( $field['description'] )
+						. '</p>';
 				break;
 
 			case 'subscription_schedule':
 				$rows  = is_array( $data ) ? $data : array();
 				$html .= $this->render_subscription_schedule_field( $option_name, $rows, (string) $field['description'] );
 				break;
-
 
 		}
 
@@ -642,8 +638,8 @@ class Mixmymeals_Admin_API {
 
 		if ( class_exists( 'Mixmymeals_Mailer' ) ) {
 			foreach ( Mixmymeals_Mailer::list_templates() as $path ) {
-				$dir = dirname( $path );
-				$key = ( '.' === $dir || '' === $dir ) ? '' : $dir;
+				$dir                         = dirname( $path );
+				$key                         = ( '.' === $dir || '' === $dir ) ? '' : $dir;
 				$tpl_groups[ $key ][ $path ] = basename( $path );
 			}
 			ksort( $tpl_groups ); // Base folder ('') first, then subfolders A→Z.

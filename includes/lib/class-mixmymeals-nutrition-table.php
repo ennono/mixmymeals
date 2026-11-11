@@ -241,8 +241,8 @@ final class Mixmymeals_Nutrition_Table {
 		$label = trim( (string) ( $stored['label'] ?? '' ) );
 
 		return array(
-			'label'   => '' === $label ? self::default_label() : $label,
-			'columns' => $columns,
+			'label'       => '' === $label ? self::default_label() : $label,
+			'columns'     => $columns,
 			'light'       => isset( $stored['columns'] ) ? ! empty( $stored['light'] ) : true,
 			'cooked_note' => $cooked_note,
 			'ri_note'     => $ri_note,
@@ -544,7 +544,7 @@ final class Mixmymeals_Nutrition_Table {
 
 		if ( ! $any && $available ) {
 
-			$first                                 = array_key_first( $available );
+			$first                            = array_key_first( $available );
 			$out['columns'][ $first ]['show'] = '1';
 
 			add_settings_error(

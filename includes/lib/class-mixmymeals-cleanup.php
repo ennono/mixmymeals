@@ -547,19 +547,19 @@ class Mixmymeals_Cleanup {
 
 		$plan_ids = get_posts(
 			array(
-				'post_type'        => 'mmm_meal_plan',
-				'post_status'      => 'any',
-				'posts_per_page'   => $limit,
-				'fields'           => 'ids',
-				'no_found_rows'    => true,
-				'date_query'       => array(
+				'post_type'      => 'mmm_meal_plan',
+				'post_status'    => 'any',
+				'posts_per_page' => $limit,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				'date_query'     => array(
 					array(
 						'column' => 'post_date_gmt',
 						'before' => self::get_min_age_days() . ' days ago',
 					),
 				),
 				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-				'tax_query'        => array(
+				'tax_query'      => array(
 					array(
 						'taxonomy' => 'mmm_meal_plan_category',
 						'operator' => 'NOT EXISTS',

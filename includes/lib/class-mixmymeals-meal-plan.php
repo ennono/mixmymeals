@@ -940,12 +940,15 @@ class Mixmymeals_Meal_Plan {
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, string $status = 'draft', string $content = '' ): self {
-		$post_id = wp_insert_post( array(
-			'post_type'    => 'mmm_meal_plan',
-			'post_title'   => sanitize_text_field( $title ),
-			'post_status'  => $status,
-			'post_content' => wp_kses_post( $content ),
-		), true );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'    => 'mmm_meal_plan',
+				'post_title'   => sanitize_text_field( $title ),
+				'post_status'  => $status,
+				'post_content' => wp_kses_post( $content ),
+			),
+			true
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			throw new \Exception( esc_html( $post_id->get_error_message() ) );
@@ -1508,7 +1511,7 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		$sign   = $m[1] ?? '';
-		$offset = ( '-' === $sign || "\u{2212}" === $sign ) ? -(int) $m[2] : (int) $m[2];
+		$offset = ( '-' === $sign || "\u{2212}" === $sign ) ? - (int) $m[2] : (int) $m[2];
 		$bounds = $this->servings_offset_bounds();
 
 		return ( $offset >= $bounds['min'] && $offset <= $bounds['max'] ) ? $offset : null;
@@ -3458,10 +3461,10 @@ class Mixmymeals_Meal_Plan {
 		$rows = $this->get_meal_rows();
 
 		if ( empty( $rows ) ) {
-			return [];
+			return array();
 		}
 
-		$ingredient_totals = [];
+		$ingredient_totals = array();
 
 		foreach ( $rows as $row ) {
 
@@ -3533,13 +3536,13 @@ class Mixmymeals_Meal_Plan {
 				}
 
 				if ( ! isset( $ingredient_totals[ $group ] ) ) {
-					$ingredient_totals[ $group ] = [
+					$ingredient_totals[ $group ] = array(
 						'ingredient_id' => $ing_id,
 						// The diet this line is bought for; '' for the recipes
 						// as written, and where the line serves several diets.
 						'diet'          => $implemented,
-						'details'       => [],
-						'units'         => [],
+						'details'       => array(),
+						'units'         => array(),
 						'total_weight'  => 0,
 						// Optional stays true only while every use of this
 						// ingredient across the plan is optional; a single
@@ -3549,10 +3552,10 @@ class Mixmymeals_Meal_Plan {
 						// means the list can name it; several mean the recipes
 						// want different ones and naming either would send the
 						// shopper home with the wrong article for one of them.
-						'products'      => [],
+						'products'      => array(),
 						'product_id'    => 0,
 						'product'       => '',
-					];
+					);
 				}
 
 				if ( $ingredient_totals[ $group ]['diet'] !== $implemented ) {
@@ -3567,29 +3570,29 @@ class Mixmymeals_Meal_Plan {
 				// Rohbedarf je Einheit sammeln; unteilbare Einheiten werden
 				// erst nach der Aggregation über alle Mahlzeiten gerundet.
 				if ( ! isset( $ingredient_totals[ $group ]['units'][ $amount_id ] ) ) {
-					$ingredient_totals[ $group ]['units'][ $amount_id ] = [
+					$ingredient_totals[ $group ]['units'][ $amount_id ] = array(
 						'raw_amount'      => 0.0,
 						'weight_per_unit' => $weight_per_unit,
 						'is_indivisible'  => ! empty( $ing['is_indivisible'] ),
 						'step_divisor'    => (int) ( $ing['step_divisor'] ?? 0 ),
 						'unit_title'      => $unit,
-					];
+					);
 				}
 				$ingredient_totals[ $group ]['units'][ $amount_id ]['raw_amount'] += $raw_amount;
 
-				$ingredient_totals[ $group ]['details'][] = [
+				$ingredient_totals[ $group ]['details'][] = array(
 					'amount'      => $raw_amount,
 					'unit_title'  => $unit,
 					'weight_g'    => $weight_per_unit > 0
 						? $raw_amount * $weight_per_unit
 						: $raw_amount,
 					'recipe_name' => get_the_title( $recipe_id ),
-				];
+				);
 			}
 		}
 
 		if ( empty( $ingredient_totals ) ) {
-			return [];
+			return array();
 		}
 
 		/*
@@ -3648,13 +3651,13 @@ class Mixmymeals_Meal_Plan {
 		 * keys of the form "12|34"; `ingredient_id` is the field to read, and
 		 * its lines are moved together so they sit beside each other.
 		 */
-		$by_ingredient = [];
+		$by_ingredient = array();
 
 		foreach ( $ingredient_totals as $group => $data ) {
 			$by_ingredient[ $data['ingredient_id'] ][ $group ] = $data;
 		}
 
-		$ingredient_totals = [];
+		$ingredient_totals = array();
 
 		foreach ( $by_ingredient as $ing_id => $groups ) {
 			if ( 1 === count( $groups ) ) {
@@ -3668,7 +3671,7 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		// 👉 Gruppieren nach Kategorie
-		$ingredients_by_cat = [];
+		$ingredients_by_cat = array();
 
 		if ( $sort_by_category ) {
 
@@ -3676,7 +3679,7 @@ class Mixmymeals_Meal_Plan {
 
 				$terms = wp_get_post_terms( (int) $data['ingredient_id'], 'mmm_ingredient_category' );
 				if ( is_wp_error( $terms ) ) {
-					$terms = [];
+					$terms = array();
 				}
 
 				$cat_name = ! empty( $terms )
@@ -3703,7 +3706,7 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public function get_required_equipment(): array {
 
-		$equipment_ids = [];
+		$equipment_ids = array();
 
 		foreach ( $this->get_meals() as $meal_post ) {
 
@@ -3725,7 +3728,7 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		if ( empty( $equipment_ids ) ) {
-			return [];
+			return array();
 		}
 
 		$equipment_ids = array_values( $equipment_ids );
@@ -3873,7 +3876,7 @@ class Mixmymeals_Meal_Plan {
 	 *
 	 * @return string HTML <img> tag or empty string if none found.
 	 */
-	public static function get_random_recipe_image_from_latest_plan( string $size = 'medium', array $attr = [] ): string {
+	public static function get_random_recipe_image_from_latest_plan( string $size = 'medium', array $attr = array() ): string {
 
 		$recipe_id = self::get_random_recipe_id_from_latest_plan_cached();
 		if ( ! $recipe_id ) {
@@ -3957,7 +3960,7 @@ class Mixmymeals_Meal_Plan {
 			$cost = $recipe->calculate_cost_per_serving();
 			if ( $cost > 0 ) {
 				$total += $cost;
-				$count++;
+				++$count;
 			}
 		}
 		return $count > 0 ? $total / $count : 0.0;
@@ -4090,7 +4093,7 @@ class Mixmymeals_Meal_Plan {
 
 	public static function build_needed_amount_string( array $units, float $total_weight ): string {
 
-		$piece_parts = [];
+		$piece_parts = array();
 		$loose_grams = 0.0;
 
 		foreach ( $units as $unit ) {
@@ -4102,11 +4105,13 @@ class Mixmymeals_Meal_Plan {
 			 * into a whole one.
 			 */
 			if ( self::unit_is_counted( $unit ) ) {
-				$piece_parts[] = trim( sprintf(
-					'%s× %s',
-					self::format_count_i18n( (float) ( $unit['amount'] ?? 0 ) ),
-					$unit['unit_title'] ?? ''
-				) );
+				$piece_parts[] = trim(
+					sprintf(
+						'%s× %s',
+						self::format_count_i18n( (float) ( $unit['amount'] ?? 0 ) ),
+						$unit['unit_title'] ?? ''
+					)
+				);
 			} else {
 				$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
 			}
@@ -4179,7 +4184,8 @@ class Mixmymeals_Meal_Plan {
 		return number_format_i18n( $grams ) . ' g';
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Structured data
 	 * ------------------------------------------------------------------ */
 
@@ -4236,7 +4242,8 @@ class Mixmymeals_Meal_Plan {
 		return apply_filters( 'mixmymeals_meal_plan_schema', $schema, $plan_id );
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Bring! import view
 	 * ------------------------------------------------------------------ */
 
@@ -4450,12 +4457,14 @@ class Mixmymeals_Meal_Plan {
 
 				foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
 					if ( self::unit_is_counted( $unit ) ) {
-						$lines[] = trim( sprintf(
-							'%s %s %s',
-							Mixmymeals_Ingredient::format_amount( (float) ( $unit['amount'] ?? 0 ) ),
-							trim( (string) ( $unit['unit_title'] ?? '' ) ),
-							$name
-						) );
+						$lines[] = trim(
+							sprintf(
+								'%s %s %s',
+								Mixmymeals_Ingredient::format_amount( (float) ( $unit['amount'] ?? 0 ) ),
+								trim( (string) ( $unit['unit_title'] ?? '' ) ),
+								$name
+							)
+						);
 						$added   = true;
 					} else {
 						$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
@@ -4480,7 +4489,4 @@ class Mixmymeals_Meal_Plan {
 
 		return $lines;
 	}
-
-
-
 }

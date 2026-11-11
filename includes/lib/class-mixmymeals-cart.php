@@ -374,7 +374,7 @@ class Mixmymeals_Cart {
 		?int $servings = null,
 		?string $type = null,
 		?int $day = null,
-		//?string $note = null
+		// ?string $note = null
 		?string $diet = null,
 		?array $eaters = null,
 		?array $portions = null
@@ -397,7 +397,7 @@ class Mixmymeals_Cart {
 			'servings'  => $servings ?? 1,
 			'type'      => $type ?? '',
 			'day'       => $day,
-			//'note'      => $note ?? '',
+			// 'note'      => $note ?? '',
 			'diet'      => self::clean_diet( $recipe_id, (string) $diet ),
 			// Empty is everybody: a recipe planned from its page is eaten
 			// by all until somebody says otherwise in the planner.
@@ -413,7 +413,6 @@ class Mixmymeals_Cart {
 		$this->save_items( $items );
 
 		return true;
-
 	}
 
 
@@ -445,7 +444,7 @@ class Mixmymeals_Cart {
 		$items = array_values(
 			array_filter(
 				$items,
-				static function( $item ) use ( $recipe_id ) {
+				static function ( $item ) use ( $recipe_id ) {
 					return (int) ( $item['recipe_id'] ?? 0 ) !== $recipe_id;
 				}
 			)
@@ -641,12 +640,14 @@ class Mixmymeals_Cart {
 			? intval( $_POST['recipe_id'] ) : 0;
 
 		if ( ! self::recipe_is_plannable( $recipe_id ) ) {
-			wp_send_json_error( [
-				'code'    => 'invalid_recipe_id',
-				'message' => __( 'Invalid recipe ID.', 'mixmymeals' ),
-			], 400 );
+			wp_send_json_error(
+				array(
+					'code'    => 'invalid_recipe_id',
+					'message' => __( 'Invalid recipe ID.', 'mixmymeals' ),
+				),
+				400
+			);
 		}
-
 
 		/*
 		$cart = new Mixmymeals_Cart();
@@ -674,12 +675,14 @@ class Mixmymeals_Cart {
 		$ok   = $cart->add( $recipe_id, $servings, $type, $day, $diet );
 
 		if ( ! $ok ) {
-			wp_send_json_error( [
-				'code'    => 'cart_limit_reached',
-				'message' => __( 'Your planner is full.', 'mixmymeals' ),
-			], 409 );
+			wp_send_json_error(
+				array(
+					'code'    => 'cart_limit_reached',
+					'message' => __( 'Your planner is full.', 'mixmymeals' ),
+				),
+				409
+			);
 		}
-
 
 		/*
 		 * The count travels with the answer so the page can say what just
@@ -687,11 +690,12 @@ class Mixmymeals_Cart {
 		 * nothing a reader could see — the only trace was a badge in a header
 		 * that is far out of sight on a long archive.
 		 */
-		wp_send_json_success( [
-			'message' => __( 'Recipe added to meal plan.', 'mixmymeals' ),
-			'count'   => count( ( new self() )->get_items() ),
-		] );
-
+		wp_send_json_success(
+			array(
+				'message' => __( 'Recipe added to meal plan.', 'mixmymeals' ),
+				'count'   => count( ( new self() )->get_items() ),
+			)
+		);
 	}
 
 	/**
@@ -724,27 +728,34 @@ class Mixmymeals_Cart {
 		$index = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : - 1;
 
 		if ( $index < 0 ) {
-			wp_send_json_error( [
-				'code'    => 'invalid_index',
-				'message' => __( 'Invalid index.', 'mixmymeals' ),
-			], 400 );
+			wp_send_json_error(
+				array(
+					'code'    => 'invalid_index',
+					'message' => __( 'Invalid index.', 'mixmymeals' ),
+				),
+				400
+			);
 		}
 
 		$cart    = new Mixmymeals_Cart();
 		$success = $cart->remove_by_index( $index );
 
 		if ( $success ) {
-			wp_send_json_success( [
-				'code'    => 'removed',
-				'message' => __( 'Recipe removed.', 'mixmymeals' ),
-			] );
+			wp_send_json_success(
+				array(
+					'code'    => 'removed',
+					'message' => __( 'Recipe removed.', 'mixmymeals' ),
+				)
+			);
 		} else {
-			wp_send_json_error( [
-				'code'    => 'remove_failed',
-				'message' => __( 'Could not remove recipe.', 'mixmymeals' ),
-			], 500 );
+			wp_send_json_error(
+				array(
+					'code'    => 'remove_failed',
+					'message' => __( 'Could not remove recipe.', 'mixmymeals' ),
+				),
+				500
+			);
 		}
-
 	}
 
 	/**
@@ -774,20 +785,26 @@ class Mixmymeals_Cart {
 
 		$index = isset( $_POST['index'] ) ? intval( $_POST['index'] ) : - 1;
 		if ( $index < 0 ) {
-			wp_send_json_error( [
-				'code'    => 'invalid_index',
-				'message' => __( 'Invalid index.', 'mixmymeals' ),
-			], 400 );
+			wp_send_json_error(
+				array(
+					'code'    => 'invalid_index',
+					'message' => __( 'Invalid index.', 'mixmymeals' ),
+				),
+				400
+			);
 		}
 
 		$cart  = new Mixmymeals_Cart();
 		$items = $cart->get_items();
 
 		if ( ! isset( $items[ $index ] ) ) {
-			wp_send_json_error( [
-				'code'    => 'item_not_found',
-				'message' => __( 'Item not existing.', 'mixmymeals' ),
-			], 404 );
+			wp_send_json_error(
+				array(
+					'code'    => 'item_not_found',
+					'message' => __( 'Item not existing.', 'mixmymeals' ),
+				),
+				404
+			);
 		}
 
 		/*
@@ -833,13 +850,15 @@ class Mixmymeals_Cart {
 		$items[ $index ] = $item;
 		$cart->save_items( $items );
 
-		wp_send_json_success( [
-			'code'         => 'updated',
-			'message'      => __( 'Item updated.', 'mixmymeals' ),
-			'item'         => $item,
-			'min_servings' => $mmm_servings['min'],
-			'surplus'      => Mixmymeals_Meal_Plan::servings_surplus_text( $mmm_servings['surplus'] ),
-		] );
+		wp_send_json_success(
+			array(
+				'code'         => 'updated',
+				'message'      => __( 'Item updated.', 'mixmymeals' ),
+				'item'         => $item,
+				'min_servings' => $mmm_servings['min'],
+				'surplus'      => Mixmymeals_Meal_Plan::servings_surplus_text( $mmm_servings['surplus'] ),
+			)
+		);
 	}
 
 	/** Prefix of a shared snapshot. */
@@ -1025,9 +1044,11 @@ class Mixmymeals_Cart {
 			);
 		}
 
-		wp_send_json_success( array(
-			'message' => __( 'Meal plan loaded into the planner.', 'mixmymeals' ),
-		) );
+		wp_send_json_success(
+			array(
+				'message' => __( 'Meal plan loaded into the planner.', 'mixmymeals' ),
+			)
+		);
 	}
 
 	/**
@@ -1114,5 +1135,4 @@ class Mixmymeals_Cart {
 			)
 		);
 	}
-
 }

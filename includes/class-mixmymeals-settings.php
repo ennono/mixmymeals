@@ -87,7 +87,7 @@ class Mixmymeals_Settings {
 	 * @var array<string, string[]>
 	 */
 	const SUBMENU_ORDER = array(
-		'edit.php?post_type=mmm_recipe'    => array(
+		'edit.php?post_type=mmm_recipe'     => array(
 			'edit.php?post_type=mmm_recipe',
 			'post-new.php?post_type=mmm_recipe',
 			'edit-tags.php?taxonomy=mmm_recipe_category&post_type=mmm_recipe',
@@ -102,14 +102,14 @@ class Mixmymeals_Settings {
 			'edit-tags.php?taxonomy=mmm_ingredient_category&post_type=mmm_ingredient',
 			'edit-tags.php?taxonomy=mmm_diet&post_type=mmm_ingredient',
 		),
-		'edit.php?post_type=mmm_meal_plan' => array(
+		'edit.php?post_type=mmm_meal_plan'  => array(
 			'edit.php?post_type=mmm_meal_plan',
 			'post-new.php?post_type=mmm_meal_plan',
 			'edit-tags.php?taxonomy=mmm_meal_plan_category&post_type=mmm_meal_plan',
 			'edit-tags.php?taxonomy=mmm_meal_plan_tag&post_type=mmm_meal_plan',
 			'mixmymeals_photos',
 		),
-		'mixmymeals_settings'              => array(
+		'mixmymeals_settings'               => array(
 			'mixmymeals_settings',
 			'edit.php?post_type=mmm_subscription',
 		),
@@ -252,8 +252,10 @@ class Mixmymeals_Settings {
 		 */
 		$settings['mixmymeals-general'] = array(
 			'title'       => __( 'General', 'mixmymeals' ),
-			'description' => __( 'Currency, placeholder image, scheduled cleanup and what happens on uninstall. Recipes, ingredients, meal plans, visitors and e-mail each have their own tab.',
-				'mixmymeals' ),
+			'description' => __(
+				'Currency, placeholder image, scheduled cleanup and what happens on uninstall. Recipes, ingredients, meal plans, visitors and e-mail each have their own tab.',
+				'mixmymeals'
+			),
 			'fields'      => array(
 				array(
 					'id'    => 'general_group_display',
@@ -271,13 +273,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'placeholder_image_id',
 					'label'       => __( 'Placeholder Image', 'mixmymeals' ),
-					'description' => __( 'Used only as a fallback for social link previews and Instagram slide backgrounds. On the website, recipes without a photo are shown cookbook-style with their title only.',
-						'mixmymeals' ),
+					'description' => __(
+						'Used only as a fallback for social link previews and Instagram slide backgrounds. On the website, recipes without a photo are shown cookbook-style with their title only.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'placeholder_image_id_callback'
+						'placeholder_image_id_callback',
 					),
 				),
 				array(
@@ -288,49 +292,57 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'enable_cleanup',
 					'label'       => __( 'Enable Cleanup', 'mixmymeals' ),
-					'description' => __( 'Automatically delete orphaned meals and old meal plans without a category once per day.',
-						'mixmymeals' ),
+					'description' => __(
+						'Automatically delete orphaned meals and old meal plans without a category once per day.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'enable_cleanup_callback'
+						'enable_cleanup_callback',
 					),
 				),
 				array(
 					'id'          => 'cleanup_min_age_days',
 					'label'       => __( 'Cleanup Minimum Age', 'mixmymeals' ),
-					'description' => __( 'Only delete items older than this many days.',
-						'mixmymeals' ),
+					'description' => __(
+						'Only delete items older than this many days.',
+						'mixmymeals'
+					),
 					'default'     => 30,
 					'placeholder' => '30',
 					'callback'    => array(
 						$this,
-						'cleanup_min_age_days_callback'
+						'cleanup_min_age_days_callback',
 					),
 				),
 				array(
 					'id'          => 'cleanup_report_enabled',
 					'label'       => __( 'Cleanup Report', 'mixmymeals' ),
-					'description' => __( 'E-mail a summary after each cleanup run, including deletions made by the mail log, the Instagram image cleanup and the subscription retention (only when something was deleted).',
-						'mixmymeals' ),
+					'description' => __(
+						'E-mail a summary after each cleanup run, including deletions made by the mail log, the Instagram image cleanup and the subscription retention (only when something was deleted).',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'cleanup_report_enabled_callback'
+						'cleanup_report_enabled_callback',
 					),
 				),
 				array(
 					'id'          => 'cleanup_report_recipient',
 					'label'       => __( 'Report Recipient', 'mixmymeals' ),
-					'description' => __( 'Address the cleanup report is sent to. Leave empty to use the site admin e-mail.',
-						'mixmymeals' ),
+					'description' => __(
+						'Address the cleanup report is sent to. Leave empty to use the site admin e-mail.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => get_option( 'admin_email' ),
 					'callback'    => array(
 						$this,
-						'cleanup_report_recipient_callback'
+						'cleanup_report_recipient_callback',
 					),
 				),
 				array(
@@ -351,8 +363,10 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-recipes'] = array(
 			'title'       => __( 'Recipes', 'mixmymeals' ),
-			'description' => __( 'Everything listed under Recipes in the menu: recipe addresses and archive, the cooking steps, authors and equipment.',
-				'mixmymeals' ),
+			'description' => __(
+				'Everything listed under Recipes in the menu: recipe addresses and archive, the cooking steps, authors and equipment.',
+				'mixmymeals'
+			),
 			'fields'      => array(
 				array(
 					'id'    => 'recipes_group_slugs',
@@ -362,49 +376,57 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'recipe_slug',
 					'label'       => __( 'Recipe Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for recipes in the URL.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for recipes in the URL.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
 					'id'          => 'recipe_category_slug',
 					'label'       => __( 'Recipe Category Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for recipe categories in the URL.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for recipe categories in the URL.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
 					'id'          => 'author_slug',
 					'label'       => __( 'Author Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for author archives in the URL. Must not be "author" — WordPress uses that for its own user archives. Authors currently have no public pages, so this takes effect only once they do.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for author archives in the URL. Must not be "author" — WordPress uses that for its own user archives. Authors currently have no public pages, so this takes effect only once they do.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
 					'id'          => 'equipment_slug',
 					'label'       => __( 'Equipment Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for equipment in the URL. Changing it flushes the permalinks.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for equipment in the URL. Changing it flushes the permalinks.',
+						'mixmymeals'
+					),
 					'default'     => 'equipment',
 					'placeholder' => 'equipment',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
@@ -415,13 +437,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'recipe_disclaimer_text',
 					'label'       => __( 'Recipe Disclaimer', 'mixmymeals' ),
-					'description' => __( 'Write a disclaimer for your recipes.',
-						'mixmymeals' ),
+					'description' => __(
+						'Write a disclaimer for your recipes.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'recipe_disclaimer_text_callback'
+						'recipe_disclaimer_text_callback',
 					),
 				),
 				array(
@@ -438,13 +462,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'all_recipes_description',
 					'label'       => __( 'Recipe Archive Description', 'mixmymeals' ),
-					'description' => __( 'This description will be used by the corresponding shortcode.',
-						'mixmymeals' ),
+					'description' => __(
+						'This description will be used by the corresponding shortcode.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				array(
@@ -455,25 +481,29 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'show_recipe_steps',
 					'label'       => __( 'Steps on Recipe Pages', 'mixmymeals' ),
-					'description' => __( 'Show the cooking steps on the recipe page. When switched off, only the note below is shown there and the steps remain available on the meal pages.',
-						'mixmymeals' ),
+					'description' => __(
+						'Show the cooking steps on the recipe page. When switched off, only the note below is shown there and the steps remain available on the meal pages.',
+						'mixmymeals'
+					),
 					'default'     => 'on',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'checkbox_callback'
+						'checkbox_callback',
 					),
 				),
 				array(
 					'id'          => 'recipe_steps_notice',
 					'label'       => __( 'Note Instead of Steps', 'mixmymeals' ),
-					'description' => __( 'Shown on the recipe page in place of the steps while “Steps on Recipe Pages” is switched off. Leave empty to output nothing at all.',
-						'mixmymeals' ),
+					'description' => __(
+						'Shown on the recipe page in place of the steps while “Steps on Recipe Pages” is switched off. Leave empty to output nothing at all.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'recipe_steps_notice_callback'
+						'recipe_steps_notice_callback',
 					),
 				),
 				array(
@@ -497,13 +527,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'all_equipment_description',
 					'label'       => __( 'Equipment Archive Description', 'mixmymeals' ),
-					'description' => __( 'This description will be used by the corresponding shortcode.',
-						'mixmymeals' ),
+					'description' => __(
+						'This description will be used by the corresponding shortcode.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				array(
@@ -530,13 +562,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'ingredient_slug',
 					'label'       => __( 'Ingredient Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for ingredients in the URL.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for ingredients in the URL.',
+						'mixmymeals'
+					),
 					'default'     => 'ingredients',
 					'placeholder' => 'ingredients',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
@@ -547,13 +581,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'all_ingredients_description',
 					'label'       => __( 'Ingredient Archive Description', 'mixmymeals' ),
-					'description' => __( 'This description will be used by the corresponding shortcode.',
-						'mixmymeals' ),
+					'description' => __(
+						'This description will be used by the corresponding shortcode.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				...$this->nutrition_table_fields( array( 'ingredient' ) ),
@@ -563,8 +599,10 @@ class Mixmymeals_Settings {
 
 		$settings['mixmymeals-meal-plans'] = array(
 			'title'       => __( 'Meal Plans', 'mixmymeals' ),
-			'description' => __( 'Plan and meal addresses, the planner visitors build their own plans in, and what a plan page shows.',
-				'mixmymeals' ),
+			'description' => __(
+				'Plan and meal addresses, the planner visitors build their own plans in, and what a plan page shows.',
+				'mixmymeals'
+			),
 			'fields'      => array(
 				array(
 					'id'    => 'mealplans_group_slugs',
@@ -574,37 +612,43 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'meal_plan_slug',
 					'label'       => __( 'Meal Plan Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for meal plans in the URL.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for meal plans in the URL.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
 					'id'          => 'meal_plan_category_slug',
 					'label'       => __( 'Meal Plan Category Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for meal plan categories in the URL.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for meal plan categories in the URL.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
 					'id'          => 'meal_slug',
 					'label'       => __( 'Meal Slug', 'mixmymeals' ),
-					'description' => __( 'Set the prefix for meals in the URL.',
-						'mixmymeals' ),
+					'description' => __(
+						'Set the prefix for meals in the URL.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'slug_callback'
+						'slug_callback',
 					),
 				),
 				array(
@@ -615,32 +659,38 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'max_items_in_cart',
 					'label'       => __( 'Max. meals in planner', 'mixmymeals' ),
-					'description' => __( 'How many meals should be allowed in the planner?',
-						'mixmymeals' ),
+					'description' => __(
+						'How many meals should be allowed in the planner?',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'max_items_in_cart_callback'
+						'max_items_in_cart_callback',
 					),
 				),
 				array(
 					'id'          => 'planner_templates_require_category',
 					'label'       => __( 'Plans offered as templates', 'mixmymeals' ),
-					'description' => __( 'Only offer plans that have a category. Plans a visitor built carry none, so this keeps them out.',
-						'mixmymeals' ),
+					'description' => __(
+						'Only offer plans that have a category. Plans a visitor built carry none, so this keeps them out.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'planner_templates_require_category_callback'
+						'planner_templates_require_category_callback',
 					),
 				),
 				array(
 					'id'          => 'eater_portion_step',
 					'label'       => __( 'Portions per person', 'mixmymeals' ),
-					'description' => __( 'How finely the portions a person eats are entered — in the People box of a plan, its Meals box and the planner. Values already stored stay as they are.',
-						'mixmymeals' ),
+					'description' => __(
+						'How finely the portions a person eats are entered — in the People box of a plan, its Meals box and the planner. Values already stored stay as they are.',
+						'mixmymeals'
+					),
 					'default'     => Mixmymeals_Meal_Plan::PORTION_STEP_DEFAULT,
 					'placeholder' => '',
 					'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_portion_step' ),
@@ -648,13 +698,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'individual_tab_label',
 					'label'       => __( 'Individual Tab Label', 'mixmymeals' ),
-					'description' => __( 'Label for the "Individual" tab in the meal plan switcher.',
-						'mixmymeals' ),
+					'description' => __(
+						'Label for the "Individual" tab in the meal plan switcher.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => __( 'Individual', 'mixmymeals' ),
 					'callback'    => array(
 						$this,
-						'text_callback'
+						'text_callback',
 					),
 				),
 				array(
@@ -665,25 +717,29 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'all_meal_plans_description',
 					'label'       => __( 'Meal Plan Archive Description', 'mixmymeals' ),
-					'description' => __( 'This description will be used by the corresponding shortcode.',
-						'mixmymeals' ),
+					'description' => __(
+						'This description will be used by the corresponding shortcode.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				array(
 					'id'          => 'individual_meal_plans_description',
 					'label'       => __( 'Individual Meal Plans Description', 'mixmymeals' ),
-					'description' => __( 'This description will be used by the corresponding shortcode.',
-						'mixmymeals' ),
+					'description' => __(
+						'This description will be used by the corresponding shortcode.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				array(
@@ -694,25 +750,29 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'plan_undated_meals',
 					'label'       => __( 'Meals Without a Day', 'mixmymeals' ),
-					'description' => __( 'Show meals that have no weekday assigned in a group of their own, below the days. Without this they appear nowhere on the plan page, although they still count towards the shopping list and the nutrition figures.',
-						'mixmymeals' ),
+					'description' => __(
+						'Show meals that have no weekday assigned in a group of their own, below the days. Without this they appear nowhere on the plan page, although they still count towards the shopping list and the nutrition figures.',
+						'mixmymeals'
+					),
 					'default'     => 'on',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'plan_undated_meals_callback'
+						'plan_undated_meals_callback',
 					),
 				),
 				array(
 					'id'          => 'plan_undated_meals_label',
 					'label'       => __( 'Heading for Those Meals', 'mixmymeals' ),
-					'description' => __( 'What that group is called. Leave empty for the default.',
-						'mixmymeals' ),
+					'description' => __(
+						'What that group is called. Leave empty for the default.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => __( 'No fixed day', 'mixmymeals' ),
 					'callback'    => array(
 						$this,
-						'text_callback'
+						'text_callback',
 					),
 				),
 				array(
@@ -723,25 +783,29 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'plan_thumbs_mode',
 					'label'       => __( 'Thumbnail Selection', 'mixmymeals' ),
-					'description' => __( 'Which recipe pictures the thumbnail strip of a meal plan shows. Only recipes with a featured image are used, and no recipe appears twice.',
-						'mixmymeals' ),
+					'description' => __(
+						'Which recipe pictures the thumbnail strip of a meal plan shows. Only recipes with a featured image are used, and no recipe appears twice.',
+						'mixmymeals'
+					),
 					'default'     => Mixmymeals_Meal_Plan::THUMBS_MODE_DEFAULT,
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'plan_thumbs_mode_callback'
+						'plan_thumbs_mode_callback',
 					),
 				),
 				array(
 					'id'          => 'plan_thumbs_max',
 					'label'       => __( 'Max. Thumbnails', 'mixmymeals' ),
-					'description' => __( 'How many pictures the strip shows at most. 0 shows all of them.',
-						'mixmymeals' ),
+					'description' => __(
+						'How many pictures the strip shows at most. 0 shows all of them.',
+						'mixmymeals'
+					),
 					'default'     => Mixmymeals_Meal_Plan::THUMBS_MAX_DEFAULT,
 					'placeholder' => (string) Mixmymeals_Meal_Plan::THUMBS_MAX_DEFAULT,
 					'callback'    => array(
 						$this,
-						'plan_thumbs_max_callback'
+						'plan_thumbs_max_callback',
 					),
 				),
 				array(
@@ -757,7 +821,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'public_mode_callback'
+						'public_mode_callback',
 					),
 				),
 				array(
@@ -768,7 +832,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'published_meal_plans_per_hour_limit_callback'
+						'published_meal_plans_per_hour_limit_callback',
 					),
 				),
 				array(
@@ -779,19 +843,21 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'save_meal_plans_published_by_visitors_as_draft_callback'
+						'save_meal_plans_published_by_visitors_as_draft_callback',
 					),
 				),
 				array(
 					'id'          => 'page_id_to_redirect_after_plan_created',
 					'label'       => __( 'Success Page', 'mixmymeals' ),
-					'description' => __( 'Where to send visitors after their new plan has been published. The plan\'s ID is appended as ?mmm_plan=, so the page can link to it. Leave unset to open the plan itself.',
-						'mixmymeals' ),
+					'description' => __(
+						'Where to send visitors after their new plan has been published. The plan\'s ID is appended as ?mmm_plan=, so the page can link to it. Leave unset to open the plan itself.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => __( '— The new plan —', 'mixmymeals' ),
 					'callback'    => array(
 						$this,
-						'page_id_to_redirect_after_plan_created_callback'
+						'page_id_to_redirect_after_plan_created_callback',
 					),
 				),
 				array(
@@ -802,7 +868,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'page_id_to_redirect_if_new_plan_is_draft_callback'
+						'page_id_to_redirect_if_new_plan_is_draft_callback',
 					),
 				),
 				array(
@@ -826,7 +892,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'plan_subscribe_mode_callback'
+						'plan_subscribe_mode_callback',
 					),
 				),
 				array(
@@ -837,7 +903,7 @@ class Mixmymeals_Settings {
 					'placeholder' => wp_strip_all_tags( Mixmymeals_Subscriptions::consent_text() ),
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				array(
@@ -848,7 +914,7 @@ class Mixmymeals_Settings {
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'public_mode_callback'
+						'public_mode_callback',
 					),
 				),
 				array(
@@ -892,8 +958,10 @@ class Mixmymeals_Settings {
 		 */
 		$settings['mixmymeals-email'] = array(
 			'title'       => __( 'E-Mail & Subscriptions', 'mixmymeals' ),
-			'description' => __( 'Who the plugin\'s e-mails come from, the meal-plan subscriptions they deliver (double opt-in) and how long their data is kept.',
-				'mixmymeals' ),
+			'description' => __(
+				'Who the plugin\'s e-mails come from, the meal-plan subscriptions they deliver (double opt-in) and how long their data is kept.',
+				'mixmymeals'
+			),
 			'fields'      => array(
 				array(
 					'id'    => 'email_group_sender',
@@ -903,8 +971,10 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'mail_from_name',
 					'label'       => __( 'Sender Name', 'mixmymeals' ),
-					'description' => __( 'Name shown as the e-mail sender. Defaults to the site title.',
-						'mixmymeals' ),
+					'description' => __(
+						'Name shown as the e-mail sender. Defaults to the site title.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => get_bloginfo( 'name' ),
 					'callback'    => array( $this, 'text_callback' ),
@@ -912,13 +982,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'mail_from_email',
 					'label'       => __( 'Sender Address', 'mixmymeals' ),
-					'description' => __( 'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
-						'mixmymeals' ),
+					'description' => __(
+						'From address for outgoing e-mails. Leave empty to use no-reply@your-domain.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => 'no-reply@example.com',
 					'callback'    => array(
 						$this,
-						'mail_from_email_callback'
+						'mail_from_email_callback',
 					),
 				),
 				array(
@@ -929,8 +1001,10 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'subscriptions_enabled',
 					'label'       => __( 'Enable Subscriptions', 'mixmymeals' ),
-					'description' => __( 'Allow visitors to subscribe to meal plans and run the sending schedule.',
-						'mixmymeals' ),
+					'description' => __(
+						'Allow visitors to subscribe to meal plans and run the sending schedule.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscriptions_enabled_callback' ),
@@ -959,8 +1033,10 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'subscription_privacy_url',
 					'label'       => __( 'Privacy Policy URL', 'mixmymeals' ),
-					'description' => __( 'Linked from the consent checkbox on the subscribe form.',
-						'mixmymeals' ),
+					'description' => __(
+						'Linked from the consent checkbox on the subscribe form.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => 'https://…',
 					'callback'    => array( $this, 'subscription_privacy_url_callback' ),
@@ -1028,13 +1104,15 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'mail_footer',
 					'label'       => __( 'E-Mail Footer', 'mixmymeals' ),
-					'description' => __( 'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
-						'mixmymeals' ),
+					'description' => __(
+						'Footer added to e-mails (e.g. imprint, data controller, opt-out note). HTML allowed.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'archive_description_callback'
+						'archive_description_callback',
 					),
 				),
 				array(
@@ -1053,32 +1131,38 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'mail_suppression_list',
 					'label'       => __( 'Suppression List', 'mixmymeals' ),
-					'description' => __( 'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
-						'mixmymeals' ),
+					'description' => __(
+						'Opted-out addresses, one per line. These never receive non-transactional e-mails.',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'mail_suppression_list_callback'
+						'mail_suppression_list_callback',
 					),
 				),
 				array(
 					'id'          => 'mail_log_enabled',
 					'label'       => __( 'Send Log', 'mixmymeals' ),
-					'description' => __( 'Keep a log of sent e-mails (recipient, subject, status — no message content).',
-						'mixmymeals' ),
+					'description' => __(
+						'Keep a log of sent e-mails (recipient, subject, status — no message content).',
+						'mixmymeals'
+					),
 					'default'     => 'on',
 					'placeholder' => '',
 					'callback'    => array(
 						$this,
-						'mail_log_enabled_callback'
+						'mail_log_enabled_callback',
 					),
 				),
 				array(
 					'id'          => 'subscription_pending_hours',
 					'label'       => __( 'Confirmation Window (hours)', 'mixmymeals' ),
-					'description' => __( 'Unconfirmed subscriptions are deleted after this many hours.',
-						'mixmymeals' ),
+					'description' => __(
+						'Unconfirmed subscriptions are deleted after this many hours.',
+						'mixmymeals'
+					),
 					'default'     => 48,
 					'placeholder' => '48',
 					'callback'    => array( $this, 'subscription_pending_hours_callback' ),
@@ -1086,8 +1170,10 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'subscription_retention_days',
 					'label'       => __( 'Retention (days)', 'mixmymeals' ),
-					'description' => __( 'Completed/unsubscribed records are deleted after this many days.',
-						'mixmymeals' ),
+					'description' => __(
+						'Completed/unsubscribed records are deleted after this many days.',
+						'mixmymeals'
+					),
 					'default'     => 365,
 					'placeholder' => '365',
 					'callback'    => array( $this, 'subscription_retention_days_callback' ),
@@ -1095,8 +1181,10 @@ class Mixmymeals_Settings {
 				array(
 					'id'          => 'subscription_log_ip',
 					'label'       => __( 'Store Consent IP', 'mixmymeals' ),
-					'description' => __( 'Also store the IP address as part of the consent record (optional).',
-						'mixmymeals' ),
+					'description' => __(
+						'Also store the IP address as part of the consent record (optional).',
+						'mixmymeals'
+					),
 					'default'     => '',
 					'placeholder' => '',
 					'callback'    => array( $this, 'subscription_log_ip_callback' ),
@@ -1128,7 +1216,6 @@ class Mixmymeals_Settings {
 		);
 
 		$settings['mixmymeals-language'] = $this->chip_text_fields();
-
 
 		// _token is 'mixmymeals', so the hook is mixmymeals_settings_fields —
 		// the sniff simply cannot resolve the property.
@@ -1461,7 +1548,7 @@ class Mixmymeals_Settings {
 
 		// Do nothing if wrong location key is set.
 		if ( is_array( $args ) && isset( $args['location'] )
-		     && function_exists( 'add_' . $args['location'] . '_page' )
+			&& function_exists( 'add_' . $args['location'] . '_page' )
 		) {
 			switch ( $args['location'] ) {
 				case 'options':
@@ -1505,7 +1592,6 @@ class Mixmymeals_Settings {
 				default:
 					return;
 			}
-
 		}
 	}
 
@@ -1669,7 +1755,7 @@ class Mixmymeals_Settings {
 	 */
 	public function add_settings_link( array $links ): array {
 		$links[] = '<a href="' . esc_url( self::settings_url() ) . '">'
-		           . esc_html__( 'Settings', 'mixmymeals' ) . '</a>';
+					. esc_html__( 'Settings', 'mixmymeals' ) . '</a>';
 
 		return $links;
 	}
@@ -1800,8 +1886,8 @@ class Mixmymeals_Settings {
 	 */
 	public function settings_section( array $section ) {
 		$html = '<p> '
-		        . esc_html( $this->settings[ $section['id'] ]['description'] )
-		        . '</p>' . "\n";
+				. esc_html( $this->settings[ $section['id'] ]['description'] )
+				. '</p>' . "\n";
 		echo $html; //phpcs:ignore
 	}
 
@@ -1814,11 +1900,11 @@ class Mixmymeals_Settings {
 
 		// Build page HTML.
 		$html  = '<div class="wrap" id="' . $this->parent->_token . '_settings">'
-		         . "\n";
+				. "\n";
 		$html .= '<div class="mixmymeals-admin-wrapper">' . "\n";
 		$html .= '<div class="mixmymeals-admin-main-section">';
 		$html .= '<h1>' . esc_html__( 'Settings', 'mixmymeals' )
-		         . '&nbsp;›&nbsp;MixMyMeals</h1>' . "\n";
+				. '&nbsp;›&nbsp;MixMyMeals</h1>' . "\n";
 
 		$tab = '';
 		//phpcs:disable
@@ -1865,15 +1951,15 @@ class Mixmymeals_Settings {
 
 				// Output tab.
 				$html .= '<a href="' . esc_url( $tab_link ) . '" class="'
-				         . esc_attr( $class ) . '">'
-				         . esc_html( $data['title'] ) . '</a>' . "\n";
+						. esc_attr( $class ) . '">'
+						. esc_html( $data['title'] ) . '</a>' . "\n";
 			}
 
 			$html .= '</h2>' . "\n";
 		}
 
 		$html .= '<form method="post" action="options.php" enctype="multipart/form-data">'
-		         . "\n";
+				. "\n";
 
 		// Get settings fields.
 		ob_start();
@@ -1883,10 +1969,10 @@ class Mixmymeals_Settings {
 
 		$html .= '<p class="submit">' . "\n";
 		$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab )
-		         . '" />' . "\n";
+				. '" />' . "\n";
 		$html .= '<input name="Submit" type="submit" class="button-primary" value="'
-		         . esc_attr__( 'Save Settings', 'mixmymeals' ) . '" />'
-		         . "\n";
+				. esc_attr__( 'Save Settings', 'mixmymeals' ) . '" />'
+				. "\n";
 		$html .= '</p>' . "\n";
 		$html .= '</form>' . "\n";
 
@@ -1959,14 +2045,14 @@ class Mixmymeals_Settings {
 		$html  = '<hr />' . "\n";
 		$html .= '<h3>' . esc_html__( 'Send a test e-mail', 'mixmymeals' ) . '</h3>' . "\n";
 		$html .= '<p class="description">'
-		         . esc_html__( 'Sends a test message with the current sender settings. Save your changes first.', 'mixmymeals' )
-		         . '</p>' . "\n";
+				. esc_html__( 'Sends a test message with the current sender settings. Save your changes first.', 'mixmymeals' )
+				. '</p>' . "\n";
 		$html .= '<p>';
 		$html .= '<input type="email" id="mmm-test-email-to" class="regular-text" value="'
-		         . esc_attr( $admin_email ) . '" placeholder="' . esc_attr( $admin_email ) . '" /> ';
+				. esc_attr( $admin_email ) . '" placeholder="' . esc_attr( $admin_email ) . '" /> ';
 		$html .= '<button type="button" class="button" id="mmm-send-test-email" data-nonce="'
-		         . esc_attr( wp_create_nonce( 'mmm_send_test_email' ) ) . '">'
-		         . esc_html__( 'Send test e-mail', 'mixmymeals' ) . '</button>';
+				. esc_attr( wp_create_nonce( 'mmm_send_test_email' ) ) . '">'
+				. esc_html__( 'Send test e-mail', 'mixmymeals' ) . '</button>';
 		$html .= '</p>' . "\n";
 		$html .= '<p id="mmm-test-email-result" aria-live="polite"></p>' . "\n";
 
@@ -2080,14 +2166,14 @@ class Mixmymeals_Settings {
 
 		if ( ! Mixmymeals_Mail_Log::is_enabled() ) {
 			$html .= '<p class="description">'
-			         . esc_html__( 'Logging is currently disabled. Enable “Send Log” above and save to start recording.', 'mixmymeals' )
-			         . '</p>' . "\n";
+					. esc_html__( 'Logging is currently disabled. Enable “Send Log” above and save to start recording.', 'mixmymeals' )
+					. '</p>' . "\n";
 		}
 
 		if ( empty( $entries ) ) {
 			$html .= '<p class="description">'
-			         . esc_html__( 'No e-mails logged yet.', 'mixmymeals' )
-			         . '</p>' . "\n";
+					. esc_html__( 'No e-mails logged yet.', 'mixmymeals' )
+					. '</p>' . "\n";
 
 			return $html;
 		}
@@ -2096,11 +2182,11 @@ class Mixmymeals_Settings {
 
 		$html .= '<table class="widefat striped" id="mmm-mail-log-table" style="max-width:880px;margin-top:8px;">' . "\n";
 		$html .= '<thead><tr>'
-		         . '<th>' . esc_html__( 'Date', 'mixmymeals' ) . '</th>'
-		         . '<th>' . esc_html__( 'Recipient', 'mixmymeals' ) . '</th>'
-		         . '<th>' . esc_html__( 'Subject', 'mixmymeals' ) . '</th>'
-		         . '<th>' . esc_html__( 'Status', 'mixmymeals' ) . '</th>'
-		         . '</tr></thead><tbody>' . "\n";
+				. '<th>' . esc_html__( 'Date', 'mixmymeals' ) . '</th>'
+				. '<th>' . esc_html__( 'Recipient', 'mixmymeals' ) . '</th>'
+				. '<th>' . esc_html__( 'Subject', 'mixmymeals' ) . '</th>'
+				. '<th>' . esc_html__( 'Status', 'mixmymeals' ) . '</th>'
+				. '</tr></thead><tbody>' . "\n";
 
 		foreach ( $entries as $entry ) {
 
@@ -2115,19 +2201,19 @@ class Mixmymeals_Settings {
 				: '<span style="color:#D2622C;font-weight:600;">' . esc_html__( 'Failed', 'mixmymeals' ) . '</span>';
 
 			$html .= '<tr>'
-			         . '<td>' . esc_html( $when ) . '</td>'
-			         . '<td>' . esc_html( $to ) . '</td>'
-			         . '<td>' . esc_html( $subject ) . '</td>'
-			         . '<td>' . $badge . '</td>'
-			         . '</tr>' . "\n";
+					. '<td>' . esc_html( $when ) . '</td>'
+					. '<td>' . esc_html( $to ) . '</td>'
+					. '<td>' . esc_html( $subject ) . '</td>'
+					. '<td>' . $badge . '</td>'
+					. '</tr>' . "\n";
 		}
 
 		$html .= '</tbody></table>' . "\n";
 
 		$html .= '<p>';
 		$html .= '<button type="button" class="button" id="mmm-clear-mail-log" data-nonce="'
-		         . esc_attr( wp_create_nonce( 'mmm_clear_mail_log' ) ) . '">'
-		         . esc_html__( 'Clear log', 'mixmymeals' ) . '</button> ';
+				. esc_attr( wp_create_nonce( 'mmm_clear_mail_log' ) ) . '">'
+				. esc_html__( 'Clear log', 'mixmymeals' ) . '</button> ';
 		$html .= '<span id="mmm-clear-mail-log-result" aria-live="polite"></span>';
 		$html .= '</p>' . "\n";
 
@@ -2196,7 +2282,6 @@ class Mixmymeals_Settings {
 	/**
 	 * Callback for placeholder image setting for sanitization purpose. Returns
 	 * 0 if input is not an attachment ID.
-	 *
 	 */
 	public function placeholder_image_id_callback( mixed $input ): int {
 
@@ -2205,12 +2290,10 @@ class Mixmymeals_Settings {
 		return ( $id && get_post_type( $id ) === 'attachment' )
 			? $id
 			: 0;
-
 	}
 
 	/**
 	 * Callback for meal plan archive description for sanitization purpose.
-	 *
 	 */
 	public function archive_description_callback( mixed $input ): string {
 		return wp_kses_post( $input );
@@ -2672,6 +2755,4 @@ class Mixmymeals_Settings {
 
 		return $clean;
 	}
-
-
 }

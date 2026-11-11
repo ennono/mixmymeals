@@ -55,12 +55,15 @@ class Mixmymeals_Meal {
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, int $plan_id, string $status = 'publish' ): self {
-		$post_id = wp_insert_post( array(
-			'post_type'   => 'mmm_meal',
-			'post_title'  => sanitize_text_field( $title ),
-			'post_status' => $status,
-			'post_parent' => $plan_id,
-		), true );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'mmm_meal',
+				'post_title'  => sanitize_text_field( $title ),
+				'post_status' => $status,
+				'post_parent' => $plan_id,
+			),
+			true
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			throw new \Exception( esc_html( $post_id->get_error_message() ) );
@@ -766,5 +769,4 @@ class Mixmymeals_Meal {
 			'other'     => __( 'Other', 'mixmymeals' ),
 		);
 	}
-
 }

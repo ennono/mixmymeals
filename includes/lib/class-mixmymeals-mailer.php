@@ -234,7 +234,8 @@ class Mixmymeals_Mailer {
 		return $all_sent;
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * TEMPLATES & PLACEHOLDERS
 	 * ---------------------------------------------------------- */
 
@@ -327,7 +328,7 @@ class Mixmymeals_Mailer {
 					},
 					$shell
 				);
-				$body = self::render( $shell, $vars, true );
+				$body  = self::render( $shell, $vars, true );
 
 				// A layout usually carries its own footer.
 				if ( ! array_key_exists( 'append_footer', $args ) ) {
@@ -634,9 +635,9 @@ class Mixmymeals_Mailer {
 		return (array) apply_filters(
 			'mixmymeals_mail_default_vars',
 			array(
-				'site_name' => wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES ),
-				'site_url'  => home_url( '/' ),
-				'year'      => gmdate( 'Y' ),
+				'site_name'   => wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES ),
+				'site_url'    => home_url( '/' ),
+				'year'        => gmdate( 'Y' ),
 
 				// The footer option, ready for a layout's {{ footer_html }}.
 				// A layout cannot get it any other way: send_template() sets
@@ -930,7 +931,8 @@ class Mixmymeals_Mailer {
 		return wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES );
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * SUPPRESSION (OPT-OUT) LIST
 	 * ---------------------------------------------------------- */
 
@@ -1018,7 +1020,8 @@ class Mixmymeals_Mailer {
 		return true;
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * RATE LIMITING (anti-loop / anti-abuse, opt-in)
 	 * ---------------------------------------------------------- */
 
@@ -1078,7 +1081,8 @@ class Mixmymeals_Mailer {
 		return 'mmm_mail_rl_' . wp_hash( strtolower( $email ) ); // Keyed: an md5 of a known address is a lookup.
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * HELPERS
 	 * ---------------------------------------------------------- */
 

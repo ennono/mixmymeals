@@ -394,13 +394,15 @@ class Mixmymeals_Ingredient_Amount {
 
 		$map = array();
 
-		$recipes = get_posts([
-			'post_type'      => 'mmm_recipe',
-			'posts_per_page' => -1,
-			'post_status'    => 'any',
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-		]);
+		$recipes = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'posts_per_page' => -1,
+				'post_status'    => 'any',
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
 
 		foreach ( $recipes as $recipe_id ) {
 
@@ -408,7 +410,7 @@ class Mixmymeals_Ingredient_Amount {
 			$counts = array();
 
 			foreach ( $recipe->get_steps() as $step ) {
-				foreach ( $step['ingredients'] ?? [] as $ing ) {
+				foreach ( $step['ingredients'] ?? array() as $ing ) {
 
 					$amount_id = intval( $ing['amount_id'] ?? 0 );
 
@@ -450,5 +452,4 @@ class Mixmymeals_Ingredient_Amount {
 
 		return (int) array_sum( array_column( $this->get_usage(), 'occurrences' ) );
 	}
-
 }

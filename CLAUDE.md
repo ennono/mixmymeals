@@ -18,6 +18,7 @@ wp plugin check mixmymeals --format=json
 ```
 
 - `phpcs.xml` **aborts** on some files: the bundled PHPCompatibility sniff triggers a PHP deprecation and stops checking, which looks like a clean result. Then run `--standard=WordPress` for real output.
+- **Reformatting**: `./vendor/bin/phpcbf --standard=WordPress --exclude=Squiz.PHP.EmbeddedPhp <file>`. Never without the exclusion: that sniff moves `<?php` / `?>` onto lines of their own and so puts line breaks into the HTML between a tag and its text (inside chips, attributes). The whole plugin was formatted this way in November 2026; what `phpcs` still reports is not auto-fixable (doc comments, Yoda conditions, short ternaries, comment punctuation). An embedded call that spans lines on a line that begins with HTML makes `phpcbf` loop ("FAILED TO FIX") — assign it to a variable in a `<?php ?>` block above instead.
 - Plugin Check flags `.DS_Store`, `.idea/`, `.claude/`, `CLAUDE.md` etc. `.distignore` keeps all of them out of the package. Judge the package, not the checkout.
 
 ### Tests

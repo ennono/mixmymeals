@@ -426,7 +426,7 @@ class Mixmymeals_Post_Meta {
 			) . ' --</option>';
 
 			foreach ( $ingredients as $post_ing ) {
-				//$ingredient_obj = new Mixmymeals_Ingredient( $post_ing->ID );
+				// $ingredient_obj = new Mixmymeals_Ingredient( $post_ing->ID );
 
 				$ingredient_obj = new Mixmymeals_Ingredient( $post_ing->ID );
 
@@ -434,11 +434,11 @@ class Mixmymeals_Post_Meta {
 					continue;
 				}
 
-				$nutrition      = $ingredient_obj->get_nutrition();
-				$weight_item    = floatval( $nutrition['weight_item'] ?? 0 );
-				$weight_label   = $weight_item > 0 ? ' (' . $weight_item . ' g)'
+				$nutrition    = $ingredient_obj->get_nutrition();
+				$weight_item  = floatval( $nutrition['weight_item'] ?? 0 );
+				$weight_label = $weight_item > 0 ? ' (' . $weight_item . ' g)'
 					: '';
-				$sel            = selected( $ing_id, $post_ing->ID, false );
+				$sel          = selected( $ing_id, $post_ing->ID, false );
 
 				echo '<option value="' . absint( $post_ing->ID ) . '" '
 					. esc_attr( $sel ) . '>' .
@@ -466,7 +466,7 @@ class Mixmymeals_Post_Meta {
 			echo '<option value="" ' . esc_attr( $sel_gramm ) . '>'
 				. esc_html__( 'Gramm (g)', 'mixmymeals' ) . '</option>';
 
-			//if ( $ing_id ) {
+			// if ( $ing_id ) {
 			if ( $ing_id && Mixmymeals_Ingredient::exists_by_id( $ing_id ) ) {
 				$amounts = get_posts(
 					array(
@@ -480,8 +480,7 @@ class Mixmymeals_Post_Meta {
 				);
 
 				foreach ( $amounts as $amt_post ) {
-					$amount_obj
-							= new Mixmymeals_Ingredient_Amount( $amt_post->ID );
+					$amount_obj = new Mixmymeals_Ingredient_Amount( $amt_post->ID );
 					$weight     = $amount_obj->get_weight();
 					$sel_amt    = selected(
 						$selected_amount_id,
@@ -873,8 +872,7 @@ class Mixmymeals_Post_Meta {
 			return;
 		}
 
-		$nonce
-			= sanitize_text_field( wp_unslash( $_POST['mmm_recipe_steps_meta_box_nonce'] ) );
+		$nonce = sanitize_text_field( wp_unslash( $_POST['mmm_recipe_steps_meta_box_nonce'] ) );
 		if ( ! wp_verify_nonce( $nonce, 'mmm_recipe_steps_meta_box_action' ) ) {
 			return;
 		}
@@ -928,24 +926,24 @@ class Mixmymeals_Post_Meta {
 						'ingredients' => array_map(
 							function ( $ingredient ) {
 								return array(
-									'id'     => isset( $ingredient['id'] )
+									'id'                => isset( $ingredient['id'] )
 										? intval( wp_unslash( $ingredient['id'] ) )
 										: 0,
-									'amount' => isset( $ingredient['amount'] )
+									'amount'            => isset( $ingredient['amount'] )
 										? floatval( wp_unslash( $ingredient['amount'] ) )
 										: 0,
-									'amount_id' => isset( $ingredient['amount_id'] )
+									'amount_id'         => isset( $ingredient['amount_id'] )
 										? intval( wp_unslash( $ingredient['amount_id'] ) )
 										: 0,
 									// An unchecked box posts nothing, so absence
 									// is the "required" case and needs no
 									// companion hidden field.
-									'optional'  => ! empty( $ingredient['optional'] ),
+									'optional'          => ! empty( $ingredient['optional'] ),
 									// This callback rebuilds the array key by
 									// key, so one it does not name is gone
 									// before set_steps() sees it — the way step
 									// images and 'optional' were lost before.
-									'product_id' => isset( $ingredient['product_id'] )
+									'product_id'        => isset( $ingredient['product_id'] )
 										? intval( wp_unslash( $ingredient['product_id'] ) )
 										: 0,
 									// Packets this dish rules out. Unticked
@@ -992,7 +990,6 @@ class Mixmymeals_Post_Meta {
 		} else {
 			$recipe_obj->purge_steps();
 		}
-
 	}
 
 
@@ -2324,8 +2321,7 @@ class Mixmymeals_Post_Meta {
 
 				// Bestehende Menge
 				if ( $id !== 'new' ) {
-					$amount_obj
-						= new Mixmymeals_Ingredient_Amount( intval( $id ) );
+					$amount_obj = new Mixmymeals_Ingredient_Amount( intval( $id ) );
 
 					// Löschen
 					if ( ! empty( $amount_data['delete'] ) ) {
@@ -2350,11 +2346,10 @@ class Mixmymeals_Post_Meta {
 					// Neue Menge anlegen
 					if ( ! empty( $amount_data['title'] ) ) {
 						$title      = sanitize_text_field( $amount_data['title'] );
-						$amount_obj
-								= Mixmymeals_Ingredient_Amount::create(
-									$post_ID,
-									$title
-								);
+						$amount_obj = Mixmymeals_Ingredient_Amount::create(
+							$post_ID,
+							$title
+						);
 
 						if ( isset( $amount_data['weight'] ) ) {
 							$amount_obj->set_weight( floatval( $amount_data['weight'] ) );
@@ -2425,11 +2420,11 @@ class Mixmymeals_Post_Meta {
 
 		foreach ( $ingredients as $ing ) {
 
-            /*
+			/*
 			if ( empty( $ing['id'] ) ) {
 				continue;
 			}
-            */
+			*/
 			$ing_id = intval( $ing['id'] );
 			if ( ! $ing_id || ! Mixmymeals_Ingredient::exists_by_id( $ing_id ) ) {
 				continue;
@@ -2484,7 +2479,7 @@ class Mixmymeals_Post_Meta {
 			$ingredient_name = $data['name'];
 
 			// Hauptzeile: Name + Gesamtbedarf in Gramm
-			$main_line = '<a href="' . get_edit_post_link( $ing_id ) . '">'
+			$main_line  = '<a href="' . get_edit_post_link( $ing_id ) . '">'
 						. esc_html( $ingredient_name ) . '</a>';
 			$main_line .= sprintf(
 				', %s g',
@@ -2893,7 +2888,7 @@ class Mixmymeals_Post_Meta {
 				true
 			)
 		) : 1;
-		$plan_end = $parent_id ? intval(
+		$plan_end   = $parent_id ? intval(
 			get_post_meta(
 				$parent_id,
 				'end_day',
@@ -3045,7 +3040,6 @@ class Mixmymeals_Post_Meta {
 			$meal_obj->set_type( sanitize_text_field( wp_unslash( $_POST['meal_type'] ) ) );
 		}
 
-
 		/*
 		if ( isset( $_POST['meal_date'] ) ) {
 			$meal_obj->set_date( $_POST['meal_date'] );
@@ -3073,10 +3067,10 @@ class Mixmymeals_Post_Meta {
 		$ingredient = new Mixmymeals_Ingredient( $post->ID );
 		// The own figure, never the resolved one: saving this form writes the
 		// field back, and a product's price must not end up in the ingredient.
-		$price      = $ingredient->get_own_price_per_100g();
-		$currency   = get_option( 'mixmymeals_currency', '€' );
-		$reference  = Mixmymeals_Product::get_reference_id( $post->ID );
-		$ref_price  = $reference ? ( new Mixmymeals_Product( $reference ) )->get_price_per_100g() : null;
+		$price     = $ingredient->get_own_price_per_100g();
+		$currency  = get_option( 'mixmymeals_currency', '€' );
+		$reference = Mixmymeals_Product::get_reference_id( $post->ID );
+		$ref_price = $reference ? ( new Mixmymeals_Product( $reference ) )->get_price_per_100g() : null;
 		?>
 		<p>
 			<label for="mmm_price_per_100g">
@@ -3500,15 +3494,15 @@ class Mixmymeals_Post_Meta {
 	 * One product as two table rows, or the empty "add" pair when $product is
 	 * null.
 	 *
-	 * @param string                 $index     Row key: product ID, or 'new'.
+	 * @param string                  $index     Row key: product ID, or 'new'.
 	 * @param Mixmymeals_Product|null $product  Product, or null for the new row.
-	 * @param int                    $reference Currently referenced product ID.
+	 * @param int                     $reference Currently referenced product ID.
 	 * @return void
 	 */
 	private function render_product_rows( string $index, ?Mixmymeals_Product $product, int $reference, int $row = 0 ): void {
 
-		$name  = 'mmm_products[' . $index . ']';
-		$zebra = 0 === $row % 2 ? '' : ' mmm-products--alt';
+		$name   = 'mmm_products[' . $index . ']';
+		$zebra  = 0 === $row % 2 ? '' : ' mmm-products--alt';
 		$is_new = null === $product;
 		$id     = $is_new ? 0 : $product->get_id();
 
@@ -3740,7 +3734,7 @@ class Mixmymeals_Post_Meta {
 		if ( ! empty( $units ) ) {
 			foreach ( $units as $unit ) {
 
-				$amount  = new Mixmymeals_Ingredient_Amount( $unit->ID );
+				$amount = new Mixmymeals_Ingredient_Amount( $unit->ID );
 
 				if ( ! $amount->is_valid() ) {
 					continue; // Skip if unit is invalid.
@@ -3751,7 +3745,7 @@ class Mixmymeals_Post_Meta {
 				echo '<tr data-id="' . esc_attr( $unit->ID ) . '">';
 
 				// Titel
-				//echo '<td>' . esc_html( $amount->get_title() ) . '</td>';
+				// echo '<td>' . esc_html( $amount->get_title() ) . '</td>';
 				echo '<td>';
 				echo '<input type="text" 
                     name="mmm_ingredient_amounts[' . esc_attr( $unit->ID ) . '][title]" 
@@ -3801,9 +3795,9 @@ class Mixmymeals_Post_Meta {
 			. esc_attr__( 'New Amount', 'mixmymeals' )
 			. '" class="regular-text">';
 		echo '</td>';
-        echo '<td>';
+		echo '<td>';
 		echo '<em>' . esc_html__( '–', 'mixmymeals' ) . '</em>';
-        echo '</td>';
+		echo '</td>';
 		echo '<td>';
 		echo '<input type="number" step="0.01" min="0" name="mmm_ingredient_amounts[new][weight]" value="" class="small-text">';
 		echo '</td>';
@@ -5016,7 +5010,7 @@ class Mixmymeals_Post_Meta {
 			// The URL field needs esc_url_raw, the three text fields plain text;
 			// save_image_credit() applies the same again, harmlessly.
 			$data[ $key ] = 'url' === $key
-				? esc_url_raw( wp_unslash( $_POST[ 'mmm_image_credit_url' ] ?? '' ) )
+				? esc_url_raw( wp_unslash( $_POST['mmm_image_credit_url'] ?? '' ) )
 				: sanitize_text_field( wp_unslash( $_POST[ 'mmm_image_credit_' . $key ] ?? '' ) );
 		}
 
@@ -5602,7 +5596,7 @@ class Mixmymeals_Post_Meta {
 		add_meta_box(
 			'mmm_related_recipes_box',
 			__( 'Goes well with', 'mixmymeals' ),
-			[ $this, 'render_related_recipes_meta_box_content' ],
+			array( $this, 'render_related_recipes_meta_box_content' ),
 			'mmm_recipe',
 			'side',
 			'default'
@@ -5628,7 +5622,7 @@ class Mixmymeals_Post_Meta {
 
 		$ids = isset( $_POST['mmm_related_recipes'] ) && is_array( $_POST['mmm_related_recipes'] )
 			? array_map( 'intval', wp_unslash( $_POST['mmm_related_recipes'] ) )
-			: [];
+			: array();
 
 		$recipe = new Mixmymeals_Recipe( $post_id );
 		$recipe->set_related_recipes( $ids );
@@ -5647,14 +5641,16 @@ class Mixmymeals_Post_Meta {
 		$recipe   = new Mixmymeals_Recipe( $post->ID );
 		$selected = $recipe->get_related_recipes();
 
-		$recipes = get_posts( [
-			'post_type'      => 'mmm_recipe',
-			'posts_per_page' => -1,
-			'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
-			'post__not_in'   => [ $post->ID ], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-		] );
+		$recipes = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'posts_per_page' => -1,
+				'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+				'post__not_in'   => array( $post->ID ), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
+			'orderby'            => 'title',
+			'order'              => 'ASC',
+			)
+		);
 
 		echo '<p>' . esc_html__( 'Select recipes that go well with this one:', 'mixmymeals' ) . '</p>';
 
@@ -5703,6 +5699,4 @@ class Mixmymeals_Post_Meta {
 			echo '<p class="description">' . esc_html__( 'These recipes list this one under “Goes well with”.', 'mixmymeals' ) . '</p>';
 		}
 	}
-
-
 }

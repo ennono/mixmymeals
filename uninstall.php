@@ -35,7 +35,8 @@ function mixmymeals_run_uninstall(): void {
 	// Read the opt-in flag before the options are removed.
 	$mmm_delete_personal_data = ( 'on' === get_option( 'mixmymeals_delete_data_on_uninstall', '' ) );
 
-	/* -------------------------------------------------------------------------
+	/*
+	-------------------------------------------------------------------------
 	 * 1. Scheduled events
 	 * ---------------------------------------------------------------------- */
 	$mmm_cron_hooks = array(
@@ -50,48 +51,56 @@ function mixmymeals_run_uninstall(): void {
 		}
 	}
 
-	/* -------------------------------------------------------------------------
+	/*
+	-------------------------------------------------------------------------
 	 * 2. Personal data (opt-in only)
 	 * ---------------------------------------------------------------------- */
 	if ( $mmm_delete_personal_data ) {
 
 		// Newsletter subscriptions.
-		$mmm_subs = get_posts( array(
-			'post_type'      => 'mmm_subscription',
-			'post_status'    => 'any',
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-		) );
+		$mmm_subs = get_posts(
+			array(
+				'post_type'      => 'mmm_subscription',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
 		foreach ( $mmm_subs as $mmm_sub_id ) {
 			wp_delete_post( (int) $mmm_sub_id, true );
 		}
 
 		// Visitor meal photos (flagged attachments only — never featured images).
-		$mmm_photos = get_posts( array(
-			'post_type'      => 'attachment',
-			'post_status'    => 'inherit',
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-			'meta_key'       => '_mmm_meal_photo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-		) );
+		$mmm_photos = get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				'meta_key'       => '_mmm_meal_photo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			)
+		);
 		foreach ( $mmm_photos as $mmm_photo_id ) {
 			wp_delete_attachment( (int) $mmm_photo_id, true );
 		}
 
 		// Rating comments (carry the rater's name/e-mail).
-		$mmm_rating_comments = get_comments( array(
-			'meta_key' => '_mmm_rating', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-			'fields'   => 'ids',
-			'status'   => 'all',
-		) );
+		$mmm_rating_comments = get_comments(
+			array(
+				'meta_key' => '_mmm_rating', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'fields'       => 'ids',
+			'status'       => 'all',
+			)
+		);
 		foreach ( $mmm_rating_comments as $mmm_comment_id ) {
 			wp_delete_comment( (int) $mmm_comment_id, true );
 		}
 	}
 
-	/* -------------------------------------------------------------------------
+	/*
+	-------------------------------------------------------------------------
 	 * 3. Plugin options and transients (always)
 	 * ---------------------------------------------------------------------- */
 	// All mixmymeals_* options, including Instagram/Pinterest access tokens.

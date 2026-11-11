@@ -87,7 +87,8 @@ class Mixmymeals_Privacy {
 		);
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Registration
 	 * ------------------------------------------------------------------ */
 
@@ -102,7 +103,7 @@ class Mixmymeals_Privacy {
 			'exporter_friendly_name' => __( 'MixMyMeals newsletter subscriptions', 'mixmymeals' ),
 			'callback'               => array( $this, 'export_subscriptions' ),
 		);
-		$exporters['mixmymeals-photos'] = array(
+		$exporters['mixmymeals-photos']        = array(
 			'exporter_friendly_name' => __( 'MixMyMeals meal photos', 'mixmymeals' ),
 			'callback'               => array( $this, 'export_photos' ),
 		);
@@ -120,14 +121,15 @@ class Mixmymeals_Privacy {
 			'eraser_friendly_name' => __( 'MixMyMeals newsletter subscriptions', 'mixmymeals' ),
 			'callback'             => array( $this, 'erase_subscriptions' ),
 		);
-		$erasers['mixmymeals-photos'] = array(
+		$erasers['mixmymeals-photos']        = array(
 			'eraser_friendly_name' => __( 'MixMyMeals meal photos', 'mixmymeals' ),
 			'callback'             => array( $this, 'erase_photos' ),
 		);
 		return $erasers;
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Helpers
 	 * ------------------------------------------------------------------ */
 
@@ -138,18 +140,21 @@ class Mixmymeals_Privacy {
 	 * @return int[]
 	 */
 	private function subscription_ids_for( string $email ): array {
-		return get_posts( array(
-			'post_type'      => self::SUBSCRIPTION_POST_TYPE,
-			'post_status'    => 'any',
-			'posts_per_page' => 500,
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-			'meta_key'       => '_mmm_sub_email', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
-			'meta_value'     => strtolower( $email ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
-		) );
+		return get_posts(
+			array(
+				'post_type'      => self::SUBSCRIPTION_POST_TYPE,
+				'post_status'    => 'any',
+				'posts_per_page' => 500,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				'meta_key'       => '_mmm_sub_email', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			'meta_value'         => strtolower( $email ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
+			)
+		);
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Subscriptions
 	 * ------------------------------------------------------------------ */
 
@@ -171,20 +176,41 @@ class Mixmymeals_Privacy {
 			$plan_id      = (int) get_post_meta( $sub_id, '_mmm_sub_plan_id', true );
 
 			$data = array(
-				array( 'name' => __( 'E-mail', 'mixmymeals' ), 'value' => get_post_meta( $sub_id, '_mmm_sub_email', true ) ),
-				array( 'name' => __( 'Name', 'mixmymeals' ), 'value' => get_post_meta( $sub_id, '_mmm_sub_name', true ) ),
-				array( 'name' => __( 'Status', 'mixmymeals' ), 'value' => get_post_meta( $sub_id, '_mmm_sub_status', true ) ),
-				array( 'name' => __( 'Subscribed plan', 'mixmymeals' ), 'value' => $plan_id ? get_the_title( $plan_id ) : '' ),
+				array(
+					'name'  => __( 'E-mail', 'mixmymeals' ),
+					'value' => get_post_meta( $sub_id, '_mmm_sub_email', true ),
+				),
+				array(
+					'name'  => __( 'Name', 'mixmymeals' ),
+					'value' => get_post_meta( $sub_id, '_mmm_sub_name', true ),
+				),
+				array(
+					'name'  => __( 'Status', 'mixmymeals' ),
+					'value' => get_post_meta( $sub_id, '_mmm_sub_status', true ),
+				),
+				array(
+					'name'  => __( 'Subscribed plan', 'mixmymeals' ),
+					'value' => $plan_id ? get_the_title( $plan_id ) : '',
+				),
 			);
 			if ( $consent_time ) {
-				$data[] = array( 'name' => __( 'Consent given at', 'mixmymeals' ), 'value' => wp_date( 'c', $consent_time ) );
+				$data[] = array(
+					'name'  => __( 'Consent given at', 'mixmymeals' ),
+					'value' => wp_date( 'c', $consent_time ),
+				);
 			}
 			if ( $confirm_time ) {
-				$data[] = array( 'name' => __( 'Confirmed at', 'mixmymeals' ), 'value' => wp_date( 'c', $confirm_time ) );
+				$data[] = array(
+					'name'  => __( 'Confirmed at', 'mixmymeals' ),
+					'value' => wp_date( 'c', $confirm_time ),
+				);
 			}
 			$consent_ip = (string) get_post_meta( $sub_id, '_mmm_sub_consent_ip', true );
 			if ( '' !== $consent_ip ) {
-				$data[] = array( 'name' => __( 'Consent IP address', 'mixmymeals' ), 'value' => $consent_ip );
+				$data[] = array(
+					'name'  => __( 'Consent IP address', 'mixmymeals' ),
+					'value' => $consent_ip,
+				);
 			}
 
 			$export[] = array(
@@ -195,7 +221,10 @@ class Mixmymeals_Privacy {
 			);
 		}
 
-		return array( 'data' => $export, 'done' => true );
+		return array(
+			'data' => $export,
+			'done' => true,
+		);
 	}
 
 	/**
@@ -227,7 +256,8 @@ class Mixmymeals_Privacy {
 		);
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Meal photos (visitor uploads)
 	 * ------------------------------------------------------------------ */
 
@@ -262,17 +292,26 @@ class Mixmymeals_Privacy {
 			return array();
 		}
 
-		return get_posts( array(
-			'post_type'      => 'attachment',
-			'post_status'    => 'inherit',
-			'posts_per_page' => 500,
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-				array( 'key' => '_mmm_meal_photo', 'compare' => 'EXISTS' ),
-				array( 'key' => '_mmm_photo_sub', 'value' => array_map( 'intval', $sub_ids ), 'compare' => 'IN' ),
-			),
-		) );
+		return get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'posts_per_page' => 500,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				array(
+			'key'     => '_mmm_meal_photo',
+			'compare' => 'EXISTS',
+				),
+				array(
+				'key'     => '_mmm_photo_sub',
+				'value'   => array_map( 'intval', $sub_ids ),
+				'compare' => 'IN',
+				),
+				),
+			)
+		);
 	}
 
 	/**
@@ -287,15 +326,17 @@ class Mixmymeals_Privacy {
 			return array();
 		}
 
-		return get_posts( array(
-			'post_type'      => 'attachment',
-			'post_status'    => 'inherit',
-			'posts_per_page' => 500,
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-			'author'         => $user_id,
-			'meta_key'       => '_mmm_meal_photo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
-		) );
+		return get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'posts_per_page' => 500,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				'author'         => $user_id,
+				'meta_key'       => '_mmm_meal_photo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			)
+		);
 	}
 
 	/**
@@ -334,13 +375,22 @@ class Mixmymeals_Privacy {
 				'group_label' => __( 'MixMyMeals meal photos', 'mixmymeals' ),
 				'item_id'     => 'mmm-photo-' . $att_id,
 				'data'        => array(
-					array( 'name' => __( 'Displayed name', 'mixmymeals' ), 'value' => get_post_meta( $att_id, '_mmm_photo_by', true ) ),
-					array( 'name' => __( 'Photo', 'mixmymeals' ), 'value' => wp_get_attachment_url( $att_id ) ),
+					array(
+						'name'  => __( 'Displayed name', 'mixmymeals' ),
+						'value' => get_post_meta( $att_id, '_mmm_photo_by', true ),
+					),
+					array(
+						'name'  => __( 'Photo', 'mixmymeals' ),
+						'value' => wp_get_attachment_url( $att_id ),
+					),
 				),
 			);
 		}
 
-		return array( 'data' => $export, 'done' => true );
+		return array(
+			'data' => $export,
+			'done' => true,
+		);
 	}
 
 	/**
@@ -371,7 +421,8 @@ class Mixmymeals_Privacy {
 		);
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Suggested privacy-policy content
 	 * ------------------------------------------------------------------ */
 

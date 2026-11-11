@@ -83,8 +83,8 @@ class Mixmymeals_Subscriptions {
 			. self::mail_color( 'heading' ) . ';font-size:14px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;';
 	}
 
-	const POST_TYPE = 'mmm_subscription';
-	const CRON_HOOK = 'mmm_subscription_dispatch';
+	const POST_TYPE     = 'mmm_subscription';
+	const CRON_HOOK     = 'mmm_subscription_dispatch';
 	const CRON_INTERVAL = 'mmm_fifteen_minutes';
 
 	const OPT_ENABLED       = 'mixmymeals_subscriptions_enabled';
@@ -168,7 +168,8 @@ class Mixmymeals_Subscriptions {
 		}
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * SETTINGS HELPERS
 	 * ---------------------------------------------------------- */
 
@@ -209,7 +210,8 @@ class Mixmymeals_Subscriptions {
 			: __( 'I would like to receive the e-mails for this meal plan (meals, shopping list, invitations to rate recipes and share photos). I can unsubscribe at any time.', 'mixmymeals' );
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * SUBSCRIBE WHILE SAVING A PLAN
 	 * ---------------------------------------------------------- */
 
@@ -445,10 +447,10 @@ class Mixmymeals_Subscriptions {
 	 */
 	public static function default_subject( string $template ): string {
 		$subjects = array(
-			'each-day.html'       => __( 'Your meals today: {{ plan }}', 'mixmymeals' ),
-			'shopping-list.html'  => __( 'Your shopping list: {{ plan }}', 'mixmymeals' ),
-			'rate-recipe.html'    => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
-			'welcome.html'        => __( 'Welcome! Your meal plan {{ plan_number }}', 'mixmymeals' ),
+			'each-day.html'      => __( 'Your meals today: {{ plan }}', 'mixmymeals' ),
+			'shopping-list.html' => __( 'Your shopping list: {{ plan }}', 'mixmymeals' ),
+			'rate-recipe.html'   => __( 'How did you like the recipes? {{ plan }}', 'mixmymeals' ),
+			'welcome.html'       => __( 'Welcome! Your meal plan {{ plan_number }}', 'mixmymeals' ),
 		);
 
 		return $subjects[ basename( $template ) ] ?? __( '{{ plan }}', 'mixmymeals' );
@@ -502,8 +504,8 @@ class Mixmymeals_Subscriptions {
 		 * settings backup is covered too.
 		 */
 		$renamed = array(
-			'rate-recipes.html'  => 'rate-recipe.html',
-			'before-start.html'  => 'shopping-list.html',
+			'rate-recipes.html' => 'rate-recipe.html',
+			'before-start.html' => 'shopping-list.html',
 		);
 
 		$base = basename( $template );
@@ -608,7 +610,8 @@ class Mixmymeals_Subscriptions {
 		return '';
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * CPT
 	 * ---------------------------------------------------------- */
 
@@ -644,7 +647,8 @@ class Mixmymeals_Subscriptions {
 		);
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * SHORTCODE + FORM
 	 * ---------------------------------------------------------- */
 
@@ -685,7 +689,7 @@ class Mixmymeals_Subscriptions {
 	 */
 	public static function render_form( $atts = array() ): string {
 
-		$atts    = shortcode_atts(
+		$atts       = shortcode_atts(
 			array(
 				'plan_id'    => 0,
 				// Opt-in: when truthy, the subscriber may choose which upcoming
@@ -786,7 +790,8 @@ class Mixmymeals_Subscriptions {
 		return (string) ob_get_clean();
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * AJAX: SUBSCRIBE (double opt-in step 1)
 	 * ---------------------------------------------------------- */
 
@@ -888,7 +893,8 @@ class Mixmymeals_Subscriptions {
 		set_transient( $key, (int) get_transient( $key ) + 1, HOUR_IN_SECONDS );
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * ENDPOINTS: CONFIRM + UNSUBSCRIBE
 	 * ---------------------------------------------------------- */
 
@@ -1097,7 +1103,8 @@ class Mixmymeals_Subscriptions {
 		);
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * SUBSCRIBER RATINGS
 	 * ---------------------------------------------------------- */
 
@@ -1184,7 +1191,8 @@ class Mixmymeals_Subscriptions {
 		);
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * DRIP COMPUTATION
 	 * ---------------------------------------------------------- */
 
@@ -1494,7 +1502,8 @@ class Mixmymeals_Subscriptions {
 		return $merged;
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * CRON DISPATCH
 	 * ---------------------------------------------------------- */
 
@@ -1761,7 +1770,8 @@ class Mixmymeals_Subscriptions {
 		update_post_meta( $sub_id, '_mmm_sub_sends', $sends );
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * MAIL SENDING
 	 * ---------------------------------------------------------- */
 
@@ -2727,7 +2737,8 @@ class Mixmymeals_Subscriptions {
 		return $out;
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * PRUNING (GDPR retention)
 	 * ---------------------------------------------------------- */
 
@@ -2811,7 +2822,8 @@ class Mixmymeals_Subscriptions {
 		);
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * HELPERS
 	 * ---------------------------------------------------------- */
 
@@ -2882,7 +2894,8 @@ class Mixmymeals_Subscriptions {
 		);
 	}
 
-	/* ----------------------------------------------------------
+	/*
+	----------------------------------------------------------
 	 * ADMIN: LIST TABLE, DETAILS, ACTIONS
 	 * ---------------------------------------------------------- */
 

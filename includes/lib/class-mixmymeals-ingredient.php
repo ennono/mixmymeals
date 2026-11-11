@@ -59,11 +59,14 @@ class Mixmymeals_Ingredient {
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, string $status = 'publish' ): self {
-		$post_id = wp_insert_post( array(
-			'post_type'   => 'mmm_ingredient',
-			'post_title'  => sanitize_text_field( $title ),
-			'post_status' => $status,
-		), true );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'mmm_ingredient',
+				'post_title'  => sanitize_text_field( $title ),
+				'post_status' => $status,
+			),
+			true
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			throw new \Exception( esc_html( $post_id->get_error_message() ) );
@@ -75,8 +78,8 @@ class Mixmymeals_Ingredient {
 	public static function exists_by_id( int $post_id ): bool {
 
 		return $post_id
-		       && get_post_type( $post_id ) === 'mmm_ingredient'
-		       /*&& get_post_status( $post_id ) === 'publish'*/;
+				&& get_post_type( $post_id ) === 'mmm_ingredient';
+				/*&& get_post_status( $post_id ) === 'publish'*/
 	}
 
 	/**
@@ -372,7 +375,10 @@ class Mixmymeals_Ingredient {
 		$holds = static fn( array $slugs ): bool => in_array( $diet, Mixmymeals_Diet::expand( $slugs ), true );
 
 		if ( $holds( $ingredient->get_diets_pinned( $pinned ) ) ) {
-			return array( 'id' => $pinned, 'open' => false );
+			return array(
+				'id'   => $pinned,
+				'open' => false,
+			);
 		}
 
 		$own        = Mixmymeals_Diet::for_post( $ingredient_id );
@@ -388,14 +394,23 @@ class Mixmymeals_Ingredient {
 		}
 
 		if ( 1 === count( $candidates ) ) {
-			return array( 'id' => $candidates[0], 'open' => false );
+			return array(
+				'id'   => $candidates[0],
+				'open' => false,
+			);
 		}
 
 		if ( $candidates ) {
-			return array( 'id' => $ingredient->worst_product( $candidates ), 'open' => true );
+			return array(
+				'id'   => $ingredient->worst_product( $candidates ),
+				'open' => true,
+			);
 		}
 
-		return $holds( $own ) ? array( 'id' => self::PIN_OWN, 'open' => false ) : null;
+		return $holds( $own ) ? array(
+			'id'   => self::PIN_OWN,
+			'open' => false,
+		) : null;
 	}
 
 	/**

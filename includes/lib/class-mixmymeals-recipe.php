@@ -845,12 +845,15 @@ class Mixmymeals_Recipe {
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, string $status = 'draft', string $excerpt = '' ): self {
-		$post_id = wp_insert_post( array(
-			'post_type'    => 'mmm_recipe',
-			'post_title'   => sanitize_text_field( $title ),
-			'post_status'  => $status,
-			'post_excerpt' => sanitize_textarea_field( $excerpt ),
-		), true );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'    => 'mmm_recipe',
+				'post_title'   => sanitize_text_field( $title ),
+				'post_status'  => $status,
+				'post_excerpt' => sanitize_textarea_field( $excerpt ),
+			),
+			true
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			throw new \Exception( esc_html( $post_id->get_error_message() ) );
@@ -1042,7 +1045,7 @@ class Mixmymeals_Recipe {
 			$ing['implemented_for'] = $this->diet;
 			// Several packets hold the diet: the figures are the least
 			// favourable one's, and nobody is told to buy it.
-			$ing['product_open']    = $choice['open'];
+			$ing['product_open'] = $choice['open'];
 		}
 
 		return $ing;
@@ -1051,8 +1054,8 @@ class Mixmymeals_Recipe {
 	public static function exists_by_id( int $post_id ): bool {
 
 		return $post_id
-		       && get_post_type( $post_id ) === 'mmm_recipe'
-		       /*&& get_post_status( $post_id ) === 'publish'*/; // Checking for status published causes bugs with posts in draft status!
+				&& get_post_type( $post_id ) === 'mmm_recipe';
+				/*&& get_post_status( $post_id ) === 'publish'*/ // Checking for status published causes bugs with posts in draft status!
 	}
 
 	/*
@@ -1219,7 +1222,7 @@ class Mixmymeals_Recipe {
 
 			// Leere Schritte überspringen
 			if ( empty( $title ) && empty( $desc )
-			     && empty( $step['ingredients'] ) ) {
+				&& empty( $step['ingredients'] ) ) {
 				continue;
 			}
 
@@ -1236,7 +1239,7 @@ class Mixmymeals_Recipe {
 
 			// Zutaten übernehmen
 			if ( ! empty( $step['ingredients'] )
-			     && is_array( $step['ingredients'] ) ) {
+				&& is_array( $step['ingredients'] ) ) {
 
 				foreach ( $step['ingredients'] as $ing ) {
 
@@ -1487,18 +1490,18 @@ class Mixmymeals_Recipe {
 		}
 
 		if ( ! $this->is_valid() ) {
-			self::$cooked_cache[ $this->post_id ][ $this->diet ] = array();
-			return self::$per_serving_cache[ $this->post_id ][ $this->diet ] = [];
+			self::$cooked_cache[ $this->post_id ][ $this->diet ]             = array();
+			return self::$per_serving_cache[ $this->post_id ][ $this->diet ] = array();
 		}
 
 		[ $totals, $total_weight, $cooked ] = $this->_calculate_total_nutrition( 1.0 );
 
 		self::$cooked_cache[ $this->post_id ][ $this->diet ] = $cooked;
 
-		$servings = max(1.0, floatval($this->get_servings()));
+		$servings = max( 1.0, floatval( $this->get_servings() ) );
 
-		foreach ($totals as $key => $val) {
-			$totals[$key] = $val / $servings;
+		foreach ( $totals as $key => $val ) {
+			$totals[ $key ] = $val / $servings;
 		}
 
 		$totals['weight_per_serving'] = $total_weight / $servings;
@@ -1577,9 +1580,9 @@ class Mixmymeals_Recipe {
 		return Mixmymeals_Product::impact_groups( $weights, $current, 1.0 );
 	}
 
-	private function _calculate_total_nutrition(float $scale = 1.0): array {
+	private function _calculate_total_nutrition( float $scale = 1.0 ): array {
 
-		$ingredients = $this->get_ingredients_scaled($scale);
+		$ingredients = $this->get_ingredients_scaled( $scale );
 
 		// From the plan's key list, not a copy of it: these totals are what
 		// calc_nutrition() adds up per day, and a key in one and not the other
@@ -1589,10 +1592,12 @@ class Mixmymeals_Recipe {
 		$total_weight = 0.0;
 		$cooked       = array();
 
-		foreach ($ingredients as $ing) {
+		foreach ( $ingredients as $ing ) {
 
-			$ingredient_obj = new Mixmymeals_Ingredient($ing['id']);
-			if (!$ingredient_obj->is_valid()) continue;
+			$ingredient_obj = new Mixmymeals_Ingredient( $ing['id'] );
+			if ( ! $ingredient_obj->is_valid() ) {
+				continue;
+			}
 
 			/*
 			 * Through the product this row names, where it names one: the
@@ -1602,9 +1607,11 @@ class Mixmymeals_Recipe {
 			 */
 			$pinned    = (int) ( $ing['product_id'] ?? 0 );
 			$nutrition = $ingredient_obj->get_nutrition_pinned( $pinned );
-			$weight = floatval($ing['weight_g']);
+			$weight    = floatval( $ing['weight_g'] );
 
-			if ($weight <= 0) continue;
+			if ( $weight <= 0 ) {
+				continue;
+			}
 
 			/*
 			 * The nutrients come from the raw weight, the dish's weight from the
@@ -1634,7 +1641,7 @@ class Mixmymeals_Recipe {
 			}
 		}
 
-		return [ $totals, $total_weight, array_values( $cooked ) ];
+		return array( $totals, $total_weight, array_values( $cooked ) );
 	}
 
 	/**
@@ -1955,7 +1962,7 @@ class Mixmymeals_Recipe {
 	public function get_steps(): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		$steps = get_post_meta( $this->post_id, '_rmm_steps', true );
@@ -1987,14 +1994,14 @@ class Mixmymeals_Recipe {
 	public function calculate_nutrition_per_100g(): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		[ $totals, $total_weight ] = $this->_calculate_total_nutrition();
 
-		if ($total_weight > 0) {
-			foreach ($totals as $key => $val) {
-				$totals[$key] = ($val / $total_weight) * 100;
+		if ( $total_weight > 0 ) {
+			foreach ( $totals as $key => $val ) {
+				$totals[ $key ] = ( $val / $total_weight ) * 100;
 			}
 		}
 
@@ -2084,7 +2091,7 @@ class Mixmymeals_Recipe {
 	public function get_ingredients_normalized(): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		$steps       = $this->get_steps();
@@ -2115,7 +2122,7 @@ class Mixmymeals_Recipe {
 		}
 
 		foreach ( $steps as $step ) {
-			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
+			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
 
 				$ing = $this->implement_row( (array) $ing );
 
@@ -2175,20 +2182,18 @@ class Mixmymeals_Recipe {
 		return $ingredients;
 	}
 
-	/*
-	 *
-	 */
+
 	public function get_ingredients_scaled( float $scale ): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		$steps       = $this->get_steps();
 		$ingredients = array();
 
-		foreach ( $steps as $step_index => $step) {
-			foreach ( ( $step['ingredients'] ?? [] ) as $ing ) {
+		foreach ( $steps as $step_index => $step ) {
+			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
 
 				$ing = $this->implement_row( (array) $ing );
 
@@ -2211,7 +2216,7 @@ class Mixmymeals_Recipe {
 				}
 
 				// Skalieren
-				$amount *= $scale;
+				$amount    *= $scale;
 				$raw_amount = $amount; // Bedarf vor Unteilbarkeits-Rundung
 
 				$unit_title      = '';
@@ -2254,25 +2259,25 @@ class Mixmymeals_Recipe {
 				}
 
 				$ingredients[] = array(
-					'id'              => $id,
-					'name'            => get_the_title( $id ),
-					'amount'          => $amount,
-					'raw_amount'      => $raw_amount,
-					'unit'            => $unit_title,
-					'weight_g'        => $total_weight,
-					'weight_per_unit' => $weight_per_unit,
-					'is_indivisible'  => $is_indivisible,
-					'step_divisor'    => $step_divisor,
-					'amount_id'       => $amount_id,
-					'optional'        => ! empty( $ing['optional'] ),
-					'product_id'      => $product_id,
+					'id'                => $id,
+					'name'              => get_the_title( $id ),
+					'amount'            => $amount,
+					'raw_amount'        => $raw_amount,
+					'unit'              => $unit_title,
+					'weight_g'          => $total_weight,
+					'weight_per_unit'   => $weight_per_unit,
+					'is_indivisible'    => $is_indivisible,
+					'step_divisor'      => $step_divisor,
+					'amount_id'         => $amount_id,
+					'optional'          => ! empty( $ing['optional'] ),
+					'product_id'        => $product_id,
 					'excluded_products' => array_map( 'intval', (array) ( $ing['excluded_products'] ?? array() ) ),
 					// The diet this row's packet was chosen for, '' where the
 					// recipe's own choice stands — see implement_row().
-					'implemented_for' => (string) $ing['implemented_for'],
+					'implemented_for'   => (string) $ing['implemented_for'],
 					// Several packets hold that diet; the list names none.
-					'product_open'    => ! empty( $ing['product_open'] ),
-					'step'            => $step_index,
+					'product_open'      => ! empty( $ing['product_open'] ),
+					'step'              => $step_index,
 				);
 			}
 		}
@@ -2291,11 +2296,10 @@ class Mixmymeals_Recipe {
 	public function get_categories( array $args = array() ): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		$terms = get_the_terms( $this->post_id, 'mmm_recipe_category' );
-
 
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			return array();
@@ -2318,11 +2322,11 @@ class Mixmymeals_Recipe {
 	public function get_equipment(): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		$ids = get_post_meta( $this->post_id, '_mmm_equipment', true );
-		return is_array( $ids ) ? $ids : [];
+		return is_array( $ids ) ? $ids : array();
 	}
 
 	/** @param int[] $ids */
@@ -2356,11 +2360,11 @@ class Mixmymeals_Recipe {
 	public function get_related_recipes(): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		$ids = get_post_meta( $this->post_id, '_mmm_related_recipes', true );
-		return is_array( $ids ) ? array_values( array_filter( array_map( 'intval', $ids ), fn( $id ) => $id > 0 && $id !== $this->post_id ) ) : [];
+		return is_array( $ids ) ? array_values( array_filter( array_map( 'intval', $ids ), fn( $id ) => $id > 0 && $id !== $this->post_id ) ) : array();
 	}
 
 	/**
@@ -2376,10 +2380,14 @@ class Mixmymeals_Recipe {
 			return false;
 		}
 
-		$clean = array_values( array_unique( array_filter(
-			array_map( 'intval', $ids ),
-			fn( $id ) => $id > 0 && $id !== $this->post_id
-		) ) );
+		$clean = array_values(
+			array_unique(
+				array_filter(
+					array_map( 'intval', $ids ),
+					fn( $id ) => $id > 0 && $id !== $this->post_id
+				)
+			)
+		);
 
 		update_post_meta( $this->post_id, '_mmm_related_recipes', $clean );
 
@@ -2397,22 +2405,24 @@ class Mixmymeals_Recipe {
 	public function get_reverse_related_recipes( string $status = 'publish' ): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
-		$candidates = get_posts( [
-			'post_type'      => 'mmm_recipe',
-			'posts_per_page' => -1,
-			'post_status'    => $status,
-			'fields'         => 'ids',
-			'post__not_in'   => [ $this->post_id ], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
-			'orderby'        => 'title',
-			'order'          => 'ASC',
+		$candidates = get_posts(
+			array(
+				'post_type'      => 'mmm_recipe',
+				'posts_per_page' => -1,
+				'post_status'    => $status,
+				'fields'         => 'ids',
+				'post__not_in'   => array( $this->post_id ), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- excludes the single current post, not a growing list.
+			'orderby'            => 'title',
+			'order'              => 'ASC',
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-			'meta_key'       => '_mmm_related_recipes', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
-		] );
+			'meta_key'           => '_mmm_related_recipes', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			)
+		);
 
-		$out = [];
+		$out = array();
 		foreach ( $candidates as $rid ) {
 			$rel = get_post_meta( $rid, '_mmm_related_recipes', true );
 			if ( is_array( $rel ) && in_array( $this->post_id, array_map( 'intval', $rel ), true ) ) {
@@ -2432,36 +2442,40 @@ class Mixmymeals_Recipe {
 	public function get_meal_plans(): array {
 
 		if ( ! $this->is_valid() ) {
-			return [];
+			return array();
 		}
 
 		// Meals referencing this recipe; their post_parent is the meal plan.
-		$parents = get_posts( [
-			'post_type'      => 'mmm_meal',
-			'post_status'    => 'any',
-			'posts_per_page' => -1,
-			'fields'         => 'id=>parent',
-			'no_found_rows'  => true,
-			'meta_key'       => 'recipe_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
-			'meta_value'     => (string) $this->post_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
-		] );
+		$parents = get_posts(
+			array(
+				'post_type'      => 'mmm_meal',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'id=>parent',
+				'no_found_rows'  => true,
+				'meta_key'       => 'recipe_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- targeted lookup on an indexed key, not a scan.
+			'meta_value'         => (string) $this->post_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- exact-match lookup; the alternative would be fetching everything and filtering in PHP.
+			)
+		);
 
 		$plan_ids = array_values( array_unique( array_filter( array_map( 'intval', $parents ) ) ) );
 		if ( empty( $plan_ids ) ) {
-			return [];
+			return array();
 		}
 
 		return get_posts(
-			Mixmymeals_Post_Types::exclude_unlisted( [
-				'post_type'      => 'mmm_meal_plan',
-				'post_status'    => 'publish',
-				'post__in'       => $plan_ids,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
-			] )
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array(
+					'post_type'      => 'mmm_meal_plan',
+					'post_status'    => 'publish',
+					'post__in'       => $plan_ids,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
+			)
 		);
 	}
 
@@ -4252,7 +4266,8 @@ class Mixmymeals_Recipe {
 		Mixmymeals_Post_Meta::save_author_data( $this->post_id, $data );
 	}
 
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Structured data
 	 * ------------------------------------------------------------------ */
 

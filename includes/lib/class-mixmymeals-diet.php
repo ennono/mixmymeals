@@ -290,7 +290,7 @@ class Mixmymeals_Diet {
 			$cur  = $term;
 
 			while ( $cur->parent && isset( $by_id[ (int) $cur->parent ] ) && ! isset( $seen[ (int) $cur->parent ] ) ) {
-				$cur                        = $by_id[ (int) $cur->parent ];
+				$cur                         = $by_id[ (int) $cur->parent ];
 				$seen[ (int) $cur->term_id ] = true;
 				array_unshift( $out, $cur->slug );
 			}

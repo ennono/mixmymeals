@@ -507,7 +507,7 @@ class Mixmymeals_Post_Types {
 			'query_var'           => true,
 			'can_export'          => false,
 			'rewrite'             => array(
-				'slug' => get_option( 'mixmymeals_recipe_slug' ),
+				'slug'       => get_option( 'mixmymeals_recipe_slug' ),
 				'with_front' => false,
 				'feeds'      => false,
 				'pages'      => true,
@@ -667,7 +667,7 @@ class Mixmymeals_Post_Types {
 			'has_archive'   => true,
 			'hierarchical'  => false,
 			'rewrite'       => array(
-				'slug' => get_option( 'mixmymeals_meal_plan_slug' ),
+				'slug'       => get_option( 'mixmymeals_meal_plan_slug' ),
 				'with_front' => false,
 				'feeds'      => false,
 				'pages'      => true,
@@ -730,7 +730,7 @@ class Mixmymeals_Post_Types {
 			'capability_type'     => 'post',
 			'map_meta_cap'        => true,
 			'rewrite'             => array(
-				'slug' => get_option( 'mixmymeals_meal_slug' ),
+				'slug'       => get_option( 'mixmymeals_meal_slug' ),
 				'with_front' => false,
 				'feeds'      => false,
 				'pages'      => false,
@@ -1052,9 +1052,9 @@ class Mixmymeals_Post_Types {
 			$new[ $key ] = $label;
 
 			if ( $key === 'title' ) {
-				$new['servings']    = __( 'Servings', 'mixmymeals' );
-				$new['cost_serv']   = sprintf( __( 'Cost / Serving', 'mixmymeals' ) . ' (%s)', esc_html( get_option( 'mixmymeals_currency', '€' ) ) );
-				$new['kcal_serv']   = __( 'kcal / Serving', 'mixmymeals' );
+				$new['servings']  = __( 'Servings', 'mixmymeals' );
+				$new['cost_serv'] = sprintf( __( 'Cost / Serving', 'mixmymeals' ) . ' (%s)', esc_html( get_option( 'mixmymeals_currency', '€' ) ) );
+				$new['kcal_serv'] = __( 'kcal / Serving', 'mixmymeals' );
 
 				/*
 				 * Beside the figure it qualifies, not at the end of the row:
@@ -1063,10 +1063,10 @@ class Mixmymeals_Post_Types {
 				 * final.
 				 */
 				$new['nutrition_cover'] = __( 'Nutrition data', 'mixmymeals' );
-				$new['kcal_100']    = __( 'kcal / 100g', 'mixmymeals' );
-				$new['protein_100'] = __( 'Protein / 100g', 'mixmymeals' );
-				$new['carbs_100']   = __( 'Carbs / 100g', 'mixmymeals' );
-				$new['fat_100']     = __( 'Fat / 100g', 'mixmymeals' );
+				$new['kcal_100']        = __( 'kcal / 100g', 'mixmymeals' );
+				$new['protein_100']     = __( 'Protein / 100g', 'mixmymeals' );
+				$new['carbs_100']       = __( 'Carbs / 100g', 'mixmymeals' );
+				$new['fat_100']         = __( 'Fat / 100g', 'mixmymeals' );
 			}
 		}
 
@@ -1085,14 +1085,14 @@ class Mixmymeals_Post_Types {
 
 		$recipe = new Mixmymeals_Recipe( $post_id );
 
-		static $cache = [];
+		static $cache = array();
 
 		if ( ! isset( $cache[ $post_id ] ) ) {
-			$cache[ $post_id ] = [
+			$cache[ $post_id ] = array(
 				'serving' => $recipe->calculate_nutrition_per_serving(),
 				'100g'    => $recipe->calculate_nutrition_per_100g(),
 				'cost'    => $recipe->calculate_cost_per_serving(),
-			];
+			);
 		}
 
 		$nut_serv = $cache[ $post_id ]['serving'];
@@ -1434,14 +1434,12 @@ class Mixmymeals_Post_Types {
 
 			$selected = '';
 			if ( isset( $_GET['mmm_filter_ingredients_nonce'], $_GET[ $taxonomy ] ) ) {
-				$nonce
-					= sanitize_text_field( wp_unslash( $_GET['mmm_filter_ingredients_nonce'] ) );
+				$nonce = sanitize_text_field( wp_unslash( $_GET['mmm_filter_ingredients_nonce'] ) );
 				if ( wp_verify_nonce(
 					$nonce,
 					'mmm_filter_ingredients_action'
 				) ) {
-					$selected
-						= sanitize_text_field( wp_unslash( $_GET[ $taxonomy ] ) );
+					$selected = sanitize_text_field( wp_unslash( $_GET[ $taxonomy ] ) );
 				}
 			}
 
@@ -1491,11 +1489,9 @@ class Mixmymeals_Post_Types {
 		$category = '';
 
 		if ( isset( $_GET['mmm_filter_ingredients_nonce'], $_GET['mmm_ingredient_category'] ) ) {
-			$nonce
-				= sanitize_text_field( wp_unslash( $_GET['mmm_filter_ingredients_nonce'] ) );
+			$nonce = sanitize_text_field( wp_unslash( $_GET['mmm_filter_ingredients_nonce'] ) );
 			if ( wp_verify_nonce( $nonce, 'mmm_filter_ingredients_action' ) ) {
-				$category
-					= sanitize_text_field( wp_unslash( $_GET['mmm_ingredient_category'] ) );
+				$category = sanitize_text_field( wp_unslash( $_GET['mmm_ingredient_category'] ) );
 			}
 		}
 
@@ -1522,7 +1518,8 @@ class Mixmymeals_Post_Types {
 			);
 		}
 	}
-	/* ---------------------------------------------------------------------
+	/*
+	---------------------------------------------------------------------
 	 * Head output: structured data and social meta tags
 	 *
 	 * The structures themselves are built by the post types that own them

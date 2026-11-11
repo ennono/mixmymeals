@@ -62,7 +62,7 @@ class Mixmymeals_Taxonomies {
 	 * The slug deliberately defaults to the plural: WordPress core owns
 	 * "/author/" through its author_base, and registering a taxonomy on the
 	 * same base makes one of the two unreachable. The author archive is
-     * disable at present.
+	 * disable at present.
 	 */
 	public function register_author_taxonomy(): void {
 
@@ -211,16 +211,16 @@ class Mixmymeals_Taxonomies {
 		);
 
 		$args = array(
-			'labels'            => $labels,
-			'public'            => true,
-			'publicly_queryable'=> true,
-			'show_ui'           => true,
-			'show_admin_column' => true,
-			'hierarchical'      => true,
-			'show_in_rest'      => true,
-			'query_var'         => true,
-			'rewrite'           => array(
-				'slug' => get_option( 'mixmymeals_recipe_category_slug' ),
+			'labels'             => $labels,
+			'public'             => true,
+			'publicly_queryable' => true,
+			'show_ui'            => true,
+			'show_admin_column'  => true,
+			'hierarchical'       => true,
+			'show_in_rest'       => true,
+			'query_var'          => true,
+			'rewrite'            => array(
+				'slug'         => get_option( 'mixmymeals_recipe_category_slug' ),
 				'with_front'   => false,
 				'hierarchical' => true,
 			),
@@ -424,8 +424,8 @@ class Mixmymeals_Taxonomies {
 			'show_ui'      => true,
 			'hierarchical' => true,
 			'show_in_rest' => true,
-			'rewrite'           => array(
-				'slug' => get_option( 'mixmymeals_meal_plan_category_slug' ),
+			'rewrite'      => array(
+				'slug'         => get_option( 'mixmymeals_meal_plan_category_slug' ),
 				'with_front'   => false,
 				'hierarchical' => true,
 			),
@@ -493,5 +493,4 @@ class Mixmymeals_Taxonomies {
 
 		register_taxonomy( 'mmm_meal_plan_tag', array( 'mmm_meal_plan' ), $args );
 	}
-
 }

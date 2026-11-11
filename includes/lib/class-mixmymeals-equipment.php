@@ -61,32 +61,39 @@ class Mixmymeals_Equipment {
 		if ( ! $this->is_valid() ) {
 			return;
 		}
-		wp_update_post( array(
-			'ID'         => $this->post_id,
-			'post_title' => sanitize_text_field( $title ),
-		) );
+		wp_update_post(
+			array(
+				'ID'         => $this->post_id,
+				'post_title' => sanitize_text_field( $title ),
+			)
+		);
 	}
 
 	/** @return WP_Post[] */
 	public static function get_all(): array {
-		return get_posts( array(
-			'post_type'      => 'mmm_equipment',
-			'posts_per_page' => -1,
-			'post_status'    => 'publish',
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-		) );
+		return get_posts(
+			array(
+				'post_type'      => 'mmm_equipment',
+				'posts_per_page' => -1,
+				'post_status'    => 'publish',
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			)
+		);
 	}
 
 	/**
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, string $status = 'publish' ): self {
-		$post_id = wp_insert_post( array(
-			'post_type'   => 'mmm_equipment',
-			'post_title'  => sanitize_text_field( $title ),
-			'post_status' => $status,
-		), true );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'mmm_equipment',
+				'post_title'  => sanitize_text_field( $title ),
+				'post_status' => $status,
+			),
+			true
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			throw new \Exception( esc_html( $post_id->get_error_message() ) );
@@ -143,24 +150,24 @@ class Mixmymeals_Equipment {
 
 			$ids = get_posts(
 				Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-							'post_type'      => 'mmm_recipe',
-							'post_status'    => 'publish',
-							'posts_per_page' => 100,
-							'fields'         => 'ids',
-							'orderby'        => 'title',
-							'order'          => 'ASC',
-							'no_found_rows'  => true,
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => 100,
+						'fields'         => 'ids',
+						'orderby'        => 'title',
+						'order'          => 'ASC',
+						'no_found_rows'  => true,
 							// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-							'meta_query'     => array(
-								array(
-									'key'     => '_mmm_equipment',
-									'value'   => 'i:' . $this->post_id . ';',
-									'compare' => 'LIKE',
-								),
+						'meta_query'     => array(
+							array(
+								'key'     => '_mmm_equipment',
+								'value'   => 'i:' . $this->post_id . ';',
+								'compare' => 'LIKE',
 							),
-						)
-			)
+						),
+					)
+				)
 			);
 
 			$cached = array();
@@ -371,5 +378,4 @@ class Mixmymeals_Equipment {
 
 		update_post_meta( $this->post_id, self::META_AFFILIATE_LINKS, $clean );
 	}
-
 }

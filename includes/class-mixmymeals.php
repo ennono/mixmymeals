@@ -152,12 +152,15 @@ class Mixmymeals {
 		add_action( 'init', array( $this, 'load_plugin_textdomain' ), 0 );
 		add_action( 'init', array( $this, 'load_localisation' ), 0 );
 
-		add_action( 'wp_login', function( $user_login, $user ) {
-			$cart = new Mixmymeals_Cart();
-			$cart->merge_guest_cart_into_user( $user->ID );
-		}, 10, 2 );
-
-
+		add_action(
+			'wp_login',
+			function ( $user_login, $user ) {
+				$cart = new Mixmymeals_Cart();
+				$cart->merge_guest_cart_into_user( $user->ID );
+			},
+			10,
+			2
+		);
 	}
 
 	/**
@@ -368,33 +371,35 @@ class Mixmymeals {
 		);
 		wp_enqueue_script( $this->_token . '-frontend' );
 
-		wp_localize_script( $this->_token . '-frontend', 'mixmymeals',
+		wp_localize_script(
+			$this->_token . '-frontend',
+			'mixmymeals',
 			array(
-				'ajax_url'               => admin_url( 'admin-ajax.php' ),
-				'nonce'                  => wp_create_nonce( 'mmm_frontend_nonce' ),
-				'load_into_cart_dialog'  => array(
+				'ajax_url'              => admin_url( 'admin-ajax.php' ),
+				'nonce'                 => wp_create_nonce( 'mmm_frontend_nonce' ),
+				'load_into_cart_dialog' => array(
 					'title'   => __( 'Adjust', 'mixmymeals' ),
 					'message' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),
 					'confirm' => __( 'Continue', 'mixmymeals' ),
 					'cancel'  => __( 'Cancel', 'mixmymeals' ),
 				),
-				'clear_cart_dialog'      => array(
+				'clear_cart_dialog'     => array(
 					'title'   => __( 'Clear Plan', 'mixmymeals' ),
 					'message' => __( 'All recipes will be removed from the planner. Continue?', 'mixmymeals' ),
 					'confirm' => __( 'Clear Plan', 'mixmymeals' ),
 					'cancel'  => __( 'Cancel', 'mixmymeals' ),
 				),
-				'planner_dialog'         => array(
-					'title'    => __( 'Plan this recipe as a meal', 'mixmymeals' ),
-					'servings' => __( 'Servings', 'mixmymeals' ),
-					'diet'     => _x( 'Diet', 'planner dialog field', 'mixmymeals' ),
-					'type'     => __( 'Meal type', 'mixmymeals' ),
-					'day'      => __( 'Day', 'mixmymeals' ),
-					'no_type'  => __( 'No type', 'mixmymeals' ),
-					'no_day'   => __( 'No day', 'mixmymeals' ),
-					'submit'   => __( 'Add to Planner', 'mixmymeals' ),
-					'cancel'   => __( 'Cancel', 'mixmymeals' ),
-					'types'    => Mixmymeals_Meal::get_plaintext_meal_type_map(),
+				'planner_dialog'        => array(
+					'title'     => __( 'Plan this recipe as a meal', 'mixmymeals' ),
+					'servings'  => __( 'Servings', 'mixmymeals' ),
+					'diet'      => _x( 'Diet', 'planner dialog field', 'mixmymeals' ),
+					'type'      => __( 'Meal type', 'mixmymeals' ),
+					'day'       => __( 'Day', 'mixmymeals' ),
+					'no_type'   => __( 'No type', 'mixmymeals' ),
+					'no_day'    => __( 'No day', 'mixmymeals' ),
+					'submit'    => __( 'Add to Planner', 'mixmymeals' ),
+					'cancel'    => __( 'Cancel', 'mixmymeals' ),
+					'types'     => Mixmymeals_Meal::get_plaintext_meal_type_map(),
 
 					/*
 					 * Wording for the confirmation after planning. The recipe
@@ -405,7 +410,7 @@ class Mixmymeals {
 					 * cannot ask the catalogue — 1 and 2 stand in for the
 					 * two cases.
 					 */
-					'added'    => array(
+					'added'     => array(
 						/* translators: 1: recipe name, 2: weekday, 3: meal type. */
 						'full'       => __( '%1$s planned for %2$s, %3$s.', 'mixmymeals' ),
 						/* translators: 1: recipe name, 2: weekday. */
@@ -422,7 +427,7 @@ class Mixmymeals {
 					),
 					// The planner's save bar; the button's own label.
 					'save_plan' => __( 'Save Plan', 'mixmymeals' ),
-					'share'    => array(
+					'share'     => array(
 						'title'     => __( 'My meal plan', 'mixmymeals' ),
 						'text'      => __( 'Here is what I have planned for the week.', 'mixmymeals' ),
 						'copied'    => __( 'Link copied.', 'mixmymeals' ),
@@ -431,7 +436,7 @@ class Mixmymeals {
 						'ask'       => __( 'Someone shared a planner with you. Your own planner will be replaced by it. Continue?', 'mixmymeals' ),
 						'ask_title' => __( 'Load shared planner', 'mixmymeals' ),
 					),
-					'days'     => array(
+					'days'      => array(
 						1 => __( 'Monday', 'mixmymeals' ),
 						2 => __( 'Tuesday', 'mixmymeals' ),
 						3 => __( 'Wednesday', 'mixmymeals' ),
@@ -441,7 +446,7 @@ class Mixmymeals {
 						7 => __( 'Sunday', 'mixmymeals' ),
 					),
 				),
-				'cook_mode'              => array(
+				'cook_mode'             => array(
 					/* translators: %1$s: current step number, %2$s: total number of steps */
 					'step_of' => __( 'Step %1$s of %2$s', 'mixmymeals' ),
 					'exit'    => __( 'Exit', 'mixmymeals' ),
@@ -451,7 +456,6 @@ class Mixmymeals {
 				),
 			)
 		);
-
 	}
 
 	/**
@@ -513,8 +517,8 @@ class Mixmymeals {
 			'mixmymeals-admin',
 			'mixmymealsAdmin',
 			array(
-				'ajaxurl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'mixmymeals_admin_nonce' ),
+				'ajaxurl'      => admin_url( 'admin-ajax.php' ),
+				'nonce'        => wp_create_nonce( 'mixmymeals_admin_nonce' ),
 				// Die Beschriftung der Ausschluss-Kaestchen. Sie entsteht in
 				// einer frisch geklonten Zeile im Browser, also muss der
 				// Wortlaut dorthin — uebersetzt wie der gerenderte daneben.
@@ -596,7 +600,6 @@ class Mixmymeals {
 				'confirmDelete' => __( 'Delete?', 'mixmymeals' ),
 			)
 		);
-
 	}
 
 	/**
@@ -780,8 +783,5 @@ class Mixmymeals {
 			wp_safe_redirect( home_url() );
 			exit;
 		}
-
 	}
-
-
 }
