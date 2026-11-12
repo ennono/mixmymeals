@@ -284,6 +284,11 @@ class Mixmymeals_Cart {
 	 * saved plan shows its steps — a draft or private recipe planned by its
 	 * ID would be published that way.
 	 *
+	 * A password-protected recipe only for a visitor who has entered the
+	 * password (Mixmymeals_Post_Types::is_locked()): planner, suggestion,
+	 * recipe picker and the week at a glance all ask here, and each would
+	 * otherwise print what the password keeps back.
+	 *
 	 * @param int $recipe_id Post ID.
 	 * @return bool
 	 */
@@ -291,7 +296,8 @@ class Mixmymeals_Cart {
 
 		return $recipe_id > 0
 			&& 'mmm_recipe' === get_post_type( $recipe_id )
-			&& 'publish' === get_post_status( $recipe_id );
+			&& 'publish' === get_post_status( $recipe_id )
+			&& ! Mixmymeals_Post_Types::is_locked( $recipe_id );
 	}
 
 	/**

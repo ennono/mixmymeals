@@ -33,6 +33,19 @@ class Mixmymeals_Planner_Tools {
 	const PICKER_LIMIT = 24;
 
 	/**
+	 * How long a picker search term may be. Each term runs through three
+	 * LIKE stages of Mixmymeals_Search; nobody types a longer dish.
+	 */
+	const PICKER_TERM_MAX = 100;
+
+	/**
+	 * How many candidates one suggestion checks at most. Each check cooks the
+	 * recipe for the diets asked; the index has already narrowed them, so
+	 * nearly every check succeeds and this only bounds a guest's request.
+	 */
+	const SUGGEST_CHECK_MAX = 60;
+
+	/**
 	 * Hooks the AJAX actions and the shortcode. Static, as the cart's are:
 	 * nothing here keeps state between requests.
 	 *
@@ -56,19 +69,110 @@ class Mixmymeals_Planner_Tools {
 
 	/**
 	 * What a visitor can rule out, as the question puts it, mapped to the
-	 * diet a recipe must then be in force as. The keys are diet slugs of the
-	 * archive index (Mixmymeals_Recipe::META_DIET_INDEX).
+	 * diet a recipe must then be in force as.
+	 *
+	 * No diet is defined in code: the four questions are tied to the former
+	 * built-in keys and reach whatever term took each over
+	 * (Mixmymeals_Diet::resolve()), under its slug of today. A question
+	 * whose diet does not exist on this site is not asked.
 	 *
 	 * @return array<string, string> Diet slug → what is left out.
 	 */
 	public static function exclusions(): array {
 
-		return array(
-			'vegetarisch' => __( 'Meat and fish', 'mixmymeals' ),
-			'vegan'       => __( 'Anything animal', 'mixmymeals' ),
-			'glutenfrei'  => __( 'Gluten', 'mixmymeals' ),
-			'lactosefrei' => __( 'Lactose', 'mixmymeals' ),
+		$questions = array(
+			'vegetarian'   => __( 'Meat and fish', 'mixmymeals' ),
+			'vegan'        => __( 'Anything animal', 'mixmymeals' ),
+			'gluten_free'  => __( 'Gluten', 'mixmymeals' ),
+			'lactose_free' => __( 'Lactose', 'mixmymeals' ),
 		);
+
+		$out = array();
+
+		foreach ( $questions as $key => $label ) {
+			$slug = Mixmymeals_Diet::resolve( $key );
+
+			if ( '' !== $slug && ! isset( $out[ $slug ] ) ) {
+				$out[ $slug ] = $label;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The diets a visitor asked for, as this site names them: unknown values
+	 * dropped, and a diet another one already implies left out (vegan is
+	 * vegetarian — the tree says so, not this method).
+	 *
+	 * @param array $asked Raw values (slugs or former keys).
+	 * @return string[]
+	 */
+	public static function clean_diets( array $asked ): array {
+
+		$offered = self::exclusions();
+		$diets   = array();
+
+		foreach ( $asked as $value ) {
+			$slug = is_scalar( $value ) ? Mixmymeals_Diet::resolve( sanitize_key( (string) $value ) ) : '';
+
+			if ( isset( $offered[ $slug ] ) ) {
+				$diets[ $slug ] = true;
+			}
+		}
+
+		$diets = array_keys( $diets );
+		$types = Mixmymeals_Diet::types();
+
+		return array_values(
+			array_filter(
+				$diets,
+				static function ( $slug ) use ( $diets, $types ) {
+					foreach ( $diets as $other ) {
+						if ( $other !== $slug && in_array( $slug, (array) ( $types[ $other ]['implies'] ?? array() ), true ) ) {
+							return false;
+						}
+					}
+					return true;
+				}
+			)
+		);
+	}
+
+	/**
+	 * How a suggested recipe is planned so that every diet asked for is in
+	 * force, or null when it cannot be.
+	 *
+	 * The index says what a recipe *could* be cooked as; a meal is cooked as
+	 * one choice (Mixmymeals_Cart::clean_diet()), and without a diet that is
+	 * the recipe as written — the beef of a dish that is only
+	 * vegetarian-capable. So the suggestion settles the meal on the
+	 * strongest diet asked and checks the dish as the planner will read it
+	 * (Mixmymeals_Meal_Plan::row_recipe()). Diets of other axes cannot be
+	 * chosen per meal and must hold as cooked.
+	 *
+	 * @param int      $recipe_id Recipe ID.
+	 * @param string[] $diets     Diets from clean_diets().
+	 * @return string|null Diet to plan with ('' = no choice), or null.
+	 */
+	public static function planned_diet( int $recipe_id, array $diets ): ?string {
+
+		$diet = Mixmymeals_Cart::clean_diet( $recipe_id, Mixmymeals_Diet::strongest( $diets, 'diet' ) );
+
+		if ( ! $diets ) {
+			return $diet;
+		}
+
+		$cooked = Mixmymeals_Meal_Plan::row_recipe(
+			array(
+				'recipe_id' => $recipe_id,
+				'diet'      => $diet,
+			)
+		);
+
+		$in_force = Mixmymeals_Diet::expand( $cooked->get_diets() );
+
+		return array_diff( $diets, $in_force ) ? null : $diet;
 	}
 
 	/**
@@ -139,6 +243,11 @@ class Mixmymeals_Planner_Tools {
 			$args['meta_query'] = $meta;
 		}
 
+		// A suggestion is a listing: unlisted and password-protected recipes
+		// stay out, as they do of the archive and the search. Last, because
+		// it merges into the meta_query above.
+		$args = Mixmymeals_Post_Types::exclude_unlisted( $args );
+
 		return array_map( 'intval', ( new WP_Query( $args ) )->posts );
 	}
 
@@ -165,28 +274,40 @@ class Mixmymeals_Planner_Tools {
 		$asked = isset( $_POST['diets'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['diets'] ) ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-		$diets = array_values( array_intersect( array_keys( self::exclusions() ), $asked ) );
+		$diets = self::clean_diets( $asked );
 
-		// Vegan is vegetarian; asking for both would only narrow by an index
-		// row that vegan recipes may not carry twice.
-		if ( in_array( 'vegan', $diets, true ) ) {
-			$diets = array_values( array_diff( $diets, array( 'vegetarisch' ) ) );
+		// Recipe → diet it is planned with; only dishes that hold every diet
+		// asked for as they will be cooked. Main dishes first; too few of
+		// them for the days asked, and the rest of the recipes top up rather
+		// than hand back half a week.
+		$picked = array();
+		$tried  = 0;
+
+		foreach ( array( true, false ) as $main_only ) {
+
+			$ids = array_diff( self::candidate_ids( $diets, $main_only ), array_keys( $picked ) );
+			shuffle( $ids );
+
+			foreach ( $ids as $recipe_id ) {
+
+				if ( count( $picked ) >= $days || $tried >= self::SUGGEST_CHECK_MAX ) {
+					break 2;
+				}
+
+				++$tried;
+				$diet = self::planned_diet( (int) $recipe_id, $diets );
+
+				if ( null !== $diet ) {
+					$picked[ (int) $recipe_id ] = $diet;
+				}
+			}
+
+			if ( count( $picked ) >= $days ) {
+				break;
+			}
 		}
 
-		$ids = self::candidate_ids( $diets, true );
-		shuffle( $ids );
-
-		// Too few main dishes for the days asked: top up from everything
-		// that fits the diets rather than hand back half a week.
-		if ( count( $ids ) < $days ) {
-			$more = array_diff( self::candidate_ids( $diets, false ), $ids );
-			shuffle( $more );
-			$ids = array_merge( $ids, $more );
-		}
-
-		$ids = array_slice( $ids, 0, $days );
-
-		if ( ! $ids ) {
+		if ( ! $picked ) {
 			wp_send_json_error(
 				array(
 					'code'    => 'no_recipes',
@@ -212,8 +333,11 @@ class Mixmymeals_Planner_Tools {
 
 		$today = (int) wp_date( 'N' );
 
-		foreach ( $ids as $i => $recipe_id ) {
-			$cart->add( $recipe_id, $people, 'dinner', ( ( $today - 1 + $i ) % 7 ) + 1 );
+		$i = 0;
+
+		foreach ( $picked as $recipe_id => $diet ) {
+			$cart->add( $recipe_id, $people, 'dinner', ( ( $today - 1 + $i ) % 7 ) + 1, $diet );
+			++$i;
 		}
 
 		$count = count( ( new Mixmymeals_Cart() )->get_items() );
@@ -262,19 +386,24 @@ class Mixmymeals_Planner_Tools {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified above.
 		$term = isset( $_POST['term'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['term'] ) ) ) : '';
+		$term = trim( mb_substr( $term, 0, self::PICKER_TERM_MAX ) );
 
 		if ( '' !== $term ) {
 			$ids = Mixmymeals_Search::ids( 'recipe', $term );
 		} else {
+			// The newest, as the archive lists them: without unlisted and
+			// password-protected recipes (Mixmymeals_Search does the same).
 			$ids = get_posts(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'fields'         => 'ids',
-					'posts_per_page' => self::PICKER_LIMIT,
-					'orderby'        => 'date',
-					'order'          => 'DESC',
-					'no_found_rows'  => true,
+				Mixmymeals_Post_Types::exclude_unlisted(
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'fields'         => 'ids',
+						'posts_per_page' => self::PICKER_LIMIT,
+						'orderby'        => 'date',
+						'order'          => 'DESC',
+						'no_found_rows'  => true,
+					)
 				)
 			);
 		}
