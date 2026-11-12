@@ -18,7 +18,14 @@ wp plugin check mixmymeals --format=json
 
 # Rebuild a minified script after editing its source (also admin.js, settings.js)
 npx terser@5.51.2 assets/js/frontend.js -c -m -o assets/js/frontend.min.js
+
+# Translations: regenerate the template, translate new entries in the .po by hand, then compile both
+wp i18n make-pot . lang/mixmymeals.pot --domain=mixmymeals --exclude=vendor,tools,lang,node_modules --skip-js
+wp i18n make-mo lang/mixmymeals-de_DE.po lang
+wp i18n make-php lang/mixmymeals-de_DE.po lang
 ```
+
+- **Translations**: the `.mo` and `.l10n.php` of 3.76.3 are byte for byte what `make-mo` / `make-php` produce from the `.po`. Every `.po` entry needs a blank line before the next one's comments — one without it was silently dropped from both compiled files from 3.52.0 to 4.0.0.
 
 - **Minifying**: terser, compress + mangle, no options beyond `-c -m`, no header comment. Pinned to 5.51.2 because that version reproduces the `.min.js` files of 3.76.3 byte for byte — a rebuild of an unchanged source must leave the file unchanged, so a diff of a `.min.js` shows only what its source changed. Check with `node --check` afterwards. Never hand-edit a `.min.js`.
 

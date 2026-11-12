@@ -1576,6 +1576,16 @@ msgstr ""
 "day.html, on-start.html, before-start.html, evening-before.html, on-"
 "confirm.html). Wähle das, das zum Trigger der Regel passt."
 
+#: includes/lib/class-mixmymeals-admin-api.php
+msgid ""
+"One template is tied to a trigger by its name (each-day.html). The others "
+"fit any trigger: shopping-list.html, rate-recipe.html. Pick the one that "
+"fits the rule."
+msgstr ""
+"Ein Template ist über seinen Namen an einen Trigger gebunden (each-"
+"day.html). Die anderen passen zu jedem Trigger: shopping-list.html, rate-"
+"recipe.html. Wähle das, das zur Regel passt."
+
 #. translators: %s: theme templates path.
 #: includes/lib/class-mixmymeals-admin-api.php:623
 #, php-format
@@ -6302,6 +6312,7 @@ msgstr "%s kcal je 100 g liegen über allem, was ein Lebensmittel erreicht (etwa
 #, php-format
 msgid "%1$s: %2$s g per 100 g is more than 100 g."
 msgstr "%1$s: %2$s g je 100 g sind mehr als 100 g."
+
 #: includes/class-mixmymeals-settings.php
 msgid "Also show on ingredient pages"
 msgstr "Auch auf Zutatenseiten ausgeben"
