@@ -61,6 +61,7 @@ require_once 'includes/lib/class-mixmymeals-meal-plan.php';
 require_once 'includes/lib/class-mixmymeals-cart.php';
 require_once 'includes/lib/class-mixmymeals-equipment.php';
 require_once 'includes/lib/class-mixmymeals-search.php';
+require_once 'includes/lib/class-mixmymeals-planner-tools.php';
 
 require_once 'includes/lib/class-mixmymeals-rest-api.php';
 require_once 'includes/lib/class-mixmymeals-cleanup.php';
@@ -117,6 +118,8 @@ mixmymeals()->add_shortcodes();
 // Warenkorb-AJAX-Endpunkte: statisch registriert, weil die Klasse pro
 // Verwendung neu instanziiert wird.
 Mixmymeals_Cart::register_ajax();
+// Plan vorschlagen, Rezeptwahl im Planer, Wochenübersicht.
+Mixmymeals_Planner_Tools::register();
 // Bearbeitungszähler: ebenfalls statisch, weil Rezepte pro Post instanziiert
 // werden, der Hook aber einmal pro Request hängen muss.
 Mixmymeals_Recipe::register_edit_count();

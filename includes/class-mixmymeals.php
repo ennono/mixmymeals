@@ -383,6 +383,18 @@ class Mixmymeals {
 					'confirm' => __( 'Continue', 'mixmymeals' ),
 					'cancel'  => __( 'Cancel', 'mixmymeals' ),
 				),
+				// Ticking off the shopping list (state stays in the browser).
+				'shopping_check'        => array(
+					/* translators: 1: lines still to buy, 2: all lines. */
+					'progress'  => __( '%1$s of %2$s still to get', 'mixmymeals' ),
+					'all_done'  => __( 'All done. Enjoy cooking!', 'mixmymeals' ),
+					'reset'     => __( 'Start over', 'mixmymeals' ),
+					'have'      => __( 'Have it', 'mixmymeals' ),
+					/* translators: %s: ingredient. */
+					'have_long' => __( 'Already have %s', 'mixmymeals' ),
+					/* translators: %s: ingredient. */
+					'tick'      => __( 'Tick off %s', 'mixmymeals' ),
+				),
 				'clear_cart_dialog'     => array(
 					'title'   => __( 'Clear Plan', 'mixmymeals' ),
 					'message' => __( 'All recipes will be removed from the planner. Continue?', 'mixmymeals' ),
@@ -400,6 +412,39 @@ class Mixmymeals {
 					'submit'    => __( 'Add to Planner', 'mixmymeals' ),
 					'cancel'    => __( 'Cancel', 'mixmymeals' ),
 					'types'     => Mixmymeals_Meal::get_plaintext_meal_type_map(),
+					// The one-tap sheet that asks only for the day.
+					'sheet'     => array(
+						'title'   => __( 'Which day?', 'mixmymeals' ),
+						'today'   => __( 'today', 'mixmymeals' ),
+						'no_day'  => __( 'No day yet', 'mixmymeals' ),
+						'more'    => __( 'Adjust servings and more', 'mixmymeals' ),
+					),
+					// "+ recipe" on a day of the planner.
+					'picker'    => array(
+						/* translators: %s: weekday. */
+						'title'       => __( 'Recipe for %s', 'mixmymeals' ),
+						'placeholder' => __( 'Search by title or ingredient', 'mixmymeals' ),
+						'empty'       => __( 'Nothing found.', 'mixmymeals' ),
+						'newest'      => __( 'New recipes', 'mixmymeals' ),
+						'close'       => __( 'Close', 'mixmymeals' ),
+						/* translators: %s: minutes. */
+						'minutes'     => __( '%s min', 'mixmymeals' ),
+					),
+					// The question on the start page.
+					'start'     => array(
+						'replace_title' => __( 'Suggest a new plan', 'mixmymeals' ),
+						'replace'       => __( 'Your planner will be cleared and filled with a new suggestion. Continue?', 'mixmymeals' ),
+						'confirm'       => __( 'Suggest a plan', 'mixmymeals' ),
+						'working'       => __( 'Putting your plan together…', 'mixmymeals' ),
+					),
+					// The week at a glance.
+					'mini'      => array(
+						'title'      => __( 'Your week', 'mixmymeals' ),
+						'empty'      => __( 'Nothing planned yet. Tap + on a recipe.', 'mixmymeals' ),
+						'unassigned' => __( 'No day yet', 'mixmymeals' ),
+						'open'       => __( 'Open planner', 'mixmymeals' ),
+						'today'      => __( 'today', 'mixmymeals' ),
+					),
 
 					/*
 					 * Wording for the confirmation after planning. The recipe

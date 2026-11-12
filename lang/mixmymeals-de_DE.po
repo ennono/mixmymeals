@@ -7888,3 +7888,119 @@ msgstr "Mahlzeit gelöscht."
 #: includes/class-mixmymeals.php:585
 msgid "Delete this meal? This cannot be undone."
 msgstr "Diese Mahlzeit löschen? Das lässt sich nicht widerrufen."
+
+msgid "Which day?"
+msgstr "An welchem Tag?"
+
+msgid "today"
+msgstr "heute"
+
+msgid "No day yet"
+msgstr "Noch ohne Tag"
+
+msgid "Adjust servings and more"
+msgstr "Portionen und mehr anpassen"
+
+msgid "Recipe for %s"
+msgstr "Rezept für %s"
+
+msgid "Search by title or ingredient"
+msgstr "Rezept oder Zutat suchen"
+
+msgid "Nothing found."
+msgstr "Nichts gefunden."
+
+msgid "New recipes"
+msgstr "Neue Rezepte"
+
+msgid "Close"
+msgstr "Schließen"
+
+msgid "Suggest a new plan"
+msgstr "Neuen Plan vorschlagen"
+
+msgid "Your planner will be cleared and filled with a new suggestion. Continue?"
+msgstr "Dein Planer wird geleert und mit einem neuen Vorschlag gefüllt. Fortfahren?"
+
+msgid "Suggest a plan"
+msgstr "Plan vorschlagen"
+
+msgid "Putting your plan together…"
+msgstr "Dein Plan wird zusammengestellt…"
+
+msgid "Your week"
+msgstr "Deine Woche"
+
+msgid "Nothing planned yet. Tap + on a recipe."
+msgstr "Noch nichts geplant. Tippe bei einem Rezept auf „Einplanen“."
+
+msgid "Open planner"
+msgstr "Planer öffnen"
+
+msgid "%1$s of %2$s still to get"
+msgstr "Noch %1$s von %2$s besorgen"
+
+msgid "All done. Enjoy cooking!"
+msgstr "Alles erledigt. Viel Spaß beim Kochen!"
+
+msgid "Start over"
+msgstr "Zurücksetzen"
+
+msgid "Have it"
+msgstr "Hab ich"
+
+msgid "Already have %s"
+msgstr "%s habe ich schon"
+
+msgid "Tick off %s"
+msgstr "%s abhaken"
+
+msgid "Meat and fish"
+msgstr "Fleisch und Fisch"
+
+msgid "Anything animal"
+msgstr "Tierisches"
+
+msgid "Gluten"
+msgstr "Gluten"
+
+msgid "Lactose"
+msgstr "Laktose"
+
+msgid "No recipes fit all of that. Try leaving out less."
+msgstr "Dazu passt kein Rezept. Schließ etwas weniger aus."
+
+msgid "%s recipe planned."
+msgid_plural "%s recipes planned."
+msgstr[0] "%s Rezept eingeplant."
+msgstr[1] "%s Rezepte eingeplant."
+
+msgid "For how many?"
+msgstr "Für wie viele?"
+
+msgid "One person fewer"
+msgstr "Eine Person weniger"
+
+msgid "One person more"
+msgstr "Eine Person mehr"
+
+msgid "How many days?"
+msgstr "Wie viele Tage?"
+
+msgid "What do you not eat?"
+msgstr "Was esst ihr nicht?"
+
+msgid "Free, no account. You can swap every recipe."
+msgstr "Kostenlos und ohne Anmeldung. Jedes Rezept lässt sich tauschen."
+
+msgid "for %s"
+msgstr "für %s"
+
+msgid "Week starts on"
+msgstr "Woche beginnt am"
+
+msgid "Monday (default)"
+msgstr "Montag"
+
+msgid "Search recipes or ingredients…"
+msgstr "Rezept oder Zutat suchen…"

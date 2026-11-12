@@ -4894,6 +4894,33 @@ class Mixmymeals_Shortcodes {
 
 				<div class="mmm-plan-item-title"><?php echo esc_html( $title ); ?></div>
 
+				<?php
+				/*
+				 * A card says what is cooked and for how many; everything
+				 * else is a decision made once in a while. The day, the meal
+				 * type, the diet and who eats along used to stand open on
+				 * every card, which made one recipe 325px tall on a phone and
+				 * a week of them seven screens. They are one tap away now.
+				 */
+				?>
+				<div class="mmm-plan-item-quick">
+					<label class="mmm-plan-item-quick__servings">
+						<input type="number" class="mmm-plan-item-servings" data-field="servings"
+						min="<?php echo esc_attr( (string) $mmm_min ); ?>" value="<?php echo esc_attr( (string) $servings ); ?>"
+						aria-label="<?php esc_attr_e( 'Servings', 'mixmymeals' ); ?>">
+
+						<?php if ( null !== $plan && $plan->has_eaters() ) : ?>
+							<?php // Quiet: more is allowed (leftovers, guests), it is only said. ?>
+							<span class="mmm-plan-item-surplus" data-servings-surplus<?php echo '' === $mmm_surplus ? ' hidden' : ''; ?>><?php echo esc_html( $mmm_surplus ); ?></span>
+						<?php endif; ?>
+
+						<span class="mmm-plan-item-quick__unit"><?php esc_html_e( 'Servings', 'mixmymeals' ); ?></span>
+					</label>
+				</div>
+
+				<details class="mmm-plan-item-more" data-keep="<?php echo esc_attr( 'item-' . $recipe_id . '-' . $index ); ?>">
+					<summary class="mmm-plan-item-more__toggle"><?php esc_html_e( 'Adjust', 'mixmymeals' ); ?></summary>
+
 				<div class="mmm-plan-item-controls">
 
 					<?php
@@ -4941,15 +4968,6 @@ class Mixmymeals_Shortcodes {
 						<?php endforeach; ?>
 					</select>
 
-					<input type="number" class="mmm-plan-item-servings" data-field="servings"
-						min="<?php echo esc_attr( (string) $mmm_min ); ?>" value="<?php echo esc_attr( (string) $servings ); ?>"
-						aria-label="<?php esc_attr_e( 'Servings', 'mixmymeals' ); ?>">
-
-					<?php if ( null !== $plan && $plan->has_eaters() ) : ?>
-						<?php // Quiet: more is allowed (leftovers, guests), it is only said. ?>
-						<span class="mmm-plan-item-surplus" data-servings-surplus<?php echo '' === $mmm_surplus ? ' hidden' : ''; ?>><?php echo esc_html( $mmm_surplus ); ?></span>
-					<?php endif; ?>
-
 					<?php
 					/*
 					 * How the dish is cooked, only where there is a choice: a
@@ -4976,6 +4994,8 @@ class Mixmymeals_Shortcodes {
 				</div>
 
 				<?php echo null === $plan ? '' : $this->render_plan_item_eaters( $plan, (array) ( $item['eaters'] ?? array() ), (array) ( $item['portions'] ?? array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+
+				</details>
 
 			</div>
 
@@ -5131,6 +5151,25 @@ class Mixmymeals_Shortcodes {
 				</ul>
 			</div>
 
+			<?php
+			/*
+			 * One setting for the day the week starts on. The radio on every
+			 * day stays in the markup — the plan reads the checked one when
+			 * it is saved — but seven of them, each labelled "start day",
+			 * were seven controls for one decision.
+			 */
+			?>
+			<label class="mmm-plan-startday">
+				<span class="mmm-plan-startday__label"><?php esc_html_e( 'Week starts on', 'mixmymeals' ); ?></span>
+				<select class="mmm-plan-startday__select" data-plan-startday>
+					<option value="0"><?php esc_html_e( 'Monday (default)', 'mixmymeals' ); ?></option>
+					<?php foreach ( $days as $day_key => $day_label ) : ?>
+						<?php if ( 1 === (int) $day_key ) { continue; } ?>
+						<option value="<?php echo esc_attr( (string) $day_key ); ?>"><?php echo esc_html( $day_label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</label>
+
 			<div class="mmm-plan-days">
 
 				<?php foreach ( $days as $day_key => $day_label ) : ?>
@@ -5141,6 +5180,14 @@ class Mixmymeals_Shortcodes {
 						<h3 class="mmm-plan-day-title">
 							<?php echo esc_html( $day_label ); ?>
 						</h3>
+
+						<button type="button" class="mmm-plan-day-add"
+							data-day="<?php echo esc_attr( (string) $day_key ); ?>"
+							data-day-label="<?php echo esc_attr( $day_label ); ?>">
+							<span aria-hidden="true">+</span>
+							<span class="mmm-plan-day-add__label"><?php esc_html_e( 'Recipe', 'mixmymeals' ); ?></span>
+							<span class="screen-reader-text"><?php echo esc_html( sprintf( /* translators: %s: weekday. */ __( 'for %s', 'mixmymeals' ), $day_label ) ); ?></span>
+						</button>
 
 						<label class="mmm-plan-day-start">
 							<input type="radio" name="mmm-plan-startday" value="<?php echo esc_attr( $day_key ); ?>">
@@ -5746,6 +5793,18 @@ class Mixmymeals_Shortcodes {
 			);
 			// Named after its number, which exists only now ("Essensplan #4812").
 			$meal_plan->apply_number_title();
+
+			/*
+			 * A plan saved from the planner is somebody's own week, not an
+			 * article: it keeps its address, so the link can be shared and
+			 * mailed, but it is not listed in the archive, in searches or
+			 * in the rows of the start page — those showed "Essensplan
+			 * #6971 · 2 recipes" next to the editorial plans. An editor
+			 * lists a plan by unticking "unlisted" on its edit screen.
+			 */
+			if ( apply_filters( 'mixmymeals_unlist_planner_plans', ! current_user_can( 'edit_others_posts' ), $meal_plan->get_id() ) ) {
+				Mixmymeals_Post_Types::set_unlisted( $meal_plan->get_id(), true );
+			}
 		} catch ( \Exception $e ) {
 			wp_send_json_error(
 				array(
@@ -10993,8 +11052,15 @@ class Mixmymeals_Shortcodes {
 		ob_start();
 		?>
 		<form class="mmm-archive-search" method="get" role="search" action="<?php echo esc_url( self::archive_form_action() ); ?>">
-			<input type="search" name="mmm_s" class="mmm-archive-search__text" value="<?php echo esc_attr( $cur_s ); ?>" placeholder="<?php esc_attr_e( 'Search by title…', 'mixmymeals' ); ?>">
-			<?php if ( $recipes ) : ?>
+			<input type="search" name="mmm_s" class="mmm-archive-search__text" value="<?php echo esc_attr( $cur_s ); ?>" placeholder="<?php echo esc_attr( $recipes && apply_filters( 'mixmymeals_archive_search_combined', true ) ? __( 'Search recipes or ingredients…', 'mixmymeals' ) : __( 'Search by title…', 'mixmymeals' ) ); ?>">
+			<?php
+			/*
+			 * The second field ("what I have at home") stays for whoever
+			 * filters by several ingredients at once, but a theme that
+			 * offers the combined field alone can leave it out.
+			 */
+			?>
+			<?php if ( $recipes && apply_filters( 'mixmymeals_archive_search_ingredient_field', true ) ) : ?>
 				<input
 					type="search"
 					name="zutat"
@@ -12104,9 +12170,34 @@ class Mixmymeals_Shortcodes {
 		$s = isset( $_GET['mmm_s'] ) ? trim( sanitize_text_field( wp_unslash( $_GET['mmm_s'] ) ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		if ( '' !== $s ) {
-			$query->set( 'mmm_title_like', $s );
+		if ( '' === $s ) {
+			return;
 		}
+
+		/*
+		 * Recipes: one field for titles and ingredients. A visitor who types
+		 * "Zucchini" means recipes with zucchini, whether or not the word is
+		 * in the title — two fields that behave differently asked them to
+		 * know how the site stores its data. Mixmymeals_Search already ranks
+		 * title matches before ingredient matches; the archive keeps that
+		 * order. Everything else on the archive (diet, time, view) still
+		 * narrows the same main query.
+		 */
+		$recipes = $query->is_post_type_archive( 'mmm_recipe' ) || $query->is_tax( array( 'mmm_recipe_category', 'mmm_recipe_tag' ) );
+
+		/**
+		 * Whether the recipe archive search also looks into ingredients.
+		 *
+		 * @param bool $combined Default true.
+		 */
+		if ( $recipes && apply_filters( 'mixmymeals_archive_search_combined', true ) ) {
+			$ids = Mixmymeals_Search::ids( 'recipe', $s );
+			$query->set( 'post__in', $ids ? $ids : array( 0 ) );
+			$query->set( 'orderby', 'post__in' );
+			return;
+		}
+
+		$query->set( 'mmm_title_like', $s );
 	}
 
 	/**
