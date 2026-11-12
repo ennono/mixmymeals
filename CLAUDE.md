@@ -36,7 +36,7 @@ wp --exec="define('DB_HOST','localhost:<socket>');" \
    eval-file wp-content/plugins/mixmymeals/tools/diet-test.php
 ```
 
-Test posts are titled `T …` or `R<n>` and carry the brand `ZZ`, so a run cut short leaves something recognisable to clean up. One script per subject — `diet`, `meal-diet`, `excluded-products`, `reference-product`, `product-usage`, `bulk-update`, `cooking-factor`, `nutrition-coverage`, `traffic-light`, `reference-intake`, `prep-steps`, `meal-text`, `password`, `plan-meals`, `plan-number`, `plan-servings`, `plan-eaters`, `plan-subscribe`, `planner-shopping`, `planner-templates`, `cart-share`, `equipment`, `privacy-policy`, `admin-structure`, `author-image`. Run the one for the subject you touched.
+Test posts are titled `T …` or `R<n>` and carry the brand `ZZ`, so a run cut short leaves something recognisable to clean up. One script per subject — `diet`, `meal-diet`, `excluded-products`, `reference-product`, `product-usage`, `bulk-update`, `cooking-factor`, `nutrition-coverage`, `traffic-light`, `reference-intake`, `prep-steps`, `meal-text`, `password`, `plan-meals`, `plan-number`, `plan-servings`, `plan-eaters`, `plan-subscribe`, `planner-shopping`, `planner-templates`, `planner-tools`, `cart-share`, `equipment`, `privacy-policy`, `admin-structure`, `author-image`. Run the one for the subject you touched.
 
 Conventions the scripts rely on:
 - Save callbacks are tested by a **round trip through the callback**, not through the setter behind it (see *Recipes*).
