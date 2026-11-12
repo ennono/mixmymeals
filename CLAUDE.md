@@ -15,7 +15,12 @@ MixMyMeals is a WordPress plugin (v3.76.3, text domain `mixmymeals`, PHP 8.0+) f
 
 # WordPress.org's checks. Install once: wp plugin install plugin-check
 wp plugin check mixmymeals --format=json
+
+# Rebuild a minified script after editing its source (also admin.js, settings.js)
+npx terser@5.51.2 assets/js/frontend.js -c -m -o assets/js/frontend.min.js
 ```
+
+- **Minifying**: terser, compress + mangle, no options beyond `-c -m`, no header comment. Pinned to 5.51.2 because that version reproduces the `.min.js` files of 3.76.3 byte for byte — a rebuild of an unchanged source must leave the file unchanged, so a diff of a `.min.js` shows only what its source changed. Check with `node --check` afterwards. Never hand-edit a `.min.js`.
 
 - `phpcs.xml` **aborts** on some files: the bundled PHPCompatibility sniff triggers a PHP deprecation and stops checking, which looks like a clean result. Then run `--standard=WordPress` for real output.
 - **Reformatting**: `./vendor/bin/phpcbf --standard=WordPress --exclude=Squiz.PHP.EmbeddedPhp <file>`. Never without the exclusion: that sniff moves `<?php` / `?>` onto lines of their own and so puts line breaks into the HTML between a tag and its text (inside chips, attributes). The whole plugin was formatted this way in November 2026; what `phpcs` still reports is not auto-fixable (doc comments, Yoda conditions, short ternaries, comment punctuation). An embedded call that spans lines on a line that begins with HTML makes `phpcbf` loop ("FAILED TO FIX") — assign it to a variable in a `<?php ?>` block above instead.
