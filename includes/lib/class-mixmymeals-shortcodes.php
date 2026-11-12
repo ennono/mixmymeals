@@ -5164,8 +5164,9 @@ class Mixmymeals_Shortcodes {
 				<select class="mmm-plan-startday__select" data-plan-startday>
 					<option value="0"><?php esc_html_e( 'Monday (default)', 'mixmymeals' ); ?></option>
 					<?php foreach ( $days as $day_key => $day_label ) : ?>
-						<?php if ( 1 === (int) $day_key ) { continue; } ?>
-						<option value="<?php echo esc_attr( (string) $day_key ); ?>"><?php echo esc_html( $day_label ); ?></option>
+						<?php if ( 1 !== (int) $day_key ) : ?>
+							<option value="<?php echo esc_attr( (string) $day_key ); ?>"><?php echo esc_html( $day_label ); ?></option>
+						<?php endif; ?>
 					<?php endforeach; ?>
 				</select>
 			</label>

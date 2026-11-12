@@ -89,7 +89,7 @@ class Mixmymeals_Planner_Tools {
 			'post_type'              => 'mmm_recipe',
 			'post_status'            => 'publish',
 			'fields'                 => 'ids',
-			'posts_per_page'         => 400,
+			'posts_per_page'         => 400, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- IDs only, shuffled; a sample, not a page.
 			'no_found_rows'          => true,
 			'update_post_meta_cache' => false,
 			'update_post_term_cache' => false,
@@ -162,10 +162,10 @@ class Mixmymeals_Planner_Tools {
 		$days = isset( $_POST['days'] ) ? (int) $_POST['days'] : 5;
 		$days = max( 1, min( 7, $days ) );
 
-		$asked = isset( $_POST['diets'] ) ? (array) wp_unslash( $_POST['diets'] ) : array();
+		$asked = isset( $_POST['diets'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['diets'] ) ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-		$diets = array_values( array_intersect( array_keys( self::exclusions() ), array_map( 'sanitize_key', $asked ) ) );
+		$diets = array_values( array_intersect( array_keys( self::exclusions() ), $asked ) );
 
 		// Vegan is vegetarian; asking for both would only narrow by an index
 		// row that vegan recipes may not carry twice.

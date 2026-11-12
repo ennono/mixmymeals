@@ -414,10 +414,10 @@ class Mixmymeals {
 					'types'     => Mixmymeals_Meal::get_plaintext_meal_type_map(),
 					// The one-tap sheet that asks only for the day.
 					'sheet'     => array(
-						'title'   => __( 'Which day?', 'mixmymeals' ),
-						'today'   => __( 'today', 'mixmymeals' ),
-						'no_day'  => __( 'No day yet', 'mixmymeals' ),
-						'more'    => __( 'Adjust servings and more', 'mixmymeals' ),
+						'title'  => __( 'Which day?', 'mixmymeals' ),
+						'today'  => __( 'today', 'mixmymeals' ),
+						'no_day' => __( 'No day yet', 'mixmymeals' ),
+						'more'   => __( 'Adjust servings and more', 'mixmymeals' ),
 					),
 					// "+ recipe" on a day of the planner.
 					'picker'    => array(
