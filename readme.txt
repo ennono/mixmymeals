@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 3.76.3
+Stable tag: 4.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,70 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.0.0 =
+
+The planner becomes the way in: a plan can be suggested, filled day by day
+and changed without reloading. Its new markup is styled by the child theme
+MixMyMeals Hello Child; see the upgrade notice.
+
+Added:
+* [mmm_plan_start]: the question "for how many, how many days, what do you
+  not eat" with a default for each answer, so one tap on "Suggest a plan" is
+  enough. AJAX `mmm_suggest_plan` (Mixmymeals_Planner_Tools) replaces the
+  planner with one main dish per day as dinner, from today on, for as many
+  servings as there are people, and stores those people as the planner's
+  eaters (one person is no list). The page asks before replacing a planner
+  that holds something. Main dishes are recipe categories named by the new
+  filter `mixmymeals_suggest_categories` (default `hauptgerichte`); too few of
+  them and the other recipes top up. Nothing fits: error `no_recipes`, and
+  the planner stays as it was.
+* The four exclusions (meat and fish, anything animal, gluten, lactose) are
+  tied to the former built-in diet keys and reach whatever term took each
+  over; a question whose diet the site does not have is not asked. A dish
+  that can be cooked for the diet is planned as that diet and checked as the
+  planner will read it — never as the original recipe with its meat.
+* "+ Recipe" on every day of the planner opens a sheet with the newest
+  recipes and one search field for titles and ingredients (AJAX
+  `mmm_recipe_picker`); a tap plans the recipe for that day.
+* The week at a glance (AJAX `mmm_mini_plan`), drawn into any element with
+  `data-mini-plan`: seven lines from today, what is cooked when.
+* Planning a recipe asks only for the day (a sheet of weekday chips, "no day
+  yet", and "adjust servings and more" for the full dialog).
+* The shopping list inside `[data-shopping-check]` can be ticked off and
+  marked "have it"; the marks stay in this browser only.
+* The recipe archive's search field looks into titles and ingredients
+  (filters `mixmymeals_archive_search_combined` and
+  `mixmymeals_archive_search_ingredient_field` switch the combined search and
+  the second field).
+
+Changed:
+* Planner cards show picture, title and servings; day, type, diet and eaters
+  are behind "Adjust" (`details.mmm-plan-item-more`).
+* One "Week starts on" select instead of a start-day radio on every day; the
+  radios stay in the markup, the plan still reads the checked one.
+* Adding a recipe or a person and loading a plan refresh the planner in place
+  instead of reloading the page.
+* The planner's nutrition tiles are folded (`details.mmm-planner-nutrition__fold`)
+  with the day's average energy beside the heading.
+* Plans saved from the planner by visitors are unlisted: they keep their
+  address but leave the archive, search and start page. Filter
+  `mixmymeals_unlist_planner_plans` ( $unlist, $plan_id ).
+
+Security:
+* A password-protected recipe can be planned only by a visitor who has
+  entered the password (Mixmymeals_Cart::recipe_is_plannable()); before, it
+  could be added by its ID, and the new suggestion, picker and week view
+  would have shown it.
+* The suggestion and the picker leave out unlisted and password-protected
+  recipes, like the archive and the search. The picker's search term is
+  capped at 100 characters, a suggestion checks at most 60 candidates.
+
+Fixed:
+* Eaters without an id were counted twice against the limit of 12 and cut
+  off at 6 (Mixmymeals_Meal_Plan::sanitize_eaters()).
+* The archive's search field and its ingredient field narrow together; with
+  the combined search the ingredient field had replaced it.
 
 = 3.76.3 =
 
@@ -2189,6 +2253,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.0.0 =
+The planner's markup changed (cards with "Adjust", one start-day select, a folded nutrition box, day sheet, recipe picker, plan start, week at a glance, shopping-list ticks). These classes are styled by MixMyMeals Hello Child; MixMyMeals Astra Child does not know them yet.
 
 = 3.73.0 =
 A meal plan's button row gained "Subscribe". Which buttons it shows, in which order and with or without their captions is set in MixMyMeals Astra Child 1.18.0.

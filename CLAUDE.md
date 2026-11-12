@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MixMyMeals is a WordPress plugin (v3.76.3, text domain `mixmymeals`, PHP 8.0+) for meal planning: recipes, ingredients, products, meals and meal plans, with a shopping list generator and a frontend planner (the "cart") for building custom plans. Two companion plugins depend on it but are unknown to it: `mixmymeals-social` (Instagram/Pinterest) and `mixmymeals-printer` (PDF export). They reach this plugin only through the extension points listed under *Add-ons*. This plugin makes no external API calls.
+MixMyMeals is a WordPress plugin (v4.0.0, text domain `mixmymeals`, PHP 8.0+) for meal planning: recipes, ingredients, products, meals and meal plans, with a shopping list generator and a frontend planner (the "cart") for building custom plans. Two companion plugins depend on it but are unknown to it: `mixmymeals-social` (Instagram/Pinterest) and `mixmymeals-printer` (PDF export). They reach this plugin only through the extension points listed under *Add-ons*. This plugin makes no external API calls.
 
 ## Development commands
 
