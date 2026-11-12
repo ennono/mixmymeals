@@ -11882,6 +11882,16 @@ class Mixmymeals_Shortcodes {
 		}
 
 		if ( isset( $args['post__in'] ) ) {
+
+			// The archive search (mmm_s) may already have narrowed the query
+			// to its matches; both questions hold, in the ranking's order.
+			$searched = array_filter( array_map( 'intval', (array) $query->get( 'post__in' ) ) );
+
+			if ( $searched ) {
+				$both             = array_values( array_intersect( array_map( 'intval', $args['post__in'] ), $searched ) );
+				$args['post__in'] = $both ? $both : array( 0 );
+			}
+
 			$query->set( 'post__in', $args['post__in'] );
 
 			// The ingredient ranking outranks a browse view's own ordering:
