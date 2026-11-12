@@ -9404,9 +9404,21 @@ class Mixmymeals_Shortcodes {
 		$per_day = $plan->calc_nutrition_per_day_person();
 		$rating  = $plan->calc_day_rating();
 
+		// With figures to show, the heading is the handle of a closed
+		// disclosure: the week comes first, the eight tiles on request.
+		$mmm_fold = $per_day['days'] >= 1;
+
 		ob_start();
 		?>
-		<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+		<?php if ( $mmm_fold ) : ?>
+		<details class="mmm-planner-nutrition__fold">
+			<summary class="mmm-planner-nutrition__fold-summary">
+				<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+				<span class="mmm-planner-nutrition__fold-value"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', (float) ( $per_day['average']['calories'] ?? 0 ) ) ); ?></span>
+			</summary>
+		<?php else : ?>
+			<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
+		<?php endif; ?>
 		<?php if ( $per_day['days'] < 1 && $planner->has_eaters() && ! $plan->get_meal_rows() ) : ?>
 			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'This person eats none of the planned meals yet.', 'mixmymeals' ); ?></p>
 		<?php elseif ( $per_day['days'] < 1 ) : ?>
@@ -9428,6 +9440,9 @@ class Mixmymeals_Shortcodes {
 			echo $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 			?>
 		</details>
+		<?php if ( $mmm_fold ) : ?>
+		</details>
+		<?php endif; ?>
 		<?php
 
 		return (string) ob_get_clean();

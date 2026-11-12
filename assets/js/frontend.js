@@ -959,12 +959,16 @@ jQuery(function ($) {
 
                     // Keep the table open across refreshes if it was open.
                     const open = $box.find('.mmm-planner-nutrition__details').prop('open');
+                    const foldOpen = $box.find('.mmm-planner-nutrition__fold').prop('open');
 
                     $box.html(response.data.html || '');
                     $box.prop('hidden', !!response.data.empty);
 
                     if (open) {
                         $box.find('.mmm-planner-nutrition__details').prop('open', true);
+                    }
+                    if (foldOpen) {
+                        $box.find('.mmm-planner-nutrition__fold').prop('open', true);
                     }
 
                     // The row under each day: that day's own figures.
