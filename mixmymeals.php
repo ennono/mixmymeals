@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 3.76.3
+ * Version: 4.0.0
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner and nutrition data.
  * Author: Timo Fricke
@@ -61,6 +61,7 @@ require_once 'includes/lib/class-mixmymeals-meal-plan.php';
 require_once 'includes/lib/class-mixmymeals-cart.php';
 require_once 'includes/lib/class-mixmymeals-equipment.php';
 require_once 'includes/lib/class-mixmymeals-search.php';
+require_once 'includes/lib/class-mixmymeals-planner-tools.php';
 
 require_once 'includes/lib/class-mixmymeals-rest-api.php';
 require_once 'includes/lib/class-mixmymeals-cleanup.php';
@@ -101,7 +102,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '3.76.3' );
+	$instance = Mixmymeals::instance( __FILE__, '4.0.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
@@ -117,6 +118,8 @@ mixmymeals()->add_shortcodes();
 // Warenkorb-AJAX-Endpunkte: statisch registriert, weil die Klasse pro
 // Verwendung neu instanziiert wird.
 Mixmymeals_Cart::register_ajax();
+// Plan vorschlagen, Rezeptwahl im Planer, Wochenübersicht.
+Mixmymeals_Planner_Tools::register();
 // Bearbeitungszähler: ebenfalls statisch, weil Rezepte pro Post instanziiert
 // werden, der Hook aber einmal pro Request hängen muss.
 Mixmymeals_Recipe::register_edit_count();

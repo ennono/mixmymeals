@@ -335,7 +335,8 @@ class Mixmymeals_Meal_Plan {
 
 		foreach ( $people as $entry ) {
 
-			if ( count( $out ) + count( $pending ) >= self::EATERS_MAX ) {
+			// $out already holds a placeholder for every pending person.
+			if ( count( $out ) >= self::EATERS_MAX ) {
 				break;
 			}
 

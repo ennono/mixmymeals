@@ -260,7 +260,7 @@ jQuery(function ($) {
                         // On the planner page, reload so the new item shows
                         // up in the plan builder immediately.
                         if ($('.mmm-plan-builder').length) {
-                            window.location.reload();
+                            mmmSoftReloadPlanner();
                         }
                         return;
                     }
@@ -513,14 +513,228 @@ jQuery(function ($) {
         }
     }
 
+    /* ==========================================================
+       PLANNER WITHOUT RELOADING
+       ========================================================== */
+
+    /**
+     * Brings the planner up to date without leaving the page.
+     *
+     * Adding a recipe, adding a person or loading a template used to reload
+     * the whole page: the scroll position was lost and, on a phone, so was
+     * the place in a plan several screens long. The planner is rendered on
+     * the server and stays so — this asks for the same page again and swaps
+     * in the parts that show the plan. The handlers are delegated, so the
+     * new markup works as it arrives. If anything about the answer is not
+     * as expected, the page reloads as it did before.
+     */
+    let mmmSoftReloadRequest = null;
+
+    function mmmSoftReloadPlanner() {
+        const parts = ['.mmm-plan-builder', '[data-plan-eaters]', '.mmm-planer-suggestions'];
+        const $builder = $('.mmm-plan-builder');
+        if (!$builder.length || !window.DOMParser) {
+            window.location.reload();
+            return;
+        }
+
+        if (mmmSoftReloadRequest && mmmSoftReloadRequest.abort) {
+            mmmSoftReloadRequest.abort();
+        }
+
+        $builder.attr('aria-busy', 'true');
+
+        mmmSoftReloadRequest = $.ajax({ url: window.location.href, method: 'GET', dataType: 'html', cache: false })
+            .done(function (html) {
+                const doc = (new DOMParser()).parseFromString(html, 'text/html');
+                const fresh = doc.querySelector('.mmm-plan-builder');
+                if (!fresh) {
+                    window.location.reload();
+                    return;
+                }
+
+                // Sections that were open stay open.
+                const openIds = [];
+                $('.mmm-plan-builder details[open][data-keep]').each(function () {
+                    openIds.push(this.getAttribute('data-keep'));
+                });
+
+                parts.forEach(function (sel) {
+                    const now = document.querySelectorAll(sel);
+                    const next = doc.querySelectorAll(sel);
+                    // The builder may contain the other parts; a part that
+                    // has already been replaced with its parent is skipped.
+                    for (let i = 0; i < now.length && i < next.length; i++) {
+                        if (!document.body.contains(now[i])) continue;
+                        now[i].replaceWith(document.importNode(next[i], true));
+                    }
+                });
+
+                openIds.forEach(function (id) {
+                    $('.mmm-plan-builder details[data-keep="' + id + '"]').prop('open', true);
+                });
+
+                mmmUpdateCartBadge();
+                mmmRefreshPlannerNutrition();
+                if (typeof mmmUpdateSaveBar === 'function') mmmUpdateSaveBar();
+                $(document).trigger('mmm:planner-refreshed');
+            })
+            .fail(function (xhr) {
+                if (xhr && xhr.statusText === 'abort') return;
+                window.location.reload();
+            })
+            .always(function () {
+                $('.mmm-plan-builder').removeAttr('aria-busy');
+            });
+    }
+
+    $(document).on('mmm:plan-changed', function () {
+        if ($('.mmm-plan-builder').length) mmmSoftReloadPlanner();
+    });
+
+    /* ==========================================================
+       DAY SHEET (Einplanen mit einem Tipp)
+       ========================================================== */
+
+    /**
+     * Planning a recipe took five inputs: servings, diet, meal type and day
+     * as form fields, then the button. Almost every time only one of them
+     * carries a decision — the day. The sheet asks for exactly that: one tap
+     * on a weekday plans the recipe, with the servings the planner's people
+     * usually eat. Everything else is still there behind "adjust", which
+     * opens the full dialog.
+     */
+    function mmmCloseDaySheet() {
+        $(document).off('keydown.mmmDaySheet');
+        $('.mmm-day-sheet-backdrop').remove();
+    }
+
+    function mmmOpenDaySheet(recipeId, defaultServings, recipeTitle, diets, $origin) {
+        const cfg = mixmymeals.planner_dialog || {};
+        const days = cfg.days || {};
+        const sheet = cfg.sheet || {};
+
+        mmmCloseDaySheet();
+        mmmClosePlannerDialog();
+
+        const backdrop = $(
+            '<div class="mmm-day-sheet-backdrop">' +
+                '<div class="mmm-day-sheet" role="dialog" aria-modal="true" aria-labelledby="mmm-day-sheet-title">' +
+                    '<p class="mmm-day-sheet__recipe"></p>' +
+                    '<h3 class="mmm-day-sheet__title" id="mmm-day-sheet-title"></h3>' +
+                    '<div class="mmm-day-sheet__days"></div>' +
+                    '<div class="mmm-msg mmm-day-sheet__msg"></div>' +
+                    '<div class="mmm-day-sheet__foot">' +
+                        '<button type="button" class="mmm-day-sheet__noday"></button>' +
+                        '<button type="button" class="mmm-day-sheet__more"></button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>'
+        );
+
+        backdrop.find('.mmm-day-sheet__recipe').text(recipeTitle || '');
+        backdrop.find('.mmm-day-sheet__title').text(sheet.title || '');
+        backdrop.find('.mmm-day-sheet__noday').text(sheet.no_day || '');
+        backdrop.find('.mmm-day-sheet__more').text(sheet.more || '');
+
+        const $days = backdrop.find('.mmm-day-sheet__days');
+        const today = ((new Date()).getDay() + 6) % 7 + 1; // 1 = Monday
+
+        Object.keys(days).forEach(function (key) {
+            const full = String(days[key]);
+            const chip = $('<button type="button" class="mmm-day-chip"></button>')
+                .attr('data-day', key)
+                .attr('aria-label', full);
+            $('<span class="mmm-day-chip__short" aria-hidden="true"></span>').text(full.slice(0, 2)).appendTo(chip);
+            if (parseInt(key, 10) === today) {
+                chip.addClass('mmm-day-chip--today');
+                $('<span class="mmm-day-chip__today" aria-hidden="true"></span>').text(sheet.today || '').appendTo(chip);
+            }
+            $days.append(chip);
+        });
+
+        $('body').append(backdrop);
+        ($days.find('.mmm-day-chip--today').length ? $days.find('.mmm-day-chip--today') : $days.find('.mmm-day-chip').first()).trigger('focus');
+
+        window.requestAnimationFrame(function () { backdrop.addClass('is-open'); });
+
+        function close() {
+            mmmCloseDaySheet();
+            if ($origin && $origin.length) $origin.trigger('focus');
+        }
+
+        backdrop.on('click', function (ev) {
+            if (ev.target === backdrop[0]) close();
+        });
+
+        $(document).on('keydown.mmmDaySheet', function (ev) {
+            if (ev.key === 'Escape') close();
+        });
+
+        function plan(day, $btn) {
+            const msgBox = backdrop.find('.mmm-day-sheet__msg');
+            const plannerServings = parseInt($('.mmm-plan-builder').attr('data-default-servings'), 10) || 0;
+            const all = backdrop.find('button');
+            all.prop('disabled', true);
+            $btn.addClass('is-busy');
+
+            mmmPost('mmm_add_to_cart', {
+                recipe_id: recipeId,
+                servings: plannerServings > 0 ? plannerServings : defaultServings,
+                day: day || null
+            })
+                .done(function (response) {
+                    if (response && response.success) {
+                        const added = cfg.added || {};
+                        const count = response.data && response.data.count;
+                        const countText = (typeof count === 'number')
+                            ? mmmFormat(count === 1 ? added.count_one : added.count_many, String(count))
+                            : '';
+
+                        mmmAnnounce(mmmAddedText(recipeTitle, day || '', ''), countText);
+                        mmmUpdateCartBadge();
+                        mmmCloseDaySheet();
+
+                        if ($origin && $origin.length) {
+                            $origin.addClass('is-planned').trigger('focus');
+                        }
+                        $(document).trigger('mmm:plan-changed', [{ recipeId: recipeId, day: day }]);
+                        return;
+                    }
+                    all.prop('disabled', false);
+                    $btn.removeClass('is-busy');
+                    mmmHandleAjaxError(response, { inlineEl: msgBox, fallbackMessage: 'Error.' });
+                })
+                .fail(function (xhr) {
+                    all.prop('disabled', false);
+                    $btn.removeClass('is-busy');
+                    mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
+                });
+        }
+
+        backdrop.on('click', '.mmm-day-chip', function () {
+            plan($(this).attr('data-day'), $(this));
+        });
+
+        backdrop.on('click', '.mmm-day-sheet__noday', function () {
+            plan('', $(this));
+        });
+
+        backdrop.on('click', '.mmm-day-sheet__more', function () {
+            mmmCloseDaySheet();
+            mmmOpenPlannerDialog(recipeId, defaultServings, recipeTitle, diets);
+        });
+    }
+
     $(document).on('click', '.mmm-recipe-actions__item--cart', function (e) {
         e.preventDefault();
         const btn = $(this);
-        mmmOpenPlannerDialog(
+        mmmOpenDaySheet(
             btn.data('recipe-id'),
             parseInt(btn.data('servings'), 10) || 1,
             btn.data('recipe-title') || '',
-            btn.data('diets') || []
+            btn.data('diets') || [],
+            btn
         );
     });
 
@@ -745,12 +959,16 @@ jQuery(function ($) {
 
                     // Keep the table open across refreshes if it was open.
                     const open = $box.find('.mmm-planner-nutrition__details').prop('open');
+                    const foldOpen = $box.find('.mmm-planner-nutrition__fold').prop('open');
 
                     $box.html(response.data.html || '');
                     $box.prop('hidden', !!response.data.empty);
 
                     if (open) {
                         $box.find('.mmm-planner-nutrition__details').prop('open', true);
+                    }
+                    if (foldOpen) {
+                        $box.find('.mmm-planner-nutrition__fold').prop('open', true);
                     }
 
                     // The row under each day: that day's own figures.
@@ -815,7 +1033,7 @@ jQuery(function ($) {
         mmmPost('mmm_cart_eaters', { op: 'portions', id: $field.attr('data-eater'), portions: $field.val() })
             .done(function (response) {
                 if (response && response.success) {
-                    window.location.reload();
+                    mmmSoftReloadPlanner();
                     return;
                 }
                 mmmSetBusy($field, false);
@@ -836,7 +1054,7 @@ jQuery(function ($) {
         mmmPost('mmm_cart_eaters', remove ? { op: 'remove', id: $btn.attr('data-eater-remove') } : { op: 'add' })
             .done(function (response) {
                 if (response && response.success) {
-                    window.location.reload();
+                    mmmSoftReloadPlanner();
                     return;
                 }
                 mmmSetBusy($btn, false);
@@ -1632,7 +1850,7 @@ jQuery(function ($) {
                             // the badge alone would say it worked while the
                             // page still showed the empty state.
                             if ($('.mmm-plan-builder').length) {
-                                window.location.reload();
+                                mmmSoftReloadPlanner();
                             }
                             return;
                         }
@@ -1798,5 +2016,466 @@ jQuery(function ($) {
                 $btn.prop('disabled', false);
             });
     });
+
+
+    /* ==========================================================
+       ONE START DAY
+       ========================================================== */
+
+    /* The select stands for the seven radios: it checks the one it names,
+       which is what the plan reads when it is saved. Remembered for the
+       session, because the planner is redrawn after every addition. */
+    function mmmStartDayStore(value) {
+        try {
+            if (typeof value === 'undefined') return parseInt(window.sessionStorage.getItem('mmm_startday'), 10) || 0;
+            window.sessionStorage.setItem('mmm_startday', String(value));
+        } catch (e) { /* private mode: the choice lasts until the next redraw */ }
+        return value || 0;
+    }
+
+    function mmmSetStartDay(start) {
+        const $radios = $('input[name="mmm-plan-startday"]');
+        $radios.prop('checked', false);
+        if (start) $radios.filter('[value="' + start + '"]').prop('checked', true);
+        $('[data-plan-startday]').val(String(start || 0));
+        mmmApplyStartDay(start || 0);
+    }
+
+    $(document).on('change', '[data-plan-startday]', function () {
+        const start = parseInt(this.value, 10) || 0;
+        mmmStartDayStore(start);
+        mmmSetStartDay(start);
+    });
+
+    $(document).on('mmm:planner-refreshed', function () {
+        mmmSetStartDay(mmmStartDayStore());
+    });
+
+    if ($('[data-plan-startday]').length && mmmStartDayStore()) {
+        mmmSetStartDay(mmmStartDayStore());
+    }
+
+    /* ==========================================================
+       RECIPE PICKER ("+ Rezept" on a day of the planner)
+       ========================================================== */
+
+    /**
+     * A day of the planner could only be filled from somewhere else: leave
+     * the planner, find a recipe, plan it, come back. The picker brings the
+     * search to the day — a sheet with the newest recipes and one field for
+     * titles and ingredients; a tap plans the recipe for that day.
+     */
+    let mmmPickerRequest = null;
+    let mmmPickerTimer = null;
+
+    function mmmClosePicker() {
+        $(document).off('keydown.mmmPicker');
+        clearTimeout(mmmPickerTimer);
+        $('.mmm-picker-backdrop').remove();
+        $('body').removeClass('mmm-sheet-open');
+    }
+
+    function mmmOpenPicker(day, dayLabel, $origin) {
+        const cfg = (mixmymeals.planner_dialog || {});
+        const labels = cfg.picker || {};
+
+        mmmClosePicker();
+
+        const backdrop = $(
+            '<div class="mmm-day-sheet-backdrop mmm-picker-backdrop">' +
+                '<div class="mmm-day-sheet mmm-picker" role="dialog" aria-modal="true" aria-labelledby="mmm-picker-title">' +
+                    '<div class="mmm-picker__head">' +
+                        '<h3 class="mmm-day-sheet__title" id="mmm-picker-title"></h3>' +
+                        '<button type="button" class="mmm-picker__close">&times;</button>' +
+                    '</div>' +
+                    '<input type="search" class="mmm-picker__search" autocomplete="off" enterkeyhint="search">' +
+                    '<p class="mmm-picker__hint"></p>' +
+                    '<ul class="mmm-picker__list" aria-live="polite"></ul>' +
+                    '<div class="mmm-msg mmm-picker__msg"></div>' +
+                '</div>' +
+            '</div>'
+        );
+
+        backdrop.find('.mmm-day-sheet__title').text(mmmFormat(labels.title, dayLabel));
+        backdrop.find('.mmm-picker__close').attr('aria-label', labels.close || '');
+        backdrop.find('.mmm-picker__search')
+            .attr('placeholder', labels.placeholder || '')
+            .attr('aria-label', labels.placeholder || '');
+
+        const $list = backdrop.find('.mmm-picker__list');
+        const $hint = backdrop.find('.mmm-picker__hint');
+        const $msg = backdrop.find('.mmm-picker__msg');
+
+        function close() {
+            mmmClosePicker();
+            if ($origin && $origin.length) $origin.trigger('focus');
+        }
+
+        function draw(recipes, term) {
+            $list.empty();
+            $hint.text(term ? '' : (labels.newest || '')).prop('hidden', !!term);
+
+            if (!recipes.length) {
+                $('<li class="mmm-picker__empty"></li>').text(labels.empty || '').appendTo($list);
+                return;
+            }
+
+            recipes.forEach(function (r) {
+                const btn = $('<button type="button" class="mmm-picker__item"></button>')
+                    .attr('data-recipe-id', r.id)
+                    .attr('data-servings', r.servings)
+                    .attr('data-title', r.title);
+
+                if (r.thumb) {
+                    $('<img class="mmm-picker__thumb" alt="" loading="lazy" width="56" height="56">').attr('src', r.thumb).appendTo(btn);
+                } else {
+                    $('<span class="mmm-picker__thumb mmm-picker__thumb--none" aria-hidden="true"></span>').appendTo(btn);
+                }
+
+                const text = $('<span class="mmm-picker__text"></span>').appendTo(btn);
+                $('<span class="mmm-picker__name"></span>').text(r.title).appendTo(text);
+                if (r.time > 0) {
+                    $('<span class="mmm-picker__meta"></span>').text(mmmFormat(labels.minutes, String(r.time))).appendTo(text);
+                }
+                $('<span class="mmm-picker__plus" aria-hidden="true">+</span>').appendTo(btn);
+
+                $('<li></li>').append(btn).appendTo($list);
+            });
+        }
+
+        function load(term) {
+            if (mmmPickerRequest && mmmPickerRequest.abort) mmmPickerRequest.abort();
+            $list.attr('aria-busy', 'true');
+
+            mmmPickerRequest = mmmPost('mmm_recipe_picker', { term: term || '' })
+                .done(function (response) {
+                    if (response && response.success && response.data) {
+                        draw(response.data.recipes || [], response.data.term || '');
+                        return;
+                    }
+                    mmmHandleAjaxError(response, { inlineEl: $msg, fallbackMessage: 'Error.' });
+                })
+                .fail(function (xhr) {
+                    if (xhr && xhr.statusText === 'abort') return;
+                    mmmHandleRequestFail(xhr, { inlineEl: $msg, failMessage: 'Request failed.' });
+                })
+                .always(function () { $list.removeAttr('aria-busy'); });
+        }
+
+        $('body').append(backdrop).addClass('mmm-sheet-open');
+        window.requestAnimationFrame(function () { backdrop.addClass('is-open'); });
+        load('');
+
+        backdrop.on('input', '.mmm-picker__search', function () {
+            const term = $.trim(this.value);
+            clearTimeout(mmmPickerTimer);
+            mmmPickerTimer = setTimeout(function () { load(term.length >= 2 ? term : ''); }, 300);
+        });
+
+        backdrop.on('click', function (ev) { if (ev.target === backdrop[0]) close(); });
+        backdrop.on('click', '.mmm-picker__close', close);
+        $(document).on('keydown.mmmPicker', function (ev) { if (ev.key === 'Escape') close(); });
+
+        backdrop.on('click', '.mmm-picker__item', function () {
+            const $btn = $(this);
+            const title = $btn.attr('data-title') || '';
+            const plannerServings = parseInt($('.mmm-plan-builder').attr('data-default-servings'), 10) || 0;
+
+            backdrop.find('.mmm-picker__item').prop('disabled', true);
+            $btn.addClass('is-busy');
+
+            mmmPost('mmm_add_to_cart', {
+                recipe_id: $btn.attr('data-recipe-id'),
+                servings: plannerServings > 0 ? plannerServings : (parseInt($btn.attr('data-servings'), 10) || 1),
+                day: day || null
+            })
+                .done(function (response) {
+                    if (response && response.success) {
+                        mmmAnnounce(mmmAddedText(title, String(day || ''), ''));
+                        mmmClosePicker();
+                        $(document).trigger('mmm:plan-changed', [{ day: day }]);
+                        return;
+                    }
+                    backdrop.find('.mmm-picker__item').prop('disabled', false);
+                    $btn.removeClass('is-busy');
+                    mmmHandleAjaxError(response, { inlineEl: $msg, fallbackMessage: 'Error.' });
+                })
+                .fail(function (xhr) {
+                    backdrop.find('.mmm-picker__item').prop('disabled', false);
+                    $btn.removeClass('is-busy');
+                    mmmHandleRequestFail(xhr, { inlineEl: $msg, failMessage: 'Request failed.' });
+                });
+        });
+    }
+
+    $(document).on('click', '.mmm-plan-day-add', function (e) {
+        e.preventDefault();
+        const $btn = $(this);
+        mmmOpenPicker(parseInt($btn.attr('data-day'), 10) || 0, $btn.attr('data-day-label') || '', $btn);
+    });
+
+    /* ==========================================================
+       PLAN START (the question that leads to a suggested plan)
+       ========================================================== */
+
+    $(document).on('click', '[data-plan-start] [data-step]', function () {
+        const $input = $(this).closest('[data-plan-start]').find('.mmm-plan-start__people');
+        const min = parseInt($input.attr('min'), 10) || 1;
+        const max = parseInt($input.attr('max'), 10) || 12;
+        const next = (parseInt($input.val(), 10) || min) + (parseInt($(this).attr('data-step'), 10) || 0);
+        $input.val(Math.max(min, Math.min(max, next)));
+    });
+
+    $(document).on('submit', '[data-plan-start]', function (e) {
+        e.preventDefault();
+
+        const $form = $(this);
+        const $submit = $form.find('.mmm-plan-start__submit');
+        const $msg = $form.find('.mmm-plan-start__msg');
+        const labels = (mixmymeals.planner_dialog && mixmymeals.planner_dialog.start) || {};
+        const plannerHref = $('.mmm-cart-badge').closest('a').attr('href') || $form.attr('data-planner-url') || '';
+
+        const data = {
+            people: parseInt($form.find('.mmm-plan-start__people').val(), 10) || 2,
+            days: parseInt($form.find('input[name="days"]:checked').val(), 10) || 5,
+            diets: $form.find('input[name="diets[]"]:checked').map(function () { return this.value; }).get()
+        };
+
+        function send(ctx) {
+            mmmSetBusy($submit, true);
+            mmmShowInlineMessage($msg, labels.working || '', 'ok');
+
+            mmmPost('mmm_suggest_plan', data)
+                .done(function (response) {
+                    if (response && response.success) {
+                        if (ctx && ctx.close) ctx.close();
+                        mmmUpdateCartBadge();
+                        // The suggestion runs from today on; so does the week it is shown as.
+                        mmmStartDayStore(((new Date()).getDay() + 6) % 7 + 1);
+                        if (plannerHref && !$('.mmm-plan-builder').length) {
+                            window.location.href = plannerHref;
+                            return;
+                        }
+                        mmmSetBusy($submit, false);
+                        mmmShowInlineMessage($msg, (response.data && response.data.message) || '', 'ok');
+                        $(document).trigger('mmm:plan-changed', [{}]);
+                        return;
+                    }
+                    if (ctx && ctx.close) ctx.close();
+                    mmmSetBusy($submit, false);
+                    mmmHandleAjaxError(response, { inlineEl: $msg, fallbackMessage: 'Error.' });
+                })
+                .fail(function (xhr) {
+                    if (ctx && ctx.close) ctx.close();
+                    mmmSetBusy($submit, false);
+                    mmmHandleRequestFail(xhr, { inlineEl: $msg, failMessage: 'Request failed.' });
+                });
+        }
+
+        // Something to lose: ask first. An empty planner is simply filled.
+        const planned = parseInt($('.mmm-cart-badge').first().attr('data-count') || $('.mmm-cart-badge').first().text(), 10) || 0;
+
+        if (planned > 0) {
+            mmmOpenConfirmDialog({
+                title: labels.replace_title,
+                message: labels.replace,
+                confirm: labels.confirm,
+                cancel: (mixmymeals.load_into_cart_dialog || {}).cancel,
+                onConfirm: send
+            });
+            return;
+        }
+
+        send(null);
+    });
+
+    /* ==========================================================
+       MINI PLAN (the week at a glance)
+       ========================================================== */
+
+    /**
+     * Fills every [data-mini-plan] on the page: seven short lines from today
+     * on, what is cooked when. The theme decides where it stands (a side
+     * column at a desk); it is drawn from the same cart as the planner and
+     * redrawn whenever a recipe is planned on this page.
+     */
+    function mmmRefreshMiniPlan() {
+        const $boxes = $('[data-mini-plan]');
+        if (!$boxes.length) return;
+
+        const labels = (mixmymeals.planner_dialog && mixmymeals.planner_dialog.mini) || {};
+        const plannerHref = $('.mmm-cart-badge').closest('a').attr('href') || '';
+
+        mmmPost('mmm_mini_plan', {}).done(function (response) {
+            if (!response || !response.success || !response.data) return;
+
+            const plan = response.data;
+
+            $boxes.each(function () {
+                const $box = $(this).empty();
+
+                $('<h2 class="mmm-mini-plan__title"></h2>').text(labels.title || '').appendTo($box);
+
+                if (!plan.count) {
+                    $('<p class="mmm-mini-plan__empty"></p>').text(labels.empty || '').appendTo($box);
+                    $box.addClass('is-empty');
+                    return;
+                }
+
+                $box.removeClass('is-empty');
+                const $list = $('<ol class="mmm-mini-plan__days"></ol>').appendTo($box);
+
+                const line = function (label, items, today) {
+                    const $li = $('<li class="mmm-mini-plan__day"></li>').toggleClass('is-today', !!today).toggleClass('is-free', !items.length);
+                    const $label = $('<span class="mmm-mini-plan__label"></span>').text(String(label).slice(0, 2)).attr('title', label);
+                    $li.append($label);
+                    const $items = $('<span class="mmm-mini-plan__items"></span>').appendTo($li);
+                    if (!items.length) {
+                        $items.text('–');
+                    }
+                    items.forEach(function (item) {
+                        $('<a class="mmm-mini-plan__item"></a>').attr('href', item.url).text(item.title).appendTo($items);
+                    });
+                    $list.append($li);
+                };
+
+                (plan.days || []).forEach(function (day) { line(day.label, day.items || [], day.today); });
+
+                if ((plan.unassigned || []).length) {
+                    line(labels.unassigned || '?', plan.unassigned, false);
+                    $list.children().last().addClass('is-unassigned').find('.mmm-mini-plan__label').text('?');
+                }
+
+                if (plannerHref) {
+                    $('<a class="mmm-mini-plan__open"></a>').attr('href', plannerHref).text(labels.open || '').appendTo($box);
+                }
+            });
+        });
+    }
+
+    mmmRefreshMiniPlan();
+    $(document).on('mmm:plan-changed', mmmRefreshMiniPlan);
+
+    /* ==========================================================
+       SHOPPING LIST: tick off, "have it already"
+       ========================================================== */
+
+    /**
+     * The shopping list was a text: nothing on it could be marked. In a shop
+     * that means keeping in your head what is already in the trolley, and
+     * before it, what is in the cupboard anyway. Inside [data-shopping-check]
+     * every line gets a box to tick and a "have it" switch.
+     *
+     * The state lives in this browser only (localStorage), keyed by what the
+     * line names. It is nobody's business but the shopper's and needs no
+     * account; a new plan with the same ingredient keeps the mark until
+     * "start over" clears it.
+     */
+    const MMM_SHOP_KEY = 'mmm_shopping_marks_v1';
+
+    function mmmShopMarks(next) {
+        try {
+            if (typeof next === 'undefined') {
+                return JSON.parse(window.localStorage.getItem(MMM_SHOP_KEY) || '{}') || {};
+            }
+            window.localStorage.setItem(MMM_SHOP_KEY, JSON.stringify(next));
+        } catch (e) { /* storage blocked: marks last until the page is left */ }
+        return next || {};
+    }
+
+    let mmmShopState = mmmShopMarks();
+
+    function mmmShopLineKey(li) {
+        return $.trim($(li).find('.mmm-shopping-item-name').first().text()) + '|'
+            + $.trim($(li).find('.mmm-shopping-item-diet').first().text());
+    }
+
+    function mmmShopSummary($scope) {
+        const labels = mixmymeals.shopping_check || {};
+        const $items = $scope.find('.mmm-shopping-item');
+        const total = $items.length;
+        const done = $items.filter('.is-done').length;
+        const have = $items.filter('.is-have').length;
+        const open = total - done - have;
+
+        let $bar = $scope.find('.mmm-shop-bar');
+        if (!$bar.length) {
+            $bar = $(
+                '<div class="mmm-shop-bar">' +
+                    '<div class="mmm-shop-bar__text" role="status" aria-live="polite"></div>' +
+                    '<div class="mmm-shop-bar__track" aria-hidden="true"><span class="mmm-shop-bar__fill"></span></div>' +
+                    '<button type="button" class="mmm-shop-bar__reset"></button>' +
+                '</div>'
+            );
+            $bar.find('.mmm-shop-bar__reset').text(labels.reset || '');
+            $scope.find('.mmm-simple-shopping-list, .mmm-shopping-list').first().before($bar);
+        }
+
+        $bar.find('.mmm-shop-bar__text').text(
+            open === 0 && total > 0
+                ? (labels.all_done || '')
+                : mmmFormat(labels.progress, String(open), String(total))
+        );
+        $bar.find('.mmm-shop-bar__fill').css('width', total ? Math.round(((total - open) / total) * 100) + '%' : '0');
+        $bar.find('.mmm-shop-bar__reset').prop('hidden', done + have === 0);
+        $scope.toggleClass('is-complete', open === 0 && total > 0);
+    }
+
+    function mmmDecorateShoppingList() {
+        const labels = mixmymeals.shopping_check || {};
+
+        $('[data-shopping-check]').each(function () {
+            const $scope = $(this);
+
+            $scope.find('.mmm-shopping-item').each(function () {
+                const $li = $(this);
+                const key = mmmShopLineKey(this);
+                const mark = mmmShopState[key] || '';
+
+                if (!$li.children('.mmm-shop-check').length) {
+                    const name = $.trim($li.find('.mmm-shopping-item-name').first().text());
+                    const $check = $('<button type="button" class="mmm-shop-check" role="checkbox"></button>')
+                        .attr('aria-label', mmmFormat(labels.tick, name));
+                    const $have = $('<button type="button" class="mmm-shop-have"></button>')
+                        .text(labels.have || '')
+                        .attr('aria-label', mmmFormat(labels.have_long, name));
+                    $li.prepend($check).append($have);
+                }
+
+                $li.toggleClass('is-done', mark === 'done').toggleClass('is-have', mark === 'have');
+                $li.children('.mmm-shop-check').attr('aria-checked', mark === 'done' ? 'true' : 'false');
+                $li.children('.mmm-shop-have').attr('aria-pressed', mark === 'have' ? 'true' : 'false');
+            });
+
+            mmmShopSummary($scope);
+        });
+    }
+
+    function mmmShopToggle($li, mark) {
+        const key = mmmShopLineKey($li[0]);
+        if (mmmShopState[key] === mark) {
+            delete mmmShopState[key];
+        } else {
+            mmmShopState[key] = mark;
+        }
+        mmmShopMarks(mmmShopState);
+        mmmDecorateShoppingList();
+    }
+
+    $(document).on('click', '[data-shopping-check] .mmm-shop-check', function () {
+        mmmShopToggle($(this).closest('.mmm-shopping-item'), 'done');
+    });
+
+    $(document).on('click', '[data-shopping-check] .mmm-shop-have', function () {
+        mmmShopToggle($(this).closest('.mmm-shopping-item'), 'have');
+    });
+
+    $(document).on('click', '[data-shopping-check] .mmm-shop-bar__reset', function () {
+        mmmShopState = {};
+        mmmShopMarks(mmmShopState);
+        mmmDecorateShoppingList();
+    });
+
+    mmmDecorateShoppingList();
 
 });
