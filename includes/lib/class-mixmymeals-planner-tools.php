@@ -199,6 +199,17 @@ class Mixmymeals_Planner_Tools {
 		$cart = new Mixmymeals_Cart();
 		$cart->clear();
 
+		// The people asked for are the planner's people: without them the
+		// planner says "1 person" above recipes planned for several.
+		// One person is no list, which save_eaters() stores as none.
+		$cart->save_eaters(
+			array_fill(
+				0,
+				min( $people, Mixmymeals_Meal_Plan::EATERS_MAX ),
+				array( 'profile' => Mixmymeals_Meal_Plan::DEFAULT_PROFILE )
+			)
+		);
+
 		$today = (int) wp_date( 'N' );
 
 		foreach ( $ids as $i => $recipe_id ) {
