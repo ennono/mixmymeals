@@ -1158,9 +1158,9 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		// The cart action is rendered separately below the description via the
-		// theme's astra_entry_content_after hook (see the child theme), so the
-		// meta block only carries informational chips here.
+		// On its archive cards the theme prints the planner action separately,
+		// below the description ([mmm_recipe_actions] on a hook of its own), so
+		// the meta block only carries informational chips here.
 		return '<div class="mmm-recipe-archive-item-meta">' . implode(
 			'',
 			$items
@@ -1265,7 +1265,7 @@ class Mixmymeals_Shortcodes {
 			foreach ( $cat_ids as $id ) {
 				// Set up the global post so the per-card shortcodes (rating,
 				// cart action) and helpers resolve the right recipe, exactly as
-				// they do inside the Astra archive loop.
+				// they do inside the theme's archive loop.
 				$GLOBALS['post'] = get_post( $id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 				setup_postdata( $GLOBALS['post'] );
 
@@ -1279,15 +1279,15 @@ class Mixmymeals_Shortcodes {
 					)
 				);
 
-				echo '<article class="mmm-recipes-index__card">';
+				echo '<article class="mmm-recipes-index__card' . ( $thumb ? '' : ' mmm-recipes-index__card--noimg' ) . '">';
 				if ( $thumb ) {
-					echo '<div class="ast-blog-featured-section post-thumb"><div class="post-thumb-img-content">'
-						. '<a href="' . esc_url( $permalink ) . '">'
+					echo '<a class="mmm-recipes-index__media" href="' . esc_url( $permalink ) . '"'
+						. ' aria-label="' . esc_attr( self::card_media_label( (int) $id ) ) . '">'
 						. $thumb // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core-escaped markup.
-						. '</a></div></div>';
+						. '</a>';
 				}
-				echo '<div class="post-content">';
-				echo '<h3 class="entry-title"><a href="' . esc_url( $permalink ) . '">'
+				echo '<div class="mmm-recipes-index__body">';
+				echo '<h3 class="mmm-recipes-index__name"><a href="' . esc_url( $permalink ) . '">'
 					. esc_html( get_the_title( $id ) ) . '</a></h3>';
 				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shortcode/helper output is already escaped.
 				echo $this->build_recipe_archive_meta_chips( (int) $id );

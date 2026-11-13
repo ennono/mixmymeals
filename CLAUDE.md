@@ -55,7 +55,7 @@ Conventions the scripts rely on:
 Development runs under **Local (by Flywheel)**: site `mixmymeals.local`, rooted at `/Users/timo/Local Sites/mixmymeals/app/public/`. MySQL listens on a private socket, so wp-cli needs `DB_HOST` predefined — a one-line `--require` file pointing at `~/Library/Application Support/Local/run/<id>/mysql/mysqld.sock`. The id changes when Local restarts and several sites may run side by side, so **check `home_url()` before writing anything** — the wrong socket silently belongs to another site.
 
 Two things about this install mislead:
-- The active theme is **Twenty Twenty-Five**, not `mixmymeals-astra-child`. Loading a page proves nothing about the child theme's templates, and `get_stylesheet_directory()` does not point at it. Read those files by path.
+- The active theme is **Twenty Twenty-Five**, not `mixmymeals-hello-child`. Loading a page proves nothing about the child theme's templates, and `get_stylesheet_directory()` does not point at it. Read those files by path.
 - It holds almost no content. Plans, nutrition and shopping lists need test data built first — and removed afterwards.
 
 Production is **speisengeplant.de** (until October 2026 stopfnicht.de, which no longer exists; older code comments still name it). Pushing to GitHub does not deploy. The `?ver=` in the page source tells what is live, which is why each user-visible fix gets its own patch release.
@@ -407,9 +407,10 @@ Test: `tools/planner-tools-test.php`.
 
 ### Plugin vs. theme
 
-**The plugin answers what and computes; the theme (`mixmymeals-astra-child`; from 4.0.0 `mixmymeals-hello-child`, which styles the planner of *Planner tools*) decides how it looks and where it stands.** Shortcodes are components: data, markup with `mmm-*` classes, the plugin's wording for what a component *is*. Page structure (sections, order, headings above a shortcode, intros, legends) and every colour, radius, shadow and font size are the theme's.
+**The plugin answers what and computes; the theme (`mixmymeals-hello-child`, a Hello Elementor child; `mixmymeals-astra-child` was retired with 4.0.0) decides how it looks and where it stands.** Shortcodes are components: data, markup with `mmm-*` classes, the plugin's wording for what a component *is*. Page structure (sections, order, headings above a shortcode, intros, legends) and every colour, radius, shadow and font size are the theme's.
 
 - `assets/css/frontend.css` is structure only — display, position, layout, `[hidden]`, z-index. Components that must be opaque use `Canvas` / `CanvasText`. It must not read theme custom properties (`--mmm-primary`, `--ast-*`). Exception: the disclosure label (see *Disclosure*).
+- **Plugin markup carries `mmm-*` classes and no theme's.** `[mmm_recipes_index]` printed Astra's `ast-blog-featured-section`, `post-thumb`, `post-content` and `entry-title` so that the parent theme's archive CSS would style its cards. It survived the move to Hello Elementor half-styled by coincidence — the renamed class matched nothing, the others still did. Its cards are `mmm-recipes-index__{media,body,name}` with `__card--noimg` since 4.0.1; a theme that wants the archive look says so in its own stylesheet.
 - Site search is `Mixmymeals_Search` (`groups()`, `ids( $group, $term )`, `archive_link()`): title, then substance (recipes via the ingredient index, plans via their meals), then full text, each through `exclude_unlisted()`. That merges into an **existing** `meta_query`, so add clauses before calling it (`base_args()`). The theme's `includes/search.php` only names the groups.
 - The front-page teaser reads `Mixmymeals_Meal_Plan::latest_plan_spotlight()` (chips from `Mixmymeals_Shortcodes::spotlight_meta_chips()`); the theme's `[mmm_home_masthead]` builds the section.
 - Mail colours are roles: `Mixmymeals_Subscriptions::MAIL_COLORS` via `mail_color( $role )` after filter `mixmymeals_mail_colors` (non-hex falls back). No brand colour in this plugin; the theme's `mmm_email_colors()` is the palette.

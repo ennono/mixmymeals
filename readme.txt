@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.0.0
+Stable tag: 4.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.0.1 =
+
+Fixed:
+* [mmm_recipes_index]: the grouped recipe overview built its cards from the
+  Astra parent theme's class names (ast-blog-featured-section, post-thumb,
+  post-content, entry-title) so that its archive CSS would style them. One of
+  those names no longer exists in MixMyMeals Hello Child, which left the
+  cards half-styled. They now carry mmm-recipes-index__media, __body and
+  __name, with __card--noimg on a card without a picture; MixMyMeals Hello
+  Child 1.1.0 styles them.
+* [mmm_recipes_index]: the picture's link had no accessible name — the
+  picture carries alt="", so a screen reader announced "link" and nothing
+  else. It is now named like the browse cards' pictures (title, plus the
+  disclosure label where there is one).
 
 = 4.0.0 =
 
@@ -2253,6 +2268,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.0.1 =
+The cards of [mmm_recipes_index] no longer carry the Astra parent theme's class names. Update MixMyMeals Hello Child to 1.1.0 together with this release, or the grouped recipe overview loses its card layout.
 
 = 4.0.0 =
 The planner's markup changed (cards with "Adjust", one start-day select, a folded nutrition box, day sheet, recipe picker, plan start, week at a glance, shopping-list ticks). These classes are styled by MixMyMeals Hello Child; MixMyMeals Astra Child does not know them yet.
