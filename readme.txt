@@ -138,6 +138,12 @@ Fixed:
 * The planner's reload-free refresh named a class of the child theme's,
   which no theme has carried since 4.0.0. A theme now marks its own planner
   sections with data-planner-part.
+* The day sheet and the recipe picker had no structural CSS of their own,
+  although the script appends them to the end of the page: without a theme
+  that places them they stood below the footer instead of over the page.
+  frontend.css now carries the same floor the planner dialog has (covering
+  backdrop, opaque panel, z-index); colours, radii and the way they come in
+  stay the theme's and override it.
 
 = 4.0.0 =
 

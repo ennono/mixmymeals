@@ -58,6 +58,40 @@
 }
 
 /* ==========================================================
+   Tagesblatt und Rezeptwahl (mmmOpenDaySheet(), mmmOpenPicker()) – Struktur.
+
+   Beide hängt frontend.js ans Ende von <body>. Ohne diese Regeln stünden
+   sie als gewöhnlicher Fluss-Inhalt unter dem Footer, statt über der Seite
+   zu liegen — das ist nicht ungestaltet, sondern unbedienbar, und deshalb
+   steht der Boden hier wie beim Einplanen-Dialog darüber. Alles Sichtbare
+   (Farben, Radien, das Hochfahren über .is-open) liegt im Theme, das diese
+   Regeln überschreibt: seine style.css wird nach dieser Datei geladen.
+   ========================================================== */
+.mmm-day-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 100000;
+}
+
+.mmm-day-sheet {
+    background: Canvas;
+    color: CanvasText;
+    width: 100%;
+    max-width: 520px;
+    max-height: 88vh;
+    overflow-y: auto;
+}
+
+/* Die Seite darf nicht hinter dem offenen Blatt wegscrollen. */
+body.mmm-sheet-open {
+    overflow: hidden;
+}
+
+/* ==========================================================
    Kochmodus (Cook Mode) – Struktur.
    Optik liegt im Theme.
    ========================================================== */
