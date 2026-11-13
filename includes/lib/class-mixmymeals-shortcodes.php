@@ -9302,7 +9302,7 @@ class Mixmymeals_Shortcodes {
 	 * attributes the page was built with are gone. The default keeps the
 	 * plugin usable without a theme that sets one.
 	 *
-	 * @param string $key   'unassigned', 'nutrition' or 'shopping'.
+	 * @param string $key   'unassigned', 'nutrition', 'shopping' or 'mini'.
 	 * @param string $class Class of the heading.
 	 * @return string An h3, or '' when the text is empty.
 	 */
@@ -9312,6 +9312,7 @@ class Mixmymeals_Shortcodes {
 			'unassigned' => __( 'Unassigned Recipes', 'mixmymeals' ),
 			'nutrition'  => __( 'Average nutrition per day and person', 'mixmymeals' ),
 			'shopping'   => __( 'Shopping list', 'mixmymeals' ),
+			'mini'       => __( 'Your week', 'mixmymeals' ),
 		);
 
 		$text = trim( (string) apply_filters( 'mixmymeals_planner_heading', $defaults[ $key ] ?? '', $key ) );

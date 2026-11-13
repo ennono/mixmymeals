@@ -531,7 +531,11 @@ jQuery(function ($) {
     let mmmSoftReloadRequest = null;
 
     function mmmSoftReloadPlanner() {
-        const parts = ['.mmm-plan-builder', '[data-plan-eaters]', '.mmm-planer-suggestions'];
+        // The plugin's own parts, plus whatever the theme marked as belonging
+        // to the planner. It used to name a class of the child theme's here,
+        // which no theme has carried since 4.0.0 — a hook the theme sets is
+        // the way round: the plugin knows no theme's names.
+        const parts = ['.mmm-plan-builder', '[data-plan-eaters]', '[data-planner-part]'];
         const $builder = $('.mmm-plan-builder');
         if (!$builder.length || !window.DOMParser) {
             window.location.reload();
@@ -607,6 +611,7 @@ jQuery(function ($) {
     function mmmCloseDaySheet() {
         $(document).off('keydown.mmmDaySheet');
         $('.mmm-day-sheet-backdrop').remove();
+        $('body').removeClass('mmm-sheet-open');
     }
 
     function mmmOpenDaySheet(recipeId, defaultServings, recipeTitle, diets, $origin) {
@@ -653,7 +658,9 @@ jQuery(function ($) {
             $days.append(chip);
         });
 
-        $('body').append(backdrop);
+        // Same lock as the picker: behind an open sheet the page must not
+        // scroll away under the thumb.
+        $('body').append(backdrop).addClass('mmm-sheet-open');
         ($days.find('.mmm-day-chip--today').length ? $days.find('.mmm-day-chip--today') : $days.find('.mmm-day-chip').first()).trigger('focus');
 
         window.requestAnimationFrame(function () { backdrop.addClass('is-open'); });
@@ -2314,7 +2321,9 @@ jQuery(function ($) {
             $boxes.each(function () {
                 const $box = $(this).empty();
 
-                $('<h2 class="mmm-mini-plan__title"></h2>').text(labels.title || '').appendTo($box);
+                // Built and escaped by the plugin, through the theme's
+                // heading filter — empty where the theme names the box itself.
+                if (plan.heading) $box.append(plan.heading);
 
                 if (!plan.count) {
                     $('<p class="mmm-mini-plan__empty"></p>').text(labels.empty || '').appendTo($box);

@@ -506,6 +506,16 @@ class Mixmymeals_Planner_Tools {
 		}
 		$plan['days'] = $days;
 
+		/*
+		 * The box is drawn by the page, so its heading travels with the data
+		 * rather than being built in the browser: it is the one the theme set
+		 * through mixmymeals_planner_heading, and a theme that names the box
+		 * itself (a disclosure's summary, say) returns '' and gets none — the
+		 * same answer the planner's other boxes give, instead of a heading
+		 * that could only be hidden again with CSS.
+		 */
+		$plan['heading'] = Mixmymeals_Shortcodes::planner_heading( 'mini', 'mmm-mini-plan__title' );
+
 		wp_send_json_success( $plan );
 	}
 

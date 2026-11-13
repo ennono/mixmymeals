@@ -515,6 +515,23 @@ $titles = array_column( (array) ( $days[0]['items'] ?? array() ), 'title' );
 $ok( 'heute: das Curry, nicht das geschützte Rezept', array( 'R1 Gemüsecurry' ) === $titles );
 $ok( 'ohne Tag: die Spätzle', array( 'R3 Käsespätzle' ) === array_column( (array) ( $res['data']['unassigned'] ?? array() ), 'title' ) );
 
+// Die Überschrift kommt mit den Daten, durch den Filter der Planer-Boxen:
+// Ein Theme, das den Kasten selbst benennt, gibt '' zurück und bekommt keine
+// — sonst bliebe sie stehen und wäre nur per CSS zu verstecken.
+$ok(
+	'Wochenübersicht bringt ihre Überschrift mit',
+	is_string( $res['data']['heading'] ?? null )
+		&& false !== strpos( (string) $res['data']['heading'], 'mmm-mini-plan__title' )
+);
+
+$mmm_mini_heading = static function ( $text, $key ) {
+	return 'mini' === $key ? '' : $text;
+};
+add_filter( 'mixmymeals_planner_heading', $mmm_mini_heading, 10, 2 );
+$res = $call( 'mini_plan_ajax', array() );
+$ok( 'ein Theme kann sie abbestellen', '' === ( $res['data']['heading'] ?? null ) );
+remove_filter( 'mixmymeals_planner_heading', $mmm_mini_heading, 10 );
+
 $res = $call(
 	'suggest_plan_ajax',
 	array(

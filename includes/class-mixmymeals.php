@@ -437,9 +437,9 @@ class Mixmymeals {
 						'confirm'       => __( 'Suggest a plan', 'mixmymeals' ),
 						'working'       => __( 'Putting your plan together…', 'mixmymeals' ),
 					),
-					// The week at a glance.
+					// The week at a glance. Its heading is not here: it comes
+					// with the data, through the planner's heading filter.
 					'mini'      => array(
-						'title'      => __( 'Your week', 'mixmymeals' ),
 						'empty'      => __( 'Nothing planned yet. Tap + on a recipe.', 'mixmymeals' ),
 						'unassigned' => __( 'No day yet', 'mixmymeals' ),
 						'open'       => __( 'Open planner', 'mixmymeals' ),

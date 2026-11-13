@@ -124,11 +124,20 @@ Fixed:
   those names no longer exists in MixMyMeals Hello Child, which left the
   cards half-styled. They now carry mmm-recipes-index__media, __body and
   __name, with __card--noimg on a card without a picture; MixMyMeals Hello
-  Child 1.1.0 styles them.
+  Child 2.0.1 styles them.
 * [mmm_recipes_index]: the picture's link had no accessible name — the
   picture carries alt="", so a screen reader announced "link" and nothing
   else. It is now named like the browse cards' pictures (title, plus the
   disclosure label where there is one).
+* The day sheet did not stop the page behind it from scrolling: it now sets
+  body.mmm-sheet-open while it is open, as the recipe picker already did.
+* The week at a glance drew its own heading, which a theme that names the
+  box itself could only hide again with CSS. It now comes with the data,
+  through the planner's heading filter (key "mini"), as the other planner
+  boxes' headings do — a theme returns an empty text and gets none.
+* The planner's reload-free refresh named a class of the child theme's,
+  which no theme has carried since 4.0.0. A theme now marks its own planner
+  sections with data-planner-part.
 
 = 4.0.0 =
 
@@ -2270,7 +2279,7 @@ Changed:
 == Upgrade Notice ==
 
 = 4.0.1 =
-The cards of [mmm_recipes_index] no longer carry the Astra parent theme's class names. Update MixMyMeals Hello Child to 1.1.0 together with this release, or the grouped recipe overview loses its card layout.
+The cards of [mmm_recipes_index] no longer carry the Astra parent theme's class names. Update MixMyMeals Hello Child to 2.0.1 together with this release, or the grouped recipe overview loses its card layout.
 
 = 4.0.0 =
 The planner's markup changed (cards with "Adjust", one start-day select, a folded nutrition box, day sheet, recipe picker, plan start, week at a glance, shopping-list ticks). These classes are styled by MixMyMeals Hello Child; MixMyMeals Astra Child does not know them yet.
