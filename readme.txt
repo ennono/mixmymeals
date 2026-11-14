@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.0.1
+Stable tag: 4.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,23 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.0.2 =
+
+Fixed:
+* Plan archive search ([mmm_archive_search], mmm_s): the title search
+  reached the page's main query only. A page builder's loop set to "current
+  query" (Elementor) runs its own query from the main query's variables and
+  listed every plan despite the search. The hits now travel as post__in, the
+  way the recipe search already did.
+
+Added:
+* [mmm_meal_plan_collage post_id="" size=""]: the picture of a plan card on
+  its own (mosaic from two pictures up, else the single image), for cards
+  built by hand in a page builder's loop.
+* Chip values as plain text for markup that is not a chip row:
+  recipe_stat_texts(), meal_plan_stat_texts(), keeping_text() and
+  diet_chip_list(). The chips print exactly these.
 
 = 4.0.1 =
 
@@ -2283,6 +2300,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.0.2 =
+Fixes the plan archive search inside page-builder loops (Elementor). No changes to data or markup.
 
 = 4.0.1 =
 The cards of [mmm_recipes_index] no longer carry the Astra parent theme's class names. Update MixMyMeals Hello Child to 2.0.1 together with this release, or the grouped recipe overview loses its card layout.
