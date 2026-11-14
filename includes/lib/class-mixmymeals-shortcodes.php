@@ -12379,6 +12379,57 @@ class Mixmymeals_Shortcodes {
 		}
 
 		$query->set( 'mmm_title_like', $s );
+
+		/*
+		 * The hits also go in as post__in. The WHERE clause above reaches the
+		 * main query only; a page builder's loop set to "current query"
+		 * (Elementor's) runs a query of its own from the main query's
+		 * variables and would list every plan again. post__in travels with
+		 * them — the same way the recipe search already does.
+		 */
+		$post_types = array_filter( (array) $query->get( 'post_type' ) );
+		$ids        = self::archive_title_ids( $s, $post_types ? $post_types : self::archive_search_post_types() );
+		$given      = array_filter( array_map( 'absint', (array) $query->get( 'post__in' ) ) );
+
+		if ( $given ) {
+			$ids = array_values( array_intersect( $ids, $given ) );
+		}
+
+		$query->set( 'post__in', $ids ? $ids : array( 0 ) );
+	}
+
+	/**
+	 * The published posts whose title contains a term.
+	 *
+	 * Ids only: everything else the archive asks (unlisted, password, terms)
+	 * stays with the query the ids are handed to.
+	 *
+	 * @param string   $term       Search term.
+	 * @param string[] $post_types Post types to look in.
+	 * @return int[]
+	 */
+	private static function archive_title_ids( string $term, array $post_types ): array {
+
+		$post_types = array_values( array_intersect( array_map( 'sanitize_key', $post_types ), self::archive_search_post_types() ) );
+
+		if ( '' === $term || ! $post_types ) {
+			return array();
+		}
+
+		global $wpdb;
+
+		$in = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- one placeholder per post type; no API for a title LIKE.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ( {$in} ) AND post_title LIKE %s",
+				array_merge( $post_types, array( '%' . $wpdb->esc_like( $term ) . '%' ) )
+			)
+		);
+		// phpcs:enable
+
+		return array_map( 'intval', (array) $ids );
 	}
 
 	/**
