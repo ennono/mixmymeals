@@ -12517,7 +12517,7 @@ class Mixmymeals_Shortcodes {
 					<span class="mmm-chip mmm-chip--stat"><i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'ingredient_energy', array( 'kcal' => number_format_i18n( round( $calories ) ) ) ) ); ?></span>
 				<?php endif; ?>
 				<?php if ( $price > 0 ) : ?>
-					<span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign/" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'ingredient_price', array( 'price' => number_format_i18n( $price, 2 ) . ' ' . $currency ) ) ); ?></span>
+					<span class="mmm-chip mmm-chip--stat mmm-chip--price"><i class="mmm-icon fa-solid fa-euro-sign" aria-hidden="true"></i><?php echo esc_html( self::chip_text( 'ingredient_price', array( 'price' => number_format_i18n( $price, 2 ) . ' ' . $currency ) ) ); ?></span>
 				<?php endif; ?>
 			</div>
 		</section>
