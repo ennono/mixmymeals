@@ -6641,64 +6641,89 @@ class Mixmymeals_Shortcodes {
 	 */
 	private static function meal_plan_stat_chips( int $plan_id, ?int $offset = null ): string {
 
-		$plan          = new Mixmymeals_Meal_Plan( $plan_id );
-		$num_of_days   = $plan->count_days();
-		$num_of_meals  = $plan->count_meals();
-		$servings_text = self::plan_servings_chip_text( $plan );
-		$avg_cost      = $plan->calculate_avg_cost_per_serving();
-		$currency      = get_option( 'mixmymeals_currency', '€' );
+		$texts = self::meal_plan_stat_texts( $plan_id );
 
 		// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
 		// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
 		$out  = self::disclosure_chip( $plan_id );
 		$out .= self::diet_chips( $plan_id );
 
-		if ( $num_of_days ) {
+		if ( isset( $texts['days'] ) ) {
+			$out .= self::stat_chip( 'calendar-days', $texts['days'] );
+		}
+
+		if ( isset( $texts['recipes'] ) ) {
+			$out .= self::stat_chip( 'book', $texts['recipes'] );
+		}
+
+		if ( isset( $texts['servings'] ) ) {
 			$out .= self::stat_chip(
-				'calendar-days',
-				self::chip_text(
-					'plan_days',
-					array(
-						'count' => number_format_i18n( $num_of_days ),
-						/* translators: the word after a number of days a plan lasts. */
-						'unit'  => _n( 'Day', 'Days', $num_of_days, 'mixmymeals' ),
-					)
+				'users',
+				$texts['servings'],
+				'mmm-chip--servings',
+				null === $offset ? '' : self::servings_delta_html( ( new Mixmymeals_Meal_Plan( $plan_id ) )->servings_changes( $offset )['plan'] )
+			);
+		}
+
+		if ( isset( $texts['price'] ) ) {
+			$out .= self::stat_chip( 'euro-sign', $texts['price'], 'mmm-chip--price' );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The figures of a plan's chip row as plain text, keyed days, recipes,
+	 * servings, price — only those the plan has. The chips print these, and
+	 * so does anything else that shows a plan's figures one at a time (the
+	 * theme's Elementor dynamic tags), so the wording cannot drift apart.
+	 *
+	 * The plan as stored: the servings offset of the hero is not applied.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return array<string,string> Unescaped text per figure.
+	 */
+	public static function meal_plan_stat_texts( int $plan_id ): array {
+
+		$plan          = new Mixmymeals_Meal_Plan( $plan_id );
+		$num_of_days   = $plan->count_days();
+		$num_of_meals  = $plan->count_meals();
+		$servings_text = self::plan_servings_chip_text( $plan );
+		$avg_cost      = $plan->calculate_avg_cost_per_serving();
+		$currency      = get_option( 'mixmymeals_currency', '€' );
+		$texts         = array();
+
+		if ( $num_of_days ) {
+			$texts['days'] = self::chip_text(
+				'plan_days',
+				array(
+					'count' => number_format_i18n( $num_of_days ),
+					/* translators: the word after a number of days a plan lasts. */
+					'unit'  => _n( 'Day', 'Days', $num_of_days, 'mixmymeals' ),
 				)
 			);
 		}
 
 		if ( $num_of_meals ) {
-			$out .= self::stat_chip(
-				'book',
-				self::chip_text(
-					'plan_recipes',
-					array(
-						'count' => number_format_i18n( $num_of_meals ),
-						/* translators: the word after a number of recipes on a plan. */
-						'unit'  => _n( 'Recipe', 'Recipes', $num_of_meals, 'mixmymeals' ),
-					)
+			$texts['recipes'] = self::chip_text(
+				'plan_recipes',
+				array(
+					'count' => number_format_i18n( $num_of_meals ),
+					/* translators: the word after a number of recipes on a plan. */
+					'unit'  => _n( 'Recipe', 'Recipes', $num_of_meals, 'mixmymeals' ),
 				)
 			);
 		}
 
 		if ( '' !== $servings_text ) {
-			$out .= self::stat_chip(
-				'users',
-				$servings_text,
-				'mmm-chip--servings',
-				null === $offset ? '' : self::servings_delta_html( $plan->servings_changes( $offset )['plan'] )
-			);
+			$texts['servings'] = $servings_text;
 		}
 
 		if ( $avg_cost > 0 ) {
-			$out .= self::stat_chip(
-				'euro-sign',
-				self::chip_text( 'price', array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency ) ),
-				'mmm-chip--price'
-			);
+			$texts['price'] = self::chip_text( 'price', array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency ) );
 		}
 
-		return $out;
+		return $texts;
 	}
 
 	/**
@@ -6710,6 +6735,47 @@ class Mixmymeals_Shortcodes {
 	 */
 	private static function recipe_stat_chips( int $recipe_id ): string {
 
+		$texts = self::recipe_stat_texts( $recipe_id );
+		$icons = array(
+			'servings'  => 'users',
+			'prep_time' => 'clock',
+			'energy'    => 'fire',
+		);
+
+		// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
+		// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
+		$out  = self::disclosure_chip( $recipe_id );
+		$out .= self::diet_chips( $recipe_id );
+
+		foreach ( $icons as $key => $icon ) {
+			if ( isset( $texts[ $key ] ) ) {
+				$out .= self::stat_chip( $icon, $texts[ $key ] );
+			}
+		}
+
+		if ( isset( $texts['price'] ) ) {
+			$out .= self::stat_chip( 'euro-sign', $texts['price'], 'mmm-chip--price' );
+		}
+
+		// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
+		// Gericht ist, und gehoert damit hinter die Kennzahlen des Essens.
+		$out .= self::keeping_chip( $recipe_id );
+
+		return $out;
+	}
+
+	/**
+	 * The figures of a recipe's chip row as plain text, keyed servings,
+	 * prep_time, energy, price — only those the recipe has. The chips print
+	 * these, and so does anything else that shows a recipe's figures one at
+	 * a time (the theme's Elementor dynamic tags), so the wording cannot
+	 * drift apart. Diets, disclosure and keeping have readers of their own.
+	 *
+	 * @param int $recipe_id Recipe post ID.
+	 * @return array<string,string> Unescaped text per figure.
+	 */
+	public static function recipe_stat_texts( int $recipe_id ): array {
+
 		$recipe   = new Mixmymeals_Recipe( $recipe_id );
 		$servings = (int) $recipe->get_servings();
 		$cost     = $recipe->calculate_cost_per_serving();
@@ -6719,47 +6785,32 @@ class Mixmymeals_Shortcodes {
 		$kcal      = (int) round( $nutrition['calories'] ?? 0 );
 
 		$prep_time_string = self::format_prep_time( $recipe->get_preparation_time() );
-
-		// Kennzeichnung zuerst: sie reiht sich in die Chip-Zeile ein, steht
-		// darin aber vorn, damit sie nicht zwischen Kennzahlen untergeht.
-		$out  = self::disclosure_chip( $recipe_id );
-		$out .= self::diet_chips( $recipe_id );
+		$texts            = array();
 
 		if ( $servings ) {
-			$out .= self::stat_chip(
-				'users',
-				self::chip_text(
-					'servings',
-					array(
-						'count' => number_format_i18n( absint( $servings ) ),
-						/* translators: the word after a number of servings. */
-						'unit'  => _n( 'Serving', 'Servings', $servings, 'mixmymeals' ),
-					)
+			$texts['servings'] = self::chip_text(
+				'servings',
+				array(
+					'count' => number_format_i18n( absint( $servings ) ),
+					/* translators: the word after a number of servings. */
+					'unit'  => _n( 'Serving', 'Servings', $servings, 'mixmymeals' ),
 				)
 			);
 		}
 
 		if ( $prep_time_string ) {
-			$out .= self::stat_chip( 'clock', self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) ) );
+			$texts['prep_time'] = self::chip_text( 'prep_time', array( 'time' => $prep_time_string ) );
 		}
 
 		if ( $kcal > 0 ) {
-			$out .= self::stat_chip( 'fire', self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) ) );
+			$texts['energy'] = self::chip_text( 'energy', array( 'kcal' => number_format_i18n( $kcal ) ) );
 		}
 
 		if ( $cost > 0 ) {
-			$out .= self::stat_chip(
-				'euro-sign',
-				self::chip_text( 'price', array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency ) ),
-				'mmm-chip--price'
-			);
+			$texts['price'] = self::chip_text( 'price', array( 'price' => number_format_i18n( $cost, 2 ) . ' ' . $currency ) );
 		}
 
-		// Haltbarkeit zuletzt: sie beschreibt, was nach dem Essen mit dem
-		// Gericht ist, und gehoert damit hinter die Kennzahlen des Essens.
-		$out .= self::keeping_chip( $recipe_id );
-
-		return $out;
+		return $texts;
 	}
 
 	/**
@@ -8034,6 +8085,48 @@ class Mixmymeals_Shortcodes {
 	 * @return string
 	 */
 	/**
+	 * The diet chips of a recipe, meal or plan as data — what diet_chips()
+	 * prints, for anything that shows them in a markup of its own (the
+	 * theme's Elementor dynamic tags). A meal answers as cooked, a plan for
+	 * all its meals.
+	 *
+	 * @param int $post_id Recipe, meal or meal plan ID.
+	 * @return array[] Mixmymeals_Diet::chips() entries (slug, label, definite).
+	 */
+	public static function diet_chip_list( int $post_id ): array {
+
+		if ( ! $post_id ) {
+			return array();
+		}
+
+		$type = get_post_type( $post_id );
+
+		if ( 'mmm_meal_plan' === $type ) {
+			$plan     = new Mixmymeals_Meal_Plan( $post_id );
+			$in_force = $plan->get_diets();
+			$capable  = $plan->get_diets( true );
+		} else {
+
+			/*
+			 * A meal answers as it is cooked: a vegan-capable chili planned
+			 * vegan is vegan, and says so without the "capable".
+			 */
+			$recipe = 'mmm_meal' === $type
+				? ( new Mixmymeals_Meal( $post_id ) )->get_recipe()
+				: new Mixmymeals_Recipe( 'mmm_recipe' === $type ? $post_id : 0 );
+
+			if ( ! $recipe->is_valid() ) {
+				return array();
+			}
+
+			$in_force = $recipe->get_diets();
+			$capable  = $recipe->get_diet_suitabilities();
+		}
+
+		return Mixmymeals_Diet::chips( $in_force, $capable );
+	}
+
+	/**
 	 * The diet chips of a recipe, meal or plan, ready for a chip row.
 	 *
 	 * Takes the surrounding row's base class, like disclosure_chip() and
@@ -8055,38 +8148,10 @@ class Mixmymeals_Shortcodes {
 	 */
 	public static function diet_chips( int $post_id, string $base = 'mmm-chip' ): string {
 
-		if ( ! $post_id ) {
-			return '';
-		}
-
-		$type = get_post_type( $post_id );
-
-		if ( 'mmm_meal_plan' === $type ) {
-			$plan     = new Mixmymeals_Meal_Plan( $post_id );
-			$in_force = $plan->get_diets();
-			$capable  = $plan->get_diets( true );
-		} else {
-
-			/*
-			 * A meal answers as it is cooked: a vegan-capable chili planned
-			 * vegan is vegan, and says so without the "capable".
-			 */
-			$recipe = 'mmm_meal' === $type
-				? ( new Mixmymeals_Meal( $post_id ) )->get_recipe()
-				: new Mixmymeals_Recipe( 'mmm_recipe' === $type ? $post_id : 0 );
-
-			if ( ! $recipe->is_valid() ) {
-				return '';
-			}
-
-			$in_force = $recipe->get_diets();
-			$capable  = $recipe->get_diet_suitabilities();
-		}
-
 		$base = sanitize_html_class( $base );
 		$out  = '';
 
-		foreach ( Mixmymeals_Diet::chips( $in_force, $capable ) as $chip ) {
+		foreach ( self::diet_chip_list( $post_id ) as $chip ) {
 
 			$classes = $base . ' ' . $base . '--diet ' . $base . '--diet-' . sanitize_html_class( $chip['slug'] );
 
@@ -8255,6 +8320,32 @@ class Mixmymeals_Shortcodes {
 	 */
 	public static function keeping_chip( int $post_id, string $base = 'mmm-chip' ): string {
 
+		$text = self::keeping_text( $post_id );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$storage = ( new Mixmymeals_Recipe( Mixmymeals_Meal::resolve_credit_source( $post_id ) ) )->get_storage_type();
+
+		return sprintf(
+			'<span class="%1$s %1$s--stat %1$s--keeping"><i class="mmm-icon fa-solid %2$s" aria-hidden="true"></i>%3$s</span>',
+			esc_attr( $base ),
+			esc_attr( self::keeping_icon( $storage ) ),
+			esc_html( $text )
+		);
+	}
+
+	/**
+	 * How the finished dish keeps, as the plain text of keeping_chip() —
+	 * '' when neither shelf life nor storage is stated. Meals resolve to
+	 * their recipe.
+	 *
+	 * @param int $post_id Recipe or meal id.
+	 * @return string Unescaped text.
+	 */
+	public static function keeping_text( int $post_id ): string {
+
 		$post_id = Mixmymeals_Meal::resolve_credit_source( $post_id );
 
 		if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
@@ -8328,16 +8419,7 @@ class Mixmymeals_Shortcodes {
 			);
 		}
 
-		if ( '' === $text ) {
-			return '';
-		}
-
-		return sprintf(
-			'<span class="%1$s %1$s--stat %1$s--keeping"><i class="mmm-icon fa-solid %2$s" aria-hidden="true"></i>%3$s</span>',
-			esc_attr( $base ),
-			esc_attr( self::keeping_icon( $storage ) ),
-			esc_html( $text )
-		);
+		return $text;
 	}
 
 	/**
