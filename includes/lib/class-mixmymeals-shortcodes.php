@@ -68,6 +68,11 @@ class Mixmymeals_Shortcodes {
 		);
 
 		add_shortcode(
+			'mmm_meal_plan_collage',
+			array( $this, 'mmm_meal_plan_collage_callback' )
+		);
+
+		add_shortcode(
 			'mmm_latest_plan_teaser',
 			array( $this, 'mmm_latest_plan_teaser_callback' )
 		);
@@ -1902,15 +1907,12 @@ class Mixmymeals_Shortcodes {
 		foreach ( $ids as $id ) {
 
 			$permalink = (string) get_permalink( $id );
-			$images    = $this->get_meal_plan_card_images( $id );
-
-			/*
-			 * Below two pictures there is no mosaic to build, so the card keeps
-			 * the single-image shape the recipes use — one tile in a grid meant
-			 * for three looks like a layout that failed, not like a plan.
-			 */
-			$mosaic = count( $images ) >= 2;
-			$thumb  = $mosaic ? implode( '', $images ) : $this->get_meal_plan_card_thumbnail( $id );
+			// Below two pictures the card keeps the single-image shape the
+			// recipes use (meal_plan_card_media()).
+			$card   = $this->meal_plan_card_media( $id );
+			$thumb  = $card['media'];
+			$mosaic = $card['mosaic'] > 0;
+			$tiles  = $card['mosaic'];
 
 			echo '<article class="mmm-recipe-row__card mmm-recipe-row__card--plan">';
 			// Same placement as the recipe cards: over the picture when there is
@@ -1935,7 +1937,7 @@ class Mixmymeals_Shortcodes {
 				if ( $mosaic ) {
 					printf(
 						'<span class="mmm-recipe-row__mosaic mmm-recipe-row__mosaic--%d">',
-						count( $images )
+						$tiles
 					);
 				}
 
@@ -1986,6 +1988,80 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return $label;
+	}
+
+	/**
+	 * What a plan card shows as its picture: the mosaic of dishes from two
+	 * pictures up, below that the single image — one tile in a grid for three
+	 * looks like a layout that failed, not like a plan. The one place that
+	 * decides it; the browse cards, the embed and [mmm_meal_plan_collage] ask.
+	 *
+	 * @param int    $plan_id Meal plan post ID.
+	 * @param string $size    Image size.
+	 * @return array{media:string,mosaic:int} Escaped <img> markup ('' = none) and
+	 *                                        the number of tiles (0 = single image).
+	 */
+	private function meal_plan_card_media( int $plan_id, string $size = 'medium' ): array {
+
+		$images = $this->get_meal_plan_card_images( $plan_id, 3, $size );
+
+		if ( count( $images ) >= 2 ) {
+			return array(
+				'media'  => implode( '', $images ),
+				'mosaic' => count( $images ),
+			);
+		}
+
+		return array(
+			'media'  => $this->get_meal_plan_card_thumbnail( $plan_id, $size ),
+			'mosaic' => 0,
+		);
+	}
+
+	/**
+	 * Shortcode [mmm_meal_plan_collage]: the picture of a plan card on its own —
+	 * the plan's dishes as a mosaic, a single image where there are fewer than
+	 * two, nothing where there is none. For a loop (Elementor's Loop Grid) whose
+	 * cards are built by hand and still want the card's picture.
+	 *
+	 * Not a link and without the disclosure label: the card around it carries
+	 * both. Published plans only (an editor sees their drafts), and nothing for
+	 * a plan locked by its password.
+	 *
+	 * @param array|string $atts post_id (default: the current post), size.
+	 * @return string
+	 */
+	public function mmm_meal_plan_collage_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'post_id' => 0,
+				'size'    => 'medium_large',
+			),
+			$atts,
+			'mmm_meal_plan_collage'
+		);
+
+		$plan_id = absint( $atts['post_id'] ) ? absint( $atts['post_id'] ) : (int) get_the_ID();
+
+		if ( ! $plan_id
+			|| 'mmm_meal_plan' !== get_post_type( $plan_id )
+			|| Mixmymeals_Post_Types::is_locked( $plan_id )
+			|| ( 'publish' !== get_post_status( $plan_id ) && ! current_user_can( 'edit_post', $plan_id ) ) ) {
+			return '';
+		}
+
+		$allowed = array( 'thumbnail', 'medium', 'medium_large', 'large', 'full' );
+		$size    = in_array( $atts['size'], $allowed, true ) ? (string) $atts['size'] : 'medium_large';
+		$card    = $this->meal_plan_card_media( $plan_id, $size );
+
+		if ( '' === $card['media'] ) {
+			return '';
+		}
+
+		return '<div class="mmm-collage mmm-collage--' . max( 1, (int) $card['mosaic'] ) . '">'
+			. $card['media']
+			. '</div>';
 	}
 
 	/**
@@ -7106,13 +7182,9 @@ class Mixmymeals_Shortcodes {
 		if ( filter_var( $atts['image'], FILTER_VALIDATE_BOOLEAN ) ) {
 			// The browse cards' rule: a mosaic from two pictures up, below that
 			// the single image — one tile in a grid for three looks broken.
-			$images = $this->get_meal_plan_card_images( $plan_id, 3, 'medium_large' );
-			if ( count( $images ) >= 2 ) {
-				$mosaic = count( $images );
-				$media  = implode( '', $images );
-			} else {
-				$media = $this->get_meal_plan_card_thumbnail( $plan_id, 'medium_large' );
-			}
+			$card   = $this->meal_plan_card_media( $plan_id, 'medium_large' );
+			$media  = $card['media'];
+			$mosaic = $card['mosaic'];
 		}
 
 		return $this->render_embed_card(
