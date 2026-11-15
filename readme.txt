@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.1.0
+Stable tag: 4.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.1.1 =
+
+Fixed:
+* Shopping list ticks were one set for every list on the site, keyed by the
+  ingredient's name: onions ticked off in the planner were ticked off on every
+  plan page. Each list now keeps its own (the planner's, a saved plan's by its
+  number, or the name a theme gives in data-shopping-check="…"); "start over"
+  clears the list it stands on. A new week in the planner (cleared, suggested,
+  loaded from a plan) forgets what was bought and keeps "have it".
 
 = 4.1.0 =
 
@@ -2350,6 +2360,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.1.1 =
+Shopping-list ticks are kept per list instead of once for the whole site. Existing ticks move to the planner's list.
 
 = 4.1.0 =
 Fixes the shopping-list ticks and the planner's save bar after a redraw; adds [mmm_archive_results] and a main plan action. Update MixMyMeals Hello Child to 2.3.0 together with this release.

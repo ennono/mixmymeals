@@ -1416,6 +1416,7 @@ jQuery(function ($) {
                 if (response && response.success) {
                     mmmSetBusy(link, false);
                     mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Planner cleared.', 'ok');
+                    mmmShopNewPlannerList();
                     mmmUpdateCartBadge();
                     $('.mmm-plan-item').slideUp(200, function () {
                         $(this).remove();
@@ -1949,6 +1950,7 @@ jQuery(function ($) {
                 mmmPost('mmm_load_plan_into_cart', { meal_plan_id: mealPlanId, persons_to_add: persons })
                     .done(function (response) {
                         if (response && response.success) {
+                            mmmShopNewPlannerList();
                             mmmUpdateCartBadge();
                             ctx.close();
                             if (redirectUrl) {
@@ -2386,6 +2388,7 @@ jQuery(function ($) {
                 .done(function (response) {
                     if (response && response.success) {
                         if (ctx && ctx.close) ctx.close();
+                        mmmShopNewPlannerList();
                         mmmUpdateCartBadge();
                         // The suggestion runs from today on; so does the week it is shown as.
                         mmmStartDayStore(((new Date()).getDay() + 6) % 7 + 1);
@@ -2508,24 +2511,101 @@ jQuery(function ($) {
      * before it, what is in the cupboard anyway. Inside [data-shopping-check]
      * every line gets a box to tick and a "have it" switch.
      *
-     * The state lives in this browser only (localStorage), keyed by what the
-     * line names. It is nobody's business but the shopper's and needs no
-     * account; a new plan with the same ingredient keeps the mark until
-     * "start over" clears it.
+     * The state lives in this browser only (localStorage). It is nobody's
+     * business but the shopper's and needs no account.
+     *
+     * Each list keeps its own marks. They used to be one set for every list
+     * on the site, keyed by nothing but the ingredient's name: onions ticked
+     * off in the planner were ticked off on every plan page too. A list is
+     * the planner's (planner page and shopping-list page are the same list),
+     * a saved plan's by its number, or whatever the theme names in
+     * data-shopping-check="…"; anything else is told apart by its address.
+     * Within a list a line is still what it names, so changing the servings
+     * keeps what was ticked.
      */
-    const MMM_SHOP_KEY = 'mmm_shopping_marks_v1';
+    const MMM_SHOP_KEY = 'mmm_shopping_marks_v2';
+    const MMM_SHOP_KEY_OLD = 'mmm_shopping_marks_v1';
+    // Plans somebody looked at once must not pile up for ever.
+    const MMM_SHOP_LISTS_MAX = 20;
 
-    function mmmShopMarks(next) {
+    function mmmShopLoad() {
         try {
-            if (typeof next === 'undefined') {
-                return JSON.parse(window.localStorage.getItem(MMM_SHOP_KEY) || '{}') || {};
+            const raw = window.localStorage.getItem(MMM_SHOP_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return (parsed && typeof parsed === 'object') ? parsed : {};
             }
-            window.localStorage.setItem(MMM_SHOP_KEY, JSON.stringify(next));
-        } catch (e) { /* storage blocked: marks last until the page is left */ }
-        return next || {};
+            // Marks from before the lists were told apart were, in practice,
+            // the planner's: that is where they go.
+            const old = JSON.parse(window.localStorage.getItem(MMM_SHOP_KEY_OLD) || 'null');
+            if (old && typeof old === 'object' && Object.keys(old).length) {
+                return { planner: { t: Date.now(), m: old } };
+            }
+        } catch (e) { /* storage blocked or unreadable: start empty */ }
+        return {};
     }
 
-    let mmmShopState = mmmShopMarks();
+    let mmmShopState = mmmShopLoad();
+
+    function mmmShopSave() {
+        // Lists without a mark are dropped, the oldest beyond the limit too.
+        const names = Object.keys(mmmShopState).filter(function (name) {
+            const list = mmmShopState[name];
+            if (!list || !list.m || !Object.keys(list.m).length) {
+                delete mmmShopState[name];
+                return false;
+            }
+            return true;
+        });
+
+        names.sort(function (x, y) { return (mmmShopState[y].t || 0) - (mmmShopState[x].t || 0); });
+        names.slice(MMM_SHOP_LISTS_MAX).forEach(function (name) { delete mmmShopState[name]; });
+
+        try {
+            window.localStorage.setItem(MMM_SHOP_KEY, JSON.stringify(mmmShopState));
+        } catch (e) { /* storage blocked: marks last until the page is left */ }
+    }
+
+    // Which list a [data-shopping-check] holds.
+    function mmmShopListName($scope) {
+        const named = $.trim($scope.attr('data-shopping-check') || '');
+        if (named) return named;
+        if ($scope.find('[data-planner-shopping]').length || $scope.is('[data-planner-shopping]')) return 'planner';
+        const plan = $scope.find('[data-plan-shopping]').first().attr('data-plan-shopping')
+            || $scope.closest('[data-plan-shopping]').attr('data-plan-shopping');
+        if (plan) return 'plan:' + plan;
+        return 'page:' + window.location.pathname;
+    }
+
+    function mmmShopListMarks(name) {
+        return (mmmShopState[name] && mmmShopState[name].m) || {};
+    }
+
+    function mmmShopSetMark(name, key, mark) {
+        if (!mmmShopState[name]) mmmShopState[name] = { t: 0, m: {} };
+        const list = mmmShopState[name];
+        if (mark) {
+            list.m[key] = mark;
+        } else {
+            delete list.m[key];
+        }
+        list.t = Date.now();
+        mmmShopSave();
+    }
+
+    /**
+     * A new week in the planner: what was bought for the last one is not in
+     * the trolley for this one. "Have it" stays — salt in the cupboard is
+     * still in the cupboard.
+     */
+    function mmmShopNewPlannerList() {
+        const marks = mmmShopListMarks('planner');
+        Object.keys(marks).forEach(function (key) {
+            if (marks[key] === 'done') delete marks[key];
+        });
+        mmmShopSave();
+        mmmDecorateShoppingList();
+    }
 
     function mmmShopLineKey(li) {
         return $.trim($(li).find('.mmm-shopping-item-name').first().text()) + '|'
@@ -2568,11 +2648,12 @@ jQuery(function ($) {
 
         $('[data-shopping-check]').each(function () {
             const $scope = $(this);
+            const marks = mmmShopListMarks(mmmShopListName($scope));
 
             $scope.find('.mmm-shopping-item').each(function () {
                 const $li = $(this);
                 const key = mmmShopLineKey(this);
-                const mark = mmmShopState[key] || '';
+                const mark = marks[key] || '';
 
                 if (!$li.children('.mmm-shop-check').length) {
                     const name = $.trim($li.find('.mmm-shopping-item-name').first().text());
@@ -2594,13 +2675,9 @@ jQuery(function ($) {
     }
 
     function mmmShopToggle($li, mark) {
+        const name = mmmShopListName($li.closest('[data-shopping-check]'));
         const key = mmmShopLineKey($li[0]);
-        if (mmmShopState[key] === mark) {
-            delete mmmShopState[key];
-        } else {
-            mmmShopState[key] = mark;
-        }
-        mmmShopMarks(mmmShopState);
+        mmmShopSetMark(name, key, mmmShopListMarks(name)[key] === mark ? '' : mark);
         mmmDecorateShoppingList();
     }
 
@@ -2612,9 +2689,10 @@ jQuery(function ($) {
         mmmShopToggle($(this).closest('.mmm-shopping-item'), 'have');
     });
 
+    // "Start over" clears the list it stands on, not every list.
     $(document).on('click', '[data-shopping-check] .mmm-shop-bar__reset', function () {
-        mmmShopState = {};
-        mmmShopMarks(mmmShopState);
+        delete mmmShopState[mmmShopListName($(this).closest('[data-shopping-check]'))];
+        mmmShopSave();
         mmmDecorateShoppingList();
     });
 
