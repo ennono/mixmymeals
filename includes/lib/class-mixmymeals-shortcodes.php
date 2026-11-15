@@ -9062,6 +9062,19 @@ class Mixmymeals_Shortcodes {
 		$items = array();
 
 		/*
+		 * On a card the row leads with the disclosure, as the archive rows do:
+		 * a list is where a paid plan has to be recognisable before it is
+		 * opened. On the plan's own page the hero already carries it.
+		 */
+		if ( ! is_singular( 'mmm_meal_plan' ) || (int) get_queried_object_id() !== $plan_id ) {
+			$disclosure = self::disclosure_chip( $plan_id, 'mmm-meta__item' );
+
+			if ( '' !== $disclosure ) {
+				$items[] = $disclosure;
+			}
+		}
+
+		/*
 		-------------------------
 		 * Days
 		 * ------------------------- */
@@ -11732,7 +11745,10 @@ class Mixmymeals_Shortcodes {
 	 *
 	 * A recipe nobody has timed carries no row and is therefore in no step —
 	 * the same rule the filter keeps, so the number beside a step is the number
-	 * the step produces.
+	 * the step produces. For the same reason unlisted and password-protected
+	 * recipes are not counted: the archive leaves them out
+	 * (Mixmymeals_Post_Types::exclude_unlisted()), and until 4.1.3 the link
+	 * said "Vegan 83" above a result line of 82.
 	 *
 	 * @return array<int,int> Minutes => count, steps with no recipes left out.
 	 */
@@ -11764,9 +11780,15 @@ class Mixmymeals_Shortcodes {
 				 WHERE pm.meta_key = %s
 				   AND p.post_type = %s
 				   AND p.post_status = 'publish'
+				   AND p.post_password = ''
+				   AND NOT EXISTS (
+				       SELECT 1 FROM {$wpdb->postmeta} u
+				       WHERE u.post_id = p.ID AND u.meta_key = %s
+				   )
 				 GROUP BY minutes",
 				Mixmymeals_Recipe::META_PREP_TIME,
-				'mmm_recipe'
+				'mmm_recipe',
+				Mixmymeals_Post_Types::META_UNLISTED
 			)
 		);
 
@@ -11830,9 +11852,15 @@ class Mixmymeals_Shortcodes {
 				 WHERE pm.meta_key = %s
 				   AND p.post_type = %s
 				   AND p.post_status = 'publish'
+				   AND p.post_password = ''
+				   AND NOT EXISTS (
+				       SELECT 1 FROM {$wpdb->postmeta} u
+				       WHERE u.post_id = p.ID AND u.meta_key = %s
+				   )
 				 GROUP BY pm.meta_value",
 				Mixmymeals_Recipe::META_DIET_INDEX,
-				'mmm_recipe'
+				'mmm_recipe',
+				Mixmymeals_Post_Types::META_UNLISTED
 			)
 		);
 

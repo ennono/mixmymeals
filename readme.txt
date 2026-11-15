@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.1.2
+Stable tag: 4.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.1.3 =
+
+Fixed:
+* A plan card built from `[mmm_meta_for_a_single_meal_plan]` (the loop cards
+  of the plan archive, the search and a recipe's "in these plans") carried no
+  disclosure. The row now leads with "Werbung" / "Gastautor" wherever it
+  describes a plan other than the page's own; on the plan's page the hero
+  already says it.
+* The numbers beside the archive's diet and time filters counted unlisted and
+  password-protected recipes, which the list leaves out: "Vegan 83" stood
+  above a result line of 82. Both count what the archive shows.
 
 = 4.1.2 =
 
@@ -2372,6 +2384,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.1.3 =
+Plan cards carry their disclosure label; the archive's filter counts match the list. Update MixMyMeals Hello Child to 2.3.4 together with this release.
 
 = 4.1.2 =
 Removes the "have it" switch from shopping lists. Update MixMyMeals Hello Child to 2.3.3 together with this release.

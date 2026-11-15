@@ -155,10 +155,13 @@ class Mixmymeals_Post_Types {
 
 		if ( $unlisted ) {
 			update_post_meta( $post_id, self::META_UNLISTED, '1' );
-			return;
+		} else {
+			delete_post_meta( $post_id, self::META_UNLISTED );
 		}
 
-		delete_post_meta( $post_id, self::META_UNLISTED );
+		// The archive's filter links count listed recipes only.
+		delete_transient( 'mmm_archive_diet_counts' );
+		delete_transient( 'mmm_archive_time_counts' );
 	}
 
 	/**
