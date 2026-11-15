@@ -2114,6 +2114,12 @@ class Mixmymeals_Shortcodes {
 		$attr   = array(
 			'loading' => 'lazy',
 			'alt'     => '',
+			// A tile is a part of a card, never the width of the page. Core's
+			// default says "as wide as the file", and where `sizes="auto"` is
+			// not understood that is what the browser plans for: a phone then
+			// loads three pictures of full width for three tiles. The largest
+			// tile is two thirds of a card.
+			'sizes'   => '(max-width: 767px) 66vw, 320px',
 		);
 
 		$plan_thumb_id = (int) get_post_thumbnail_id( $plan_id );

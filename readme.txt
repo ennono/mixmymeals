@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.1.1
+Stable tag: 4.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.1.2 =
+
+Removed:
+* The "have it" switch on shopping-list lines. A line is ticked off or it is
+  not; a "have it" mark still stored in a browser counts as no mark. A new
+  week in the planner now starts with a list without ticks.
+
+Changed:
+* The tiles of a plan card's collage say how wide they are (`sizes`), instead
+  of core's "as wide as the file": a browser that does not read `sizes="auto"`
+  no longer loads three full-width pictures for three tiles.
 
 = 4.1.1 =
 
@@ -2360,6 +2372,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.1.2 =
+Removes the "have it" switch from shopping lists. Update MixMyMeals Hello Child to 2.3.3 together with this release.
 
 = 4.1.1 =
 Shopping-list ticks are kept per list instead of once for the whole site. Existing ticks move to the planner's list.

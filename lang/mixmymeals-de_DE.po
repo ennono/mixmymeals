@@ -7957,12 +7957,6 @@ msgstr "Alles erledigt. Viel Spaß beim Kochen!"
 msgid "Start over"
 msgstr "Zurücksetzen"
 
-msgid "Have it"
-msgstr "Hab ich"
-
-msgid "Already have %s"
-msgstr "%s habe ich schon"
-
 msgid "Tick off %s"
 msgstr "%s abhaken"
 

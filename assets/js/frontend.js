@@ -2502,14 +2502,13 @@ jQuery(function ($) {
     $(document).on('mmm:plan-changed', mmmRefreshMiniPlan);
 
     /* ==========================================================
-       SHOPPING LIST: tick off, "have it already"
+       SHOPPING LIST: tick off
        ========================================================== */
 
     /**
      * The shopping list was a text: nothing on it could be marked. In a shop
-     * that means keeping in your head what is already in the trolley, and
-     * before it, what is in the cupboard anyway. Inside [data-shopping-check]
-     * every line gets a box to tick and a "have it" switch.
+     * that means keeping in your head what is already in the trolley. Inside
+     * [data-shopping-check] every line gets a box to tick.
      *
      * The state lives in this browser only (localStorage). It is nobody's
      * business but the shopper's and needs no account.
@@ -2581,6 +2580,12 @@ jQuery(function ($) {
         return (mmmShopState[name] && mmmShopState[name].m) || {};
     }
 
+    // A line is ticked or it is not. Until 4.1.2 there was a second mark,
+    // "have it"; one still in the storage counts as no mark.
+    function mmmShopIsDone(name, key) {
+        return mmmShopListMarks(name)[key] === 'done';
+    }
+
     function mmmShopSetMark(name, key, mark) {
         if (!mmmShopState[name]) mmmShopState[name] = { t: 0, m: {} };
         const list = mmmShopState[name];
@@ -2595,14 +2600,10 @@ jQuery(function ($) {
 
     /**
      * A new week in the planner: what was bought for the last one is not in
-     * the trolley for this one. "Have it" stays — salt in the cupboard is
-     * still in the cupboard.
+     * the trolley for this one.
      */
     function mmmShopNewPlannerList() {
-        const marks = mmmShopListMarks('planner');
-        Object.keys(marks).forEach(function (key) {
-            if (marks[key] === 'done') delete marks[key];
-        });
+        delete mmmShopState.planner;
         mmmShopSave();
         mmmDecorateShoppingList();
     }
@@ -2617,8 +2618,7 @@ jQuery(function ($) {
         const $items = $scope.find('.mmm-shopping-item');
         const total = $items.length;
         const done = $items.filter('.is-done').length;
-        const have = $items.filter('.is-have').length;
-        const open = total - done - have;
+        const open = total - done;
 
         let $bar = $scope.find('.mmm-shop-bar');
         if (!$bar.length) {
@@ -2639,7 +2639,7 @@ jQuery(function ($) {
                 : mmmFormat(labels.progress, String(open), String(total))
         );
         $bar.find('.mmm-shop-bar__fill').css('width', total ? Math.round(((total - open) / total) * 100) + '%' : '0');
-        $bar.find('.mmm-shop-bar__reset').prop('hidden', done + have === 0);
+        $bar.find('.mmm-shop-bar__reset').prop('hidden', done === 0);
         $scope.toggleClass('is-complete', open === 0 && total > 0);
     }
 
@@ -2648,45 +2648,34 @@ jQuery(function ($) {
 
         $('[data-shopping-check]').each(function () {
             const $scope = $(this);
-            const marks = mmmShopListMarks(mmmShopListName($scope));
+            const list = mmmShopListName($scope);
 
             $scope.find('.mmm-shopping-item').each(function () {
                 const $li = $(this);
                 const key = mmmShopLineKey(this);
-                const mark = marks[key] || '';
+                const done = mmmShopIsDone(list, key);
 
                 if (!$li.children('.mmm-shop-check').length) {
                     const name = $.trim($li.find('.mmm-shopping-item-name').first().text());
                     const $check = $('<button type="button" class="mmm-shop-check" role="checkbox"></button>')
                         .attr('aria-label', mmmFormat(labels.tick, name));
-                    const $have = $('<button type="button" class="mmm-shop-have"></button>')
-                        .text(labels.have || '')
-                        .attr('aria-label', mmmFormat(labels.have_long, name));
-                    $li.prepend($check).append($have);
+                    $li.prepend($check);
                 }
 
-                $li.toggleClass('is-done', mark === 'done').toggleClass('is-have', mark === 'have');
-                $li.children('.mmm-shop-check').attr('aria-checked', mark === 'done' ? 'true' : 'false');
-                $li.children('.mmm-shop-have').attr('aria-pressed', mark === 'have' ? 'true' : 'false');
+                $li.toggleClass('is-done', done);
+                $li.children('.mmm-shop-check').attr('aria-checked', done ? 'true' : 'false');
             });
 
             mmmShopSummary($scope);
         });
     }
 
-    function mmmShopToggle($li, mark) {
+    $(document).on('click', '[data-shopping-check] .mmm-shop-check', function () {
+        const $li = $(this).closest('.mmm-shopping-item');
         const name = mmmShopListName($li.closest('[data-shopping-check]'));
         const key = mmmShopLineKey($li[0]);
-        mmmShopSetMark(name, key, mmmShopListMarks(name)[key] === mark ? '' : mark);
+        mmmShopSetMark(name, key, mmmShopIsDone(name, key) ? '' : 'done');
         mmmDecorateShoppingList();
-    }
-
-    $(document).on('click', '[data-shopping-check] .mmm-shop-check', function () {
-        mmmShopToggle($(this).closest('.mmm-shopping-item'), 'done');
-    });
-
-    $(document).on('click', '[data-shopping-check] .mmm-shop-have', function () {
-        mmmShopToggle($(this).closest('.mmm-shopping-item'), 'have');
     });
 
     // "Start over" clears the list it stands on, not every list.

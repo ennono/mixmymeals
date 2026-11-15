@@ -389,9 +389,6 @@ class Mixmymeals {
 					'progress'  => __( '%1$s of %2$s still to get', 'mixmymeals' ),
 					'all_done'  => __( 'All done. Enjoy cooking!', 'mixmymeals' ),
 					'reset'     => __( 'Start over', 'mixmymeals' ),
-					'have'      => __( 'Have it', 'mixmymeals' ),
-					/* translators: %s: ingredient. */
-					'have_long' => __( 'Already have %s', 'mixmymeals' ),
 					/* translators: %s: ingredient. */
 					'tick'      => __( 'Tick off %s', 'mixmymeals' ),
 				),
