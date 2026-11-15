@@ -580,7 +580,7 @@ class Mixmymeals_Planner_Tools {
 
 			<div class="mmm-plan-start__actions">
 				<button type="submit" class="mmm-plan-start__submit"><?php esc_html_e( 'Suggest a plan', 'mixmymeals' ); ?></button>
-				<span class="mmm-plan-start__note"><?php esc_html_e( 'Free, no account. You can swap every recipe.', 'mixmymeals' ); ?></span>
+				<span class="mmm-plan-start__note"><?php esc_html_e( 'Free, no account. You can change everything afterwards.', 'mixmymeals' ); ?></span>
 			</div>
 
 			<div class="mmm-msg mmm-plan-start__msg" role="alert"></div>

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.0.2
+Stable tag: 4.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,56 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.1.0 =
+
+Added:
+* [mmm_archive_results]: what a narrowed recipe or plan archive found — the
+  number of matches, every filter in force as a link that drops it, and a
+  link back to everything. Prints nothing on an archive nobody has narrowed.
+  The filter links of [mmm_archive_filters] jump to it (#mmm-archive-results).
+* [mmm_ingredients_index]: a field that narrows the list as it is typed into
+  and a row of links to the categories.
+* Plan actions (filter mixmymeals_meal_plan_actions): `primary` marks the one
+  main action. Both action rows print it first and add the modifier
+  `--primary`. "Adjust" is now "Adjust in the planner" and is that action.
+* [mmm_meta_for_posts_in_recipe_archive] answers wherever the current post is
+  a recipe listed by something else (front page, ingredient page, search,
+  related recipes), not only on the recipe archive and category pages. On a
+  recipe's own page outside a loop it stays silent, as before.
+* [mmm_meta_for_a_single_meal_plan] likewise follows the current post rather
+  than the request, so a plan card in the site search carries its figures.
+* Servings on the plan page: where the plan's people are what stops "−", the
+  field says so (span.mmm-plan-servings__floor).
+* Meal calculator: a labelled field that starts at one serving, a unit,
+  figures written as the page writes numbers, salt.
+
+Fixed:
+* Shopping list ticks ("Got it", the progress bar) disappeared whenever a list
+  was redrawn without a reload: after adding a recipe in the planner, after a
+  suggested plan, after changing the servings on a plan page.
+* Planner: "Clear plan" in the save bar stopped working once the planner had
+  been redrawn, and the bar stayed over the save form it leads to.
+* "Adjust" on a plan page loaded the plan into the planner and left the
+  visitor on the plan page with nothing but a changed number in the header.
+  Every such button now leads to the planner.
+* Day sheet, recipe picker, confirmation dialog and cook mode keep the
+  keyboard focus inside; the picker puts it into its search field, cook mode
+  returns it to its button. Cook mode is announced as a dialog.
+* A suggested plan scrolls the week into view and is announced.
+* Day sheet: the weekday and "today" ran together as one word ("Satoday").
+
+Changed:
+* frontend.css gives the day sheet, the recipe picker and cook mode a usable
+  floor without a theme: inner spacing, the seven days as a row, list rows
+  without bullets, large step text and navigation in cook mode. Colours,
+  radii and fonts stay the theme's.
+* The empty planner: no "Unassigned Recipes" heading above the way in; an
+  empty day names its "+ Recipe" button instead of asking to drag from a
+  list that is not there. A planner card without a picture keeps the
+  picture's place (span.mmm-plan-item-thumb--none).
+* "You can swap every recipe" under the suggestion form promised a control
+  that does not exist; it now says that everything can be changed afterwards.
 
 = 4.0.2 =
 
@@ -2300,6 +2350,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.1.0 =
+Fixes the shopping-list ticks and the planner's save bar after a redraw; adds [mmm_archive_results] and a main plan action. Update MixMyMeals Hello Child to 2.3.0 together with this release.
 
 = 4.0.2 =
 Fixes the plan archive search inside page-builder loops (Elementor). No changes to data or markup.

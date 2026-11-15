@@ -378,7 +378,7 @@ class Mixmymeals {
 				'ajax_url'              => admin_url( 'admin-ajax.php' ),
 				'nonce'                 => wp_create_nonce( 'mmm_frontend_nonce' ),
 				'load_into_cart_dialog' => array(
-					'title'   => __( 'Adjust', 'mixmymeals' ),
+					'title'   => __( 'Adjust in the planner', 'mixmymeals' ),
 					'message' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),
 					'confirm' => __( 'Continue', 'mixmymeals' ),
 					'cancel'  => __( 'Cancel', 'mixmymeals' ),

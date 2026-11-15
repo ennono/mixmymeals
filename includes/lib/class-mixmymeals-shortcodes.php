@@ -109,6 +109,12 @@ class Mixmymeals_Shortcodes {
 			array( $this, 'mmm_archive_filters_callback' )
 		);
 
+		// What a search or a filter found: the count and what is in force.
+		add_shortcode(
+			'mmm_archive_results',
+			array( $this, 'mmm_archive_results_callback' )
+		);
+
 		// Recipe Archive:
 
 		add_shortcode(
@@ -978,24 +984,41 @@ class Mixmymeals_Shortcodes {
 
 	/**
 	 * Shortcode [mmm_meta_for_posts_in_recipe_archive].
-	 * Renders calories, cost, categories, tags, and add-to-cart for a recipe archive card.
+	 * Renders calories, cost, time, categories, tags and diets for a recipe
+	 * card.
 	 *
-	 * @param array|string $atts Shortcode attributes.
+	 * Despite its name it is the meta row of any recipe card: it used to
+	 * answer only on the recipe archive and on category pages, so the same
+	 * card on the front page, on an ingredient's page or in the search
+	 * carried no figures at all (4.1.0). It prints for the current post
+	 * wherever that is a recipe listed by something else — a loop, a row of
+	 * related recipes. The one place it stays silent is a recipe's own page
+	 * outside a loop: there the hero carries these figures, and a template
+	 * that held the shortcode all along must not grow a second row.
+	 *
+	 * @param array|string $atts Shortcode attributes (none).
 	 * @return string
 	 */
 	public function mmm_meta_for_posts_in_recipe_archive_callback( $atts = array() ): string {
-		$atts = shortcode_atts(
-			array(),
-			$atts,
-			'mmm_meta_for_posts_in_recipe_archive'
-		);
-		// Run on both recipe archive and tax archive or die:
-		if ( ! is_post_type_archive( 'mmm_recipe' )
-			&& ! is_tax( 'mmm_recipe_category' ) ) {
+
+		unset( $atts );
+
+		$post_id = (int) get_the_ID();
+
+		if ( ! $post_id || 'mmm_recipe' !== get_post_type( $post_id ) ) {
 			return '';
 		}
 
-		return $this->build_recipe_archive_meta_chips( (int) get_the_ID() );
+		if ( is_singular( 'mmm_recipe' ) && (int) get_queried_object_id() === $post_id ) {
+			return '';
+		}
+
+		// A protected recipe's figures are part of what the password guards.
+		if ( Mixmymeals_Post_Types::has_password( $post_id ) ) {
+			return '';
+		}
+
+		return $this->build_recipe_archive_meta_chips( $post_id );
 	}
 
 	/**
@@ -3754,11 +3777,23 @@ class Mixmymeals_Shortcodes {
 			. ' data-persons="' . esc_attr( $plan->servings_query_value( $offset ) ) . '">'
 			. esc_html__( 'Adjust in the planner', 'mixmymeals' ) . '</a></span>';
 
+		// A dimmed "−" with no reason given reads as a fault. Where the
+		// plan's people are what stops it (no meal has fewer servings than
+		// its eaters eat), the field says so; the planner is where a
+		// smaller household changes that.
+		$floor = '';
+		if ( $offset <= $bounds['min'] && count( $plan->get_eaters() ) > 1 ) {
+			$floor = '<span class="mmm-plan-servings__floor">'
+				. esc_html__( 'Fewer is not possible here: the servings cover what the people of this plan eat.', 'mixmymeals' )
+				. '</span>';
+		}
+
 		return '<div class="mmm-plan-servings mmm-plan-servings--' . ( $base > 0 ? 'uniform' : 'mixed' ) . '"'
 			. ' id="' . esc_attr( $anchor ) . '" data-offset="' . esc_attr( (string) $offset ) . '"'
 			. ' data-base="' . esc_attr( (string) $base ) . '"'
 			. ' data-min="' . esc_attr( (string) $bounds['min'] ) . '" data-max="' . esc_attr( (string) $bounds['max'] ) . '">'
 			. '<span class="mmm-plan-servings__line">' . $line . '</span>'
+			. $floor
 			. $planner
 			. '</div>';
 	}
@@ -4964,6 +4999,9 @@ class Mixmymeals_Shortcodes {
 
 			<?php if ( $thumb ) : ?>
 				<img class="mmm-plan-item-thumb" src="<?php echo esc_url( $thumb ); ?>" alt="">
+			<?php else : ?>
+				<?php // A card without a picture keeps the picture's place, as the picker's rows do: without it the columns of the card shift and the title is squeezed. ?>
+				<span class="mmm-plan-item-thumb mmm-plan-item-thumb--none" aria-hidden="true"></span>
 			<?php endif; ?>
 
 			<div class="mmm-plan-item-content">
@@ -5319,8 +5357,9 @@ class Mixmymeals_Shortcodes {
 							 */
 							?>
 							<li class="mmm-plan-day-hint"<?php echo empty( $days_with_items[ $day_key ] ) ? '' : ' hidden'; ?>>
-								<span class="mmm-plan-day-hint__drag"><?php esc_html_e( 'Drag a recipe here to plan it for this day.', 'mixmymeals' ); ?></span>
-								<span class="mmm-plan-day-hint__tap"><?php esc_html_e( 'Choose this day on a recipe to plan it here.', 'mixmymeals' ); ?></span>
+								<?php // Both name the day's own button first: the planner has no list of recipes to drag from, only other days. ?>
+								<span class="mmm-plan-day-hint__drag"><?php esc_html_e( 'Still free. Add a recipe with “+ Recipe”, or drag one here from another day.', 'mixmymeals' ); ?></span>
+								<span class="mmm-plan-day-hint__tap"><?php esc_html_e( 'Still free. Add a recipe with “+ Recipe”.', 'mixmymeals' ); ?></span>
 							</li>
 
 						</ul>
@@ -6365,7 +6404,8 @@ class Mixmymeals_Shortcodes {
 		$html = '';
 		foreach ( self::meal_plan_action_items( (int) $meal_plan_id, (string) $atts['cart_url'] ) as $key => $item ) {
 
-			$class = 'mmm-meal-plan-actions__item mmm-meal-plan-actions__item--' . $key;
+			$class = 'mmm-meal-plan-actions__item mmm-meal-plan-actions__item--' . $key
+				. ( $item['primary'] ? ' mmm-meal-plan-actions__item--primary' : '' );
 
 			// An action without an address is a script's job, as "Adjust"
 			// always was: a span, so nothing navigates before the script runs.
@@ -6393,7 +6433,7 @@ class Mixmymeals_Shortcodes {
 	 *
 	 * @param int    $plan_id  Meal plan post ID.
 	 * @param string $cart_url Where "Adjust" leads after loading the plan.
-	 * @return array<string,array{label:string,icon:string,icon_only:bool,url:string,new_tab:bool,attrs:string}>
+	 * @return array<string,array{label:string,icon:string,icon_only:bool,url:string,new_tab:bool,attrs:string,primary:bool}>
 	 *         Keyed by action; `attrs` is a ready, escaped attribute string.
 	 */
 	public static function meal_plan_action_items( int $plan_id, string $cart_url = '' ): array {
@@ -6437,10 +6477,14 @@ class Mixmymeals_Shortcodes {
 				'url'     => Mixmymeals_Meal_Plan::bring_deeplink( $plan_id, $mmm_offset ),
 				'new_tab' => true,
 			),
+			// The one main way on from a finished plan: make it your own.
+			// Named for where it leads, since "Adjust" alone said neither
+			// what is adjusted nor that the page is left.
 			'load-into-cart' => array(
-				'label' => __( 'Adjust', 'mixmymeals' ),
-				'icon'  => 'pen-to-square',
-				'data'  => array(
+				'label'   => __( 'Adjust in the planner', 'mixmymeals' ),
+				'icon'    => 'pen-to-square',
+				'primary' => true,
+				'data'    => array(
 					'meal-plan-id' => (string) $plan_id,
 					'redirect-url' => $cart_url,
 					'persons'      => $mmm_plan->servings_query_value( $mmm_offset ),
@@ -6486,12 +6530,19 @@ class Mixmymeals_Shortcodes {
 		 * item without an icon keeps its caption either way; a button with
 		 * neither would be an empty box.
 		 *
+		 * `primary` (true) marks the one action a reader is most likely
+		 * here for. Both rows print it first and add the modifier
+		 * `--primary` (the hero's button is `mmm-btn--primary` instead of
+		 * `mmm-btn--ghost`); only the first item that asks for it gets it —
+		 * a row of main actions has none.
+		 *
 		 * @param array $items   Actions so far.
 		 * @param int   $plan_id Meal plan post ID.
 		 */
 		$items = (array) apply_filters( 'mixmymeals_meal_plan_actions', $items, $plan_id );
 
-		$clean = array();
+		$clean   = array();
+		$primary = '';
 		foreach ( $items as $key => $item ) {
 
 			$key = sanitize_html_class( (string) $key );
@@ -6527,7 +6578,17 @@ class Mixmymeals_Shortcodes {
 				'url'       => $url,
 				'new_tab'   => ! empty( $item['new_tab'] ),
 				'attrs'     => $attrs,
+				'primary'   => false,
 			);
+
+			if ( '' === $primary && ! empty( $item['primary'] ) ) {
+				$primary = $key;
+			}
+		}
+
+		if ( '' !== $primary ) {
+			$clean[ $primary ]['primary'] = true;
+			$clean                        = array( $primary => $clean[ $primary ] ) + $clean;
 		}
 
 		return $clean;
@@ -6964,7 +7025,8 @@ class Mixmymeals_Shortcodes {
 					 * is what the script finds it by — "Adjust" carried it here
 					 * before 3.61.0 too.
 					 */
-					$class = 'mmm-btn mmm-btn--ghost mmm-plan-hero__action mmm-plan-hero__action--' . $key;
+					$class = 'mmm-btn ' . ( $action['primary'] ? 'mmm-btn--primary mmm-plan-hero__action--primary' : 'mmm-btn--ghost' )
+						. ' mmm-plan-hero__action mmm-plan-hero__action--' . $key;
 					if ( '' === $action['url'] ) {
 						$class .= ' mmm-meal-plan-actions__item--' . $key;
 					}
@@ -8971,16 +9033,17 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_meta_for_a_single_meal_plan_callback(): string {
 
-		$post_type = get_query_var( 'post_type' );
-		$post_type = is_array( $post_type ) ? reset( $post_type ) : $post_type;
+		// The current post decides, not the request: the row used to answer
+		// only where the query asked for plans, so a plan card in the site
+		// search or on the front page carried no figures (4.1.0). A plan
+		// behind a password states nothing until it has been entered.
+		$plan_id = (int) get_the_ID();
 
-		if ( $post_type !== 'mmm_meal_plan' ) {
+		if ( ! $plan_id || 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
 			return '';
 		}
 
-		$plan_id = get_the_ID();
-
-		if ( ! $plan_id ) {
+		if ( Mixmymeals_Post_Types::is_locked( $plan_id ) ) {
 			return '';
 		}
 
@@ -11509,6 +11572,106 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * [mmm_archive_results]: what a narrowed archive found.
+	 *
+	 * A filter click reloads the page at its top, where hero and filters
+	 * fill the screen — nothing said that anything had happened, or how
+	 * much was left. This is the answer in one line: the number of matches,
+	 * each filter in force as a link that drops it, and a way back to
+	 * everything. It carries the id the filter links can jump to
+	 * (#mmm-archive-results) and prints nothing on an archive nobody has
+	 * narrowed, so a theme can place it unconditionally.
+	 *
+	 * The count is the main query's; a theme that lists the archive with a
+	 * query of its own has to keep that query the same (the Elementor loops
+	 * of the Hello child theme read the main query).
+	 *
+	 * @param array|string $atts Unused.
+	 * @return string
+	 */
+	public function mmm_archive_results_callback( $atts = array() ): string {
+
+		unset( $atts );
+
+		$recipes = is_post_type_archive( 'mmm_recipe' ) || is_tax( array( 'mmm_recipe_category', 'mmm_recipe_tag' ) );
+		$plans   = is_post_type_archive( 'mmm_meal_plan' ) || is_tax( array( 'mmm_meal_plan_category', 'mmm_meal_plan_tag' ) );
+
+		if ( ! $recipes && ! $plans ) {
+			return '';
+		}
+
+		$term   = self::archive_search_term();
+		$active = $recipes ? self::active_archive_filters() : array();
+		$chips  = '';
+
+		foreach ( $active as $filter ) {
+
+			switch ( $filter['kind'] ) {
+				case 'diet':
+					$label = Mixmymeals_Diet::label( $filter['value'] );
+					break;
+				case 'time':
+					/* translators: %d: number of minutes. */
+					$label = sprintf( __( 'Under %d min', 'mixmymeals' ), (int) $filter['value'] );
+					break;
+				case 'ingredient':
+				case 'title':
+					$label = $filter['value'];
+					break;
+				default:
+					// A browse view is the page itself, not a narrowing of it.
+					$label = '';
+					break;
+			}
+
+			if ( '' === $label ) {
+				continue;
+			}
+
+			$chips .= '<a class="mmm-archive-results__chip mmm-archive-results__chip--' . esc_attr( $filter['kind'] ) . '" rel="nofollow"'
+				. ' href="' . esc_url( $filter['url'] . '#mmm-archive-results' ) . '"'
+				/* translators: %s: the filter that is removed, e.g. "Vegan". */
+				. ' aria-label="' . esc_attr( sprintf( __( 'Remove filter: %s', 'mixmymeals' ), $label ) ) . '">'
+				. '<span class="mmm-archive-results__chip-label">' . esc_html( $label ) . '</span>'
+				. '<span class="mmm-archive-results__chip-x" aria-hidden="true">&times;</span></a>';
+		}
+
+		// On plan archives the search is the only narrowing; it has no
+		// address of its own to drop it, the reset link below does that.
+		if ( '' === $chips && '' === $term ) {
+			return '';
+		}
+
+		global $wp_query;
+		$count = isset( $wp_query->found_posts ) ? (int) $wp_query->found_posts : 0;
+
+		if ( $recipes ) {
+			$text = 0 === $count
+				? __( 'No recipe found', 'mixmymeals' )
+				/* translators: %s: number of recipes. */
+				: sprintf( _n( '%s recipe', '%s recipes', $count, 'mixmymeals' ), number_format_i18n( $count ) );
+		} else {
+			$text = 0 === $count
+				? __( 'No meal plan found', 'mixmymeals' )
+				/* translators: %s: number of meal plans. */
+				: sprintf( _n( '%s meal plan', '%s meal plans', $count, 'mixmymeals' ), number_format_i18n( $count ) );
+		}
+
+		if ( $plans && '' !== $term ) {
+			$chips .= '<span class="mmm-archive-results__chip mmm-archive-results__chip--title mmm-archive-results__chip--static">'
+				. '<span class="mmm-archive-results__chip-label">' . esc_html( $term ) . '</span></span>';
+		}
+
+		$reset = (string) get_post_type_archive_link( $recipes ? 'mmm_recipe' : 'mmm_meal_plan' );
+
+		return '<div class="mmm-archive-results" id="mmm-archive-results" role="status">'
+			. '<strong class="mmm-archive-results__count">' . esc_html( $text ) . '</strong>'
+			. ( '' !== $chips ? '<span class="mmm-archive-results__chips">' . $chips . '</span>' : '' )
+			. ( '' !== $reset ? '<a class="mmm-archive-results__reset" href="' . esc_url( $reset ) . '">' . esc_html__( 'Show all', 'mixmymeals' ) . '</a>' : '' )
+			. '</div>';
+	}
+
+	/**
 	 * One row of facet links: a label, an "any" link and the choices.
 	 *
 	 * Both rows go through here, because two rows that mean the same kind of
@@ -11541,7 +11704,7 @@ class Mixmymeals_Shortcodes {
 			<?php endif; ?>
 			<?php foreach ( $links as $link ) : ?>
 				<?php if ( '' !== $link['url'] ) : ?>
-					<a class="<?php echo esc_attr( $link['active'] ? 'active' : '' ); ?>" href="<?php echo esc_url( $link['url'] ); ?>"<?php echo $link['active'] ? ' aria-current="true"' : ''; ?>>
+					<a class="<?php echo esc_attr( $link['active'] ? 'active' : '' ); ?>" href="<?php echo esc_url( $link['url'] . '#mmm-archive-results' ); ?>"<?php echo $link['active'] ? ' aria-current="true"' : ''; ?>>
 						<?php echo esc_html( $link['label'] ); ?>
 						<span class="mmm-archive-filters__count"><?php echo esc_html( number_format_i18n( $link['count'] ) ); ?></span>
 					</a>
@@ -13388,10 +13551,39 @@ class Mixmymeals_Shortcodes {
 			$groups[ __( 'Other', 'mixmymeals' ) ] = $uncategorized;
 		}
 
+		/*
+		 * Past three hundred ingredients the page is a wall of links. Two
+		 * ways through it: a field that narrows the list as it is typed
+		 * into (frontend.js; it stays hidden without the script, where it
+		 * could do nothing) and a row of links to the categories.
+		 */
+		$anchors = array();
+		foreach ( array_keys( $groups ) as $cat_name ) {
+			$anchors[ (string) $cat_name ] = 'mmm-ingredients-' . sanitize_title( (string) $cat_name );
+		}
+
 		ob_start();
-		echo '<div class="mmm-ingredients-index">';
+		echo '<div class="mmm-ingredients-index" data-ingredients-index>';
+
+		echo '<div class="mmm-ingredients-index__tools">';
+		echo '<label class="mmm-ingredients-index__filter" hidden>'
+			. '<span class="screen-reader-text">' . esc_html__( 'Filter ingredients', 'mixmymeals' ) . '</span>'
+			. '<input type="search" class="mmm-ingredients-index__search" autocomplete="off"'
+			. ' placeholder="' . esc_attr__( 'Find an ingredient…', 'mixmymeals' ) . '"></label>';
+
+		if ( count( $anchors ) > 1 ) {
+			echo '<nav class="mmm-ingredients-index__nav" aria-label="' . esc_attr__( 'Ingredient categories', 'mixmymeals' ) . '">';
+			foreach ( $anchors as $cat_name => $anchor ) {
+				echo '<a class="mmm-ingredients-index__jump" href="#' . esc_attr( $anchor ) . '">' . esc_html( $cat_name ) . '</a>';
+			}
+			echo '</nav>';
+		}
+		echo '</div>';
+
+		echo '<p class="mmm-ingredients-index__none" role="status" hidden>' . esc_html__( 'No ingredient matches.', 'mixmymeals' ) . '</p>';
+
 		foreach ( $groups as $cat_name => $cat_ids ) {
-			echo '<section class="mmm-ingredients-index__group">';
+			echo '<section class="mmm-ingredients-index__group" id="' . esc_attr( $anchors[ (string) $cat_name ] ) . '">';
 			echo '<h2 class="mmm-ingredients-index__cat">' . esc_html( (string) $cat_name ) . '</h2>';
 			echo '<ul class="mmm-ingredients-index__list">';
 			foreach ( $cat_ids as $id ) {
@@ -13755,6 +13947,12 @@ class Mixmymeals_Shortcodes {
 			? $totals['weight'] / $meal_servings
 			: 0;
 
+		// The field starts at one serving, so the figures are there before
+		// anybody has typed; the slider reaches three servings (at least 1 kg).
+		$mmm_serving_g  = (int) round( $nutrition['weight_per_serving'] );
+		$mmm_slider_max = max( 1000, (int) ( ceil( $mmm_serving_g * 3 / 100 ) * 100 ) );
+		$mmm_field_id   = wp_unique_id( 'mmm-meal-calc-' );
+
 		ob_start();
 		?>
 
@@ -13765,19 +13963,28 @@ class Mixmymeals_Shortcodes {
 			data-protein="<?php echo esc_attr( $nutrition['protein'] ?? 0 ); ?>"
 			data-sugar="<?php echo esc_attr( $nutrition['sugar'] ?? 0 ); ?>"
 			data-fiber="<?php echo esc_attr( $nutrition['fiber'] ?? 0 ); ?>"
+			data-salt="<?php echo esc_attr( $nutrition['salt'] ?? 0 ); ?>"
 			data-total-weight="<?php echo esc_attr( $nutrition['weight_per_serving'] ); ?>">
 
-			<label></label>
-			<input type="number" class="mmmm-meal-nutrition-calculator-grams"
-					placeholder="e.g. 250">
-			<input type="range"
-					class="mmmm-meal-nutrition-calculator-grams-slider"
-					min="0"
-					max="1000"
-					step="1"
-					value="0">
+			<div class="mmmm-meal-nutrition-calculator-field">
+				<label class="mmmm-meal-nutrition-calculator-label" for="<?php echo esc_attr( $mmm_field_id ); ?>"><?php esc_html_e( 'Amount eaten', 'mixmymeals' ); ?></label>
+				<span class="mmmm-meal-nutrition-calculator-amount">
+					<input type="number" inputmode="numeric" min="0" step="1"
+							id="<?php echo esc_attr( $mmm_field_id ); ?>"
+							class="mmmm-meal-nutrition-calculator-grams"
+							value="<?php echo esc_attr( $mmm_serving_g > 0 ? (string) $mmm_serving_g : '' ); ?>">
+					<span class="mmmm-meal-nutrition-calculator-unit" aria-hidden="true"><?php echo esc_html__( 'g', 'mixmymeals' ); ?></span>
+				</span>
+				<input type="range"
+						class="mmmm-meal-nutrition-calculator-grams-slider"
+						aria-label="<?php esc_attr_e( 'Amount eaten in grams', 'mixmymeals' ); ?>"
+						min="0"
+						max="<?php echo esc_attr( (string) $mmm_slider_max ); ?>"
+						step="5"
+						value="<?php echo esc_attr( (string) $mmm_serving_g ); ?>">
+			</div>
 
-			<div class="mmmm-meal-nutrition-calculator-result">
+			<div class="mmmm-meal-nutrition-calculator-result" aria-live="polite">
 				<?php
 				// Same labels as every other nutrition output; the CSS class names
 				// stay as they are, because the calculator's JS addresses them.
@@ -13790,12 +13997,16 @@ class Mixmymeals_Shortcodes {
 					'sugar'    => 'sugar',
 					'fiber'    => 'fiber',
 					'protein'  => 'protein',
+					'salt'     => 'salt',
 				);
 
 				foreach ( $mmm_slots as $mmm_key => $mmm_slot ) :
+					if ( ! isset( $mmm_labels[ $mmm_key ] ) ) {
+						continue;
+					}
 					?>
-				<p><?php echo esc_html( $mmm_labels[ $mmm_key ] ); ?>: <span
-							class="mmmm-meal-nutrition-calculator-<?php echo esc_attr( $mmm_slot ); ?>">–</span>
+				<p class="mmmm-meal-nutrition-calculator-row"><span class="mmmm-meal-nutrition-calculator-name"><?php echo esc_html( $mmm_labels[ $mmm_key ] ); ?>:</span> <span class="mmmm-meal-nutrition-calculator-value"><span
+							class="mmmm-meal-nutrition-calculator-<?php echo esc_attr( $mmm_slot ); ?>">–</span> <?php echo esc_html( 'calories' === $mmm_key ? __( 'kcal', 'mixmymeals' ) : __( 'g', 'mixmymeals' ) ); ?></span>
 				</p>
 				<?php endforeach; ?>
 			</div>

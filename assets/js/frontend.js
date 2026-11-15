@@ -340,48 +340,77 @@ jQuery(function ($) {
     let mmmSaveBar = null;
     let mmmSaveTargetVisible = true;
 
-    function mmmEnsureSaveBar() {
-        const button = $('.mmm-plan-builder').length ? $('.mmm-create-meal-plan-link').first() : $();
-        if (!button.length || !('IntersectionObserver' in window)) return;
+    let mmmSaveObserver = null;
 
+    // The save button and the block it stands in, looked up when needed:
+    // the planner is redrawn without a reload, and whatever was found
+    // before that may no longer be on the page.
+    function mmmSaveTarget() {
+        const button = $('.mmm-plan-builder').length ? $('.mmm-create-meal-plan-link').first() : $();
         let target = button.closest('[data-plan-save]');
-        if (!target.length) target = button.parent();
+        if (button.length && !target.length) target = button.parent();
+        return { button: button, target: target };
+    }
+
+    // Watches the save block as it is now. An observer left on a block the
+    // redraw replaced reports "out of sight" for ever, and the bar then
+    // covers the very form it leads to.
+    function mmmObserveSaveTarget() {
+        if (!mmmSaveBar) return;
+        if (mmmSaveObserver) mmmSaveObserver.disconnect();
+
+        const found = mmmSaveTarget();
+        if (!found.target.length) {
+            mmmSaveTargetVisible = true;
+            mmmUpdateSaveBar();
+            return;
+        }
+
+        mmmSaveObserver = new IntersectionObserver(function (entries) {
+            mmmSaveTargetVisible = entries[entries.length - 1].isIntersecting;
+            mmmUpdateSaveBar();
+        });
+        mmmSaveObserver.observe(found.target.get(0));
+    }
+
+    function mmmEnsureSaveBar() {
+        const first = mmmSaveTarget();
+        if (!first.button.length || !('IntersectionObserver' in window)) return;
 
         const labels = (window.mixmymeals && mixmymeals.planner_dialog) || {};
 
         mmmSaveBar = $('<div class="mmm-save-bar" hidden></div>');
         $('<a class="mmm-save-bar__link mmm-save-bar__link--save"></a>')
-            .attr('href', target.attr('id') ? '#' + target.attr('id') : '#')
-            .text(labels.save_plan || button.text().trim())
+            .attr('href', first.target.attr('id') ? '#' + first.target.attr('id') : '#')
+            .text(labels.save_plan || first.button.text().trim())
             .on('click', function (e) {
                 e.preventDefault();
+                const now = mmmSaveTarget();
+                if (!now.target.length) return;
                 const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                target.get(0).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-                const field = target.find('.mmm-plan-subscribe input:visible').first();
-                (field.length ? field : button).get(0).focus({ preventScroll: true });
+                now.target.get(0).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+                const field = now.target.find('.mmm-plan-subscribe input:visible').first();
+                (field.length ? field : now.button).get(0).focus({ preventScroll: true });
             })
             .appendTo(mmmSaveBar);
 
         // Beside it the planner's own "Clear Plan" link, where the page has
         // one: a click on it runs that link's handler, so wording, request
-        // and message stay the shortcode's.
+        // and message stay the shortcode's. The link is looked up at the
+        // click — the one found here may have been redrawn since.
         const clear = $('.mmm-clear-cart-link').first();
         if (clear.length) {
             $('<a href="#" class="mmm-save-bar__link mmm-save-bar__link--clear"></a>')
                 .text(clear.text().trim())
                 .on('click', function (e) {
                     e.preventDefault();
-                    clear.trigger('click');
+                    $('.mmm-clear-cart-link').first().trigger('click');
                 })
                 .appendTo(mmmSaveBar);
         }
 
         $('body').append(mmmSaveBar);
-
-        new IntersectionObserver(function (entries) {
-            mmmSaveTargetVisible = entries[entries.length - 1].isIntersecting;
-            mmmUpdateSaveBar();
-        }).observe(target.get(0));
+        mmmObserveSaveTarget();
     }
 
     // Shown while the form is out of sight and the planner is not empty.
@@ -396,6 +425,8 @@ jQuery(function ($) {
     // Here rather than with the cart bar above: the two lets this reads are
     // declared just before, and calling it earlier throws.
     mmmEnsureSaveBar();
+
+    $(document).on('mmm:planner-refreshed', mmmObserveSaveTarget);
 
     /* ==========================================================
        SAYING WHAT HAPPENED
@@ -608,6 +639,54 @@ jQuery(function ($) {
      * usually eat. Everything else is still there behind "adjust", which
      * opens the full dialog.
      */
+    /**
+     * Keeps Tab inside an open dialog. aria-modal says the rest of the page
+     * is out of reach; without this the focus walked on into the page
+     * behind the sheet.
+     */
+    function mmmTrapFocus($dialog, ev) {
+        if (ev.key !== 'Tab') return;
+        const items = $dialog.find('a[href], button, input, select, textarea, [tabindex]')
+            .filter(':visible').not(':disabled').not('[tabindex="-1"]');
+        if (!items.length) return;
+        const first = items.get(0);
+        const last = items.get(items.length - 1);
+        const active = document.activeElement;
+        if (!$dialog.get(0).contains(active)) {
+            ev.preventDefault();
+            first.focus();
+        } else if (ev.shiftKey && active === first) {
+            ev.preventDefault();
+            last.focus();
+        } else if (!ev.shiftKey && active === last) {
+            ev.preventDefault();
+            first.focus();
+        }
+    }
+
+    // What to do once the planner has been redrawn: where the focus goes
+    // (the control that was used is gone with the old markup) and whether
+    // the week is scrolled into view.
+    let mmmAfterRefresh = null;
+
+    $(document).on('mmm:planner-refreshed', function () {
+        const todo = mmmAfterRefresh;
+        mmmAfterRefresh = null;
+        if (!todo) return;
+
+        if (todo.scroll) {
+            const builder = document.querySelector('.mmm-plan-builder');
+            if (builder) {
+                const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                builder.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+            }
+        }
+        if (todo.focus) {
+            const el = document.querySelector(todo.focus);
+            if (el) el.focus({ preventScroll: true });
+        }
+    });
+
     function mmmCloseDaySheet() {
         $(document).off('keydown.mmmDaySheet');
         $('.mmm-day-sheet-backdrop').remove();
@@ -676,6 +755,7 @@ jQuery(function ($) {
 
         $(document).on('keydown.mmmDaySheet', function (ev) {
             if (ev.key === 'Escape') close();
+            mmmTrapFocus(backdrop.find('.mmm-day-sheet'), ev);
         });
 
         function plan(day, $btn) {
@@ -787,6 +867,7 @@ jQuery(function ($) {
         });
         $(document).on('keydown.mmmPlanner', function (e) {
             if (e.key === 'Escape') mmmClosePlannerDialog();
+            mmmTrapFocus(backdrop.find('.mmm-planner-dialog'), e);
         });
 
         backdrop.find('.mmm-planner-dialog-submit').on('click', function () {
@@ -813,6 +894,8 @@ jQuery(function ($) {
         }
     }
 
+    let mmmCookModeOrigin = null;
+
     function mmmCloseCookMode() {
         const overlay = $('.mmm-cook-mode');
         if (overlay.length) {
@@ -820,10 +903,14 @@ jQuery(function ($) {
             overlay.remove();
             $('body').removeClass('mmm-cook-mode-open');
             mmmReleaseWakeLock();
+            if (mmmCookModeOrigin && document.body.contains(mmmCookModeOrigin)) {
+                mmmCookModeOrigin.focus();
+            }
+            mmmCookModeOrigin = null;
         }
     }
 
-    function mmmOpenCookMode() {
+    function mmmOpenCookMode(origin) {
         const steps = $('.mmm-recipe-steps .mmm-step');
         if (!steps.length) return;
 
@@ -833,9 +920,9 @@ jQuery(function ($) {
         mmmCloseCookMode();
 
         const overlay = $(
-            '<div class="mmm-cook-mode">' +
+            '<div class="mmm-cook-mode" role="dialog" aria-modal="true">' +
                 '<div class="mmm-cook-mode-bar">' +
-                    '<span class="mmm-cook-mode-progress"></span>' +
+                    '<span class="mmm-cook-mode-progress" aria-live="polite"></span>' +
                     '<button type="button" class="mmm-cook-mode-exit" aria-label="Kochmodus beenden">' + (labels.exit || '✕') + '</button>' +
                 '</div>' +
                 '<div class="mmm-cook-mode-step"></div>' +
@@ -875,10 +962,17 @@ jQuery(function ($) {
             if (e.key === 'Escape') mmmCloseCookMode();
             if (e.key === 'ArrowRight') overlay.find('.mmm-cook-mode-next').trigger('click');
             if (e.key === 'ArrowLeft') overlay.find('.mmm-cook-mode-prev').trigger('click');
+            mmmTrapFocus(overlay, e);
         });
+
+        // Named after the button that opened it; the focus comes back to
+        // that button when cooking is over.
+        mmmCookModeOrigin = origin || null;
+        overlay.attr('aria-label', $.trim($(origin).text()) || labels.exit || '');
 
         $('body').addClass('mmm-cook-mode-open').append(overlay);
         renderStep();
+        overlay.find('.mmm-cook-mode-next').trigger('focus');
 
         // Display anlassen, solange gekocht wird (wo unterstützt)
         if (navigator.wakeLock && navigator.wakeLock.request) {
@@ -890,7 +984,7 @@ jQuery(function ($) {
 
     $(document).on('click', '.mmm-cook-mode-start', function (e) {
         e.preventDefault();
-        mmmOpenCookMode();
+        mmmOpenCookMode(this);
     });
 
     /* ==========================================================
@@ -1013,6 +1107,9 @@ jQuery(function ($) {
                                 this.open = true;
                             }
                         });
+
+                        // The lines are new: their ticks have to be drawn again.
+                        mmmDecorateShoppingList();
                     }
                 })
                 .always(function () {
@@ -1675,6 +1772,8 @@ jQuery(function ($) {
 
                 $wrap.find('.mmm-plan-servings').replaceWith(data.control || '');
                 $list.html(data.list || '');
+                // The lines are new: their ticks have to be drawn again.
+                mmmDecorateShoppingList();
 
                 // Back where the reader was: the same control, or the
                 // value when a step link has reached its end.
@@ -1830,8 +1929,11 @@ jQuery(function ($) {
         const mealPlanId = btn.data('meal-plan-id');
         // The servings field's link has nowhere else to go: without an
         // address of its own it leads to the header's planner link.
+        // Off the planner page a loaded plan showed as nothing but a
+        // changed number in the header. Wherever the button stands, it
+        // leads to the planner: its own address, else the header's link.
         let redirectUrl = btn.attr('data-redirect-url') || '';
-        if (!redirectUrl && btn.hasClass('mmm-plan-servings__planner-link')) {
+        if (!redirectUrl && !$('.mmm-plan-builder').length) {
             redirectUrl = $('.mmm-cart-badge').first().closest('a').attr('href') || '';
         }
         // Read fresh, not through .data(): the servings field rewrites it.
@@ -1939,18 +2041,34 @@ jQuery(function ($) {
    ========================================================== */
 
     function mmmMealCalcUpdate(container, grams) {
-        const totalWeight = parseFloat(container.dataset.totalWeight || 1);
-        const factor = grams / totalWeight;
+        const totalWeight = parseFloat(container.dataset.totalWeight) || 0;
+        const factor = totalWeight > 0 ? grams / totalWeight : 0;
+        // Written as the page writes numbers (a decimal comma in German);
+        // energy in whole kilocalories, salt to two places like the tables.
+        const lang = document.documentElement.lang || undefined;
+        const slots = { cal: ['calories', 0], fat: ['fat', 1], carbs: ['carbs', 1], protein: ['protein', 1], sugar: ['sugar', 1], fiber: ['fiber', 1], salt: ['salt', 2] };
 
-        const calc = (val) => (val * factor).toFixed(1);
-
-        container.querySelector(".mmmm-meal-nutrition-calculator-cal").textContent = calc(container.dataset.calories);
-        container.querySelector(".mmmm-meal-nutrition-calculator-fat").textContent = calc(container.dataset.fat);
-        container.querySelector(".mmmm-meal-nutrition-calculator-carbs").textContent = calc(container.dataset.carbs);
-        container.querySelector(".mmmm-meal-nutrition-calculator-protein").textContent = calc(container.dataset.protein);
-        container.querySelector(".mmmm-meal-nutrition-calculator-sugar").textContent = calc(container.dataset.sugar);
-        container.querySelector(".mmmm-meal-nutrition-calculator-fiber").textContent = calc(container.dataset.fiber);
+        Object.keys(slots).forEach(function (slot) {
+            const el = container.querySelector('.mmmm-meal-nutrition-calculator-' + slot);
+            if (!el) return;
+            const value = (parseFloat(container.dataset[slots[slot][0]]) || 0) * factor;
+            const digits = slots[slot][1];
+            let text;
+            try {
+                text = value.toLocaleString(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+            } catch (err) {
+                text = value.toFixed(digits);
+            }
+            el.textContent = grams > 0 ? text : '–';
+        });
     }
+
+    // The field starts at one serving: show that serving's figures at once.
+    document.querySelectorAll('.mmmm-meal-nutrition-calculator').forEach(function (container) {
+        const input = container.querySelector('.mmmm-meal-nutrition-calculator-grams');
+        const grams = input ? parseFloat(input.value) || 0 : 0;
+        if (grams > 0) mmmMealCalcUpdate(container, grams);
+    });
 
     document.addEventListener("input", function (e) {
 
@@ -2173,6 +2291,12 @@ jQuery(function ($) {
         window.requestAnimationFrame(function () { backdrop.addClass('is-open'); });
         load('');
 
+        // Into the dialog: the search field where a keyboard is at hand; on
+        // a touch screen that would raise the keyboard over the list, so
+        // the close button takes the focus there.
+        const fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        backdrop.find(fine ? '.mmm-picker__search' : '.mmm-picker__close').trigger('focus');
+
         backdrop.on('input', '.mmm-picker__search', function () {
             const term = $.trim(this.value);
             clearTimeout(mmmPickerTimer);
@@ -2181,7 +2305,10 @@ jQuery(function ($) {
 
         backdrop.on('click', function (ev) { if (ev.target === backdrop[0]) close(); });
         backdrop.on('click', '.mmm-picker__close', close);
-        $(document).on('keydown.mmmPicker', function (ev) { if (ev.key === 'Escape') close(); });
+        $(document).on('keydown.mmmPicker', function (ev) {
+            if (ev.key === 'Escape') close();
+            mmmTrapFocus(backdrop.find('.mmm-picker'), ev);
+        });
 
         backdrop.on('click', '.mmm-picker__item', function () {
             const $btn = $(this);
@@ -2200,6 +2327,9 @@ jQuery(function ($) {
                     if (response && response.success) {
                         mmmAnnounce(mmmAddedText(title, String(day || ''), ''));
                         mmmClosePicker();
+                        // The button that opened the picker is redrawn with
+                        // the day; the focus goes to its successor.
+                        mmmAfterRefresh = { focus: '.mmm-plan-day-add[data-day="' + (parseInt(day, 10) || 0) + '"]' };
                         $(document).trigger('mmm:plan-changed', [{ day: day }]);
                         return;
                     }
@@ -2265,6 +2395,9 @@ jQuery(function ($) {
                         }
                         mmmSetBusy($submit, false);
                         mmmShowInlineMessage($msg, (response.data && response.data.message) || '', 'ok');
+                        mmmAnnounce((response.data && response.data.message) || '');
+                        // The week stands below the form: bring it into view.
+                        mmmAfterRefresh = { scroll: true };
                         $(document).trigger('mmm:plan-changed', [{}]);
                         return;
                     }
@@ -2486,5 +2619,43 @@ jQuery(function ($) {
     });
 
     mmmDecorateShoppingList();
+
+    // The planner is redrawn without a reload; a list that arrives that way
+    // has no ticks yet.
+    $(document).on('mmm:planner-refreshed', mmmDecorateShoppingList);
+
+    /* ==========================================================
+       INGREDIENTS INDEX (narrowing the list as it is typed into)
+       ========================================================== */
+
+    // The field is in the markup but hidden: it is this script that makes
+    // it do something. Nothing is fetched — the whole list is on the page.
+    $('[data-ingredients-index] .mmm-ingredients-index__filter').prop('hidden', false);
+
+    $(document).on('input', '[data-ingredients-index] .mmm-ingredients-index__search', function () {
+        const $index = $(this).closest('[data-ingredients-index]');
+        const fold = function (text) {
+            // "Moehre", "Möhre" and "mohre" are the same search.
+            let out = String(text).toLowerCase();
+            if (out.normalize) out = out.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return out;
+        };
+        const term = fold($.trim(this.value));
+        let shown = 0;
+
+        $index.find('.mmm-ingredients-index__group').each(function () {
+            let inGroup = 0;
+            $(this).find('.mmm-ingredients-index__item').each(function () {
+                const match = !term || fold($(this).text()).indexOf(term) !== -1;
+                this.hidden = !match;
+                if (match) inGroup++;
+            });
+            this.hidden = inGroup === 0;
+            shown += inGroup;
+        });
+
+        $index.find('.mmm-ingredients-index__none').prop('hidden', shown > 0);
+        $index.find('.mmm-ingredients-index__nav').prop('hidden', !!term);
+    });
 
 });

@@ -8015,3 +8015,55 @@ msgstr "Montag"
 
 msgid "Search recipes or ingredients…"
 msgstr "Rezept oder Zutat suchen…"
+
+msgid "Amount eaten"
+msgstr "Gegessene Menge"
+
+msgid "Amount eaten in grams"
+msgstr "Gegessene Menge in Gramm"
+
+msgid "Fewer is not possible here: the servings cover what the people of this plan eat."
+msgstr "Weniger geht hier nicht: Die Portionen decken, was die Personen dieses Plans essen."
+
+msgid "Still free. Add a recipe with “+ Recipe”, or drag one here from another day."
+msgstr "Noch frei. Füge über „+ Rezept“ eines hinzu oder zieh eines von einem anderen Tag hierher."
+
+msgid "Still free. Add a recipe with “+ Recipe”."
+msgstr "Noch frei. Füge über „+ Rezept“ eines hinzu."
+
+msgid "Free, no account. You can change everything afterwards."
+msgstr "Kostenlos und ohne Anmeldung. Danach kannst du alles ändern."
+
+msgid "Remove filter: %s"
+msgstr "Filter entfernen: %s"
+
+msgid "No recipe found"
+msgstr "Kein Rezept gefunden"
+
+msgid "No meal plan found"
+msgstr "Kein Essensplan gefunden"
+
+msgid "Show all"
+msgstr "Alle anzeigen"
+
+msgid "Filter ingredients"
+msgstr "Zutaten filtern"
+
+msgid "Find an ingredient…"
+msgstr "Zutat suchen …"
+
+msgid "Ingredient categories"
+msgstr "Zutaten-Kategorien"
+
+msgid "No ingredient matches."
+msgstr "Keine Zutat passt."
+
+msgid "%s recipe"
+msgid_plural "%s recipes"
+msgstr[0] "%s Rezept"
+msgstr[1] "%s Rezepte"
+
+msgid "%s meal plan"
+msgid_plural "%s meal plans"
+msgstr[0] "%s Essensplan"
+msgstr[1] "%s Essenspläne"
