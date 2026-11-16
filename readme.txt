@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.1.3
+Stable tag: 4.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.1.4 =
+
+Fixed:
+* "Save Plan" in the planner did nothing after the planner had been redrawn
+  without a page reload (adding a recipe, changing the people, loading a
+  plan): the click handler was bound to the button, which the redraw replaces.
+  It is now bound to the document.
 
 = 4.1.3 =
 
@@ -2384,6 +2392,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.1.4 =
+"Save Plan" keeps working after the planner has been redrawn without a reload.
 
 = 4.1.3 =
 Plan cards carry their disclosure label; the archive's filter counts match the list. Update MixMyMeals Hello Child to 2.3.4 together with this release.
