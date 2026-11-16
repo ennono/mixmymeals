@@ -1472,7 +1472,9 @@ jQuery(function ($) {
     /* ==========================================================
        CREATE MEAL PLAN (Read directly from DOM)
        ========================================================== */
-    $('.mmm-create-meal-plan-link').on('click', function (e) {
+    // Delegated: the button stands in a part mmmSoftReloadPlanner() replaces
+    // ([data-planner-part]); a handler bound to the element died with it.
+    $(document).on('click', '.mmm-create-meal-plan-link', function (e) {
         e.preventDefault();
 
         if ($(this).hasClass('mmm-is-disabled')) {
