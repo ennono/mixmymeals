@@ -2153,7 +2153,6 @@ class Mixmymeals_Shortcodes {
 			. ' autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text"> '
 			. '<button class="mmm-access__submit" type="submit">' . esc_html__( 'Open meal plan', 'mixmymeals' ) . '</button>'
 			. '</p>'
-			. '<p class="mmm-access__help">' . Mixmymeals_Meal_Plan::access_help_text() . '</p>'
 			. '</form>';
 
 		return $html;

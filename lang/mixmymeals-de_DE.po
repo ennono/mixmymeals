@@ -8062,18 +8062,6 @@ msgid_plural "%s meal plans"
 msgstr[0] "%s Essensplan"
 msgstr[1] "%s Essenspläne"
 
-msgid "Bought meal plans"
-msgstr "Gekaufte Essenspläne"
-
-msgid "Help under the code field"
-msgstr "Hilfe unter dem Codefeld"
-
-msgid "Shown under the access-code field of a meal plan sold with codes, and on a page with [mmm_access_code]. Say how buyers reach you if a code is lost. Links are allowed (<a href=\"…\">). Leave empty for the standard sentence."
-msgstr "Steht unter dem Feld für den Zugangscode eines Essensplans, der mit Codes verkauft wird, und auf einer Seite mit [mmm_access_code]. Sag hier, wie Käufer dich erreichen, wenn ein Code verloren geht. Links sind erlaubt (<a href=\"…\">). Leer lassen für den Standardsatz."
-
-msgid "Lost your code? Get in touch and we will send you a new one."
-msgstr "Code verloren? Schreib uns, dann schicken wir dir einen neuen."
-
 msgid "Copy the code and the link now — they are shown only this once."
 msgstr "Kopiere Code und Link jetzt – sie werden nur dieses eine Mal angezeigt."
 

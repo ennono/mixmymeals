@@ -4551,13 +4551,6 @@ class Mixmymeals_Meal_Plan {
 	const ACCESS_SECRET_OPTION = 'mixmymeals_access_key_secret';
 
 	/**
-	 * Option holding the help text under the code field (links allowed).
-	 *
-	 * @var string
-	 */
-	const ACCESS_HELP_OPTION = 'mixmymeals_access_code_help';
-
-	/**
 	 * Crockford's base 32: digits and letters without I, L, O and U.
 	 *
 	 * @var string
@@ -5413,22 +5406,6 @@ KEY plan_id (plan_id)
 		}
 
 		return '';
-	}
-
-	/**
-	 * The help text under the code field (links allowed), or the default.
-	 *
-	 * @return string Sanitised HTML.
-	 */
-	public static function access_help_text(): string {
-
-		$text = trim( (string) get_option( self::ACCESS_HELP_OPTION, '' ) );
-
-		if ( '' === $text ) {
-			$text = esc_html__( 'Lost your code? Get in touch and we will send you a new one.', 'mixmymeals' );
-		}
-
-		return wp_kses_post( $text );
 	}
 
 	/**

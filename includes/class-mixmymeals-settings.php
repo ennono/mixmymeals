@@ -918,22 +918,6 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
-					'id'    => 'mealplans_group_access',
-					'type'  => 'heading',
-					'label' => __( 'Bought meal plans', 'mixmymeals' ),
-				),
-				array(
-					'id'          => 'access_code_help',
-					'label'       => __( 'Help under the code field', 'mixmymeals' ),
-					'description' => __( 'Shown under the access-code field of a meal plan sold with codes, and on a page with [mmm_access_code]. Say how buyers reach you if a code is lost. Links are allowed (<a href="…">). Leave empty for the standard sentence.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => __( 'Lost your code? Get in touch and we will send you a new one.', 'mixmymeals' ),
-					'callback'    => array(
-						$this,
-						'archive_description_callback',
-					),
-				),
-				array(
 					'id'    => 'mealplans_group_photos',
 					'type'  => 'heading',
 					'label' => __( 'Meal photos', 'mixmymeals' ),

@@ -361,7 +361,6 @@ class Mixmymeals_Admin_API {
 
 			case 'subscription_append_text':
 			case 'plan_subscribe_notice':
-			case 'access_code_help':
 				$html .= '<textarea id="' . esc_attr( $field['id'] )
 						. '" rows="6" name="' . esc_attr( $option_name )
 						. '" class="large-text code" placeholder="'
