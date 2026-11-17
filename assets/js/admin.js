@@ -1266,4 +1266,77 @@ jQuery(document).ready(function ($) {
         });
     }
 
+    /* ===========================
+       ACCESS CODES (plan screen)
+       Created and revoked over AJAX; a new code is shown once, here.
+       Bound to document: the block editor re-fetches the meta-box area.
+    ============================ */
+    if (window.MixMyMealsAccessKeys) {
+        const ak = window.MixMyMealsAccessKeys;
+
+        const copyField = function (label, value) {
+            const $p = $('<p class="mmm-access-keys__copy"></p>');
+            const $input = $('<input type="text" readonly class="large-text code">').val(value);
+            const $button = $('<button type="button" class="button"></button>').text(ak.copy);
+            $button.on('click', function () {
+                $input.trigger('select');
+                const done = function () { $button.text(ak.copied); };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(value).then(done, function () { document.execCommand('copy'); done(); });
+                } else {
+                    document.execCommand('copy');
+                    done();
+                }
+            });
+            $p.append($('<strong></strong>').text(label + ' '), $input, ' ', $button);
+            return $p;
+        };
+
+        $(document).on('click', '.mmm-access-keys__create', function () {
+            const $box = $(this).closest('.mmm-access-keys');
+            const $button = $(this).prop('disabled', true);
+            const $result = $box.find('.mmm-access-keys__result').empty();
+
+            $.post(ak.ajaxurl, {
+                action: 'mmm_access_key_create',
+                nonce: ak.nonce,
+                plan_id: $box.data('plan'),
+                order_ref: $box.find('.mmm-access-keys__order').val() || ''
+            }).done(function (response) {
+                if (!response || !response.success) {
+                    $result.append($('<p class="notice notice-error inline"></p>').text((response && response.data && response.data.message) || ak.failed));
+                    return;
+                }
+                $result.append(
+                    $('<p class="mmm-access-keys__once"></p>').text(ak.once),
+                    copyField(ak.code, response.data.code),
+                    copyField(ak.link, response.data.url)
+                );
+                $box.find('.mmm-access-keys__order').val('');
+                $box.find('.mmm-access-keys__table').prop('hidden', false).find('tbody').prepend(response.data.row);
+            }).fail(function (xhr) {
+                const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
+                $result.append($('<p class="notice notice-error inline"></p>').text(msg || ak.failed));
+            }).always(function () {
+                $button.prop('disabled', false);
+            });
+        });
+
+        $(document).on('click', '.mmm-access-keys__revoke', function () {
+            const $row = $(this).closest('tr');
+            const revoke = $(this).attr('data-revoke') === '1';
+            if (revoke && !window.confirm(ak.confirm)) return;
+
+            $.post(ak.ajaxurl, {
+                action: 'mmm_access_key_revoke',
+                nonce: ak.nonce,
+                plan_id: $row.closest('.mmm-access-keys').data('plan'),
+                key_id: $row.data('key-id'),
+                revoke: revoke ? 1 : 0
+            }).done(function (response) {
+                if (response && response.success) $row.replaceWith(response.data.row);
+            });
+        });
+    }
+
 });

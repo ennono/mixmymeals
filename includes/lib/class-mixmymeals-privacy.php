@@ -628,6 +628,32 @@ class Mixmymeals_Privacy {
 		}
 
 		/*
+		 * Bought plans: only once a code has been issued. The code is a
+		 * pseudonym of the purchase — nothing on this site ties it to a
+		 * person unless an order number is noted beside it.
+		 */
+		if ( Mixmymeals_Meal_Plan::access_codes_in_use() ) {
+			$access_days = Mixmymeals_Meal_Plan::access_retention_days();
+
+			$access = __( 'Bought meal plans: whoever buys a meal plan receives a personal access code that opens the plan on this website. For each code we store a check value derived from it (not the code itself), the plan, the order number where one is noted, when it was created, and how often and when it was last used; no name and no e-mail address. The code travels in the page address; the browser also keeps it in its local storage so that the plan opens again later — it is not sent to us from there on its own (§ 25(2) no. 2 TDDDG). Failed attempts are counted per IP address in hashed form and deleted automatically after an hour. Legal basis is the purchase contract (Art. 6(1)(b) GDPR) and, for counting failed attempts, our interest in protection against guessing codes (Art. 6(1)(f) GDPR).', 'mixmymeals' );
+
+			$access .= ' ' . ( $access_days > 0
+				? sprintf(
+					/* translators: %d: number of days. */
+					_n(
+						'A code is kept as long as its plan; a revoked or expired code is deleted %d day later.',
+						'A code is kept as long as its plan; a revoked or expired code is deleted %d days later.',
+						$access_days,
+						'mixmymeals'
+					),
+					$access_days
+				)
+				: __( 'A code is kept as long as its plan.', 'mixmymeals' ) );
+
+			$items['access'] = $access;
+		}
+
+		/*
 		 * Two routes, two different records: the comment form of logged-in
 		 * users runs through wp_new_comment(), which stores IP address and
 		 * user agent; the subscriber link goes through wp_insert_comment()

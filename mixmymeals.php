@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 4.1.4
+ * Version: 4.2.0
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner and nutrition data.
  * Author: Timo Fricke
@@ -102,7 +102,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '4.1.4' );
+	$instance = Mixmymeals::instance( __FILE__, '4.2.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
@@ -141,6 +141,9 @@ Mixmymeals_Meal_Plan::register_bring();
 // wieder, sobald eine Mahlzeit geschrieben wird — sonst antwortet ein Request,
 // der Mahlzeiten anlegt und den Plan danach liest, aus der alten Liste.
 Mixmymeals_Meal_Plan::register_meal_cache();
+// Zugangscodes: ein verkauftes PDF öffnet den passwortgeschützten Plan über
+// einen Code in der Adresse (Tabelle, Prüfung, Links, Aufräumen).
+Mixmymeals_Meal_Plan::register_access();
 // Autoren-Taxonomie: Term-Felder und die einmalige Migration der alten
 // Post-Meta-Felder, ebenfalls ein Hook-Satz pro Request. Die Taxonomie selbst
 // registriert Mixmymeals_Taxonomies wie alle anderen auch.

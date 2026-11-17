@@ -40,6 +40,7 @@ function mixmymeals_run_uninstall(): void {
 	 * 1. Scheduled events
 	 * ---------------------------------------------------------------------- */
 	$mmm_cron_hooks = array(
+		'mixmymeals_access_keys_prune',
 		'mmm_subscription_dispatch',
 		'mixmymeals_daily_cleanup',
 		'mixmymeals_mail_log_prune',
@@ -97,7 +98,20 @@ function mixmymeals_run_uninstall(): void {
 		foreach ( $mmm_rating_comments as $mmm_comment_id ) {
 			wp_delete_comment( (int) $mmm_comment_id, true );
 		}
+
+		// Access codes of sold plans (may carry order numbers).
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}mmm_access_keys" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- the plugin's own table.
 	}
+
+	/*
+	 * Sold access codes outlive an uninstall unless personal data goes too:
+	 * the table stays, and with it the secret its hashes are keyed with and
+	 * its schema version — without the secret every code ever sold would
+	 * stop working after a reinstall.
+	 */
+	$mmm_keep_options = $mmm_delete_personal_data
+		? array()
+		: array( 'mixmymeals_access_key_secret', 'mixmymeals_access_keys_db_version' );
 
 	/*
 	-------------------------------------------------------------------------
@@ -110,6 +124,7 @@ function mixmymeals_run_uninstall(): void {
 			"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
 			$wpdb->esc_like( 'mixmymeals_' ) . '%'
 		)
+		. ( $mmm_keep_options ? " AND option_name NOT IN ('" . implode( "','", array_map( 'esc_sql', $mmm_keep_options ) ) . "')" : '' )
 	);
 
 	// Plugin transients (status caches, rate limits, board lists …).

@@ -205,6 +205,14 @@ class Mixmymeals_Shortcodes {
 	 */
 	private function register_single_shortcodes(): void {
 
+		// Access codes from a sold PDF: the field on a page of its own. The
+		// locked plan prints the same field in place of the password form.
+		add_shortcode(
+			'mmm_access_code',
+			array( $this, 'mmm_access_code_callback' )
+		);
+		add_filter( 'the_password_form', array( __CLASS__, 'filter_access_password_form' ), 10, 2 );
+
 		// Single Meals:
 
 		add_shortcode(
@@ -2039,6 +2047,116 @@ class Mixmymeals_Shortcodes {
 			'media'  => $this->get_meal_plan_card_thumbnail( $plan_id, $size ),
 			'mosaic' => 0,
 		);
+	}
+
+	/**
+	 * Shortcode [mmm_access_code]: the code field on a page of its own, for
+	 * whoever has the code but not the link. A valid code leads on to its
+	 * plan (Mixmymeals_Meal_Plan::access_template_redirect()), so what this
+	 * prints is the field and, after a miss, why.
+	 *
+	 * @return string
+	 */
+	public function mmm_access_code_callback(): string {
+		return self::access_code_form( 0 );
+	}
+
+	/**
+	 * Core's password form on a plan sold with codes: the code field first,
+	 * the password behind a fold (it stays the owner's way in).
+	 *
+	 * A filter rather than a change to password_form(), because core prints
+	 * this form itself wherever the_content() meets a locked post — a site
+	 * without the child theme gets the code field too.
+	 *
+	 * @param string       $output Core's form.
+	 * @param WP_Post|null $post   The post that asks (a meal's plan).
+	 * @return string
+	 */
+	public static function filter_access_password_form( $output, $post = null ) {
+
+		if ( ! $post instanceof WP_Post || 'mmm_meal_plan' !== $post->post_type ) {
+			return $output;
+		}
+
+		if ( ! Mixmymeals_Meal_Plan::has_access_keys( (int) $post->ID ) && ! Mixmymeals_Meal_Plan::has_access_param() ) {
+			return $output;
+		}
+
+		return self::access_code_form( (int) $post->ID )
+			. '<details class="mmm-access__password"><summary>' . esc_html__( 'Enter a password instead', 'mixmymeals' ) . '</summary>'
+			. $output . '</details>';
+	}
+
+	/**
+	 * The code field.
+	 *
+	 * A GET form: the code lands in the address exactly as the PDF's link
+	 * carries it, so typing it and following the link are one path, and a
+	 * miss is reported by the page that reads it. data-access-plan lets
+	 * frontend.js reopen a plan with a code this browser has used before.
+	 *
+	 * @param int $plan_id The locked plan, or 0 on a page of its own.
+	 * @return string
+	 */
+	public static function access_code_form( int $plan_id ): string {
+
+		$check   = Mixmymeals_Meal_Plan::has_access_param()
+			? Mixmymeals_Meal_Plan::requested_access()
+			: array(
+				'status' => 'empty',
+				'code'   => '',
+				'key'    => null,
+			);
+		$message = Mixmymeals_Meal_Plan::access_status_message( $check['status'] );
+
+		// A code for another plan is sent on before anything renders; a
+		// valid code for this one never reaches the form.
+		$action = $plan_id
+			? Mixmymeals_Meal_Plan::strip_access_arg( (string) get_permalink( $plan_id ) )
+			: Mixmymeals_Meal_Plan::strip_access_arg( (string) get_permalink() );
+
+		// A GET form drops the query of its action: plain permalinks
+		// (?mmm_meal_plan=…) travel as hidden fields.
+		$hidden = '';
+		$query  = (string) wp_parse_url( $action, PHP_URL_QUERY );
+		if ( '' !== $query ) {
+			parse_str( $query, $args );
+			foreach ( $args as $name => $value ) {
+				if ( is_string( $value ) ) {
+					$hidden .= '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '">';
+				}
+			}
+		}
+
+		static $count = 0;
+		++$count;
+		$input_id = 'mmm-access-code-' . $count;
+
+		$typed = Mixmymeals_Meal_Plan::requested_access_raw();
+
+		$html = '<form class="mmm-access" method="get" action="' . esc_url( $action ) . '" data-access-form'
+			. ( $plan_id ? ' data-access-plan="' . esc_attr( (string) $plan_id ) . '"' : '' )
+			. ( '' !== $message ? ' data-access-status="' . esc_attr( $check['status'] ) . '"' : '' )
+			. '>'
+			. $hidden
+			. '<p class="mmm-access__intro">' . esc_html__( 'Bought this meal plan? Enter the access code from your PDF.', 'mixmymeals' ) . '</p>';
+
+		if ( '' !== $message ) {
+			$html .= '<p class="mmm-msg mmm-msg--error mmm-access__msg" role="alert">' . esc_html( $message ) . '</p>';
+		}
+
+		$html .= '<p class="mmm-access__row">'
+			. '<label class="mmm-access__label" for="' . esc_attr( $input_id ) . '">' . esc_html__( 'Access code', 'mixmymeals' ) . '</label> '
+			. '<input class="mmm-access__input" type="text" id="' . esc_attr( $input_id ) . '" name="' . esc_attr( Mixmymeals_Meal_Plan::ACCESS_QUERY_VAR ) . '"'
+			. ' value="' . esc_attr( $typed ) . '" placeholder="K7F2-9QXM-3T" required maxlength="40"'
+			. ' autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text"> '
+			. '<button class="mmm-access__submit" type="submit">' . esc_html__( 'Open meal plan', 'mixmymeals' ) . '</button>'
+			. '</p>'
+			. '<p class="mmm-access__help">' . Mixmymeals_Meal_Plan::access_help_text() . '</p>'
+			. '</form>';
+
+		return $html;
 	}
 
 	/**
@@ -6445,7 +6563,8 @@ class Mixmymeals_Shortcodes {
 	public static function meal_plan_action_items( int $plan_id, string $cart_url = '' ): array {
 
 		$title = get_the_title( $plan_id );
-		$url   = get_permalink( $plan_id );
+		// Without an access code: share and mail are meant for others.
+		$url = Mixmymeals_Meal_Plan::strip_access_arg( (string) get_permalink( $plan_id ) );
 
 		// Bring! and the planner get the list the reader is looking at.
 		$mmm_plan   = new Mixmymeals_Meal_Plan( $plan_id );

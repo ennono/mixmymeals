@@ -1549,7 +1549,8 @@ class Mixmymeals_Post_Types {
 		 */
 		$noindex = is_singular( self::NOINDEX_POST_TYPES )
 			|| ( is_singular() && self::has_password( (int) get_queried_object_id() ) )
-			|| ( is_singular( 'mmm_meal_plan' ) && ( Mixmymeals_Meal_Plan::has_servings_param() || Mixmymeals_Meal_Plan::has_eater_param() ) );
+			|| ( is_singular( 'mmm_meal_plan' ) && ( Mixmymeals_Meal_Plan::has_servings_param() || Mixmymeals_Meal_Plan::has_eater_param() ) )
+			|| Mixmymeals_Meal_Plan::has_access_param();
 
 		/**
 		 * Allows forcing the noindex on or off for the current view.

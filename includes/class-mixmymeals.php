@@ -164,6 +164,30 @@ class Mixmymeals {
 	}
 
 	/**
+	 * The access code this page was opened with, if it opens the page's plan.
+	 *
+	 * @return array{plan:int, code:string}|null
+	 */
+	private static function access_for_script(): ?array {
+
+		if ( ! Mixmymeals_Meal_Plan::has_access_param() || ! is_singular( array( 'mmm_meal_plan', 'mmm_meal' ) ) ) {
+			return null;
+		}
+
+		$post_id = (int) get_queried_object_id();
+		$check   = Mixmymeals_Meal_Plan::requested_access();
+
+		if ( 'ok' !== $check['status'] || ! Mixmymeals_Meal_Plan::access_key_unlocks( $post_id ) ) {
+			return null;
+		}
+
+		return array(
+			'plan' => $check['key']['plan_id'],
+			'code' => $check['code'],
+		);
+	}
+
+	/**
 	 * Load plugin textdomain
 	 *
 	 * @access  public
@@ -377,6 +401,9 @@ class Mixmymeals {
 			array(
 				'ajax_url'              => admin_url( 'admin-ajax.php' ),
 				'nonce'                 => wp_create_nonce( 'mmm_frontend_nonce' ),
+				// The access code that opened this page's plan, for the
+				// browser to remember (frontend.js); null everywhere else.
+				'access'                => self::access_for_script(),
 				'load_into_cart_dialog' => array(
 					'title'   => __( 'Adjust in the planner', 'mixmymeals' ),
 					'message' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),
@@ -629,6 +656,23 @@ class Mixmymeals {
 				'removed'       => __( 'Meal deleted.', 'mixmymeals' ),
 				'failed'        => __( 'Could not be saved.', 'mixmymeals' ),
 				'confirmDelete' => __( 'Delete this meal? This cannot be undone.', 'mixmymeals' ),
+			)
+		);
+
+		// The plan's access codes: created and revoked without saving the plan.
+		wp_localize_script(
+			'mixmymeals-admin',
+			'MixMyMealsAccessKeys',
+			array(
+				'ajaxurl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'mmm_access_keys_ajax' ),
+				'once'    => __( 'Copy the code and the link now — they are shown only this once.', 'mixmymeals' ),
+				'code'    => __( 'Code', 'mixmymeals' ),
+				'link'    => __( 'Link', 'mixmymeals' ),
+				'copy'    => __( 'Copy', 'mixmymeals' ),
+				'copied'  => __( 'Copied', 'mixmymeals' ),
+				'failed'  => __( 'Could not be saved.', 'mixmymeals' ),
+				'confirm' => __( 'Revoke this code? Whoever holds it can no longer open the plan.', 'mixmymeals' ),
 			)
 		);
 

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.1.4
+Stable tag: 4.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,20 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.2.0 =
+
+Added:
+* Access codes for meal plans sold as a PDF. A password-protected plan opens
+  for whoever carries one of its codes in the address (?mmm_key=K7F2-9QXM-3T);
+  every link to the plan and its meals carries the code along, share, mail
+  and canonical do not. One code per buyer, created and revoked in the new
+  "Access codes" box on the plan screen or over REST (/access-keys).
+* The locked plan asks for the code (the password stays behind a fold);
+  [mmm_access_code] puts the field on a page of its own. Typing is forgiving
+  (case, spaces, O/0, I/L/1) and a check character tells a typo from an
+  unknown code. The browser remembers the code per plan.
+* Privacy policy section, daily pruning of revoked and expired codes.
 
 = 4.1.4 =
 
@@ -2392,6 +2406,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.2.0 =
+Sell meal plans with access codes: a code in the PDF opens the plan's page.
 
 = 4.1.4 =
 "Save Plan" keeps working after the planner has been redrawn without a reload.

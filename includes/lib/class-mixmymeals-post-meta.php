@@ -222,6 +222,16 @@ class Mixmymeals_Post_Meta {
 			array( $this, 'add_meal_plan_eaters_meta_box' )
 		);
 		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_eaters' ), 9 );
+
+		// Access codes for a plan that is sold as a PDF. Nothing here is part
+		// of the post: codes are written over AJAX the moment they are asked
+		// for, so the box posts nothing and needs no save hook.
+		add_action(
+			'add_meta_boxes_mmm_meal_plan',
+			array( $this, 'add_meal_plan_access_meta_box' )
+		);
+		add_action( 'wp_ajax_mmm_access_key_create', array( $this, 'ajax_create_access_key' ) );
+		add_action( 'wp_ajax_mmm_access_key_revoke', array( $this, 'ajax_revoke_access_key' ) );
 	}
 
 	/*
@@ -1644,6 +1654,195 @@ class Mixmymeals_Post_Meta {
 	 *
 	 * @return void
 	 */
+	/**
+	 * Who may issue and revoke codes: whoever may edit the plan and others'
+	 * posts — the REST routes' capability.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return bool
+	 */
+	private static function may_manage_access_keys( int $plan_id ): bool {
+		return current_user_can( 'edit_post', $plan_id ) && current_user_can( 'edit_others_posts' );
+	}
+
+	/**
+	 * Registers the access-code box on the plan screen.
+	 *
+	 * @param WP_Post $post The plan.
+	 * @return void
+	 */
+	public function add_meal_plan_access_meta_box( $post = null ): void {
+
+		if ( $post instanceof WP_Post && ! self::may_manage_access_keys( (int) $post->ID ) ) {
+			return;
+		}
+
+		add_meta_box(
+			'mixmymeals_plan_access_box',
+			__( 'Access codes', 'mixmymeals' ),
+			array( $this, 'render_meal_plan_access_meta_box' ),
+			'mmm_meal_plan',
+			'normal',
+			'low'
+		);
+	}
+
+	/**
+	 * The plan's access codes: one per buyer, each opening this plan.
+	 *
+	 * @param WP_Post $post The plan.
+	 * @return void
+	 */
+	public function render_meal_plan_access_meta_box( WP_Post $post ): void {
+
+		$plan_id = (int) $post->ID;
+		$keys    = Mixmymeals_Meal_Plan::get_access_keys( $plan_id );
+
+		echo '<div class="mmm-access-keys" data-plan="' . esc_attr( (string) $plan_id ) . '">';
+
+		echo '<p class="description">' . esc_html__( 'Each buyer gets a code of their own. The address with the code opens this plan; the code can also be typed into the field the locked plan shows. A code is shown once, when it is created.', 'mixmymeals' ) . '</p>';
+
+		if ( '' === (string) $post->post_password ) {
+			echo '<p class="mmm-access-keys__warning notice notice-warning inline"><span>' . esc_html__( 'This plan has no password, so it is open to everybody and a code changes nothing. Set the visibility to “Password protected” to sell it.', 'mixmymeals' ) . '</span></p>';
+		}
+
+		if ( 'publish' !== $post->post_status ) {
+			echo '<p class="mmm-access-keys__warning notice notice-info inline"><span>' . esc_html__( 'Codes open the plan only once it is published.', 'mixmymeals' ) . '</span></p>';
+		}
+
+		echo '<p class="mmm-access-keys__new">'
+			. '<label>' . esc_html__( 'Order number (optional)', 'mixmymeals' ) . ' '
+			. '<input type="text" class="regular-text mmm-access-keys__order" maxlength="100" autocomplete="off"></label> '
+			. '<button type="button" class="button button-secondary mmm-access-keys__create">' . esc_html__( 'Create code', 'mixmymeals' ) . '</button>'
+			. '</p>';
+
+		echo '<div class="mmm-access-keys__result" aria-live="polite"></div>';
+
+		echo '<table class="widefat striped mmm-access-keys__table"' . ( $keys ? '' : ' hidden' ) . '><thead><tr>'
+			. '<th scope="col">' . esc_html__( 'Code', 'mixmymeals' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Order', 'mixmymeals' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Created', 'mixmymeals' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Visits', 'mixmymeals' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Last visit', 'mixmymeals' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Status', 'mixmymeals' ) . '</th>'
+			. '<th scope="col"><span class="screen-reader-text">' . esc_html__( 'Actions', 'mixmymeals' ) . '</span></th>'
+			. '</tr></thead><tbody>';
+
+		foreach ( $keys as $key ) {
+			echo self::access_key_row_html( $key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in access_key_row_html().
+		}
+
+		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * One row of the code list.
+	 *
+	 * @param array $key See Mixmymeals_Meal_Plan::get_access_key().
+	 * @return string
+	 */
+	private static function access_key_row_html( array $key ): string {
+
+		$format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		$date   = static function ( ?string $utc ) use ( $format ): string {
+			return null === $utc ? '–' : (string) wp_date( $format, (int) strtotime( $utc . ' UTC' ) );
+		};
+
+		$labels = array(
+			'active'  => __( 'Active', 'mixmymeals' ),
+			'revoked' => __( 'Revoked', 'mixmymeals' ),
+			'expired' => __( 'Expired', 'mixmymeals' ),
+		);
+
+		$status = $labels[ $key['status'] ] ?? $key['status'];
+		if ( 'active' === $key['status'] && null !== $key['expires'] ) {
+			/* translators: %s: date the code expires. */
+			$status .= ' · ' . sprintf( __( 'until %s', 'mixmymeals' ), $date( $key['expires'] ) );
+		}
+
+		$button = null === $key['revoked']
+			? '<button type="button" class="button-link mmm-access-keys__revoke" data-revoke="1">' . esc_html__( 'Revoke', 'mixmymeals' ) . '</button>'
+			: '<button type="button" class="button-link mmm-access-keys__revoke" data-revoke="0">' . esc_html__( 'Reactivate', 'mixmymeals' ) . '</button>';
+
+		return '<tr class="mmm-access-keys__row mmm-access-keys__row--' . esc_attr( $key['status'] ) . '" data-key-id="' . esc_attr( (string) $key['id'] ) . '">'
+			. '<td><code>' . esc_html( $key['hint'] ) . '-…</code></td>'
+			. '<td>' . ( '' !== $key['order_ref'] ? esc_html( $key['order_ref'] ) : '–' ) . '</td>'
+			. '<td>' . esc_html( $date( $key['created'] ) ) . '</td>'
+			. '<td>' . esc_html( number_format_i18n( $key['uses'] ) ) . '</td>'
+			. '<td>' . esc_html( $date( $key['last_used'] ) ) . '</td>'
+			. '<td>' . esc_html( $status ) . '</td>'
+			. '<td>' . $button . '</td>'
+			. '</tr>';
+	}
+
+	/**
+	 * The plan an access-code request is about, after nonce and capability.
+	 *
+	 * @return int
+	 */
+	private function access_request_plan(): int {
+
+		check_ajax_referer( 'mmm_access_keys_ajax', 'nonce' );
+
+		$plan_id = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+
+		if ( ! $plan_id || 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown meal plan.', 'mixmymeals' ) ), 400 );
+		}
+
+		if ( ! self::may_manage_access_keys( $plan_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'mixmymeals' ) ), 403 );
+		}
+
+		return $plan_id;
+	}
+
+	/**
+	 * Creates a code and answers with it — the only time it is shown.
+	 *
+	 * @return void
+	 */
+	public function ajax_create_access_key(): void {
+
+		$plan_id = $this->access_request_plan();
+		$order   = isset( $_POST['order_ref'] ) ? sanitize_text_field( wp_unslash( $_POST['order_ref'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked in access_request_plan().
+
+		$key = Mixmymeals_Meal_Plan::create_access_key( $plan_id, $order );
+
+		if ( is_wp_error( $key ) ) {
+			wp_send_json_error( array( 'message' => $key->get_error_message() ), 500 );
+		}
+
+		wp_send_json_success(
+			array(
+				'code' => $key['code'],
+				'url'  => $key['url'],
+				'row'  => self::access_key_row_html( $key ),
+			)
+		);
+	}
+
+	/**
+	 * Revokes a code or gives it back.
+	 *
+	 * @return void
+	 */
+	public function ajax_revoke_access_key(): void {
+
+		$plan_id = $this->access_request_plan();
+		$id      = isset( $_POST['key_id'] ) ? absint( $_POST['key_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked in access_request_plan().
+		$revoke  = ! empty( $_POST['revoke'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked in access_request_plan().
+		$key     = Mixmymeals_Meal_Plan::get_access_key( $id );
+
+		if ( null === $key || $key['plan_id'] !== $plan_id ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown code.', 'mixmymeals' ) ), 400 );
+		}
+
+		Mixmymeals_Meal_Plan::set_access_key_revoked( $id, $revoke );
+
+		wp_send_json_success( array( 'row' => self::access_key_row_html( (array) Mixmymeals_Meal_Plan::get_access_key( $id ) ) ) );
+	}
+
 	public function add_meal_plan_eaters_meta_box(): void {
 		add_meta_box(
 			'mixmymeals_plan_eaters_box',

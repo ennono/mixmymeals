@@ -443,6 +443,16 @@ class Mixmymeals_Cleanup {
 				);
 				break;
 
+			case 'access_keys':
+				/* translators: %d: number of deleted access codes. */
+				$text = _n(
+					'%d access code deleted',
+					'%d access codes deleted',
+					$count,
+					'mixmymeals'
+				);
+				break;
+
 			case 'subscriptions_unconfirmed':
 				/* translators: %d: number of deleted unconfirmed subscriptions. */
 				$text = _n(

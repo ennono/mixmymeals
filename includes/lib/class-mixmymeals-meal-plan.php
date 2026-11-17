@@ -4337,7 +4337,9 @@ class Mixmymeals_Meal_Plan {
 
 		// Bring! fetches this page itself and enters no password: a
 		// protected plan answers with its ordinary page, which asks for it.
-		if ( Mixmymeals_Post_Types::has_password( $plan_id ) ) {
+		// A code on the address is Bring!'s as much as the reader's — it
+		// was handed over in the deep link from the opened plan page.
+		if ( Mixmymeals_Post_Types::has_password( $plan_id ) && ! self::access_key_unlocks( $plan_id ) ) {
 			return;
 		}
 
@@ -4489,5 +4491,1026 @@ class Mixmymeals_Meal_Plan {
 		}
 
 		return $lines;
+	}
+
+	/*
+	 * =========================================================================
+	 * Access codes: a sold PDF opens the plan's page
+	 * =========================================================================
+	 *
+	 * A plan for sale is an ordinary plan with a password, so everything that
+	 * already honours a password — listings, REST, schema, noindex, every
+	 * is_locked() — holds without a second rule. Each buyer gets a code of
+	 * their own, and the address carrying it opens the plan: the code stays in
+	 * the address, nothing is redeemed or stored on the visitor's side by the
+	 * server. One code opens exactly one plan.
+	 *
+	 * Codes are short enough to type off paper (K7F2-9QXM-3T: ten random
+	 * Crockford base-32 characters, 50 bits, plus a check character), and the
+	 * reading forgives what people get wrong: case, spaces, dashes, O for 0,
+	 * I or L for 1. The check character tells a typo from an unknown code
+	 * before the database is asked.
+	 */
+
+	/**
+	 * Query and form parameter carrying the code.
+	 *
+	 * @var string
+	 */
+	const ACCESS_QUERY_VAR = 'mmm_key';
+
+	/**
+	 * Table name without the site prefix.
+	 *
+	 * @var string
+	 */
+	const ACCESS_TABLE = 'mmm_access_keys';
+
+	/**
+	 * Schema version of the table; raising it runs dbDelta() once more.
+	 *
+	 * @var int
+	 */
+	const ACCESS_DB_VERSION = 1;
+
+	/**
+	 * Option holding the installed schema version.
+	 *
+	 * @var string
+	 */
+	const ACCESS_DB_OPTION = 'mixmymeals_access_keys_db_version';
+
+	/**
+	 * Option holding the secret the code hashes are keyed with.
+	 *
+	 * Its own secret, not wp_hash(): security plugins rotate the salts, and
+	 * every code ever sold would stop working with them.
+	 *
+	 * @var string
+	 */
+	const ACCESS_SECRET_OPTION = 'mixmymeals_access_key_secret';
+
+	/**
+	 * Option holding the help text under the code field (links allowed).
+	 *
+	 * @var string
+	 */
+	const ACCESS_HELP_OPTION = 'mixmymeals_access_code_help';
+
+	/**
+	 * Crockford's base 32: digits and letters without I, L, O and U.
+	 *
+	 * @var string
+	 */
+	const ACCESS_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+	/**
+	 * Random characters per code; one check character follows.
+	 *
+	 * @var int
+	 */
+	const ACCESS_CODE_LENGTH = 10;
+
+	/**
+	 * Failed attempts per address and hour before codes are refused for a
+	 * while (filter mixmymeals_access_code_attempts_per_hour).
+	 *
+	 * @var int
+	 */
+	const ACCESS_ATTEMPTS_PER_HOUR = 20;
+
+	/**
+	 * Seconds between two requests that still count as one visit.
+	 *
+	 * @var int
+	 */
+	const ACCESS_VISIT_GAP = 1800;
+
+	/**
+	 * Days a revoked or expired code is kept before the daily prune drops it.
+	 *
+	 * @var int
+	 */
+	const ACCESS_RETENTION_DAYS = 90;
+
+	/**
+	 * Daily event that prunes revoked and expired codes.
+	 *
+	 * @var string
+	 */
+	const ACCESS_CRON_HOOK = 'mixmymeals_access_keys_prune';
+
+	/**
+	 * Checked codes of this request, keyed by the raw value.
+	 *
+	 * @var array<string,array>
+	 */
+	private static $access_checks = array();
+
+	/**
+	 * Whether a plan has codes, memoised per request (see has_access_keys()).
+	 *
+	 * @var array<int,bool>
+	 */
+	private static $access_plans = array();
+
+	/**
+	 * Whether this request's visit has been counted.
+	 *
+	 * @var bool
+	 */
+	private static $access_use_recorded = false;
+
+	/**
+	 * Attaches the access-code hooks once per request.
+	 *
+	 * @return void
+	 */
+	public static function register_access(): void {
+
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
+
+		add_action( 'init', array( __CLASS__, 'maybe_install_access_table' ), 5 );
+		add_action( 'init', array( __CLASS__, 'maybe_schedule_access_prune' ) );
+		add_action( self::ACCESS_CRON_HOOK, array( __CLASS__, 'prune_access_keys' ) );
+
+		// The one place the lock is lifted: core's own question, which
+		// is_locked() and the_content() both ask.
+		add_filter( 'post_password_required', array( __CLASS__, 'filter_access_password_required' ), 10, 2 );
+
+		// Every link to the plan and its meals carries the code along.
+		add_filter( 'post_type_link', array( __CLASS__, 'filter_access_link' ), 10, 2 );
+
+		// ...except the addresses that are meant for others.
+		add_filter( 'get_canonical_url', array( __CLASS__, 'strip_access_arg' ) );
+		add_filter( 'wpseo_canonical', array( __CLASS__, 'strip_access_arg' ) );
+		add_filter( 'wpseo_opengraph_url', array( __CLASS__, 'strip_access_arg' ) );
+
+		// Before the Bring! view (10) and before any template is chosen.
+		add_action( 'template_redirect', array( __CLASS__, 'access_template_redirect' ), 1 );
+
+		add_action( 'before_delete_post', array( __CLASS__, 'delete_access_keys_of_plan' ) );
+	}
+
+	/**
+	 * The table's full name.
+	 *
+	 * @return string
+	 */
+	public static function access_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . self::ACCESS_TABLE;
+	}
+
+	/**
+	 * Creates or updates the table when the schema version moved.
+	 *
+	 * Runs on init rather than on activation, because a deploy copies the
+	 * files and never activates anything.
+	 *
+	 * @return void
+	 */
+	public static function maybe_install_access_table(): void {
+
+		if ( (int) get_option( self::ACCESS_DB_OPTION, 0 ) >= self::ACCESS_DB_VERSION ) {
+			return;
+		}
+
+		global $wpdb;
+
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+		$table   = self::access_table();
+		$charset = $wpdb->get_charset_collate();
+
+		// dbDelta() is picky: two spaces after PRIMARY KEY, one field per line.
+		dbDelta(
+			"CREATE TABLE {$table} (
+id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+plan_id bigint(20) unsigned NOT NULL,
+key_hash char(64) NOT NULL,
+hint char(4) NOT NULL DEFAULT '',
+order_ref varchar(100) NOT NULL DEFAULT '',
+created datetime NOT NULL,
+expires datetime DEFAULT NULL,
+revoked datetime DEFAULT NULL,
+uses int(10) unsigned NOT NULL DEFAULT 0,
+last_used datetime DEFAULT NULL,
+PRIMARY KEY  (id),
+UNIQUE KEY key_hash (key_hash),
+KEY plan_id (plan_id)
+) {$charset};"
+		);
+
+		update_option( self::ACCESS_DB_OPTION, self::ACCESS_DB_VERSION );
+	}
+
+	/**
+	 * Schedules the daily prune once.
+	 *
+	 * Its own event: the cleanup's cron runs only while that (unrelated,
+	 * off-by-default) setting is on, and old codes must go regardless.
+	 *
+	 * @return void
+	 */
+	public static function maybe_schedule_access_prune(): void {
+
+		if ( ! wp_next_scheduled( self::ACCESS_CRON_HOOK ) ) {
+			wp_schedule_event( time(), 'daily', self::ACCESS_CRON_HOOK );
+		}
+	}
+
+	/**
+	 * The secret the code hashes are keyed with, created on first use.
+	 *
+	 * @return string
+	 */
+	private static function access_secret(): string {
+
+		$secret = (string) get_option( self::ACCESS_SECRET_OPTION, '' );
+
+		if ( strlen( $secret ) < 32 ) {
+			$secret = wp_generate_password( 64, true, true );
+			add_option( self::ACCESS_SECRET_OPTION, $secret, '', false );
+			// Another request may have won the race; its secret counts.
+			$secret = (string) get_option( self::ACCESS_SECRET_OPTION, $secret );
+		}
+
+		return $secret;
+	}
+
+	/**
+	 * The stored hash of a normalised code (eleven characters, no dashes).
+	 *
+	 * @param string $plain Normalised code.
+	 * @return string
+	 */
+	private static function access_code_hash( string $plain ): string {
+		return hash_hmac( 'sha256', $plain, self::access_secret() );
+	}
+
+	/**
+	 * The check character for ten code characters: the first five bits of
+	 * their SHA-256, so any slip — a wrong character, two swapped — is
+	 * caught 31 times out of 32.
+	 *
+	 * @param string $body Ten normalised characters.
+	 * @return string
+	 */
+	private static function access_check_char( string $body ): string {
+		return self::ACCESS_ALPHABET[ ord( hash( 'sha256', $body, true )[0] ) >> 3 ];
+	}
+
+	/**
+	 * A new random code, normalised (no dashes).
+	 *
+	 * @return string
+	 */
+	private static function generate_access_code(): string {
+
+		$body = '';
+		for ( $i = 0; $i < self::ACCESS_CODE_LENGTH; $i++ ) {
+			$body .= self::ACCESS_ALPHABET[ random_int( 0, 31 ) ];
+		}
+
+		return $body . self::access_check_char( $body );
+	}
+
+	/**
+	 * A code as printed: K7F2-9QXM-3T.
+	 *
+	 * @param string $plain Normalised code.
+	 * @return string
+	 */
+	public static function format_access_code( string $plain ): string {
+		return implode( '-', str_split( $plain, 4 ) );
+	}
+
+	/**
+	 * Reads what somebody typed or a link carried, forgivingly.
+	 *
+	 * Case, spaces and dashes do not matter; O reads as 0, I and L as 1 and
+	 * U as V (Crockford's rules), because those are what gets misread off
+	 * paper.
+	 *
+	 * @param string $raw Input.
+	 * @return array{status:string, code:string} Status `ok` (with the
+	 *         normalised code), `empty`, `malformed` (wrong length or a
+	 *         character no code has) or `typo` (the check character disagrees).
+	 */
+	public static function normalise_access_code( string $raw ): array {
+
+		$value = strtoupper( (string) preg_replace( '/[\s\-‐-―_.]+/u', '', $raw ) );
+
+		if ( '' === $value ) {
+			return array(
+				'status' => 'empty',
+				'code'   => '',
+			);
+		}
+
+		$value = strtr(
+			$value,
+			array(
+				'O' => '0',
+				'I' => '1',
+				'L' => '1',
+				'U' => 'V',
+			)
+		);
+
+		if ( strlen( $value ) !== self::ACCESS_CODE_LENGTH + 1
+			|| strspn( $value, self::ACCESS_ALPHABET ) !== strlen( $value ) ) {
+			return array(
+				'status' => 'malformed',
+				'code'   => '',
+			);
+		}
+
+		$body = substr( $value, 0, self::ACCESS_CODE_LENGTH );
+
+		if ( self::access_check_char( $body ) !== substr( $value, -1 ) ) {
+			return array(
+				'status' => 'typo',
+				'code'   => '',
+			);
+		}
+
+		return array(
+			'status' => 'ok',
+			'code'   => $value,
+		);
+	}
+
+	/**
+	 * Issues a new code for a plan.
+	 *
+	 * The code itself is returned once and never stored — only its hash and
+	 * its first four characters, which tell codes apart in the list.
+	 *
+	 * @param int      $plan_id   Meal plan post ID.
+	 * @param string   $order_ref Order number from the shop, optional.
+	 * @param int|null $expires   Unix time the code stops working, or null.
+	 * @return array|WP_Error The stored row (see access_key_row()) plus
+	 *                        `code` (as printed) and `url`.
+	 */
+	public static function create_access_key( int $plan_id, string $order_ref = '', ?int $expires = null ) {
+
+		if ( 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			return new WP_Error( 'not_a_plan', __( 'Access codes can only be issued for meal plans.', 'mixmymeals' ) );
+		}
+
+		self::maybe_install_access_table();
+
+		global $wpdb;
+
+		$order_ref = substr( sanitize_text_field( $order_ref ), 0, 100 );
+
+		// A collision of 50 random bits is all but impossible; the unique
+		// index would refuse it, and a second draw settles it.
+		for ( $attempt = 0; $attempt < 5; $attempt++ ) {
+
+			$plain = self::generate_access_code();
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- own table.
+			$inserted = $wpdb->insert(
+				self::access_table(),
+				array(
+					'plan_id'   => $plan_id,
+					'key_hash'  => self::access_code_hash( $plain ),
+					'hint'      => substr( $plain, 0, 4 ),
+					'order_ref' => $order_ref,
+					'created'   => gmdate( 'Y-m-d H:i:s' ),
+					'expires'   => null === $expires ? null : gmdate( 'Y-m-d H:i:s', $expires ),
+				),
+				array( '%d', '%s', '%s', '%s', '%s', '%s' )
+			);
+
+			if ( $inserted ) {
+				$row = self::get_access_key( (int) $wpdb->insert_id );
+
+				if ( null === $row ) {
+					break;
+				}
+
+				unset( self::$access_plans[ $plan_id ] );
+
+				$row['code'] = self::format_access_code( $plain );
+				$row['url']  = self::access_url( $plan_id, $plain );
+
+				return $row;
+			}
+		}
+
+		return new WP_Error( 'not_stored', __( 'The access code could not be stored.', 'mixmymeals' ) );
+	}
+
+	/**
+	 * The address that opens a plan with a code.
+	 *
+	 * @param int    $plan_id Meal plan post ID.
+	 * @param string $plain   Code, normalised or as printed.
+	 * @return string
+	 */
+	public static function access_url( int $plan_id, string $plain ): string {
+
+		$read = self::normalise_access_code( $plain );
+		$base = self::strip_access_arg( (string) get_permalink( $plan_id ) );
+
+		if ( 'ok' !== $read['status'] || '' === $base ) {
+			return $base;
+		}
+
+		return add_query_arg( self::ACCESS_QUERY_VAR, self::format_access_code( $read['code'] ), $base );
+	}
+
+	/**
+	 * A stored row in the shape every caller reads.
+	 *
+	 * @param object|array $row Database row.
+	 * @return array{id:int, plan_id:int, hint:string, order_ref:string, created:string, expires:?string, revoked:?string, uses:int, last_used:?string, status:string}
+	 *         Times in UTC (Y-m-d H:i:s); status `active`, `revoked` or `expired`.
+	 */
+	private static function access_key_row( $row ): array {
+
+		$row = (array) $row;
+
+		$key = array(
+			'id'        => (int) $row['id'],
+			'plan_id'   => (int) $row['plan_id'],
+			'hint'      => (string) $row['hint'],
+			'order_ref' => (string) $row['order_ref'],
+			'created'   => (string) $row['created'],
+			'expires'   => empty( $row['expires'] ) ? null : (string) $row['expires'],
+			'revoked'   => empty( $row['revoked'] ) ? null : (string) $row['revoked'],
+			'uses'      => (int) $row['uses'],
+			'last_used' => empty( $row['last_used'] ) ? null : (string) $row['last_used'],
+		);
+
+		if ( null !== $key['revoked'] ) {
+			$key['status'] = 'revoked';
+		} elseif ( null !== $key['expires'] && strtotime( $key['expires'] . ' UTC' ) <= time() ) {
+			$key['status'] = 'expired';
+		} else {
+			$key['status'] = 'active';
+		}
+
+		return $key;
+	}
+
+	/**
+	 * One stored code by its ID.
+	 *
+	 * @param int $id Row ID.
+	 * @return array|null See access_key_row().
+	 */
+	public static function get_access_key( int $id ): ?array {
+
+		global $wpdb;
+
+		if ( $id <= 0 || ! self::access_table_exists() ) {
+			return null;
+		}
+
+		$table = self::access_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) );
+
+		return $row ? self::access_key_row( $row ) : null;
+	}
+
+	/**
+	 * The codes issued for a plan, newest first.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return array[] See access_key_row().
+	 */
+	public static function get_access_keys( int $plan_id ): array {
+
+		global $wpdb;
+
+		if ( $plan_id <= 0 || ! self::access_table_exists() ) {
+			return array();
+		}
+
+		$table = self::access_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE plan_id = %d ORDER BY id DESC", $plan_id ) );
+
+		return array_map( array( __CLASS__, 'access_key_row' ), (array) $rows );
+	}
+
+	/**
+	 * Whether any code has been issued for a plan (in any state) — what
+	 * makes its locked page ask for a code rather than a password.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return bool
+	 */
+	public static function has_access_keys( int $plan_id ): bool {
+
+		if ( ! isset( self::$access_plans[ $plan_id ] ) ) {
+			global $wpdb;
+
+			$table = self::access_table();
+			$found = false;
+			if ( self::access_table_exists() ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+				$found = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE plan_id = %d LIMIT 1", $plan_id ) );
+			}
+			self::$access_plans[ $plan_id ] = $found;
+		}
+
+		return self::$access_plans[ $plan_id ];
+	}
+
+	/**
+	 * Finds the stored code a typed one stands for, without judging it.
+	 *
+	 * @param string $raw Input.
+	 * @return array|null See access_key_row().
+	 */
+	public static function find_access_key( string $raw ): ?array {
+
+		global $wpdb;
+
+		$read = self::normalise_access_code( $raw );
+
+		if ( 'ok' !== $read['status'] || ! self::access_table_exists() ) {
+			return null;
+		}
+
+		$table = self::access_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE key_hash = %s", self::access_code_hash( $read['code'] ) ) );
+
+		return $row ? self::access_key_row( $row ) : null;
+	}
+
+	/**
+	 * Revokes a code or gives it back.
+	 *
+	 * @param int  $id      Row ID.
+	 * @param bool $revoked True to revoke.
+	 * @return bool Whether the row exists.
+	 */
+	public static function set_access_key_revoked( int $id, bool $revoked ): bool {
+
+		global $wpdb;
+
+		if ( null === self::get_access_key( $id ) ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- own table.
+		$wpdb->update(
+			self::access_table(),
+			array( 'revoked' => $revoked ? gmdate( 'Y-m-d H:i:s' ) : null ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+
+		self::$access_checks = array();
+
+		return true;
+	}
+
+	/**
+	 * Whether the table is there (before the first init on a fresh deploy,
+	 * or during uninstall, it may not be).
+	 *
+	 * @return bool
+	 */
+	private static function access_table_exists(): bool {
+		return (int) get_option( self::ACCESS_DB_OPTION, 0 ) >= 1;
+	}
+
+	/**
+	 * Checks a code: is it one, is it ours, may it still be used.
+	 *
+	 * Memoised per value. Failed attempts are counted per address (hashed)
+	 * and hour; past the limit nothing is looked up until the hour is over.
+	 *
+	 * @param string $raw Input.
+	 * @return array{status:string, code:string, key:?array} Status `ok`,
+	 *         `empty`, `malformed`, `typo`, `unknown`, `revoked`, `expired`,
+	 *         `unavailable` (the plan is not published) or `throttled`.
+	 *         `code` is the code as printed where it could be read.
+	 */
+	public static function check_access_code( string $raw ): array {
+
+		if ( isset( self::$access_checks[ $raw ] ) ) {
+			return self::$access_checks[ $raw ];
+		}
+
+		$read   = self::normalise_access_code( $raw );
+		$result = array(
+			'status' => $read['status'],
+			'code'   => 'ok' === $read['status'] ? self::format_access_code( $read['code'] ) : '',
+			'key'    => null,
+		);
+
+		if ( 'empty' !== $read['status'] ) {
+
+			if ( self::access_attempts_exhausted() ) {
+				$result['status'] = 'throttled';
+			} elseif ( 'ok' === $read['status'] ) {
+				$key = self::find_access_key( $read['code'] );
+
+				if ( null === $key ) {
+					$result['status'] = 'unknown';
+				} elseif ( 'active' !== $key['status'] ) {
+					$result['status'] = $key['status'];
+					$result['key']    = $key;
+				} elseif ( 'publish' !== get_post_status( $key['plan_id'] ) ) {
+					$result['status'] = 'unavailable';
+					$result['key']    = $key;
+				} else {
+					$result['key'] = $key;
+				}
+			}
+
+			if ( in_array( $result['status'], array( 'malformed', 'typo', 'unknown' ), true ) ) {
+				self::count_access_attempt();
+			}
+		}
+
+		self::$access_checks[ $raw ] = $result;
+
+		return $result;
+	}
+
+	/**
+	 * The transient counting this address's failed attempts.
+	 *
+	 * @return string
+	 */
+	private static function access_attempts_key(): string {
+
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+
+		return 'mmm_rl_access_' . wp_hash( $ip ); // Keyed, so the counter cannot be reversed to the IP.
+	}
+
+	/**
+	 * Whether this address has used up its failed attempts for the hour.
+	 *
+	 * @return bool
+	 */
+	private static function access_attempts_exhausted(): bool {
+
+		$limit = (int) apply_filters( 'mixmymeals_access_code_attempts_per_hour', self::ACCESS_ATTEMPTS_PER_HOUR );
+
+		return $limit > 0 && (int) get_transient( self::access_attempts_key() ) >= $limit;
+	}
+
+	/**
+	 * Counts one failed attempt.
+	 *
+	 * @return void
+	 */
+	private static function count_access_attempt(): void {
+
+		$key = self::access_attempts_key();
+
+		set_transient( $key, (int) get_transient( $key ) + 1, HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * The raw code this request carries: the address on a page, the posted
+	 * fields on an AJAX call (frontend.js sends the page's along).
+	 *
+	 * @return string '' when there is none.
+	 */
+	public static function requested_access_raw(): string {
+
+		// phpcs:disable WordPress.Security.NonceVerification -- a code is its own credential.
+		$raw = '';
+		if ( isset( $_GET[ self::ACCESS_QUERY_VAR ] ) && is_string( $_GET[ self::ACCESS_QUERY_VAR ] ) ) {
+			$raw = sanitize_text_field( wp_unslash( $_GET[ self::ACCESS_QUERY_VAR ] ) );
+		} elseif ( isset( $_POST[ self::ACCESS_QUERY_VAR ] ) && is_string( $_POST[ self::ACCESS_QUERY_VAR ] ) ) {
+			$raw = sanitize_text_field( wp_unslash( $_POST[ self::ACCESS_QUERY_VAR ] ) );
+		}
+		// phpcs:enable
+
+		return substr( $raw, 0, 40 );
+	}
+
+	/**
+	 * Whether the request carries a code parameter at all, valid or not.
+	 *
+	 * @return bool
+	 */
+	public static function has_access_param(): bool {
+		return '' !== self::requested_access_raw();
+	}
+
+	/**
+	 * The check of this request's code (see check_access_code()); a valid one
+	 * counts as a visit, at most once per ACCESS_VISIT_GAP.
+	 *
+	 * @return array{status:string, code:string, key:?array}
+	 */
+	public static function requested_access(): array {
+
+		$check = self::check_access_code( self::requested_access_raw() );
+
+		if ( 'ok' === $check['status'] && ! self::$access_use_recorded ) {
+			self::$access_use_recorded = true;
+			self::record_access_use( $check['key'] );
+		}
+
+		return $check;
+	}
+
+	/**
+	 * Counts a visit and notes its time.
+	 *
+	 * @param array $key See access_key_row().
+	 * @return void
+	 */
+	private static function record_access_use( array $key ): void {
+
+		if ( null !== $key['last_used'] && strtotime( $key['last_used'] . ' UTC' ) > time() - self::ACCESS_VISIT_GAP ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$table = self::access_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET uses = uses + 1, last_used = %s WHERE id = %d", gmdate( 'Y-m-d H:i:s' ), $key['id'] ) );
+	}
+
+	/**
+	 * The plan a post belongs to for access: a meal's plan, else itself.
+	 *
+	 * @param int $post_id Plan or meal ID.
+	 * @return int 0 for anything else.
+	 */
+	private static function access_plan_of( int $post_id ): int {
+
+		$post = get_post( $post_id );
+
+		if ( ! $post instanceof WP_Post ) {
+			return 0;
+		}
+
+		if ( 'mmm_meal_plan' === $post->post_type ) {
+			return (int) $post->ID;
+		}
+
+		if ( 'mmm_meal' === $post->post_type && 'mmm_meal_plan' === get_post_type( (int) $post->post_parent ) ) {
+			return (int) $post->post_parent;
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Whether this request's code opens a plan (or a meal's plan).
+	 *
+	 * @param int $post_id Plan or meal ID.
+	 * @return bool
+	 */
+	public static function access_key_unlocks( int $post_id ): bool {
+
+		if ( ! self::has_access_param() ) {
+			return false;
+		}
+
+		$plan_id = self::access_plan_of( $post_id );
+		$check   = self::requested_access();
+
+		return $plan_id > 0 && 'ok' === $check['status'] && $check['key']['plan_id'] === $plan_id;
+	}
+
+	/**
+	 * Lifts the password for the plan the request's code opens.
+	 *
+	 * @param bool         $required Whether core asks for the password.
+	 * @param WP_Post|null $post     The post.
+	 * @return bool
+	 */
+	public static function filter_access_password_required( $required, $post ) {
+
+		if ( ! $required || ! $post instanceof WP_Post || 'mmm_meal_plan' !== $post->post_type ) {
+			return $required;
+		}
+
+		return self::access_key_unlocks( (int) $post->ID ) ? false : $required;
+	}
+
+	/**
+	 * Carries the code along on every link to the plan it opens and its
+	 * meals, so nobody who came in with it is locked out one click later.
+	 *
+	 * @param string  $link Permalink.
+	 * @param WP_Post $post The post.
+	 * @return string
+	 */
+	public static function filter_access_link( $link, $post ) {
+
+		if ( ! $post instanceof WP_Post
+			|| ! in_array( $post->post_type, array( 'mmm_meal_plan', 'mmm_meal' ), true )
+			|| ( is_admin() && ! wp_doing_ajax() )
+			|| ! self::has_access_param() ) {
+			return $link;
+		}
+
+		$plan_id = self::access_plan_of( (int) $post->ID );
+
+		if ( ! $plan_id || ! self::access_key_unlocks( $plan_id ) || ! Mixmymeals_Post_Types::has_password( $plan_id ) ) {
+			return $link;
+		}
+
+		return add_query_arg( self::ACCESS_QUERY_VAR, self::requested_access()['code'], $link );
+	}
+
+	/**
+	 * Takes the code out of an address meant for somebody else: canonical,
+	 * social tags, the share and mail actions.
+	 *
+	 * @param mixed $url Address.
+	 * @return mixed
+	 */
+	public static function strip_access_arg( $url ) {
+
+		if ( ! is_string( $url ) || false === strpos( $url, self::ACCESS_QUERY_VAR . '=' ) ) {
+			return $url;
+		}
+
+		return remove_query_arg( self::ACCESS_QUERY_VAR, $url );
+	}
+
+	/**
+	 * A page carrying a code: kept out of caches and referrers, and sent on
+	 * to its plan when the code opens a different page's plan — which is how
+	 * the code field on a page of its own ([mmm_access_code]) leads anywhere.
+	 *
+	 * @return void
+	 */
+	public static function access_template_redirect(): void {
+
+		if ( ! self::has_access_param() ) {
+			return;
+		}
+
+		// The page differs per code and a revoked code must stop working at
+		// once: no page cache, no referrer carrying the code elsewhere.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- the page caches' own switch.
+		}
+		nocache_headers();
+		header( 'Referrer-Policy: no-referrer' );
+
+		$check = self::requested_access();
+
+		if ( 'ok' !== $check['status'] ) {
+			return;
+		}
+
+		$plan_id = $check['key']['plan_id'];
+		$current = is_singular() ? self::access_plan_of( (int) get_queried_object_id() ) : 0;
+
+		if ( $current === $plan_id ) {
+			return;
+		}
+
+		wp_safe_redirect( self::access_url( $plan_id, $check['code'] ), 302, 'MixMyMeals' );
+		exit;
+	}
+
+	/**
+	 * What a page says about a code that did not open it.
+	 *
+	 * @param string $status See check_access_code().
+	 * @return string Plain text; '' for `ok` and `empty`.
+	 */
+	public static function access_status_message( string $status ): string {
+
+		switch ( $status ) {
+			case 'malformed':
+				return __( 'That does not look like an access code. It has eleven characters, like K7F2-9QXM-3T.', 'mixmymeals' );
+			case 'typo':
+				return __( 'There seems to be a typo in this code. Please check it again — upper or lower case and O or 0 do not matter.', 'mixmymeals' );
+			case 'unknown':
+				return __( 'We do not know this code. Please check it again.', 'mixmymeals' );
+			case 'revoked':
+				return __( 'This code is no longer valid.', 'mixmymeals' );
+			case 'expired':
+				return __( 'This code has expired.', 'mixmymeals' );
+			case 'unavailable':
+				return __( 'This meal plan is not available at the moment.', 'mixmymeals' );
+			case 'throttled':
+				return __( 'Too many attempts. Please try again in an hour.', 'mixmymeals' );
+		}
+
+		return '';
+	}
+
+	/**
+	 * The help text under the code field (links allowed), or the default.
+	 *
+	 * @return string Sanitised HTML.
+	 */
+	public static function access_help_text(): string {
+
+		$text = trim( (string) get_option( self::ACCESS_HELP_OPTION, '' ) );
+
+		if ( '' === $text ) {
+			$text = esc_html__( 'Lost your code? Get in touch and we will send you a new one.', 'mixmymeals' );
+		}
+
+		return wp_kses_post( $text );
+	}
+
+	/**
+	 * Deletes the codes of a plan that is being deleted.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public static function delete_access_keys_of_plan( $post_id ): void {
+
+		$post_id = (int) $post_id;
+
+		if ( 'mmm_meal_plan' !== get_post_type( $post_id ) || ! self::access_table_exists() ) {
+			return;
+		}
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- own table.
+		$deleted = (int) $wpdb->delete( self::access_table(), array( 'plan_id' => $post_id ), array( '%d' ) );
+
+		unset( self::$access_plans[ $post_id ] );
+
+		if ( $deleted && class_exists( 'Mixmymeals_Cleanup' ) ) {
+			Mixmymeals_Cleanup::record( 'access_keys', $deleted );
+		}
+	}
+
+	/**
+	 * Drops codes revoked or expired more than ACCESS_RETENTION_DAYS ago
+	 * (filter mixmymeals_access_key_retention_days; 0 keeps them).
+	 *
+	 * @return int Number of codes deleted.
+	 */
+	public static function prune_access_keys(): int {
+
+		$days = (int) apply_filters( 'mixmymeals_access_key_retention_days', self::ACCESS_RETENTION_DAYS );
+
+		if ( $days <= 0 || ! self::access_table_exists() ) {
+			return 0;
+		}
+
+		global $wpdb;
+
+		$table  = self::access_table();
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+		$deleted = (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE ( revoked IS NOT NULL AND revoked < %s ) OR ( expires IS NOT NULL AND expires < %s )", $cutoff, $cutoff ) );
+
+		if ( $deleted && class_exists( 'Mixmymeals_Cleanup' ) ) {
+			Mixmymeals_Cleanup::record( 'access_keys', $deleted );
+		}
+
+		return $deleted;
+	}
+
+	/**
+	 * Whether any code has been issued on this site — the privacy text
+	 * describes bought plans only then.
+	 *
+	 * @return bool
+	 */
+	public static function access_codes_in_use(): bool {
+
+		if ( ! self::access_table_exists() ) {
+			return false;
+		}
+
+		global $wpdb;
+
+		$table = self::access_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table, name from the prefix.
+		return (bool) $wpdb->get_var( "SELECT 1 FROM {$table} LIMIT 1" );
+	}
+
+	/**
+	 * Days a revoked or expired code is kept, as the privacy text states it.
+	 *
+	 * @return int 0 = kept as long as the plan.
+	 */
+	public static function access_retention_days(): int {
+		return max( 0, (int) apply_filters( 'mixmymeals_access_key_retention_days', self::ACCESS_RETENTION_DAYS ) );
 	}
 }

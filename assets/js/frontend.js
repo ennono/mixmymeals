@@ -4,16 +4,86 @@ jQuery(function ($) {
        AJAX HELPER
        ========================================================== */
     function mmmPost(action, data) {
+        const base = {
+            action: action,
+            nonce: mixmymeals.nonce
+        };
+        // A plan opened with an access code: every answer about it needs
+        // the code as much as the page did.
+        const key = mmmAccessParam();
+        if (key) base.mmm_key = key;
+
         return $.ajax({
             url: mixmymeals.ajax_url,
             method: 'POST',
             dataType: 'json',
-            data: Object.assign({
-                action: action,
-                nonce: mixmymeals.nonce
-            }, data || {})
+            data: Object.assign(base, data || {})
         });
     }
+
+    /* ==========================================================
+       ACCESS CODES (a sold PDF opens its plan)
+       The code travels in the address. The browser remembers it per plan
+       (localStorage, never sent on its own), so whoever comes back over the
+       menu or a bookmark without it is let in again rather than stopped.
+       ========================================================== */
+    const MMM_ACCESS_KEY = 'mmm_access_v1';
+
+    function mmmAccessParam() {
+        try {
+            return new URLSearchParams(window.location.search).get('mmm_key') || '';
+        } catch (err) {
+            return '';
+        }
+    }
+
+    function mmmAccessStore(store) {
+        try {
+            if (store === undefined) {
+                return JSON.parse(window.localStorage.getItem(MMM_ACCESS_KEY) || '{}') || {};
+            }
+            window.localStorage.setItem(MMM_ACCESS_KEY, JSON.stringify(store));
+        } catch (err) { /* private mode: the link still works */ }
+        return {};
+    }
+
+    (function mmmAccess() {
+        const opened = window.mixmymeals && mixmymeals.access;
+
+        // This page was opened with a valid code: remember it.
+        if (opened && opened.plan && opened.code) {
+            const store = mmmAccessStore();
+            store[opened.plan] = { c: opened.code, t: Date.now() };
+            mmmAccessStore(store);
+            return;
+        }
+
+        const $form = $('[data-access-form][data-access-plan]').first();
+        if (!$form.length) return;
+
+        const plan = $form.attr('data-access-plan');
+        const store = mmmAccessStore();
+        const saved = store[plan];
+        const param = mmmAccessParam();
+
+        // A remembered code that no longer works is forgotten, so the
+        // reader sees why and is not sent round in a circle.
+        if (param && $form.is('[data-access-status]')) {
+            if (saved && saved.c === param) {
+                delete store[plan];
+                mmmAccessStore(store);
+            }
+            return;
+        }
+
+        if (!param && saved && saved.c) {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('mmm_key', saved.c);
+                window.location.replace(url.toString());
+            } catch (err) { /* the field is there */ }
+        }
+    })();
 
     /* ==========================================================
        UI HELPERS

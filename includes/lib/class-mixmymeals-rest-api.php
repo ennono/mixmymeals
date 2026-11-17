@@ -1321,6 +1321,85 @@ class Mixmymeals_Rest_Api {
 			)
 		);
 		/*
+		 * Access codes for plans sold as a PDF (Mixmymeals_Meal_Plan, access
+		 * codes). A new code is in the answer once and never again: only its
+		 * hash is stored. `lookup` finds the stored code a buyer reads out.
+		 */
+		register_rest_route(
+			'mixmymeals/v1',
+			'/access-keys',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'create_access_key' ),
+				'permission_callback' => $auth,
+				'args'                => array(
+					'plan_id'   => array(
+						'required' => true,
+						'type'     => 'integer',
+						'minimum'  => 1,
+					),
+					'order_ref' => array(
+						'required'  => false,
+						'type'      => 'string',
+						'maxLength' => 100,
+						'default'   => '',
+					),
+					'expires'   => array(
+						'required'    => false,
+						'type'        => array( 'string', 'null' ),
+						'description' => 'Date or date-time (site time zone) the code stops working; null or omitted = never.',
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'mixmymeals/v1',
+			'/access-keys/lookup',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'lookup_access_key' ),
+				'permission_callback' => $auth,
+				'args'                => array(
+					'code' => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'mixmymeals/v1',
+			'/access-keys/(?P<id>\d+)',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_access_key' ),
+					'permission_callback' => $auth,
+				),
+				array(
+					'methods'             => WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'update_access_key' ),
+					'permission_callback' => $auth,
+					'args'                => array(
+						'revoked' => array(
+							'required' => true,
+							'type'     => 'boolean',
+						),
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'mixmymeals/v1',
+			'/meal-plans/(?P<id>\d+)/access-keys',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_plan_access_keys' ),
+				'permission_callback' => $auth,
+			)
+		);
+
+		/*
 		 * Nutrition, price and diet for many ingredients and products at once —
 		 * the data-correction counterpart of /keeping/bulk, and thin for the
 		 * same reason: the single routes answer with whole serializations.
@@ -6562,6 +6641,172 @@ class Mixmymeals_Rest_Api {
 				'errors'  => $errors,
 			),
 			200
+		);
+	}
+
+	/**
+	 * A stored code as the routes answer with it.
+	 *
+	 * @param array $key See Mixmymeals_Meal_Plan::get_access_key().
+	 * @return array
+	 */
+	private static function serialize_access_key( array $key ): array {
+
+		$iso = static function ( ?string $utc ): ?string {
+			return null === $utc ? null : gmdate( 'c', (int) strtotime( $utc . ' UTC' ) );
+		};
+
+		$out = array(
+			'id'        => $key['id'],
+			'plan_id'   => $key['plan_id'],
+			'hint'      => $key['hint'],
+			'order_ref' => $key['order_ref'],
+			'status'    => $key['status'],
+			'created'   => $iso( $key['created'] ),
+			'expires'   => $iso( $key['expires'] ),
+			'revoked'   => $iso( $key['revoked'] ),
+			'uses'      => $key['uses'],
+			'last_used' => $iso( $key['last_used'] ),
+		);
+
+		if ( isset( $key['code'] ) ) {
+			$out['code'] = $key['code'];
+			$out['url']  = $key['url'];
+		}
+
+		return $out;
+	}
+
+	/**
+	 * POST /access-keys: issues a code for a plan.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function create_access_key( WP_REST_Request $request ) {
+
+		$plan_id = (int) $request['plan_id'];
+
+		if ( 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
+		}
+
+		$expires = null;
+		$raw     = $request['expires'];
+
+		if ( is_string( $raw ) && '' !== trim( $raw ) ) {
+			try {
+				$date = new DateTimeImmutable( trim( $raw ), wp_timezone() );
+			} catch ( \Exception $e ) {
+				unset( $e );
+				return new WP_Error( 'invalid_expires', 'expires is not a date.', array( 'status' => 400 ) );
+			}
+			// A bare date means the whole of that day.
+			if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', trim( $raw ) ) ) {
+				$date = $date->setTime( 23, 59, 59 );
+			}
+			$expires = $date->getTimestamp();
+		}
+
+		$key = Mixmymeals_Meal_Plan::create_access_key( $plan_id, (string) $request['order_ref'], $expires );
+
+		if ( is_wp_error( $key ) ) {
+			$key->add_data( array( 'status' => 500 ) );
+			return $key;
+		}
+
+		$data = self::serialize_access_key( $key );
+
+		// The code works only on a protected, published plan; say so rather
+		// than hand out a code that changes nothing.
+		$data['warnings'] = array();
+		if ( ! Mixmymeals_Post_Types::has_password( $plan_id ) ) {
+			$data['warnings'][] = 'plan_not_protected';
+		}
+		if ( 'publish' !== get_post_status( $plan_id ) ) {
+			$data['warnings'][] = 'plan_not_published';
+		}
+
+		return new WP_REST_Response( $data, 201 );
+	}
+
+	/**
+	 * GET /access-keys/lookup?code=: the stored code a buyer reads out.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function lookup_access_key( WP_REST_Request $request ) {
+
+		$read = Mixmymeals_Meal_Plan::normalise_access_code( (string) $request['code'] );
+
+		if ( 'ok' !== $read['status'] ) {
+			return new WP_Error( 'code_' . $read['status'], 'Not a valid code (' . $read['status'] . ').', array( 'status' => 400 ) );
+		}
+
+		$key = Mixmymeals_Meal_Plan::find_access_key( $read['code'] );
+
+		if ( null === $key ) {
+			return new WP_Error( 'not_found', 'No such code.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( self::serialize_access_key( $key ) );
+	}
+
+	/**
+	 * GET /access-keys/{id}.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_access_key( WP_REST_Request $request ) {
+
+		$key = Mixmymeals_Meal_Plan::get_access_key( (int) $request['id'] );
+
+		if ( null === $key ) {
+			return new WP_Error( 'not_found', 'No such code.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( self::serialize_access_key( $key ) );
+	}
+
+	/**
+	 * POST /access-keys/{id}: revokes a code (revoked: true) or gives it back.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function update_access_key( WP_REST_Request $request ) {
+
+		$id = (int) $request['id'];
+
+		if ( ! Mixmymeals_Meal_Plan::set_access_key_revoked( $id, (bool) $request['revoked'] ) ) {
+			return new WP_Error( 'not_found', 'No such code.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( self::serialize_access_key( (array) Mixmymeals_Meal_Plan::get_access_key( $id ) ) );
+	}
+
+	/**
+	 * GET /meal-plans/{id}/access-keys: the plan's codes, newest first.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_plan_access_keys( WP_REST_Request $request ) {
+
+		$plan_id = (int) $request['id'];
+
+		if ( 'mmm_meal_plan' !== get_post_type( $plan_id ) ) {
+			return new WP_Error( 'not_found', 'Meal plan not found.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'plan_id'   => $plan_id,
+				'protected' => Mixmymeals_Post_Types::has_password( $plan_id ),
+				'keys'      => array_map( array( __CLASS__, 'serialize_access_key' ), Mixmymeals_Meal_Plan::get_access_keys( $plan_id ) ),
+			)
 		);
 	}
 }
