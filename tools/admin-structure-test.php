@@ -149,6 +149,7 @@ foreach ( array(
 	'notice_plan'           => 'mixmymeals-meal-plans',
 	'plan_subscribe_mode'   => 'mixmymeals-meal-plans',
 	'plan_subscribe_notice' => 'mixmymeals-meal-plans',
+	'access_code_help'      => 'mixmymeals-meal-plans',
 	'plan_subscribe_notice_checkbox' => 'mixmymeals-meal-plans',
 	'disable_wp_emoji'      => 'mixmymeals-privacy',
 	'photos_auto_approve'   => 'mixmymeals-meal-plans',

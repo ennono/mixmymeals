@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.2.0
+Stable tag: 4.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,12 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.2.1 =
+
+Fixed:
+* Settings → Meal Plans showed "Help under the code field" without an input:
+  the field was not known to the field renderer.
 
 = 4.2.0 =
 
@@ -2406,6 +2412,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.2.1 =
+The help text under the access-code field can be edited again.
 
 = 4.2.0 =
 Sell meal plans with access codes: a code in the PDF opens the plan's page.
