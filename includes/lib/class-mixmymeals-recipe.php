@@ -2097,29 +2097,7 @@ class Mixmymeals_Recipe {
 		$steps       = $this->get_steps();
 		$ingredients = array();
 
-		/*
-		 * Every row below instantiates its ingredient and its unit, and each of
-		 * those reads a post row and its meta. One pass over the steps first,
-		 * so the whole recipe costs two queries instead of two per row — which
-		 * on an archive of ten cards was the difference between tens and
-		 * hundreds.
-		 */
-		$prime = array();
-
-		foreach ( $steps as $step ) {
-			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
-
-				$prime[] = intval( $ing['id'] ?? 0 );
-				$prime[] = intval( $ing['amount_id'] ?? 0 );
-				$prime[] = intval( $ing['product_id'] ?? 0 );
-			}
-		}
-
-		$prime = array_values( array_unique( array_filter( $prime ) ) );
-
-		if ( $prime && function_exists( '_prime_post_caches' ) ) {
-			_prime_post_caches( $prime, false, true );
-		}
+		self::prime_rows( $steps );
 
 		foreach ( $steps as $step ) {
 			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
@@ -2183,6 +2161,55 @@ class Mixmymeals_Recipe {
 	}
 
 
+	/**
+	 * Warms the post and meta caches of everything the rows of these steps
+	 * read: ingredient, unit, pinned product and the ingredient's reference
+	 * product.
+	 *
+	 * Every row instantiates its ingredient and its unit, and each of those
+	 * reads a post row and its meta. Without this a recipe costs two queries
+	 * per row — on the recipe archive, where each card asks for energy per
+	 * serving, that was some 30 queries per card. With it, three per recipe.
+	 *
+	 * @param array $steps Steps as get_steps() returns them.
+	 * @return void
+	 */
+	private static function prime_rows( array $steps ): void {
+
+		if ( ! function_exists( '_prime_post_caches' ) ) {
+			return;
+		}
+
+		$prime       = array();
+		$ingredients = array();
+
+		foreach ( $steps as $step ) {
+			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
+
+				$ingredients[] = intval( $ing['id'] ?? 0 );
+				$prime[]       = intval( $ing['amount_id'] ?? 0 );
+				$prime[]       = intval( $ing['product_id'] ?? 0 );
+			}
+		}
+
+		$ingredients = array_values( array_unique( array_filter( $ingredients ) ) );
+
+		if ( $ingredients ) {
+			_prime_post_caches( $ingredients, false, true );
+
+			// The reference sits in the ingredient's meta, now cached.
+			foreach ( $ingredients as $id ) {
+				$prime[] = (int) get_post_meta( $id, Mixmymeals_Product::META_REFERENCE, true );
+			}
+		}
+
+		$prime = array_values( array_unique( array_filter( $prime ) ) );
+
+		if ( $prime ) {
+			_prime_post_caches( $prime, false, true );
+		}
+	}
+
 	public function get_ingredients_scaled( float $scale ): array {
 
 		if ( ! $this->is_valid() ) {
@@ -2191,6 +2218,8 @@ class Mixmymeals_Recipe {
 
 		$steps       = $this->get_steps();
 		$ingredients = array();
+
+		self::prime_rows( $steps );
 
 		foreach ( $steps as $step_index => $step ) {
 			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {

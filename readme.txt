@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.2.2
+Stable tag: 4.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.2.3 =
+
+Fixed:
+* The recipe archive loaded every ingredient, unit and product of each card
+  one at a time to work out energy per serving (about 36 database queries per
+  card). They are now loaded together, three queries per recipe.
 
 = 4.2.2 =
 
@@ -2419,6 +2426,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.2.3 =
+The recipe archive needs far fewer database queries and loads faster.
 
 = 4.2.2 =
 The access-code field no longer has a help-text setting; put such a note on the page itself.

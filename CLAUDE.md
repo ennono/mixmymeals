@@ -250,7 +250,7 @@ Known gap: the units table on the ingredient creates rows without a one-shot tok
 
 ### Amounts and weights
 
-`Mixmymeals_Recipe::get_ingredients_scaled( $scale )` is the canonical ingredient list: amount × scale, snapped to the unit's step divisor (min one step), × unit weight = `weight_g`; no unit = grams. It returns **one row per step**. Rows pass through `implement_row()` (see *Diets*), as do those of `get_ingredients_normalized()`.
+`Mixmymeals_Recipe::get_ingredients_scaled( $scale )` is the canonical ingredient list: amount × scale, snapped to the unit's step divisor (min one step), × unit weight = `weight_g`; no unit = grams. It returns **one row per step**. Rows pass through `implement_row()` (see *Diets*), as do those of `get_ingredients_normalized()`. Both warm their rows first via `prime_rows()` (ingredients, units, pins, reference products: three queries per recipe) — without it each archive card cost ~36 queries (fixed in 4.2.3); a new row reader calls it too.
 
 Amounts in machine-read output (schema, Bring!) go through `Mixmymeals_Ingredient::format_amount()` — no thousands separator, since "1.000 g" parses as one gram. Human-facing: `Mixmymeals_Meal_Plan::build_needed_amount_string()` / `build_short_amount_string()`.
 
