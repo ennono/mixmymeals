@@ -119,6 +119,42 @@ if ( ! class_exists( 'Mixmymeals_Printer_Plan_PDF' ) || ! shortcode_exists( 'mmm
 	}
 	$ok( 'a code gets ' . Mixmymeals_Printer_Plan_PDF::PREMIUM_PER_HOUR . ' PDFs an hour', Mixmymeals_Printer_Plan_PDF::PREMIUM_PER_HOUR === $granted );
 	delete_transient( 'mmp_pdf_code_' . $key['id'] );
+
+	// The template of the buyers' PDF, chosen per plan in the PDF box.
+	wp_set_current_user( 1 );
+	$templates = array_keys( Mixmymeals_Printer_Templates::choices() );
+	$other_tpl = '';
+	foreach ( $templates as $id ) {
+		if ( Mixmymeals_Printer_Templates::current() !== $id ) {
+			$other_tpl = $id;
+			break;
+		}
+	}
+	$ok( 'without a choice the download uses the settings\' template', '' === Mixmymeals_Printer_Plan_PDF::premium_template( $plan ) );
+
+	$save = static function ( string $value ) use ( $plan ) {
+		$_POST['mmp_premium_template_nonce'] = wp_create_nonce( 'mmp_premium_template' );
+		$_POST['mmp_premium_template']       = $value;
+		Mixmymeals_Printer_Plan_PDF::save_premium_template( $plan );
+		unset( $_POST['mmp_premium_template_nonce'], $_POST['mmp_premium_template'] );
+	};
+
+	$save( $other_tpl );
+	$ok( 'a chosen template is stored', '' !== $other_tpl && Mixmymeals_Printer_Plan_PDF::premium_template( $plan ) === $other_tpl );
+
+	list( , $settings ) = Mixmymeals_Printer_Plan_PDF::build( $plan, Mixmymeals_Printer_Plan_PDF::premium_template( $plan ) );
+	$ok( 'and the download is built in it', $settings['template'] === $other_tpl );
+
+	$save( 'zz-gibt-es-nicht' );
+	$ok( 'an unknown template clears the choice', '' === Mixmymeals_Printer_Plan_PDF::premium_template( $plan ) && '' === get_post_meta( $plan, Mixmymeals_Printer_Plan_PDF::PREMIUM_TEMPLATE_META, true ) );
+
+	update_post_meta( $plan, Mixmymeals_Printer_Plan_PDF::PREMIUM_TEMPLATE_META, 'zz-entfernt' );
+	$ok( 'a template removed since reads as the settings\' one', '' === Mixmymeals_Printer_Plan_PDF::premium_template( $plan ) );
+
+	ob_start();
+	Mixmymeals_Printer_Plan_PDF::render_premium_template_field( get_post( $plan ) );
+	$box = ob_get_clean();
+	$ok( 'the PDF box offers the picker', false !== strpos( $box, 'name="mmp_premium_template"' ) && false !== strpos( $box, 'value="' . $other_tpl . '"' ) );
 }
 
 // Clean up.
