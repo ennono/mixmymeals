@@ -4647,6 +4647,9 @@ class Mixmymeals_Meal_Plan {
 		add_action( 'template_redirect', array( __CLASS__, 'access_template_redirect' ), 1 );
 
 		add_action( 'before_delete_post', array( __CLASS__, 'delete_access_keys_of_plan' ) );
+
+		// A premium plan keeps its password whatever an editor's save sends.
+		add_filter( 'wp_insert_post_data', array( __CLASS__, 'keep_premium_password' ), 99, 2 );
 	}
 
 	/**
@@ -5297,7 +5300,114 @@ KEY plan_id (plan_id)
 			return $required;
 		}
 
+		// Nobody knows a premium plan's password, so whoever may edit it
+		// must not need it.
+		if ( self::is_premium( (int) $post->ID ) && current_user_can( 'edit_post', (int) $post->ID ) ) {
+			return false;
+		}
+
 		return self::access_key_unlocks( (int) $post->ID ) ? false : $required;
+	}
+
+	/*
+	 * -------------------------------------------------------------------------
+	 * Premium plans: open with an access code and nothing else
+	 * -------------------------------------------------------------------------
+	 *
+	 * A premium plan is a plan with codes whose password nobody knows: the
+	 * switch sets a random one, so every rule that honours a password holds
+	 * (listings, REST, schema, noindex, is_locked()), and the page offers the
+	 * code field only. Editors pass without a code. Switching it off clears
+	 * the password — the plan is public then.
+	 */
+
+	/**
+	 * Plan meta marking a premium plan ('1'; no row = not premium).
+	 *
+	 * @var string
+	 */
+	const META_PREMIUM = '_mmm_premium';
+
+	/**
+	 * Whether a plan opens with an access code only.
+	 *
+	 * @param int $plan_id Meal plan post ID.
+	 * @return bool
+	 */
+	public static function is_premium( int $plan_id ): bool {
+		return $plan_id > 0
+			&& 'mmm_meal_plan' === get_post_type( $plan_id )
+			&& '1' === (string) get_post_meta( $plan_id, self::META_PREMIUM, true );
+	}
+
+	/**
+	 * Makes a plan premium (random password) or ordinary again (no password).
+	 *
+	 * The password is written straight to the row: wp_update_post() would run
+	 * every save_post hook again, from inside the plan's own save.
+	 *
+	 * @param int  $plan_id Meal plan post ID.
+	 * @param bool $premium On or off.
+	 * @return void
+	 */
+	public static function set_premium( int $plan_id, bool $premium ): void {
+
+		if ( 'mmm_meal_plan' !== get_post_type( $plan_id ) || self::is_premium( $plan_id ) === $premium ) {
+			return;
+		}
+
+		if ( $premium ) {
+			update_post_meta( $plan_id, self::META_PREMIUM, '1' );
+		} else {
+			delete_post_meta( $plan_id, self::META_PREMIUM );
+		}
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- see above; the cache is cleaned right after.
+		$wpdb->update(
+			$wpdb->posts,
+			array( 'post_password' => $premium ? self::premium_password() : '' ),
+			array( 'ID' => $plan_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+
+		clean_post_cache( $plan_id );
+	}
+
+	/**
+	 * A password nobody is told.
+	 *
+	 * @return string
+	 */
+	private static function premium_password(): string {
+		return wp_generate_password( 32, false );
+	}
+
+	/**
+	 * Keeps a premium plan's password through any save: the block editor
+	 * and the classic visibility box send "public" for a password they were
+	 * never shown. Switching premium off is the way to open the plan.
+	 *
+	 * @param array $data    Slashed post data about to be written.
+	 * @param array $postarr Raw post data.
+	 * @return array
+	 */
+	public static function keep_premium_password( $data, $postarr ) {
+
+		$id = isset( $postarr['ID'] ) ? (int) $postarr['ID'] : 0;
+
+		if ( ! $id || ! is_array( $data ) || 'mmm_meal_plan' !== ( $data['post_type'] ?? '' ) || ! self::is_premium( $id ) ) {
+			return $data;
+		}
+
+		if ( '' === (string) ( $data['post_password'] ?? '' ) ) {
+			$stored                = (string) get_post_field( 'post_password', $id, 'raw' );
+			$data['post_password'] = '' !== $stored ? $stored : self::premium_password();
+		}
+
+		return $data;
 	}
 
 	/**

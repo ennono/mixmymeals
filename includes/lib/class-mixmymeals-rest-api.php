@@ -1842,6 +1842,11 @@ class Mixmymeals_Rest_Api {
 					'author'         => $author_arg,
 					'featured_image' => $featured_arg,
 					'image_credit'   => $image_credit_arg,
+					'premium'        => array(
+						'required'    => false,
+						'type'        => 'boolean',
+						'description' => 'Opens with an access code only (random password); false makes the plan public.',
+					),
 				),
 			)
 		);
@@ -1910,6 +1915,11 @@ class Mixmymeals_Rest_Api {
 					'author'         => $author_arg,
 					'featured_image' => $featured_arg,
 					'image_credit'   => $image_credit_arg,
+					'premium'        => array(
+						'required'    => false,
+						'type'        => 'boolean',
+						'description' => 'Opens with an access code only (random password); false makes the plan public.',
+					),
 				),
 			)
 		);
@@ -2252,6 +2262,11 @@ class Mixmymeals_Rest_Api {
 					'author'         => $author_arg,
 					'featured_image' => $featured_arg,
 					'image_credit'   => $image_credit_arg,
+					'premium'        => array(
+						'required'    => false,
+						'type'        => 'boolean',
+						'description' => 'Opens with an access code only (random password); false makes the plan public.',
+					),
 				),
 			)
 		);
@@ -2951,6 +2966,7 @@ class Mixmymeals_Rest_Api {
 			'featured_image_url' => $this->featured_image_url( $post_id ),
 			'image_credit'       => $this->serialize_image_credit( $post_id ),
 			'eaters'             => $this->serialize_eaters( $plan ),
+			'premium'            => Mixmymeals_Meal_Plan::is_premium( $post_id ),
 			'meals'              => $meals,
 		);
 	}
@@ -3953,6 +3969,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'eaters' ) ) {
 			$plan->set_eaters( (array) $request->get_param( 'eaters' ) );
 		}
+		if ( $request->has_param( 'premium' ) ) {
+			Mixmymeals_Meal_Plan::set_premium( $plan->get_id(), (bool) $request->get_param( 'premium' ) );
+		}
 		return new WP_REST_Response( $this->serialize_meal_plan( $plan->get_id() ), 201 );
 	}
 
@@ -4018,6 +4037,9 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'eaters' ) ) {
 			$plan->set_eaters( $this->merge_eater_names( $plan, (array) $request->get_param( 'eaters' ) ) );
+		}
+		if ( $request->has_param( 'premium' ) ) {
+			Mixmymeals_Meal_Plan::set_premium( (int) $id, (bool) $request->get_param( 'premium' ) );
 		}
 		return new WP_REST_Response( $this->serialize_meal_plan( $id ), 200 );
 	}
@@ -4474,6 +4496,9 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'image_credit' ) ) {
 			$this->apply_image_credit( $plan_id, (array) $request->get_param( 'image_credit' ) );
+		}
+		if ( $request->has_param( 'premium' ) ) {
+			Mixmymeals_Meal_Plan::set_premium( $plan_id, (bool) $request->get_param( 'premium' ) );
 		}
 
 		// Before the meals, which name who of them eats along.

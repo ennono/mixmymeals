@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.2.3
+Stable tag: 4.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,21 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.3.0 =
+
+Added:
+* Premium plans: a switch in the plan's "Access codes" box (REST/MCP
+  `premium`). A premium plan opens with an access code only — in the address
+  or typed into the field its page shows. It gets a random password nobody is
+  told, so it stays out of listings, REST and search like any protected plan;
+  its page offers the code field and no password field. Editors see it
+  without a code. Switching it off makes the plan public.
+* The MixMyMeals Printer (3.1.0) adds `[mmm_plan_pdf]`: on a premium plan the
+  buyer downloads the plan as a PDF.
+
+Changed:
+* The code field's intro no longer mentions a PDF.
 
 = 4.2.3 =
 
@@ -2426,6 +2441,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.3.0 =
+Premium plans: meal plans that open with an access code only, with a PDF download for buyers (Printer 3.1.0).
 
 = 4.2.3 =
 The recipe archive needs far fewer database queries and loads faster.

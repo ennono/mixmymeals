@@ -8116,8 +8116,14 @@ msgstr "Zugangscodes"
 msgid "Each buyer gets a code of their own. The address with the code opens this plan; the code can also be typed into the field the locked plan shows. A code is shown once, when it is created."
 msgstr "Jeder Käufer bekommt einen eigenen Code. Die Adresse mit dem Code öffnet diesen Plan; man kann den Code auch in das Feld eintippen, das der gesperrte Plan zeigt. Ein Code wird nur einmal angezeigt, beim Erstellen."
 
-msgid "This plan has no password, so it is open to everybody and a code changes nothing. Set the visibility to “Password protected” to sell it."
-msgstr "Dieser Plan hat kein Passwort, ist also für alle offen, und ein Code ändert nichts. Stell die Sichtbarkeit auf „Passwortgeschützt“, um ihn zu verkaufen."
+msgid "This plan is open to everybody, so a code changes nothing. Make it a premium plan to sell it."
+msgstr "Dieser Plan ist für alle offen, ein Code ändert also nichts. Mach ihn zum Premiumplan, um ihn zu verkaufen."
+
+msgid "Premium plan"
+msgstr "Premiumplan"
+
+msgid "opens with an access code only. Its page then offers the code field and no password; editors see it without a code. Switching it off makes the plan public."
+msgstr "öffnet sich nur mit einem Zugangscode. Die Seite zeigt dann das Codefeld und kein Passwortfeld; die Redaktion sieht den Plan ohne Code. Ausschalten macht den Plan öffentlich."
 
 msgid "Codes open the plan only once it is published."
 msgstr "Codes öffnen den Plan erst, wenn er veröffentlicht ist."
@@ -8177,8 +8183,8 @@ msgstr "Ein Code wird so lange gespeichert wie sein Plan."
 msgid "Enter a password instead"
 msgstr "Stattdessen Passwort eingeben"
 
-msgid "Bought this meal plan? Enter the access code from your PDF."
-msgstr "Du hast diesen Essensplan gekauft? Gib den Zugangscode aus deinem PDF ein."
+msgid "Bought this meal plan? Enter your access code."
+msgstr "Du hast diesen Essensplan gekauft? Gib deinen Zugangscode ein."
 
 msgid "Access code"
 msgstr "Zugangscode"

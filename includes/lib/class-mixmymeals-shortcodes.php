@@ -2079,6 +2079,11 @@ class Mixmymeals_Shortcodes {
 			return $output;
 		}
 
+		// A premium plan's password is known to nobody: the code is the only way in.
+		if ( Mixmymeals_Meal_Plan::is_premium( (int) $post->ID ) ) {
+			return self::access_code_form( (int) $post->ID );
+		}
+
 		if ( ! Mixmymeals_Meal_Plan::has_access_keys( (int) $post->ID ) && ! Mixmymeals_Meal_Plan::has_access_param() ) {
 			return $output;
 		}
@@ -2140,7 +2145,7 @@ class Mixmymeals_Shortcodes {
 			. ( '' !== $message ? ' data-access-status="' . esc_attr( $check['status'] ) . '"' : '' )
 			. '>'
 			. $hidden
-			. '<p class="mmm-access__intro">' . esc_html__( 'Bought this meal plan? Enter the access code from your PDF.', 'mixmymeals' ) . '</p>';
+			. '<p class="mmm-access__intro">' . esc_html__( 'Bought this meal plan? Enter your access code.', 'mixmymeals' ) . '</p>';
 
 		if ( '' !== $message ) {
 			$html .= '<p class="mmm-msg mmm-msg--error mmm-access__msg" role="alert">' . esc_html( $message ) . '</p>';

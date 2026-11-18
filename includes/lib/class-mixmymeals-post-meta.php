@@ -223,13 +223,13 @@ class Mixmymeals_Post_Meta {
 		);
 		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_eaters' ), 9 );
 
-		// Access codes for a plan that is sold as a PDF. Nothing here is part
-		// of the post: codes are written over AJAX the moment they are asked
-		// for, so the box posts nothing and needs no save hook.
+		// Access codes for a plan that is sold. Codes are written over AJAX the
+		// moment they are asked for; the box posts only the premium switch.
 		add_action(
 			'add_meta_boxes_mmm_meal_plan',
 			array( $this, 'add_meal_plan_access_meta_box' )
 		);
+		add_action( 'save_post_mmm_meal_plan', array( $this, 'save_plan_premium' ) );
 		add_action( 'wp_ajax_mmm_access_key_create', array( $this, 'ajax_create_access_key' ) );
 		add_action( 'wp_ajax_mmm_access_key_revoke', array( $this, 'ajax_revoke_access_key' ) );
 	}
@@ -1700,10 +1700,20 @@ class Mixmymeals_Post_Meta {
 
 		echo '<div class="mmm-access-keys" data-plan="' . esc_attr( (string) $plan_id ) . '">';
 
+		$premium = Mixmymeals_Meal_Plan::is_premium( $plan_id );
+
+		wp_nonce_field( 'mmm_plan_premium_meta_box', 'mmm_plan_premium_nonce' );
+		echo '<input type="hidden" name="mmm_plan_premium_shown" value="1">';
+		echo '<p class="mmm-access-keys__premium"><label>'
+			. '<input type="checkbox" name="mmm_plan_premium" value="1"' . checked( $premium, true, false ) . '> '
+			. '<strong>' . esc_html__( 'Premium plan', 'mixmymeals' ) . '</strong> — '
+			. esc_html__( 'opens with an access code only. Its page then offers the code field and no password; editors see it without a code. Switching it off makes the plan public.', 'mixmymeals' )
+			. '</label></p>';
+
 		echo '<p class="description">' . esc_html__( 'Each buyer gets a code of their own. The address with the code opens this plan; the code can also be typed into the field the locked plan shows. A code is shown once, when it is created.', 'mixmymeals' ) . '</p>';
 
-		if ( '' === (string) $post->post_password ) {
-			echo '<p class="mmm-access-keys__warning notice notice-warning inline"><span>' . esc_html__( 'This plan has no password, so it is open to everybody and a code changes nothing. Set the visibility to “Password protected” to sell it.', 'mixmymeals' ) . '</span></p>';
+		if ( ! $premium && '' === (string) $post->post_password ) {
+			echo '<p class="mmm-access-keys__warning notice notice-warning inline"><span>' . esc_html__( 'This plan is open to everybody, so a code changes nothing. Make it a premium plan to sell it.', 'mixmymeals' ) . '</span></p>';
 		}
 
 		if ( 'publish' !== $post->post_status ) {
@@ -1733,6 +1743,32 @@ class Mixmymeals_Post_Meta {
 		}
 
 		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * Saves the premium switch of the access-code box.
+	 *
+	 * @param int $post_id Meal plan post ID.
+	 * @return void
+	 */
+	public function save_plan_premium( int $post_id ): void {
+
+		if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+
+		if (
+			! isset( $_POST['mmm_plan_premium_nonce'], $_POST['mmm_plan_premium_shown'] )
+			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['mmm_plan_premium_nonce'] ) ), 'mmm_plan_premium_meta_box' )
+		) {
+			return;
+		}
+
+		if ( ! self::may_manage_access_keys( $post_id ) ) {
+			return;
+		}
+
+		Mixmymeals_Meal_Plan::set_premium( $post_id, ! empty( $_POST['mmm_plan_premium'] ) );
 	}
 
 	/**

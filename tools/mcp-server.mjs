@@ -1038,6 +1038,7 @@ const TOOLS = [
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
         eaters:         EATERS_SCHEMA,
+        premium:        { type: "boolean", description: "Premiumplan: nur per Zugangscode zu öffnen (zufälliges Passwort). false macht den Plan öffentlich." },
       },
     },
   },
@@ -1691,7 +1692,7 @@ async function handleTool(name, args) {
     case "mmm_update_meal_plan": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["title", "status", "content", "excerpt", "start_day", "end_day", "author", "featured_image", "image_credit", "eaters"];
+      const allowed = ["title", "status", "content", "excerpt", "start_day", "end_day", "author", "featured_image", "image_credit", "eaters", "premium"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }
