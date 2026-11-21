@@ -923,9 +923,10 @@ class Mixmymeals_Shortcodes {
 
 		echo '<div class="mmm-weekdays">';
 
-		for ( $day = 1; $day <= 7; $day++ ) {
+		// In the plan's own order: a plan starting on Saturday reads Sat, Sun, Mon …
+		foreach ( $plan->get_day_range() as $day ) {
 
-			if ( ! $plan->contains_weekday( $day ) ) {
+			if ( ! isset( $weekday_labels[ $day ] ) ) {
 				continue;
 			}
 
