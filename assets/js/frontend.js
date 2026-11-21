@@ -1493,6 +1493,39 @@ jQuery(function ($) {
     // — matches .mmm-create-meal-plan-link.mmm-is-disabled in style.css.
     mmmUpdatePlanSubscribeGate();
 
+    /**
+     * Hands an event to the site's Matomo (`_paq`).
+     *
+     * The plugin loads no tracker: without Matomo on the page the push lands
+     * in an array nobody reads. With Matomo loaded, the returned promise
+     * resolves when its request is out (trackEvent's callback, Matomo 4+),
+     * at the latest after 600 ms, so a redirect can wait for it without
+     * ever hanging on it.
+     *
+     * @param {?{category: string, action: string, name: ?string, value: ?number}} ev
+     * @return {jQuery.Promise}
+     */
+    function mmmTrackEvent(ev) {
+        const done = $.Deferred();
+
+        if (!ev || !ev.category || !ev.action) {
+            return done.resolve().promise();
+        }
+
+        const loaded = !!(window.Matomo || window.Piwik);
+        const name = (ev.name === null || ev.name === undefined) ? undefined : String(ev.name);
+        const value = (typeof ev.value === 'number') ? ev.value : undefined;
+
+        window._paq = window._paq || [];
+        window._paq.push(['trackEvent', ev.category, ev.action, name, value, undefined, function () {
+            done.resolve();
+        }]);
+
+        window.setTimeout(done.resolve, loaded ? 600 : 0);
+
+        return done.promise();
+    }
+
     /* ==========================================================
        CREATE MEAL PLAN (Read directly from DOM)
        ========================================================== */
@@ -1558,13 +1591,20 @@ jQuery(function ($) {
                 if (response && response.success) {
                     mmmShowInlineMessage(msgBox, (response.data && response.data.message) || 'Meal Plan created!', 'ok');
 
+                    // The site's Matomo, when the event is switched on (the
+                    // server sends it only then); runs before the redirect,
+                    // which would otherwise cut the request off.
+                    const tracked = mmmTrackEvent(response.data && response.data.tracking);
+
                     if (response.data && response.data.redirect_url) {
                         // A moment longer when there is a subscribe notice to
                         // read — otherwise the redirect cuts it off unread.
                         const delay = (response.data && response.data.subscribed) ? 1400 : 0;
-                        window.setTimeout(function () {
+                        const shown = $.Deferred();
+                        window.setTimeout(shown.resolve, delay);
+                        $.when(shown, tracked).always(function () {
                             window.location.href = response.data.redirect_url;
-                        }, delay);
+                        });
                         return;
                     }
 

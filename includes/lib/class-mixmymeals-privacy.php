@@ -628,6 +628,18 @@ class Mixmymeals_Privacy {
 		}
 
 		/*
+		 * The Matomo event (Mixmymeals_Shortcodes::plan_saved_tracking_event()):
+		 * the plugin only hands it to the site's own analytics, whose section
+		 * of the policy covers consent and storage. Said here so the event's
+		 * content is named; the plan number only where the name carries it.
+		 */
+		if ( 'on' === (string) get_option( 'mixmymeals_matomo_plan_event', '' ) ) {
+			$items['analytics'] = str_contains( (string) get_option( 'mixmymeals_matomo_plan_event_name', '' ), '{plan_id}' )
+				? __( 'Usage statistics: when a plan is saved in the planner, this is passed as an event to the web analytics (Matomo) described in this privacy policy, together with the number of meals, days and people and the number of the plan. It is processed only as that section describes.', 'mixmymeals' )
+				: __( 'Usage statistics: when a plan is saved in the planner, this is passed as an event to the web analytics (Matomo) described in this privacy policy, together with the number of meals, days and people. It is processed only as that section describes.', 'mixmymeals' );
+		}
+
+		/*
 		 * Bought plans: only once a code has been issued. The code is a
 		 * pseudonym of the purchase — nothing on this site ties it to a
 		 * person unless an order number is noted beside it.

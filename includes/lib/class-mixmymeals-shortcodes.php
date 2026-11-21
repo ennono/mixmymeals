@@ -6531,6 +6531,7 @@ class Mixmymeals_Shortcodes {
 		$meal_plan->set_eaters( Mixmymeals_Cart::strip_eater_names( ( new Mixmymeals_Cart() )->get_eaters() ) );
 
 		// Meals anlegen
+		$meals_created = 0;
 		foreach ( $items as $item ) {
 
 			if ( empty( $item['recipe_id'] ) ) {
@@ -6545,6 +6546,7 @@ class Mixmymeals_Shortcodes {
 			} catch ( \Exception $e ) {
 				continue;
 			}
+			++$meals_created;
 
 			$meal->set_recipe_id( $item['recipe_id'] );
 			$meal->set_servings(
@@ -6619,8 +6621,101 @@ class Mixmymeals_Shortcodes {
 				'redirect_url' => $redirect_url,
 				'post_status'  => $post_status,
 				'subscribed'   => $subscribed,
+				// The Matomo event, or null while it is switched off.
+				'tracking'     => self::plan_saved_tracking_event(
+					array(
+						'plan_id' => $meal_plan_id,
+						'meals'   => $meals_created,
+						'days'    => count( array_unique( $days ) ),
+						'people'  => count( $meal_plan->get_eaters() ),
+					)
+				),
 			)
 		);
+	}
+
+	/**
+	 * Values the Matomo event's value may carry, value => label.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function plan_event_value_choices(): array {
+		return array(
+			''       => __( 'No value', 'mixmymeals' ),
+			'meals'  => __( 'Number of meals', 'mixmymeals' ),
+			'days'   => __( 'Number of days', 'mixmymeals' ),
+			'people' => __( 'Number of people', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The Matomo event for a plan saved from the planner.
+	 *
+	 * Built here rather than in the browser, so the settings are read in one
+	 * place and nothing about them is printed on every page. The browser
+	 * only hands the result to the site's Matomo (`_paq`); this plugin loads
+	 * no tracker of its own and sends nothing anywhere.
+	 *
+	 * Options (Meal Plans tab): mixmymeals_matomo_plan_event ('on'),
+	 * _category and _action (empty = default), _name (placeholders
+	 * {plan_id}, {meals}, {days}, {people}; empty = no name), _value (one of
+	 * plan_event_value_choices()).
+	 *
+	 * @param array $facts plan_id, meals, days, people (integers).
+	 * @return array|null category, action, name (string|null), value
+	 *                    (int|null); null while the event is off.
+	 */
+	public static function plan_saved_tracking_event( array $facts ): ?array {
+
+		if ( 'on' !== (string) get_option( 'mixmymeals_matomo_plan_event', '' ) ) {
+			return null;
+		}
+
+		$facts = array_map(
+			'intval',
+			wp_parse_args(
+				$facts,
+				array(
+					'plan_id' => 0,
+					'meals'   => 0,
+					'days'    => 0,
+					'people'  => 1,
+				)
+			)
+		);
+
+		$category = trim( (string) get_option( 'mixmymeals_matomo_plan_event_category', '' ) );
+		$action   = trim( (string) get_option( 'mixmymeals_matomo_plan_event_action', '' ) );
+		$name     = trim( (string) get_option( 'mixmymeals_matomo_plan_event_name', '' ) );
+		$value    = (string) get_option( 'mixmymeals_matomo_plan_event_value', '' );
+
+		$tokens = array();
+		foreach ( $facts as $key => $number ) {
+			$tokens[ '{' . $key . '}' ] = (string) $number;
+		}
+
+		$name = strtr( $name, $tokens );
+
+		return array(
+			'category' => '' !== $category ? $category : self::plan_event_default( 'category' ),
+			'action'   => '' !== $action ? $action : self::plan_event_default( 'action' ),
+			'name'     => '' !== $name ? $name : null,
+			'value'    => ( '' !== $value && isset( self::plan_event_value_choices()[ $value ], $facts[ $value ] ) )
+				? $facts[ $value ]
+				: null,
+		);
+	}
+
+	/**
+	 * Default category or action of the plan-saved event.
+	 *
+	 * @param string $part 'category' or 'action'.
+	 * @return string
+	 */
+	public static function plan_event_default( string $part ): string {
+		return 'category' === $part
+			? __( 'Planner', 'mixmymeals' )
+			: __( 'Plan saved', 'mixmymeals' );
 	}
 
 

@@ -918,6 +918,51 @@ class Mixmymeals_Settings {
 					),
 				),
 				array(
+					'id'    => 'mealplans_group_matomo',
+					'type'  => 'heading',
+					'label' => __( 'Matomo', 'mixmymeals' ),
+				),
+				array(
+					'id'          => 'matomo_plan_event',
+					'label'       => __( 'Event when a plan is saved', 'mixmymeals' ),
+					'description' => __( 'Send an event to the site\'s Matomo when a visitor saves a plan from the planner. Matomo itself must be on the page (tracking code or plugin); consent and opt-out are handled there.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'public_mode_callback' ),
+				),
+				array(
+					'id'          => 'matomo_plan_event_category',
+					'label'       => __( 'Event category', 'mixmymeals' ),
+					'description' => __( 'Leave empty for the default.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => Mixmymeals_Shortcodes::plan_event_default( 'category' ),
+					'callback'    => array( $this, 'matomo_event_text_callback' ),
+				),
+				array(
+					'id'          => 'matomo_plan_event_action',
+					'label'       => __( 'Event action', 'mixmymeals' ),
+					'description' => __( 'Leave empty for the default.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => Mixmymeals_Shortcodes::plan_event_default( 'action' ),
+					'callback'    => array( $this, 'matomo_event_text_callback' ),
+				),
+				array(
+					'id'          => 'matomo_plan_event_name',
+					'label'       => __( 'Event name', 'mixmymeals' ),
+					'description' => __( 'Optional. Placeholders: {meals}, {days}, {people}, {plan_id}. Empty sends no name.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '{meals} / {days} / {people}',
+					'callback'    => array( $this, 'matomo_event_text_callback' ),
+				),
+				array(
+					'id'          => 'matomo_plan_event_value',
+					'label'       => __( 'Event value', 'mixmymeals' ),
+					'description' => __( 'The number Matomo sums up for this event.', 'mixmymeals' ),
+					'default'     => '',
+					'placeholder' => '',
+					'callback'    => array( $this, 'matomo_plan_event_value_callback' ),
+				),
+				array(
 					'id'    => 'mealplans_group_photos',
 					'type'  => 'heading',
 					'label' => __( 'Meal photos', 'mixmymeals' ),
@@ -2512,6 +2557,28 @@ class Mixmymeals_Settings {
 
 	public function page_id_to_redirect_if_new_plan_is_draft_callback( mixed $input ): int {
 		return absint( $input );
+	}
+
+	/**
+	 * Sanitizes a text part of the Matomo event (category, action, name).
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string
+	 */
+	public function matomo_event_text_callback( mixed $input ): string {
+		return mb_substr( sanitize_text_field( (string) $input ), 0, 200 );
+	}
+
+	/**
+	 * Sanitizes the Matomo event's value choice.
+	 *
+	 * @param mixed $input Raw input value.
+	 * @return string A key of Mixmymeals_Shortcodes::plan_event_value_choices().
+	 */
+	public function matomo_plan_event_value_callback( mixed $input ): string {
+		$value = sanitize_key( (string) $input );
+
+		return isset( Mixmymeals_Shortcodes::plan_event_value_choices()[ $value ] ) ? $value : '';
 	}
 
 	/**

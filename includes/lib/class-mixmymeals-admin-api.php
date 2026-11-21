@@ -192,6 +192,9 @@ class Mixmymeals_Admin_API {
 			case 'individual_tab_label':
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
+			case 'matomo_plan_event_category':
+			case 'matomo_plan_event_action':
+			case 'matomo_plan_event_name':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 						. '" type="text" name="' . esc_attr( $option_name )
 						. '" placeholder="'
@@ -390,6 +393,7 @@ class Mixmymeals_Admin_API {
 			case 'photos_auto_approve':
 			case 'public_mode':
 			case 'plan_subscribe_notice_checkbox':
+			case 'matomo_plan_event':
 			case 'disable_wp_emoji':
 			case 'show_recipe_steps':
 			case 'recipe_disclaimer_on_ingredients':
@@ -568,6 +572,22 @@ class Mixmymeals_Admin_API {
 						'<option value="%s"%s>%s</option>',
 						esc_attr( $mode ),
 						selected( $current, $mode, false ),
+						esc_html( $label )
+					);
+				}
+
+				$html .= '</select>';
+				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				break;
+
+			case 'matomo_plan_event_value':
+				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
+
+				foreach ( Mixmymeals_Shortcodes::plan_event_value_choices() as $choice => $label ) {
+					$html .= sprintf(
+						'<option value="%s"%s>%s</option>',
+						esc_attr( $choice ),
+						selected( (string) $data, $choice, false ),
 						esc_html( $label )
 					);
 				}
