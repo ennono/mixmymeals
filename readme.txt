@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.5.0
+Stable tag: 4.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.5.1 =
+
+Removed:
+* The "To the planner" bar at the foot of the screen is no longer built by
+  the plugin's script. A theme or page builder that wants one puts it in
+  its own footer: any .mmm-cart-badge there is counted as before, and
+  body.mmm-cart-empty still says when the planner is empty.
 
 = 4.5.0 =
 
@@ -2486,6 +2494,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.5.1 =
+The bottom "To the planner" bar is no longer built by the plugin; add one to your footer if you want it.
 
 = 4.5.0 =
 New shortcode [mmm_ingredient_ranking] for tables like "foods richest in protein", with exclusions per ingredient and category.

@@ -206,9 +206,6 @@ jQuery(function ($) {
     /* ==========================================================
        CART BADGE
        ========================================================== */
-    // The bar first, so its own badge is in the DOM when the count arrives
-    // and both are filled by the same pass.
-    mmmEnsureCartBar();
     mmmUpdateCartBadge();
 
     /* ==========================================================
@@ -342,49 +339,6 @@ jQuery(function ($) {
                     mmmHandleRequestFail(xhr, { inlineEl: msgBox, failMessage: 'Request failed.' });
                 });
         });
-    }
-
-    /* ==========================================================
-       BOTTOM BAR
-       ========================================================== */
-
-    /**
-     * A bar at the foot of the screen while the planner is not empty.
-     *
-     * The count and the only way into the planner sit in the header, at the
-     * very top of pages that run to twenty thousand pixels — the worst place
-     * a thumb can reach. This repeats both where the hand already is.
-     *
-     * Built from the header's own planner link rather than from a setting:
-     * that link is wherever the site owner put the [mmm_cart_badge], and a
-     * second place that has to know the address would sooner or later know a
-     * different one. No link, no bar.
-     */
-    function mmmEnsureCartBar() {
-        if ($('.mmm-cart-bar').length) return;
-
-        // On the planner itself the bar would link to the page you are on.
-        if ($('.mmm-plan-builder').length) return;
-
-        const headerBadge = $('.mmm-cart-badge').first();
-        const link = headerBadge.closest('a');
-        if (!link.length || !link.attr('href')) return;
-
-        const bar = $('<div class="mmm-cart-bar"></div>');
-        $('<span class="mmm-cart-badge mmm-cart-bar__count"></span>')
-            .attr('data-label-singular', headerBadge.data('label-singular') || '')
-            .attr('data-label-plural', headerBadge.data('label-plural') || '')
-            .text(headerBadge.text())
-            .appendTo(bar);
-
-        const labels = (window.mixmymeals && mixmymeals.planner_dialog && mixmymeals.planner_dialog.added) || {};
-
-        $('<a class="mmm-cart-bar__link"></a>')
-            .attr('href', link.attr('href'))
-            .text(labels.to_plan || link.text().trim())
-            .appendTo(bar);
-
-        $('body').append(bar);
     }
 
     /* ==========================================================
@@ -2100,9 +2054,10 @@ jQuery(function ($) {
                     badge.text(count + (count === 1 ? singular : plural));
                 });
 
-                // One class for "there is something in the planner", so the
-                // bottom bar can appear and disappear in CSS instead of being
-                // toggled from three places.
+                // One class for "there is something in the planner", so a
+                // theme's bottom bar (speisengeplant.de: the Elementor footer)
+                // can appear and disappear in CSS. Every .mmm-cart-badge on
+                // the page is filled above, wherever it stands.
                 $('body').toggleClass('mmm-cart-empty', count === 0);
             })
             .fail(function () {
