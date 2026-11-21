@@ -471,7 +471,7 @@ Kept current by `register_recipe_index()`: recipe (`wp_after_insert_post`, `_rmm
 
 **Search field** (`mmm_s`, `apply_archive_search()`): on recipe archives it searches titles **and** ingredients through `Mixmymeals_Search::ids( 'recipe', … )` and sets `post__in` in that ranking (filter `mixmymeals_archive_search_combined`, default true; false = title only via `mmm_title_like`, as plan archives always do). Placeholder "Search recipes or ingredients…"; the second field `zutat` stays unless filter `mixmymeals_archive_search_ingredient_field` returns false. Both set `post__in`, so `apply_archive_filters()` (later on `pre_get_posts`) **intersects** with what the search left, in the ingredient ranking's order — replacing it dropped the search (fixed in 4.0.0).
 
-Single facets are indexable; combinations and searches get `noindex` (`filter_archive_noindex()`). A category named "Vegan" is just a category chip. `[mmm_recipes_index]` knows only `mmm_s` — deliberate.
+Single facets are indexable; combinations and searches get `noindex` (`filter_archive_noindex()`). An indexable facet is its own canonical: `filter_archive_canonical()` on `wpseo_canonical` / `wpseo_opengraph_url` answers `archive_url_for()` (+ `page/N/`) — until 4.4.1 Yoast named `/rezepte/` for every facet, so none could rank. A category named "Vegan" is just a category chip. `[mmm_recipes_index]` knows only `mmm_s` — deliberate.
 
 The ingredient page's recipe list (`recipes_using_ingredient()`) reads the index; `Mixmymeals_REST_API::ingredient_usage_map()` deliberately stays a full scan (counts drafts, decides deletability).
 

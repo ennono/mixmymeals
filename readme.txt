@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.4.0
+Stable tag: 4.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.4.1 =
+
+Fixed:
+* Single facet views of the recipe archive (/rezepte/vegan/,
+  /rezepte/unter-20-minuten/ …) name themselves as canonical address and
+  og:url instead of /rezepte/, so they can rank. Combinations and searches
+  stay noindex as before.
 
 = 4.4.0 =
 
@@ -2467,6 +2475,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.4.1 =
+Recipe facet views (vegan, under 20 minutes …) get their own canonical address.
 
 = 4.4.0 =
 New shortcode [mmm_recipe_ranking] for ranked recipe lists ("richest in protein", "cheapest per serving").

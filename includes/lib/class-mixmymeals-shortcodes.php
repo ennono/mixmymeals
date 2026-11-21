@@ -610,6 +610,19 @@ class Mixmymeals_Shortcodes {
 			array( __CLASS__, 'filter_archive_noindex' )
 		);
 
+		// Eine indexierbare Facette ist ihre eigene Adresse; Yoast setzt
+		// sonst /rezepte/ als Canonical und nimmt ihr damit das Ranking.
+		add_filter(
+			'wpseo_canonical',
+			array( __CLASS__, 'filter_archive_canonical' ),
+			20
+		);
+		add_filter(
+			'wpseo_opengraph_url',
+			array( __CLASS__, 'filter_archive_canonical' ),
+			20
+		);
+
 		add_filter(
 			'get_the_archive_title',
 			array( $this, 'remove_recipe_category_archive_title_prefix' ),
@@ -12325,6 +12338,50 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return $facets > 1;
+	}
+
+	/**
+	 * The canonical address of an indexable facet view of the recipe archive.
+	 *
+	 * SEO plugins see a post type archive and answer with its base address, so
+	 * /rezepte/vegan/ declared /rezepte/ as its original and could never rank
+	 * on its own — although filter_archive_noindex() keeps it indexable for
+	 * exactly that purpose. The address comes from archive_url_for(), the one
+	 * builder, so /rezepte/?zeit=20 names /rezepte/unter-20-minuten/ too.
+	 *
+	 * Views that stay out of the index (combinations, searches) and the plain
+	 * archive keep what they were given.
+	 *
+	 * @param string|false $canonical Address so far.
+	 * @return string|false
+	 */
+	public static function filter_archive_canonical( $canonical ) {
+
+		if ( is_admin() || ! is_post_type_archive( 'mmm_recipe' ) || self::filter_archive_noindex( false ) ) {
+			return $canonical;
+		}
+
+		$filters = self::archive_filters();
+
+		if ( '' === self::archive_primary_facet( $filters ) ) {
+			return $canonical;
+		}
+
+		$url = self::archive_url_for( $filters );
+
+		if ( '' === $url ) {
+			return $canonical;
+		}
+
+		$paged = (int) get_query_var( 'paged' );
+
+		if ( $paged > 1 ) {
+			$parts = explode( '?', $url, 2 );
+			$url   = user_trailingslashit( trailingslashit( $parts[0] ) . 'page/' . $paged )
+				. ( isset( $parts[1] ) ? '?' . $parts[1] : '' );
+		}
+
+		return $url;
 	}
 
 	/**
