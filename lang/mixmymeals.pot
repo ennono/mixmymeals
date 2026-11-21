@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MixMyMeals 4.5.0\n"
+"Project-Id-Version: MixMyMeals 4.6.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mixmymeals\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-21T18:35:04+00:00\n"
+"POT-Creation-Date: 2026-11-21T19:35:24+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mixmymeals\n"
@@ -331,7 +331,7 @@ msgid "Label for the \"Individual\" tab in the meal plan switcher."
 msgstr ""
 
 #: includes/class-mixmymeals-settings.php:706
-#: includes/lib/class-mixmymeals-shortcodes.php:11738
+#: includes/lib/class-mixmymeals-shortcodes.php:11763
 msgid "Individual"
 msgstr ""
 
@@ -693,7 +693,7 @@ msgid "Choose which columns the table shows and what they are called. Leave a he
 msgstr ""
 
 #: includes/class-mixmymeals-settings.php:1283
-#: includes/lib/class-mixmymeals-shortcodes.php:3567
+#: includes/lib/class-mixmymeals-shortcodes.php:3592
 msgid "Traffic light per 100 g"
 msgstr ""
 
@@ -712,15 +712,15 @@ msgstr ""
 #: includes/class-mixmymeals-settings.php:1302
 #: includes/class-mixmymeals-settings.php:1358
 #: includes/class-mixmymeals-settings.php:1392
-#: includes/lib/class-mixmymeals-shortcodes.php:14649
+#: includes/lib/class-mixmymeals-shortcodes.php:14674
 msgid "kcal"
 msgstr ""
 
 #: includes/class-mixmymeals-settings.php:1302
 #: includes/class-mixmymeals-settings.php:1358
 #: includes/class-mixmymeals-settings.php:1392
-#: includes/lib/class-mixmymeals-shortcodes.php:14616
-#: includes/lib/class-mixmymeals-shortcodes.php:14649
+#: includes/lib/class-mixmymeals-shortcodes.php:14641
+#: includes/lib/class-mixmymeals-shortcodes.php:14674
 msgid "g"
 msgstr ""
 
@@ -969,8 +969,8 @@ msgid "Unserializing instances of Mixmymeals_API is forbidden."
 msgstr ""
 
 #: includes/class-mixmymeals.php:408
-#: includes/lib/class-mixmymeals-shortcodes.php:4345
-#: includes/lib/class-mixmymeals-shortcodes.php:7052
+#: includes/lib/class-mixmymeals-shortcodes.php:4370
+#: includes/lib/class-mixmymeals-shortcodes.php:7077
 msgid "Adjust in the planner"
 msgstr ""
 
@@ -1010,7 +1010,7 @@ msgstr ""
 
 #: includes/class-mixmymeals.php:423
 #: includes/class-mixmymeals.php:425
-#: includes/lib/class-mixmymeals-shortcodes.php:6009
+#: includes/lib/class-mixmymeals-shortcodes.php:6034
 msgid "Clear Plan"
 msgstr ""
 
@@ -1027,11 +1027,11 @@ msgstr ""
 #: includes/lib/class-mixmymeals-post-meta.php:1087
 #: includes/lib/class-mixmymeals-post-meta.php:3172
 #: includes/lib/class-mixmymeals-post-types.php:1067
-#: includes/lib/class-mixmymeals-shortcodes.php:5391
-#: includes/lib/class-mixmymeals-shortcodes.php:5591
-#: includes/lib/class-mixmymeals-shortcodes.php:5598
-#: includes/lib/class-mixmymeals-shortcodes.php:8424
-#: includes/lib/class-mixmymeals-shortcodes.php:9485
+#: includes/lib/class-mixmymeals-shortcodes.php:5416
+#: includes/lib/class-mixmymeals-shortcodes.php:5616
+#: includes/lib/class-mixmymeals-shortcodes.php:5623
+#: includes/lib/class-mixmymeals-shortcodes.php:8449
+#: includes/lib/class-mixmymeals-shortcodes.php:9510
 msgid "Servings"
 msgstr ""
 
@@ -1041,33 +1041,33 @@ msgid "Diet"
 msgstr ""
 
 #: includes/class-mixmymeals.php:432
-#: includes/lib/class-mixmymeals-shortcodes.php:5634
+#: includes/lib/class-mixmymeals-shortcodes.php:5659
 msgid "Meal type"
 msgstr ""
 
 #. translators: the word after a number of days a plan lasts.
 #: includes/class-mixmymeals.php:433
 #: includes/lib/class-mixmymeals-post-meta.php:1086
-#: includes/lib/class-mixmymeals-shortcodes.php:5622
-#: includes/lib/class-mixmymeals-shortcodes.php:7407
-#: includes/lib/class-mixmymeals-shortcodes.php:10673
+#: includes/lib/class-mixmymeals-shortcodes.php:5647
+#: includes/lib/class-mixmymeals-shortcodes.php:7432
+#: includes/lib/class-mixmymeals-shortcodes.php:10698
 msgid "Day"
 msgid_plural "Days"
 msgstr[0] ""
 msgstr[1] ""
 
 #: includes/class-mixmymeals.php:434
-#: includes/lib/class-mixmymeals-shortcodes.php:5643
+#: includes/lib/class-mixmymeals-shortcodes.php:5668
 msgid "No type"
 msgstr ""
 
 #: includes/class-mixmymeals.php:435
-#: includes/lib/class-mixmymeals-shortcodes.php:5624
+#: includes/lib/class-mixmymeals-shortcodes.php:5649
 msgid "No day"
 msgstr ""
 
 #: includes/class-mixmymeals.php:436
-#: includes/lib/class-mixmymeals-shortcodes.php:5239
+#: includes/lib/class-mixmymeals-shortcodes.php:5264
 msgid "Add to Planner"
 msgstr ""
 
@@ -1116,8 +1116,8 @@ msgstr ""
 #. translators: %s: remaining minutes on top of the full hours.
 #. translators: %s: a number of minutes.
 #: includes/class-mixmymeals.php:455
-#: includes/lib/class-mixmymeals-shortcodes.php:8895
-#: includes/lib/class-mixmymeals-shortcodes.php:8912
+#: includes/lib/class-mixmymeals-shortcodes.php:8920
+#: includes/lib/class-mixmymeals-shortcodes.php:8937
 #: includes/lib/class-mixmymeals-yoast.php:340
 #: includes/lib/class-mixmymeals-yoast.php:351
 #, php-format
@@ -1187,7 +1187,7 @@ msgid "To the planner"
 msgstr ""
 
 #: includes/class-mixmymeals.php:498
-#: includes/lib/class-mixmymeals-shortcodes.php:6035
+#: includes/lib/class-mixmymeals-shortcodes.php:6060
 msgid "Save Plan"
 msgstr ""
 
@@ -1223,9 +1223,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:435
 #: includes/lib/class-mixmymeals-post-meta.php:2857
 #: includes/lib/class-mixmymeals-post-meta.php:3110
-#: includes/lib/class-mixmymeals-shortcodes.php:3721
-#: includes/lib/class-mixmymeals-shortcodes.php:5708
-#: includes/lib/class-mixmymeals-shortcodes.php:9306
+#: includes/lib/class-mixmymeals-shortcodes.php:3746
+#: includes/lib/class-mixmymeals-shortcodes.php:5733
+#: includes/lib/class-mixmymeals-shortcodes.php:9331
 msgid "Monday"
 msgstr ""
 
@@ -1233,9 +1233,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:436
 #: includes/lib/class-mixmymeals-post-meta.php:2858
 #: includes/lib/class-mixmymeals-post-meta.php:3111
-#: includes/lib/class-mixmymeals-shortcodes.php:3722
-#: includes/lib/class-mixmymeals-shortcodes.php:5709
-#: includes/lib/class-mixmymeals-shortcodes.php:9307
+#: includes/lib/class-mixmymeals-shortcodes.php:3747
+#: includes/lib/class-mixmymeals-shortcodes.php:5734
+#: includes/lib/class-mixmymeals-shortcodes.php:9332
 msgid "Tuesday"
 msgstr ""
 
@@ -1243,9 +1243,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:437
 #: includes/lib/class-mixmymeals-post-meta.php:2859
 #: includes/lib/class-mixmymeals-post-meta.php:3112
-#: includes/lib/class-mixmymeals-shortcodes.php:3723
-#: includes/lib/class-mixmymeals-shortcodes.php:5710
-#: includes/lib/class-mixmymeals-shortcodes.php:9308
+#: includes/lib/class-mixmymeals-shortcodes.php:3748
+#: includes/lib/class-mixmymeals-shortcodes.php:5735
+#: includes/lib/class-mixmymeals-shortcodes.php:9333
 msgid "Wednesday"
 msgstr ""
 
@@ -1253,9 +1253,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:438
 #: includes/lib/class-mixmymeals-post-meta.php:2860
 #: includes/lib/class-mixmymeals-post-meta.php:3113
-#: includes/lib/class-mixmymeals-shortcodes.php:3724
-#: includes/lib/class-mixmymeals-shortcodes.php:5711
-#: includes/lib/class-mixmymeals-shortcodes.php:9309
+#: includes/lib/class-mixmymeals-shortcodes.php:3749
+#: includes/lib/class-mixmymeals-shortcodes.php:5736
+#: includes/lib/class-mixmymeals-shortcodes.php:9334
 msgid "Thursday"
 msgstr ""
 
@@ -1263,9 +1263,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:439
 #: includes/lib/class-mixmymeals-post-meta.php:2861
 #: includes/lib/class-mixmymeals-post-meta.php:3114
-#: includes/lib/class-mixmymeals-shortcodes.php:3725
-#: includes/lib/class-mixmymeals-shortcodes.php:5712
-#: includes/lib/class-mixmymeals-shortcodes.php:9310
+#: includes/lib/class-mixmymeals-shortcodes.php:3750
+#: includes/lib/class-mixmymeals-shortcodes.php:5737
+#: includes/lib/class-mixmymeals-shortcodes.php:9335
 msgid "Friday"
 msgstr ""
 
@@ -1273,9 +1273,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:440
 #: includes/lib/class-mixmymeals-post-meta.php:2862
 #: includes/lib/class-mixmymeals-post-meta.php:3115
-#: includes/lib/class-mixmymeals-shortcodes.php:3726
-#: includes/lib/class-mixmymeals-shortcodes.php:5713
-#: includes/lib/class-mixmymeals-shortcodes.php:9311
+#: includes/lib/class-mixmymeals-shortcodes.php:3751
+#: includes/lib/class-mixmymeals-shortcodes.php:5738
+#: includes/lib/class-mixmymeals-shortcodes.php:9336
 msgid "Saturday"
 msgstr ""
 
@@ -1283,9 +1283,9 @@ msgstr ""
 #: includes/lib/class-mixmymeals-planner-tools.php:441
 #: includes/lib/class-mixmymeals-post-meta.php:2863
 #: includes/lib/class-mixmymeals-post-meta.php:3116
-#: includes/lib/class-mixmymeals-shortcodes.php:3727
-#: includes/lib/class-mixmymeals-shortcodes.php:5714
-#: includes/lib/class-mixmymeals-shortcodes.php:9312
+#: includes/lib/class-mixmymeals-shortcodes.php:3752
+#: includes/lib/class-mixmymeals-shortcodes.php:5739
+#: includes/lib/class-mixmymeals-shortcodes.php:9337
 msgid "Sunday"
 msgstr ""
 
@@ -1500,7 +1500,7 @@ msgid "Trigger"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-admin-api.php:709
-#: includes/lib/class-mixmymeals-shortcodes.php:12144
+#: includes/lib/class-mixmymeals-shortcodes.php:12169
 msgid "Time"
 msgstr ""
 
@@ -1760,7 +1760,7 @@ msgid "There is nothing in the planner to share."
 msgstr ""
 
 #: includes/lib/class-mixmymeals-cart.php:905
-#: includes/lib/class-mixmymeals-shortcodes.php:6301
+#: includes/lib/class-mixmymeals-shortcodes.php:6326
 #: includes/lib/class-mixmymeals-subscriptions.php:832
 msgid "Too many requests. Please try again later."
 msgstr ""
@@ -1778,7 +1778,7 @@ msgid "Shared planner loaded."
 msgstr ""
 
 #: includes/lib/class-mixmymeals-cart.php:1007
-#: includes/lib/class-mixmymeals-shortcodes.php:4408
+#: includes/lib/class-mixmymeals-shortcodes.php:4433
 msgid "Meal Plan not found."
 msgstr ""
 
@@ -1951,7 +1951,7 @@ msgid "Search Diets"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-diet.php:1089
-#: includes/lib/class-mixmymeals-shortcodes.php:8598
+#: includes/lib/class-mixmymeals-shortcodes.php:8623
 msgid "Diets"
 msgstr ""
 
@@ -2255,7 +2255,7 @@ msgid "Percentages refer to a reference intake of %s kcal per day. Your own need
 msgstr ""
 
 #: includes/lib/class-mixmymeals-meal-plan.php:2460
-#: includes/lib/class-mixmymeals-shortcodes.php:8443
+#: includes/lib/class-mixmymeals-shortcodes.php:8468
 msgid "Energy"
 msgstr ""
 
@@ -2348,8 +2348,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-meal.php:769
 #: includes/lib/class-mixmymeals-post-meta.php:3091
 #: includes/lib/class-mixmymeals-shortcodes.php:1301
-#: includes/lib/class-mixmymeals-shortcodes.php:14191
-#: includes/lib/class-mixmymeals-shortcodes.php:14456
+#: includes/lib/class-mixmymeals-shortcodes.php:14216
+#: includes/lib/class-mixmymeals-shortcodes.php:14481
 msgid "Other"
 msgstr ""
 
@@ -2478,7 +2478,7 @@ msgid "Avg. per 100 g"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-nutrition-table.php:160
-#: includes/lib/class-mixmymeals-shortcodes.php:13499
+#: includes/lib/class-mixmymeals-shortcodes.php:13524
 msgid "Nutrition"
 msgstr ""
 
@@ -2549,10 +2549,10 @@ msgid "Meal Photos"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-photos.php:366
-#: includes/lib/class-mixmymeals-shortcodes.php:11188
-#: includes/lib/class-mixmymeals-shortcodes.php:11193
-#: includes/lib/class-mixmymeals-shortcodes.php:11433
-#: includes/lib/class-mixmymeals-shortcodes.php:11444
+#: includes/lib/class-mixmymeals-shortcodes.php:11213
+#: includes/lib/class-mixmymeals-shortcodes.php:11218
+#: includes/lib/class-mixmymeals-shortcodes.php:11458
+#: includes/lib/class-mixmymeals-shortcodes.php:11469
 #: includes/lib/class-mixmymeals-subscriptions.php:920
 msgid "This link is invalid or has expired."
 msgstr ""
@@ -2603,8 +2603,8 @@ msgstr ""
 #: includes/lib/class-mixmymeals-photos.php:617
 #: includes/lib/class-mixmymeals-post-meta.php:1084
 #: includes/lib/class-mixmymeals-post-meta.php:3057
-#: includes/lib/class-mixmymeals-shortcodes.php:5870
-#: includes/lib/class-mixmymeals-shortcodes.php:7418
+#: includes/lib/class-mixmymeals-shortcodes.php:5895
+#: includes/lib/class-mixmymeals-shortcodes.php:7443
 msgid "Recipe"
 msgid_plural "Recipes"
 msgstr[0] ""
@@ -2739,19 +2739,19 @@ msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:333
 #: includes/lib/class-mixmymeals-post-meta.php:551
-#: includes/lib/class-mixmymeals-shortcodes.php:3014
-#: includes/lib/class-mixmymeals-shortcodes.php:4192
-#: includes/lib/class-mixmymeals-shortcodes.php:5104
-#: includes/lib/class-mixmymeals-shortcodes.php:6928
+#: includes/lib/class-mixmymeals-shortcodes.php:3039
+#: includes/lib/class-mixmymeals-shortcodes.php:4217
+#: includes/lib/class-mixmymeals-shortcodes.php:5129
+#: includes/lib/class-mixmymeals-shortcodes.php:6953
 #: includes/lib/class-mixmymeals-subscriptions.php:2707
 msgid "optional"
 msgstr ""
 
 #. translators: %d: position of the step, starting at 1.
 #: includes/lib/class-mixmymeals-post-meta.php:367
-#: includes/lib/class-mixmymeals-shortcodes.php:2917
-#: includes/lib/class-mixmymeals-shortcodes.php:4978
-#: includes/lib/class-mixmymeals-shortcodes.php:7226
+#: includes/lib/class-mixmymeals-shortcodes.php:2942
+#: includes/lib/class-mixmymeals-shortcodes.php:5003
+#: includes/lib/class-mixmymeals-shortcodes.php:7251
 #, php-format
 msgid "Step %d"
 msgstr ""
@@ -2859,14 +2859,14 @@ msgstr ""
 #: includes/lib/class-mixmymeals-post-meta.php:1088
 #: includes/lib/class-mixmymeals-post-meta.php:3186
 #: includes/lib/class-mixmymeals-post-meta.php:3813
-#: includes/lib/class-mixmymeals-shortcodes.php:5667
-#: includes/lib/class-mixmymeals-shortcodes.php:12117
-#: includes/lib/class-mixmymeals-shortcodes.php:14052
+#: includes/lib/class-mixmymeals-shortcodes.php:5692
+#: includes/lib/class-mixmymeals-shortcodes.php:12142
+#: includes/lib/class-mixmymeals-shortcodes.php:14077
 msgid "Diet"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:1092
-#: includes/lib/class-mixmymeals-shortcodes.php:10531
+#: includes/lib/class-mixmymeals-shortcodes.php:10556
 msgid "Eats along"
 msgstr ""
 
@@ -3053,13 +3053,13 @@ msgstr ""
 #. translators: %s: neutral label of a person, e.g. "Person 2".
 #. translators: %s: neutral label of a person, e.g. "Person 3".
 #: includes/lib/class-mixmymeals-post-meta.php:1946
-#: includes/lib/class-mixmymeals-shortcodes.php:10413
+#: includes/lib/class-mixmymeals-shortcodes.php:10438
 #, php-format
 msgid "Remove %s"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:1957
-#: includes/lib/class-mixmymeals-shortcodes.php:10418
+#: includes/lib/class-mixmymeals-shortcodes.php:10443
 msgid "Add a person"
 msgstr ""
 
@@ -3181,7 +3181,7 @@ msgid "Belongs to this planning, not to the recipe — it is shown on the plan a
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:3292
-#: includes/lib/class-mixmymeals-shortcodes.php:8451
+#: includes/lib/class-mixmymeals-shortcodes.php:8476
 msgid "Price"
 msgstr ""
 
@@ -3521,7 +3521,7 @@ msgid "Sponsored (paid placement)"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-meta.php:5441
-#: includes/lib/class-mixmymeals-shortcodes.php:8600
+#: includes/lib/class-mixmymeals-shortcodes.php:8625
 msgid "Disclosure"
 msgstr ""
 
@@ -3762,7 +3762,7 @@ msgid "Parent Ingredients:"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-types.php:586
-#: includes/lib/class-mixmymeals-shortcodes.php:4136
+#: includes/lib/class-mixmymeals-shortcodes.php:4161
 msgid "No ingredients found."
 msgstr ""
 
@@ -3811,8 +3811,8 @@ msgid "Ingredients list"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-post-types.php:663
-#: includes/lib/class-mixmymeals-shortcodes.php:6474
-#: includes/lib/class-mixmymeals-shortcodes.php:7824
+#: includes/lib/class-mixmymeals-shortcodes.php:6499
+#: includes/lib/class-mixmymeals-shortcodes.php:7849
 msgid "Meal Plan"
 msgstr ""
 
@@ -4326,7 +4326,7 @@ msgid "Rate this recipe"
 msgstr ""
 
 #: includes/lib/class-mixmymeals-ratings.php:111
-#: includes/lib/class-mixmymeals-shortcodes.php:11400
+#: includes/lib/class-mixmymeals-shortcodes.php:11425
 msgid "Submit rating"
 msgstr ""
 
@@ -4346,7 +4346,7 @@ msgstr ""
 
 #. translators: %s: number of stars
 #: includes/lib/class-mixmymeals-ratings.php:159
-#: includes/lib/class-mixmymeals-shortcodes.php:11349
+#: includes/lib/class-mixmymeals-shortcodes.php:11374
 #, php-format
 msgid "%s star"
 msgid_plural "%s stars"
@@ -4358,14 +4358,14 @@ msgid "You need to be logged in to rate this recipe."
 msgstr ""
 
 #: includes/lib/class-mixmymeals-ratings.php:202
-#: includes/lib/class-mixmymeals-shortcodes.php:6216
-#: includes/lib/class-mixmymeals-shortcodes.php:11218
-#: includes/lib/class-mixmymeals-shortcodes.php:11483
+#: includes/lib/class-mixmymeals-shortcodes.php:6241
+#: includes/lib/class-mixmymeals-shortcodes.php:11243
+#: includes/lib/class-mixmymeals-shortcodes.php:11508
 msgid "Your session has expired. Please reload the page."
 msgstr ""
 
 #: includes/lib/class-mixmymeals-ratings.php:214
-#: includes/lib/class-mixmymeals-shortcodes.php:11230
+#: includes/lib/class-mixmymeals-shortcodes.php:11255
 msgid "Please select a rating."
 msgstr ""
 
@@ -4471,8 +4471,8 @@ msgstr ""
 #. translators: %s: number of days in the plan.
 #. translators: %s = number of days
 #: includes/lib/class-mixmymeals-shortcodes.php:869
-#: includes/lib/class-mixmymeals-shortcodes.php:2815
-#: includes/lib/class-mixmymeals-shortcodes.php:9647
+#: includes/lib/class-mixmymeals-shortcodes.php:2840
+#: includes/lib/class-mixmymeals-shortcodes.php:9672
 #, php-format
 msgid "%s Day"
 msgid_plural "%s Days"
@@ -4482,8 +4482,8 @@ msgstr[1] ""
 #. translators: %s: number of recipes in the plan.
 #. translators: %s = number of meals
 #: includes/lib/class-mixmymeals-shortcodes.php:875
-#: includes/lib/class-mixmymeals-shortcodes.php:2822
-#: includes/lib/class-mixmymeals-shortcodes.php:9659
+#: includes/lib/class-mixmymeals-shortcodes.php:2847
+#: includes/lib/class-mixmymeals-shortcodes.php:9684
 #, php-format
 msgid "%s Recipe"
 msgid_plural "%s Recipes"
@@ -4572,153 +4572,159 @@ msgid "%1$s %2$s per serving"
 msgstr ""
 
 #. translators: %s: the value given for "by".
-#: includes/lib/class-mixmymeals-shortcodes.php:1739
+#: includes/lib/class-mixmymeals-shortcodes.php:1743
 #, php-format
 msgid "Ingredient ranking: \"%s\" is not a figure ingredients can be ranked by."
 msgstr ""
 
 #. translators: %s: the category given.
-#: includes/lib/class-mixmymeals-shortcodes.php:1761
+#: includes/lib/class-mixmymeals-shortcodes.php:1765
 #, php-format
 msgid "Ingredient ranking: there is no ingredient category \"%s\"."
 msgstr ""
 
 #. translators: %s: the ingredient given.
-#: includes/lib/class-mixmymeals-shortcodes.php:1779
+#: includes/lib/class-mixmymeals-shortcodes.php:1785
 #, php-format
 msgid "Ingredient ranking: there is no ingredient \"%s\"."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:1791
+#: includes/lib/class-mixmymeals-shortcodes.php:1802
 msgid "Ingredient ranking: no ingredient qualifies for this list."
+msgstr ""
+
+#. translators: %s: comma-separated ingredient names.
+#: includes/lib/class-mixmymeals-shortcodes.php:1813
+#, php-format
+msgid "Ingredient ranking: not listed because the figure is missing or the ingredient is not public: %s."
 msgstr ""
 
 #. translators: %s: a nutrition figure, e.g. "Protein".
 #. translators: %s: energy, already formatted with its unit.
-#: includes/lib/class-mixmymeals-shortcodes.php:1796
+#: includes/lib/class-mixmymeals-shortcodes.php:1821
 #: includes/lib/class-mixmymeals-yoast.php:844
 #, php-format
 msgid "%s per 100 g"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:1802
+#: includes/lib/class-mixmymeals-shortcodes.php:1827
 msgid "Food"
 msgstr ""
 
 #. translators: %s: number of recipes, already formatted.
-#: includes/lib/class-mixmymeals-shortcodes.php:1984
+#: includes/lib/class-mixmymeals-shortcodes.php:2009
 #, php-format
 msgid "Show all %s"
 msgid_plural "Show all %s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2189
+#: includes/lib/class-mixmymeals-shortcodes.php:2214
 msgid "View plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2213
+#: includes/lib/class-mixmymeals-shortcodes.php:2238
 msgid "Latest meal plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2531
+#: includes/lib/class-mixmymeals-shortcodes.php:2556
 msgid "Enter a password instead"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2587
+#: includes/lib/class-mixmymeals-shortcodes.php:2612
 msgid "Bought this meal plan? Enter your access code."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2594
+#: includes/lib/class-mixmymeals-shortcodes.php:2619
 msgid "Access code"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2598
+#: includes/lib/class-mixmymeals-shortcodes.php:2623
 msgid "Open meal plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2862
+#: includes/lib/class-mixmymeals-shortcodes.php:2887
 msgid "This shortcode must be used inside a meal."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2873
+#: includes/lib/class-mixmymeals-shortcodes.php:2898
 msgid "No recipe linked to this meal."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:2884
-#: includes/lib/class-mixmymeals-shortcodes.php:4929
+#: includes/lib/class-mixmymeals-shortcodes.php:2909
+#: includes/lib/class-mixmymeals-shortcodes.php:4954
 msgid "No steps defined for this recipe."
 msgstr ""
 
 #. translators: Marks a serving weight as the weight once cooked, e.g. "450 g cooked".
-#: includes/lib/class-mixmymeals-shortcodes.php:3385
+#: includes/lib/class-mixmymeals-shortcodes.php:3410
 msgctxt "serving weight"
 msgid "cooked"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3584
+#: includes/lib/class-mixmymeals-shortcodes.php:3609
 msgid "This shortcode can only be used on meal posts."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3595
+#: includes/lib/class-mixmymeals-shortcodes.php:3620
 msgid "No recipe assigned to this meal."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3605
+#: includes/lib/class-mixmymeals-shortcodes.php:3630
 msgid "No ingredients found for this recipe."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3656
+#: includes/lib/class-mixmymeals-shortcodes.php:3681
 msgid "This meal plan does not contain any meals yet."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3685
-#: includes/lib/class-mixmymeals-shortcodes.php:9723
-#: includes/lib/class-mixmymeals-shortcodes.php:10603
+#: includes/lib/class-mixmymeals-shortcodes.php:3710
+#: includes/lib/class-mixmymeals-shortcodes.php:9748
+#: includes/lib/class-mixmymeals-shortcodes.php:10628
 msgid "No valid meal plan found."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3870
+#: includes/lib/class-mixmymeals-shortcodes.php:3895
 msgid "Today"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3890
+#: includes/lib/class-mixmymeals-shortcodes.php:3915
 msgid "Preparations"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3927
+#: includes/lib/class-mixmymeals-shortcodes.php:3952
 msgid "No image yet"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:3930
+#: includes/lib/class-mixmymeals-shortcodes.php:3955
 msgid "This recipe does not exist anymore."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4089
+#: includes/lib/class-mixmymeals-shortcodes.php:4114
 msgid "No meal plan found."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4156
+#: includes/lib/class-mixmymeals-shortcodes.php:4181
 msgid "Ingredient no longer available."
 msgstr ""
 
 #. translators: 1: amount, 2: unit name, 3: recipe name.
-#: includes/lib/class-mixmymeals-shortcodes.php:4234
+#: includes/lib/class-mixmymeals-shortcodes.php:4259
 #, php-format
 msgid "%1$s × %2$s for %3$s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4307
+#: includes/lib/class-mixmymeals-shortcodes.php:4332
 msgid "One serving fewer at every meal"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4308
+#: includes/lib/class-mixmymeals-shortcodes.php:4333
 msgid "One serving more at every meal"
 msgstr ""
 
 #. translators: %s: − the number of servings +. Keep the %s.
-#: includes/lib/class-mixmymeals-shortcodes.php:4320
-#: includes/lib/class-mixmymeals-shortcodes.php:6714
+#: includes/lib/class-mixmymeals-shortcodes.php:4345
+#: includes/lib/class-mixmymeals-shortcodes.php:6739
 #, php-format
 msgid "For %s serving"
 msgid_plural "For %s servings"
@@ -4726,42 +4732,42 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: − the change +. Keep the %s.
-#: includes/lib/class-mixmymeals-shortcodes.php:4324
+#: includes/lib/class-mixmymeals-shortcodes.php:4349
 #, php-format
 msgid "Servings: %s at every meal"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4333
-#: includes/lib/class-mixmymeals-shortcodes.php:6721
+#: includes/lib/class-mixmymeals-shortcodes.php:4358
+#: includes/lib/class-mixmymeals-shortcodes.php:6746
 msgid "Number of servings"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4340
+#: includes/lib/class-mixmymeals-shortcodes.php:4365
 msgid "Change single days?"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4354
+#: includes/lib/class-mixmymeals-shortcodes.php:4379
 msgid "Fewer is not possible here: the servings cover what the people of this plan eat."
 msgstr ""
 
 #. translators: the word after a number of servings.
-#: includes/lib/class-mixmymeals-shortcodes.php:4482
-#: includes/lib/class-mixmymeals-shortcodes.php:5388
-#: includes/lib/class-mixmymeals-shortcodes.php:7501
-#: includes/lib/class-mixmymeals-shortcodes.php:9368
-#: includes/lib/class-mixmymeals-shortcodes.php:9484
+#: includes/lib/class-mixmymeals-shortcodes.php:4507
+#: includes/lib/class-mixmymeals-shortcodes.php:5413
+#: includes/lib/class-mixmymeals-shortcodes.php:7526
+#: includes/lib/class-mixmymeals-shortcodes.php:9393
+#: includes/lib/class-mixmymeals-shortcodes.php:9509
 msgid "Serving"
 msgid_plural "Servings"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4529
-#: includes/lib/class-mixmymeals-shortcodes.php:9403
+#: includes/lib/class-mixmymeals-shortcodes.php:4554
+#: includes/lib/class-mixmymeals-shortcodes.php:9428
 msgid "Start cooking mode"
 msgstr ""
 
 #. translators: %s: diet name, e.g. "Vegan" — the meals a shopping-list line is bought for.
-#: includes/lib/class-mixmymeals-shortcodes.php:4553
+#: includes/lib/class-mixmymeals-shortcodes.php:4578
 #, php-format
 msgctxt "shopping list line bought for a diet"
 msgid "(%s)"
@@ -4769,164 +4775,164 @@ msgstr ""
 
 #. translators: %d: number of pieces of equipment
 #. translators: %d: number of ingredients
-#: includes/lib/class-mixmymeals-shortcodes.php:4863
-#: includes/lib/class-mixmymeals-shortcodes.php:6888
+#: includes/lib/class-mixmymeals-shortcodes.php:4888
+#: includes/lib/class-mixmymeals-shortcodes.php:6913
 #, php-format
 msgid "Show all (%d)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4913
-#: includes/lib/class-mixmymeals-shortcodes.php:5146
+#: includes/lib/class-mixmymeals-shortcodes.php:4938
+#: includes/lib/class-mixmymeals-shortcodes.php:5171
 msgid "No recipe specified."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:4920
-#: includes/lib/class-mixmymeals-shortcodes.php:5157
+#: includes/lib/class-mixmymeals-shortcodes.php:4945
+#: includes/lib/class-mixmymeals-shortcodes.php:5182
 msgid "Recipe does not exist anymore."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5048
+#: includes/lib/class-mixmymeals-shortcodes.php:5073
 msgid "Piece"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5167
+#: includes/lib/class-mixmymeals-shortcodes.php:5192
 msgid "No steps or ingredients found for this recipe."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5603
+#: includes/lib/class-mixmymeals-shortcodes.php:5628
 msgid "Adjust"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5684
+#: includes/lib/class-mixmymeals-shortcodes.php:5709
 msgid "Remove item"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5782
+#: includes/lib/class-mixmymeals-shortcodes.php:5807
 msgid "Your planner is still empty."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5785
+#: includes/lib/class-mixmymeals-shortcodes.php:5810
 msgid "Find recipes"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5807
+#: includes/lib/class-mixmymeals-shortcodes.php:5832
 msgid "Or start from a finished plan:"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5822
+#: includes/lib/class-mixmymeals-shortcodes.php:5847
 msgid "Use as a template"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5844
+#: includes/lib/class-mixmymeals-shortcodes.php:5869
 msgid "Week starts on"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5846
+#: includes/lib/class-mixmymeals-shortcodes.php:5871
 msgid "Monday (default)"
 msgstr ""
 
 #. translators: %s: weekday.
-#: includes/lib/class-mixmymeals-shortcodes.php:5871
+#: includes/lib/class-mixmymeals-shortcodes.php:5896
 #, php-format
 msgid "for %s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5876
+#: includes/lib/class-mixmymeals-shortcodes.php:5901
 msgid "Start day"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5928
+#: includes/lib/class-mixmymeals-shortcodes.php:5953
 msgid "Still free. Add a recipe with “+ Recipe”, or drag one here from another day."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5929
+#: includes/lib/class-mixmymeals-shortcodes.php:5954
 msgid "Still free. Add a recipe with “+ Recipe”."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:5988
+#: includes/lib/class-mixmymeals-shortcodes.php:6013
 msgid "Share planner"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6036
-#: includes/lib/class-mixmymeals-shortcodes.php:6229
+#: includes/lib/class-mixmymeals-shortcodes.php:6061
+#: includes/lib/class-mixmymeals-shortcodes.php:6254
 msgid "Please log in to create a meal plan."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6171
+#: includes/lib/class-mixmymeals-shortcodes.php:6196
 #: includes/lib/class-mixmymeals-subscriptions.php:737
 msgid "Your e-mail"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6172
+#: includes/lib/class-mixmymeals-shortcodes.php:6197
 msgid "Your e-mail (optional)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6174
+#: includes/lib/class-mixmymeals-shortcodes.php:6199
 #: includes/lib/class-mixmymeals-subscriptions.php:732
 msgid "Your first name (optional)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6269
+#: includes/lib/class-mixmymeals-shortcodes.php:6294
 msgid "Please enter your e-mail address to save the plan."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6279
+#: includes/lib/class-mixmymeals-shortcodes.php:6304
 #: includes/lib/class-mixmymeals-subscriptions.php:336
 #: includes/lib/class-mixmymeals-subscriptions.php:823
 msgid "Please enter a valid e-mail address."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6289
+#: includes/lib/class-mixmymeals-shortcodes.php:6314
 #: includes/lib/class-mixmymeals-subscriptions.php:827
 msgid "Please confirm your consent to continue."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6328
+#: includes/lib/class-mixmymeals-shortcodes.php:6353
 msgid "Too many plans created. Please try again later."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6351
+#: includes/lib/class-mixmymeals-shortcodes.php:6376
 msgid "There are no items to create a meal plan from."
 msgstr ""
 
 #. translators: %d: highest number of recipes a plan may hold.
-#: includes/lib/class-mixmymeals-shortcodes.php:6370
+#: includes/lib/class-mixmymeals-shortcodes.php:6395
 #, php-format
 msgid "Maximum %d recipes per plan."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6430
+#: includes/lib/class-mixmymeals-shortcodes.php:6455
 msgid "No valid items."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6495
+#: includes/lib/class-mixmymeals-shortcodes.php:6520
 msgid "Could not create meal plan."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6592
+#: includes/lib/class-mixmymeals-shortcodes.php:6617
 msgid "Meal Plan created! Please check your inbox to confirm the subscription."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6593
+#: includes/lib/class-mixmymeals-shortcodes.php:6618
 msgid "Meal Plan created!"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6705
+#: includes/lib/class-mixmymeals-shortcodes.php:6730
 msgid "One serving fewer"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:6706
+#: includes/lib/class-mixmymeals-shortcodes.php:6731
 msgid "One serving more"
 msgstr ""
 
 #. translators: %s: title of the meal plan.
-#: includes/lib/class-mixmymeals-shortcodes.php:7017
+#: includes/lib/class-mixmymeals-shortcodes.php:7042
 #, php-format
 msgid "Meal Plan: %s"
 msgstr ""
 
 #. translators: %s: public URL of the meal plan.
-#: includes/lib/class-mixmymeals-shortcodes.php:7019
+#: includes/lib/class-mixmymeals-shortcodes.php:7044
 #, php-format
 msgid ""
 "My Meal Plan:\n"
@@ -4934,562 +4940,562 @@ msgid ""
 "%s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7027
+#: includes/lib/class-mixmymeals-shortcodes.php:7052
 msgctxt "action"
 msgid "Share"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7037
+#: includes/lib/class-mixmymeals-shortcodes.php:7062
 msgid "Send via Email"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7043
+#: includes/lib/class-mixmymeals-shortcodes.php:7068
 msgid "Export to Bring!"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7074
+#: includes/lib/class-mixmymeals-shortcodes.php:7099
 #: includes/lib/class-mixmymeals-subscriptions.php:785
 msgid "Subscribe"
 msgstr ""
 
 #. translators: %s: lead time, e.g. "2 days before".
-#: includes/lib/class-mixmymeals-shortcodes.php:7192
+#: includes/lib/class-mixmymeals-shortcodes.php:7217
 #, php-format
 msgid "Preparation · %s"
 msgstr ""
 
 #. translators: %s: title of the meal the preparation is for.
-#: includes/lib/class-mixmymeals-shortcodes.php:7240
+#: includes/lib/class-mixmymeals-shortcodes.php:7265
 #, php-format
 msgid "Preparation for %s:"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7319
+#: includes/lib/class-mixmymeals-shortcodes.php:7344
 msgid "Home"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7728
+#: includes/lib/class-mixmymeals-shortcodes.php:7753
 msgid "Recipe not found or not published."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7758
+#: includes/lib/class-mixmymeals-shortcodes.php:7783
 msgctxt "embed kicker"
 msgid "Recipe"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7771
+#: includes/lib/class-mixmymeals-shortcodes.php:7796
 msgid "View recipe"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7807
+#: includes/lib/class-mixmymeals-shortcodes.php:7832
 msgid "Meal plan not found or not published."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:7832
+#: includes/lib/class-mixmymeals-shortcodes.php:7857
 msgid "View meal plan"
 msgstr ""
 
 #. translators: %s: number of further recipes on the plan.
-#: includes/lib/class-mixmymeals-shortcodes.php:7923
+#: includes/lib/class-mixmymeals-shortcodes.php:7948
 #, php-format
 msgid "and %s more recipe"
 msgid_plural "and %s more recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8023
+#: includes/lib/class-mixmymeals-shortcodes.php:8048
 msgid "Recipe by"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8158
+#: includes/lib/class-mixmymeals-shortcodes.php:8183
 msgid "Image source:"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8328
+#: includes/lib/class-mixmymeals-shortcodes.php:8353
 msgid "the diet, e.g. \"Vegan\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8329
+#: includes/lib/class-mixmymeals-shortcodes.php:8354
 msgid "how it is kept, e.g. \"in the fridge\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8330
+#: includes/lib/class-mixmymeals-shortcodes.php:8355
 msgid "the matching word for the number, already in singular or plural"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8337
+#: includes/lib/class-mixmymeals-shortcodes.php:8362
 msgid "Diet, settled"
 msgstr ""
 
 #. translators: chip wording. {diet} is the name of a diet, e.g. "Vegan".
-#: includes/lib/class-mixmymeals-shortcodes.php:8339
+#: includes/lib/class-mixmymeals-shortcodes.php:8364
 msgid "{diet}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8345
+#: includes/lib/class-mixmymeals-shortcodes.php:8370
 msgid "Diet, only possible"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8346
+#: includes/lib/class-mixmymeals-shortcodes.php:8371
 msgid "Shown when the dish could be cooked this way but the products chosen do not yet say so."
 msgstr ""
 
 #. translators: chip wording. {diet} is the name of a diet, e.g. "Vegan".
-#: includes/lib/class-mixmymeals-shortcodes.php:8348
+#: includes/lib/class-mixmymeals-shortcodes.php:8373
 msgid "{diet}-capable"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8356
+#: includes/lib/class-mixmymeals-shortcodes.php:8381
 msgid "Keeps, with storage"
 msgstr ""
 
 #. translators: chip wording. {days} a number, {unit} day/days, {storage} e.g. "in the fridge".
-#: includes/lib/class-mixmymeals-shortcodes.php:8358
+#: includes/lib/class-mixmymeals-shortcodes.php:8383
 msgid "{days} {unit} {storage}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8360
-#: includes/lib/class-mixmymeals-shortcodes.php:8372
-#: includes/lib/class-mixmymeals-shortcodes.php:8481
+#: includes/lib/class-mixmymeals-shortcodes.php:8385
+#: includes/lib/class-mixmymeals-shortcodes.php:8397
+#: includes/lib/class-mixmymeals-shortcodes.php:8506
 msgid "the number of days"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8368
+#: includes/lib/class-mixmymeals-shortcodes.php:8393
 msgid "Keeps, storage unknown"
 msgstr ""
 
 #. translators: chip wording. {days} a number, {unit} day/days.
-#: includes/lib/class-mixmymeals-shortcodes.php:8370
+#: includes/lib/class-mixmymeals-shortcodes.php:8395
 msgid "Keeps {days} {unit}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8379
+#: includes/lib/class-mixmymeals-shortcodes.php:8404
 msgid "Eat the same day, with storage"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8380
+#: includes/lib/class-mixmymeals-shortcodes.php:8405
 msgid "A shelf life of zero. Never worded as \"0 days\" — a zero among figures reads as a missing value."
 msgstr ""
 
 #. translators: chip wording. {storage} e.g. "in the fridge".
-#: includes/lib/class-mixmymeals-shortcodes.php:8382
+#: includes/lib/class-mixmymeals-shortcodes.php:8407
 msgid "Same day, {storage}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8388
+#: includes/lib/class-mixmymeals-shortcodes.php:8413
 msgid "Eat the same day"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8389
+#: includes/lib/class-mixmymeals-shortcodes.php:8414
 msgid "Same day"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8395
+#: includes/lib/class-mixmymeals-shortcodes.php:8420
 msgid "Storage alone"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8396
+#: includes/lib/class-mixmymeals-shortcodes.php:8421
 msgid "Nobody has stated a shelf life. {storage} is the bare noun here (\"Fridge\"), since there is no sentence around it to carry a preposition."
 msgstr ""
 
 #. translators: chip wording. {storage} is the bare noun, e.g. "Fridge".
-#: includes/lib/class-mixmymeals-shortcodes.php:8398
+#: includes/lib/class-mixmymeals-shortcodes.php:8423
 msgid "{storage}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8406
+#: includes/lib/class-mixmymeals-shortcodes.php:8431
 msgid "Paid or sponsored content"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8407
+#: includes/lib/class-mixmymeals-shortcodes.php:8432
 msgid "A legal disclosure. Softer wordings such as \"in cooperation with\" are widely held to be too weak."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8408
+#: includes/lib/class-mixmymeals-shortcodes.php:8433
 msgid "Advertisement"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8414
+#: includes/lib/class-mixmymeals-shortcodes.php:8439
 msgid "Guest contribution"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8415
+#: includes/lib/class-mixmymeals-shortcodes.php:8440
 msgid "Transparency, not a legal disclosure — and it must not look like one."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8416
+#: includes/lib/class-mixmymeals-shortcodes.php:8441
 msgid "Guest author"
 msgstr ""
 
 #. translators: chip wording. {count} a number, {unit} serving/servings.
 #. translators: chip wording. {count} a number, {unit} day/days.
 #. translators: chip wording. {count} a number, {unit} recipe/recipes.
-#: includes/lib/class-mixmymeals-shortcodes.php:8426
-#: includes/lib/class-mixmymeals-shortcodes.php:8479
-#: includes/lib/class-mixmymeals-shortcodes.php:8490
+#: includes/lib/class-mixmymeals-shortcodes.php:8451
+#: includes/lib/class-mixmymeals-shortcodes.php:8504
+#: includes/lib/class-mixmymeals-shortcodes.php:8515
 msgid "{count} {unit}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8428
+#: includes/lib/class-mixmymeals-shortcodes.php:8453
 msgid "the number of servings"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8435
+#: includes/lib/class-mixmymeals-shortcodes.php:8460
 msgid "Preparation time"
 msgstr ""
 
 #. translators: chip wording. {time} is the already formatted duration, e.g. "45 min".
-#: includes/lib/class-mixmymeals-shortcodes.php:8437
+#: includes/lib/class-mixmymeals-shortcodes.php:8462
 msgid "{time}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8438
+#: includes/lib/class-mixmymeals-shortcodes.php:8463
 msgid "the duration, already formatted, e.g. \"45 min\""
 msgstr ""
 
 #. translators: chip wording. {kcal} is the energy per serving.
-#: includes/lib/class-mixmymeals-shortcodes.php:8445
+#: includes/lib/class-mixmymeals-shortcodes.php:8470
 msgid "{kcal} kcal ps"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8446
-#: includes/lib/class-mixmymeals-shortcodes.php:8563
+#: includes/lib/class-mixmymeals-shortcodes.php:8471
+#: includes/lib/class-mixmymeals-shortcodes.php:8588
 msgid "kilocalories per serving"
 msgstr ""
 
 #. translators: chip wording. {price} includes the currency.
-#: includes/lib/class-mixmymeals-shortcodes.php:8453
+#: includes/lib/class-mixmymeals-shortcodes.php:8478
 msgid "{price} / serving"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8454
-#: includes/lib/class-mixmymeals-shortcodes.php:8521
-#: includes/lib/class-mixmymeals-shortcodes.php:8572
+#: includes/lib/class-mixmymeals-shortcodes.php:8479
+#: includes/lib/class-mixmymeals-shortcodes.php:8546
+#: includes/lib/class-mixmymeals-shortcodes.php:8597
 msgid "the price including the currency"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8459
+#: includes/lib/class-mixmymeals-shortcodes.php:8484
 msgid "Day of a meal"
 msgstr ""
 
 #. translators: chip wording. {day} is a weekday, e.g. "Monday".
-#: includes/lib/class-mixmymeals-shortcodes.php:8461
+#: includes/lib/class-mixmymeals-shortcodes.php:8486
 msgid "{day}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8462
+#: includes/lib/class-mixmymeals-shortcodes.php:8487
 msgid "the day, e.g. \"Monday\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8467
+#: includes/lib/class-mixmymeals-shortcodes.php:8492
 msgid "Kind of meal"
 msgstr ""
 
 #. translators: chip wording. {type} is breakfast, lunch and so on.
-#: includes/lib/class-mixmymeals-shortcodes.php:8469
+#: includes/lib/class-mixmymeals-shortcodes.php:8494
 msgid "{type}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8470
+#: includes/lib/class-mixmymeals-shortcodes.php:8495
 msgid "the kind of meal, e.g. \"Dinner\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8477
+#: includes/lib/class-mixmymeals-shortcodes.php:8502
 msgid "Length of a plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8488
+#: includes/lib/class-mixmymeals-shortcodes.php:8513
 msgid "Number of recipes"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8492
-#: includes/lib/class-mixmymeals-shortcodes.php:8530
+#: includes/lib/class-mixmymeals-shortcodes.php:8517
+#: includes/lib/class-mixmymeals-shortcodes.php:8555
 msgid "the number of recipes"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8499
+#: includes/lib/class-mixmymeals-shortcodes.php:8524
 msgid "Servings across a plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8500
+#: includes/lib/class-mixmymeals-shortcodes.php:8525
 msgid "A range when the meals differ, a single number when they do not."
 msgstr ""
 
 #. translators: chip wording. {range} is e.g. "2–4 servings".
-#: includes/lib/class-mixmymeals-shortcodes.php:8502
+#: includes/lib/class-mixmymeals-shortcodes.php:8527
 msgid "{range}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8503
+#: includes/lib/class-mixmymeals-shortcodes.php:8528
 msgid "the servings, already formatted, e.g. \"2–4 servings\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8510
+#: includes/lib/class-mixmymeals-shortcodes.php:8535
 msgid "Energy of an ingredient"
 msgstr ""
 
 #. translators: chip wording. {kcal} is the energy per 100 g.
-#: includes/lib/class-mixmymeals-shortcodes.php:8512
+#: includes/lib/class-mixmymeals-shortcodes.php:8537
 msgid "{kcal} kcal / 100 g"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8513
+#: includes/lib/class-mixmymeals-shortcodes.php:8538
 msgid "kilocalories per 100 g"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8518
+#: includes/lib/class-mixmymeals-shortcodes.php:8543
 msgid "Price of an ingredient"
 msgstr ""
 
 #. translators: chip wording. {price} includes the currency.
-#: includes/lib/class-mixmymeals-shortcodes.php:8520
+#: includes/lib/class-mixmymeals-shortcodes.php:8545
 msgid "{price} / 100 g"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8526
+#: includes/lib/class-mixmymeals-shortcodes.php:8551
 msgid "Recipes using a piece of equipment"
 msgstr ""
 
 #. translators: chip wording. {count} a number, {unit} recipe/recipes.
-#: includes/lib/class-mixmymeals-shortcodes.php:8528
+#: includes/lib/class-mixmymeals-shortcodes.php:8553
 msgid "Used in {count} {unit}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8539
+#: includes/lib/class-mixmymeals-shortcodes.php:8564
 msgid "Category"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8540
+#: includes/lib/class-mixmymeals-shortcodes.php:8565
 msgid "One chip per category, on cards and on the ingredient header."
 msgstr ""
 
 #. translators: chip wording. {category} is the category name.
-#: includes/lib/class-mixmymeals-shortcodes.php:8542
+#: includes/lib/class-mixmymeals-shortcodes.php:8567
 msgid "{category}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8543
+#: includes/lib/class-mixmymeals-shortcodes.php:8568
 msgid "the name of the category"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8548
+#: includes/lib/class-mixmymeals-shortcodes.php:8573
 msgid "Ingredient match on a card"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8549
+#: includes/lib/class-mixmymeals-shortcodes.php:8574
 msgid "Only while somebody is searching by the ingredients they have."
 msgstr ""
 
 #. translators: chip wording. {hits} of {total} searched ingredients are in this dish.
-#: includes/lib/class-mixmymeals-shortcodes.php:8551
+#: includes/lib/class-mixmymeals-shortcodes.php:8576
 msgid "{hits} of {total} ingredients"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8553
+#: includes/lib/class-mixmymeals-shortcodes.php:8578
 msgid "how many of the ingredients are in this dish"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8554
+#: includes/lib/class-mixmymeals-shortcodes.php:8579
 msgid "how many were searched for"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8560
+#: includes/lib/class-mixmymeals-shortcodes.php:8585
 msgid "Energy on a card"
 msgstr ""
 
 #. translators: chip wording. {kcal} is the energy per serving.
-#: includes/lib/class-mixmymeals-shortcodes.php:8562
+#: includes/lib/class-mixmymeals-shortcodes.php:8587
 msgid "{kcal} kcal"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8568
+#: includes/lib/class-mixmymeals-shortcodes.php:8593
 msgid "Price on a card"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8569
+#: includes/lib/class-mixmymeals-shortcodes.php:8594
 msgid "The bare amount, as cards have no room for a unit. The per-serving wording is under \"Recipes and meals\"."
 msgstr ""
 
 #. translators: chip wording. {price} includes the currency.
-#: includes/lib/class-mixmymeals-shortcodes.php:8571
+#: includes/lib/class-mixmymeals-shortcodes.php:8596
 msgid "{price}"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8597
+#: includes/lib/class-mixmymeals-shortcodes.php:8622
 msgid "Recipes and meals"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8599
+#: includes/lib/class-mixmymeals-shortcodes.php:8624
 msgid "Shelf life and storage"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8601
+#: includes/lib/class-mixmymeals-shortcodes.php:8626
 msgid "Ingredients and equipment"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8602
+#: includes/lib/class-mixmymeals-shortcodes.php:8627
 msgid "Meal plans"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8603
+#: includes/lib/class-mixmymeals-shortcodes.php:8628
 msgid "Cards and archives"
 msgstr ""
 
 #. translators: 1: placeholder, e.g. {count}. 2: what it stands for.
-#: includes/lib/class-mixmymeals-shortcodes.php:8757
+#: includes/lib/class-mixmymeals-shortcodes.php:8782
 #, php-format
 msgid "%1$s — %2$s"
 msgstr ""
 
 #. translators: %s: what a placeholder stands for.
-#: includes/lib/class-mixmymeals-shortcodes.php:8761
+#: includes/lib/class-mixmymeals-shortcodes.php:8786
 #, php-format
 msgid "%s (required)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:8767
+#: includes/lib/class-mixmymeals-shortcodes.php:8792
 msgid "No placeholders; this chip states one thing."
 msgstr ""
 
 #. translators: %s: preparation time in full hours.
 #. translators: %s: a number of hours.
-#: includes/lib/class-mixmymeals-shortcodes.php:8905
+#: includes/lib/class-mixmymeals-shortcodes.php:8930
 #: includes/lib/class-mixmymeals-yoast.php:347
 #, php-format
 msgid "%s h"
 msgstr ""
 
 #. translators: the word after the number of days a dish keeps.
-#: includes/lib/class-mixmymeals-shortcodes.php:9107
-#: includes/lib/class-mixmymeals-shortcodes.php:9118
+#: includes/lib/class-mixmymeals-shortcodes.php:9132
+#: includes/lib/class-mixmymeals-shortcodes.php:9143
 msgid "day"
 msgid_plural "days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9281
+#: includes/lib/class-mixmymeals-shortcodes.php:9306
 msgid "Plan by"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9343
-#: includes/lib/class-mixmymeals-shortcodes.php:9444
+#: includes/lib/class-mixmymeals-shortcodes.php:9368
+#: includes/lib/class-mixmymeals-shortcodes.php:9469
 msgid "Back to"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9433
-#: includes/lib/class-mixmymeals-shortcodes.php:9464
+#: includes/lib/class-mixmymeals-shortcodes.php:9458
+#: includes/lib/class-mixmymeals-shortcodes.php:9489
 msgid "You can only use this shortcode with a single meal."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9729
-#: includes/lib/class-mixmymeals-shortcodes.php:10612
-#: includes/lib/class-mixmymeals-shortcodes.php:10646
+#: includes/lib/class-mixmymeals-shortcodes.php:9754
+#: includes/lib/class-mixmymeals-shortcodes.php:10637
+#: includes/lib/class-mixmymeals-shortcodes.php:10671
 msgid "No meals found."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9892
+#: includes/lib/class-mixmymeals-shortcodes.php:9917
 msgid "This person eats none of the planned meals."
 msgstr ""
 
 #. translators: %s: amount still unused below a daily maximum, e.g. "53,6 g".
-#: includes/lib/class-mixmymeals-shortcodes.php:9938
+#: includes/lib/class-mixmymeals-shortcodes.php:9963
 #, php-format
 msgid "%s left"
 msgstr ""
 
 #. translators: %s: nutrition figure, e.g. "Energy". Ø marks an average.
-#: includes/lib/class-mixmymeals-shortcodes.php:9944
+#: includes/lib/class-mixmymeals-shortcodes.php:9969
 #, php-format
 msgctxt "average"
 msgid "Ø %s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:9983
+#: includes/lib/class-mixmymeals-shortcodes.php:10008
 msgid "Nutrition of this plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10082
+#: includes/lib/class-mixmymeals-shortcodes.php:10107
 msgid "Shopping list of this plan"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10110
+#: includes/lib/class-mixmymeals-shortcodes.php:10135
 msgid "Unassigned Recipes"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10111
+#: includes/lib/class-mixmymeals-shortcodes.php:10136
 msgid "Average nutrition per day and person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10112
+#: includes/lib/class-mixmymeals-shortcodes.php:10137
 msgid "Shopping list"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10113
+#: includes/lib/class-mixmymeals-shortcodes.php:10138
 msgid "Your week"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10223
+#: includes/lib/class-mixmymeals-shortcodes.php:10248
 msgid "This person eats none of the planned meals yet."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10225
+#: includes/lib/class-mixmymeals-shortcodes.php:10250
 msgid "Give a recipe a day to see what a day of this plan provides."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10236
+#: includes/lib/class-mixmymeals-shortcodes.php:10261
 msgid "Show nutrition table"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10289
+#: includes/lib/class-mixmymeals-shortcodes.php:10314
 msgid "Day total:"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10292
+#: includes/lib/class-mixmymeals-shortcodes.php:10317
 msgid "Nutrition of this day per person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10386
+#: includes/lib/class-mixmymeals-shortcodes.php:10411
 msgid "Whose nutrition"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10387
+#: includes/lib/class-mixmymeals-shortcodes.php:10412
 msgid "Nutrition for:"
 msgstr ""
 
 #. translators: %s: neutral label of a person, e.g. "Person 2".
-#: includes/lib/class-mixmymeals-shortcodes.php:10430
+#: includes/lib/class-mixmymeals-shortcodes.php:10455
 #, php-format
 msgid "Portions %s usually eats"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10439
+#: includes/lib/class-mixmymeals-shortcodes.php:10464
 msgid "Usual portions:"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10444
+#: includes/lib/class-mixmymeals-shortcodes.php:10469
 msgid "Who eats along:"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10448
+#: includes/lib/class-mixmymeals-shortcodes.php:10473
 msgid "Tick on each recipe who eats it."
 msgstr ""
 
 #. translators: %s: neutral label of a person, e.g. "Person 2".
-#: includes/lib/class-mixmymeals-shortcodes.php:10522
+#: includes/lib/class-mixmymeals-shortcodes.php:10547
 #, php-format
 msgid "Portions %s eats of this recipe"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:10697
+#: includes/lib/class-mixmymeals-shortcodes.php:10722
 msgid "Total"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11081
+#: includes/lib/class-mixmymeals-shortcodes.php:11106
 msgid "No ratings yet."
 msgstr ""
 
 #. translators: %s: number of ratings
-#: includes/lib/class-mixmymeals-shortcodes.php:11087
+#: includes/lib/class-mixmymeals-shortcodes.php:11112
 #, php-format
 msgid "%s rating"
 msgid_plural "%s ratings"
@@ -5497,255 +5503,255 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: average rating (0–5)
-#: includes/lib/class-mixmymeals-shortcodes.php:11092
+#: includes/lib/class-mixmymeals-shortcodes.php:11117
 #, php-format
 msgid "%s out of 5 stars"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11198
-#: includes/lib/class-mixmymeals-shortcodes.php:11448
+#: includes/lib/class-mixmymeals-shortcodes.php:11223
+#: includes/lib/class-mixmymeals-shortcodes.php:11473
 msgid "This recipe is not part of your meal plan."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11206
+#: includes/lib/class-mixmymeals-shortcodes.php:11231
 msgid "You have already rated this recipe."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11228
+#: includes/lib/class-mixmymeals-shortcodes.php:11253
 msgid "Thank you! Your rating has been saved."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11245
-#: includes/lib/class-mixmymeals-shortcodes.php:11491
+#: includes/lib/class-mixmymeals-shortcodes.php:11270
+#: includes/lib/class-mixmymeals-shortcodes.php:11516
 msgid "Thank you! Your photo is now in the recipe gallery."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11246
-#: includes/lib/class-mixmymeals-shortcodes.php:11492
+#: includes/lib/class-mixmymeals-shortcodes.php:11271
+#: includes/lib/class-mixmymeals-shortcodes.php:11517
 msgid "Thank you! Your photo will appear in the recipe gallery once it has been approved."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11268
-#: includes/lib/class-mixmymeals-shortcodes.php:11330
+#: includes/lib/class-mixmymeals-shortcodes.php:11293
+#: includes/lib/class-mixmymeals-shortcodes.php:11355
 msgid "Would you like to add a photo of your meal?"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11274
+#: includes/lib/class-mixmymeals-shortcodes.php:11299
 msgid "You have already rated this recipe — would you like to add a photo of your meal?"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11329
+#: includes/lib/class-mixmymeals-shortcodes.php:11354
 msgid "How would you rate this recipe?"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11372
+#: includes/lib/class-mixmymeals-shortcodes.php:11397
 msgid "Your photo of this meal (optional)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11373
-#: includes/lib/class-mixmymeals-shortcodes.php:11536
+#: includes/lib/class-mixmymeals-shortcodes.php:11398
+#: includes/lib/class-mixmymeals-shortcodes.php:11561
 msgid "Choose photo or take one"
 msgstr ""
 
 #. translators: %s: maximum file size, e.g. "10 MB"
-#: includes/lib/class-mixmymeals-shortcodes.php:11384
-#: includes/lib/class-mixmymeals-shortcodes.php:11544
+#: includes/lib/class-mixmymeals-shortcodes.php:11409
+#: includes/lib/class-mixmymeals-shortcodes.php:11569
 #, php-format
 msgid "JPG, PNG or WebP, up to %s."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11400
-#: includes/lib/class-mixmymeals-shortcodes.php:11553
+#: includes/lib/class-mixmymeals-shortcodes.php:11425
+#: includes/lib/class-mixmymeals-shortcodes.php:11578
 #: includes/lib/class-mixmymeals-subscriptions.php:2293
 msgid "Upload photo"
 msgstr ""
 
 #. translators: %s: log-in URL
-#: includes/lib/class-mixmymeals-shortcodes.php:11464
+#: includes/lib/class-mixmymeals-shortcodes.php:11489
 #, php-format
 msgid "You need to be <a href=\"%s\">logged in</a> to upload a photo."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11475
+#: includes/lib/class-mixmymeals-shortcodes.php:11500
 msgid "You have already uploaded the maximum number of photos for this recipe. Thank you!"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11528
+#: includes/lib/class-mixmymeals-shortcodes.php:11553
 msgid "You cooked this? Show us! Upload a photo of your meal."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11623
+#: includes/lib/class-mixmymeals-shortcodes.php:11648
 msgid "No photos yet — be the first to show your version of this meal!"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11629
+#: includes/lib/class-mixmymeals-shortcodes.php:11654
 msgid "Upload your photo"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11725
+#: includes/lib/class-mixmymeals-shortcodes.php:11750
 msgid "All"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11870
+#: includes/lib/class-mixmymeals-shortcodes.php:11895
 msgid "Search recipes or ingredients…"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11870
+#: includes/lib/class-mixmymeals-shortcodes.php:11895
 msgid "Search by title…"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11884
+#: includes/lib/class-mixmymeals-shortcodes.php:11909
 msgid "Recipes with these ingredients"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11885
+#: includes/lib/class-mixmymeals-shortcodes.php:11910
 msgid "I have these in: courgette, feta…"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11900
+#: includes/lib/class-mixmymeals-shortcodes.php:11925
 msgid "Search"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:11902
+#: includes/lib/class-mixmymeals-shortcodes.php:11927
 msgid "Reset"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:12118
-#: includes/lib/class-mixmymeals-shortcodes.php:12145
+#: includes/lib/class-mixmymeals-shortcodes.php:12143
+#: includes/lib/class-mixmymeals-shortcodes.php:12170
 msgid "Any"
 msgstr ""
 
 #. translators: %d: number of minutes.
-#: includes/lib/class-mixmymeals-shortcodes.php:12134
-#: includes/lib/class-mixmymeals-shortcodes.php:12196
+#: includes/lib/class-mixmymeals-shortcodes.php:12159
+#: includes/lib/class-mixmymeals-shortcodes.php:12221
 #, php-format
 msgid "Under %d min"
 msgstr ""
 
 #. translators: %s: the filter that is removed, e.g. "Vegan".
-#: includes/lib/class-mixmymeals-shortcodes.php:12215
+#: includes/lib/class-mixmymeals-shortcodes.php:12240
 #, php-format
 msgid "Remove filter: %s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:12231
+#: includes/lib/class-mixmymeals-shortcodes.php:12256
 msgid "No recipe found"
 msgstr ""
 
 #. translators: %s: number of recipes.
-#: includes/lib/class-mixmymeals-shortcodes.php:12233
+#: includes/lib/class-mixmymeals-shortcodes.php:12258
 #, php-format
 msgid "%s recipe"
 msgid_plural "%s recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:12236
+#: includes/lib/class-mixmymeals-shortcodes.php:12261
 msgid "No meal plan found"
 msgstr ""
 
 #. translators: %s: number of meal plans.
-#: includes/lib/class-mixmymeals-shortcodes.php:12238
+#: includes/lib/class-mixmymeals-shortcodes.php:12263
 #, php-format
 msgid "%s meal plan"
 msgid_plural "%s meal plans"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:12251
+#: includes/lib/class-mixmymeals-shortcodes.php:12276
 msgid "Show all"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:13582
+#: includes/lib/class-mixmymeals-shortcodes.php:13607
 msgid "Values per 100 g as stated by the manufacturer. Listed for orientation, not as a recommendation."
 msgstr ""
 
 #. translators: %s: name of the product the other columns are compared against.
-#: includes/lib/class-mixmymeals-shortcodes.php:13587
+#: includes/lib/class-mixmymeals-shortcodes.php:13612
 #, php-format
 msgid "The other columns state the difference to %s."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:13717
+#: includes/lib/class-mixmymeals-shortcodes.php:13742
 msgid "Used for the nutrition figures"
 msgstr ""
 
 #. translators: %s: a package weight in grams.
-#: includes/lib/class-mixmymeals-shortcodes.php:13755
+#: includes/lib/class-mixmymeals-shortcodes.php:13780
 #, php-format
 msgid "%s g package"
 msgstr ""
 
 #. translators: %s: where the figures were taken from.
-#: includes/lib/class-mixmymeals-shortcodes.php:13772
+#: includes/lib/class-mixmymeals-shortcodes.php:13797
 #, php-format
 msgid "Source: %s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:13843
+#: includes/lib/class-mixmymeals-shortcodes.php:13868
 msgid "Per day and person"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:13844
+#: includes/lib/class-mixmymeals-shortcodes.php:13869
 msgid "Nutrition per day and person over the whole plan, depending on which product is used for this ingredient."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:13894
+#: includes/lib/class-mixmymeals-shortcodes.php:13919
 msgid "Per serving"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:13895
+#: includes/lib/class-mixmymeals-shortcodes.php:13920
 msgid "Nutrition of one serving of this dish, depending on which product is used for this ingredient."
 msgstr ""
 
 #. translators: %s: number of meals in the plan that use this ingredient.
-#: includes/lib/class-mixmymeals-shortcodes.php:13952
+#: includes/lib/class-mixmymeals-shortcodes.php:13977
 #, php-format
 msgid "in %s meal"
 msgid_plural "in %s meals"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14025
+#: includes/lib/class-mixmymeals-shortcodes.php:14050
 msgid "as calculated now"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14026
+#: includes/lib/class-mixmymeals-shortcodes.php:14051
 msgid "difference"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14210
+#: includes/lib/class-mixmymeals-shortcodes.php:14235
 msgid "Filter ingredients"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14212
+#: includes/lib/class-mixmymeals-shortcodes.php:14237
 msgid "Find an ingredient…"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14215
+#: includes/lib/class-mixmymeals-shortcodes.php:14240
 msgid "Ingredient categories"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14223
+#: includes/lib/class-mixmymeals-shortcodes.php:14248
 msgid "No ingredient matches."
 msgstr ""
 
 #. translators: the word after a number of recipes.
-#: includes/lib/class-mixmymeals-shortcodes.php:14299
+#: includes/lib/class-mixmymeals-shortcodes.php:14324
 msgid "recipe"
 msgid_plural "recipes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14385
+#: includes/lib/class-mixmymeals-shortcodes.php:14410
 msgid "Links marked with * are affiliate links. If you buy through them we may earn a commission. The price stays the same for you."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14610
+#: includes/lib/class-mixmymeals-shortcodes.php:14635
 msgid "Amount eaten"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-shortcodes.php:14620
+#: includes/lib/class-mixmymeals-shortcodes.php:14645
 msgid "Amount eaten in grams"
 msgstr ""
 

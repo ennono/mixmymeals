@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.5.1
+Stable tag: 4.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.6.0 =
+
+Added:
+* [mmm_ingredient_ranking] takes include="…" (ingredient IDs or slugs):
+  ranks only the foods named, for hand-picked tables such as "foods rich
+  in fibre". Without a limit it shows all of them. Editors see a line
+  naming any that dropped out (figure not stated, not public).
 
 = 4.5.1 =
 
@@ -2494,6 +2502,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.6.0 =
+[mmm_ingredient_ranking] can rank a hand-picked list of ingredients (include="…").
 
 = 4.5.1 =
 The bottom "To the planner" bar is no longer built by the plugin; add one to your footer if you want it.

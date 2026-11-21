@@ -9,6 +9,8 @@
  *     beschränkt.
  *  5. Ausgabe: Tabelle mit Link und Wert; Fehlkonfiguration nur für
  *     Redakteure sichtbar.
+ *  6. include: nur die genannten Zutaten, Grenze = ihre Anzahl; wer
+ *     herausfällt, sehen nur Redakteure.
  *
  * Isoliert über zwei eigene Zutatenkategorien. Alles heißt „ZZ …“.
  *
@@ -208,7 +210,26 @@ try {
 	mmm_ir_assert( false !== strpos( $html, '<figcaption class="mmm-ingredient-ranking__caption">Quelle</figcaption>' ), '5: Bildunterschrift' );
 	mmm_ir_assert( false !== strpos( $html, '>' . esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'protein', 40 ) ) . '<' ), '5: Wert formatiert' );
 
+	// 6. include: nur die genannten, nach Kennzahl sortiert, Grenze = Anzahl.
+	mmm_ir_is( '6: include in der Methode', array( 'ZZ A', 'ZZ B' ), array_map( 'get_the_title', array_keys( Mixmymeals_Ingredient::ranking( 'protein', 'desc', array(), array(), array(), array( $b, $a ) ) ) ) );
+	$many = array();
+	for ( $i = 1; $i <= 11; $i++ ) {
+		$many[] = mmm_ir_ing( 'ZZ M' . $i, array( 'protein' => $i ), $top );
+	}
+	$html = $sc->mmm_ingredient_ranking_callback( array( 'include' => implode( ',', $many ) ) );
+	mmm_ir_is( '6: include ohne limit zeigt alle elf', 11, substr_count( $html, 'mmm-ingredient-ranking__row' ) );
+	$html = $sc->mmm_ingredient_ranking_callback(
+		array(
+			'include' => $slug_a . ',' . $b . ',' . $d,
+			'limit'   => '1',
+		)
+	);
+	mmm_ir_is( '6: limit gilt auch mit include', 1, substr_count( $html, 'mmm-ingredient-ranking__row' ) );
+
 	wp_set_current_user( 0 );
+	$html = $sc->mmm_ingredient_ranking_callback( array( 'include' => $slug_a . ',' . $b . ',' . $d ) );
+	mmm_ir_assert( false !== strpos( $html, 'ZZ A' ) && false !== strpos( $html, 'ZZ B' ) && false === strpos( $html, 'ZZ C' ), '6: include per Slug und ID, andere draußen' );
+	mmm_ir_assert( false === strpos( $html, 'mmm-embed--missing' ), '6: Besucher sehen keinen Hinweis auf Fehlende' );
 	mmm_ir_is( '5: unbekannte Kategorie, Besucher', '', $sc->mmm_ingredient_ranking_callback( array( 'exclude_category' => 'zz-gibt-es-nicht' ) ) );
 	$admins = get_users(
 		array(
@@ -220,6 +241,8 @@ try {
 	wp_set_current_user( (int) $admins[0] );
 	mmm_ir_assert( false !== strpos( $sc->mmm_ingredient_ranking_callback( array( 'exclude' => 'zz-gibt-es-nicht' ) ), 'mmm-embed--missing' ), '5: unbekannte Zutat, Redakteur' );
 	mmm_ir_assert( false !== strpos( $sc->mmm_ingredient_ranking_callback( array( 'by' => 'cost' ) ), 'mmm-embed--missing' ), '5: unbekannte Kennzahl, Redakteur' );
+	$html = $sc->mmm_ingredient_ranking_callback( array( 'include' => $slug_a . ',' . $b . ',' . $d ) );
+	mmm_ir_assert( false !== strpos( $html, 'mmm-embed--missing' ) && false !== strpos( $html, 'ZZ D ohne Werte' ), '6: Redakteur sieht, welche genannte Zutat fehlt' );
 
 } finally {
 	foreach ( $GLOBALS['MMM_IR']['posts'] as $id ) {

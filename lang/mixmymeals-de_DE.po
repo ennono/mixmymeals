@@ -8239,5 +8239,10 @@ msgstr "Zutaten-Rangliste: Es gibt keine Zutat „%s“."
 msgid "Ingredient ranking: no ingredient qualifies for this list."
 msgstr "Zutaten-Rangliste: Keine Zutat erfüllt die Bedingungen dieser Liste."
 
+#. translators: %s: comma-separated ingredient names.
+#, php-format
+msgid "Ingredient ranking: not listed because the figure is missing or the ingredient is not public: %s."
+msgstr "Zutaten-Rangliste: Nicht aufgeführt, weil der Wert fehlt oder die Zutat nicht öffentlich ist: %s."
+
 msgid "Food"
 msgstr "Lebensmittel"

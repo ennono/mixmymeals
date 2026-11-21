@@ -1281,9 +1281,12 @@ class Mixmymeals_Ingredient {
 	 * @param int[]  $categories    Ingredient category term IDs to keep; empty = all.
 	 * @param int[]  $exclude_terms Ingredient category term IDs to leave out.
 	 * @param int[]  $exclude_ids   Ingredient IDs to leave out.
+	 * @param int[]  $include_ids   Ingredient IDs to rank on their own (a hand-picked
+	 *                              table); empty = every ingredient. The rules above
+	 *                              still apply to each of them.
 	 * @return array<int,float> Ingredient ID => value per 100 g, in rank order.
 	 */
-	public static function ranking( string $by, string $order, array $categories = array(), array $exclude_terms = array(), array $exclude_ids = array() ): array {
+	public static function ranking( string $by, string $order, array $categories = array(), array $exclude_terms = array(), array $exclude_ids = array(), array $include_ids = array() ): array {
 
 		$own_key = self::NUTRITION_KEY_MAP[ $by ] ?? '';
 
@@ -1295,13 +1298,15 @@ class Mixmymeals_Ingredient {
 		$categories    = array_values( array_unique( array_filter( array_map( 'intval', $categories ) ) ) );
 		$exclude_terms = array_values( array_unique( array_filter( array_map( 'intval', $exclude_terms ) ) ) );
 		$exclude_ids   = array_values( array_unique( array_filter( array_map( 'intval', $exclude_ids ) ) ) );
+		$include_ids   = array_values( array_unique( array_filter( array_map( 'intval', $include_ids ) ) ) );
 		sort( $categories );
 		sort( $exclude_terms );
 		sort( $exclude_ids );
+		sort( $include_ids );
 
 		$key = 'mmm_ingr_ranking_' . md5(
 			(string) wp_json_encode(
-				array( $by, $order, $categories, $exclude_terms, $exclude_ids, (string) get_option( Mixmymeals_Recipe::RANKING_GENERATION_OPTION, '' ) )
+				array( $by, $order, $categories, $exclude_terms, $exclude_ids, $include_ids, (string) get_option( Mixmymeals_Recipe::RANKING_GENERATION_OPTION, '' ) )
 			)
 		);
 
@@ -1323,6 +1328,10 @@ class Mixmymeals_Ingredient {
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
 		);
+
+		if ( $include_ids ) {
+			$args['post__in'] = $include_ids;
+		}
 
 		if ( $exclude_ids ) {
 			$args['post__not_in'] = $exclude_ids; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in

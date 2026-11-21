@@ -1694,7 +1694,10 @@ class Mixmymeals_Shortcodes {
 	 * - by: calories (kcal), fat, saturates, carbs, sugar, fiber, protein,
 	 *   salt. Default protein.
 	 * - order: asc|desc; default follows the figure (more protein, less salt).
-	 * - limit: 1–50, default 10.
+	 * - limit: 1–50, default 10 (with include: as many as were named).
+	 * - include: ingredient slug(s) or ID(s), comma-separated; ranks only
+	 *   these — a hand-picked table such as "foods rich in fibre". Each still
+	 *   needs the figure stated; editors see which ones dropped out.
 	 * - category: ingredient category slug(s) or ID(s), comma-separated; only these.
 	 * - exclude: ingredient slug(s) or ID(s), comma-separated.
 	 * - exclude_category: ingredient category slug(s) or ID(s), comma-separated.
@@ -1712,7 +1715,8 @@ class Mixmymeals_Shortcodes {
 			array(
 				'by'               => 'protein',
 				'order'            => '',
-				'limit'            => 10,
+				'limit'            => '',
+				'include'          => '',
 				'category'         => '',
 				'exclude'          => '',
 				'exclude_category' => '',
@@ -1767,28 +1771,49 @@ class Mixmymeals_Shortcodes {
 			}
 		}
 
-		$exclude = array();
-		foreach ( self::shortcode_list( (string) $atts['exclude'] ) as $given ) {
-			$post = ctype_digit( $given )
-				? get_post( (int) $given )
-				: get_page_by_path( sanitize_title( $given ), OBJECT, 'mmm_ingredient' );
-			if ( ! $post instanceof WP_Post || 'mmm_ingredient' !== $post->post_type ) {
-				return self::embed_missing(
-					sprintf(
-						/* translators: %s: the ingredient given. */
-						__( 'Ingredient ranking: there is no ingredient "%s".', 'mixmymeals' ),
-						$given
-					)
-				);
+		$posts = array();
+		foreach ( array( 'include', 'exclude' ) as $att ) {
+			$posts[ $att ] = array();
+			foreach ( self::shortcode_list( (string) $atts[ $att ] ) as $given ) {
+				$post = ctype_digit( $given )
+					? get_post( (int) $given )
+					: get_page_by_path( sanitize_title( $given ), OBJECT, 'mmm_ingredient' );
+				if ( ! $post instanceof WP_Post || 'mmm_ingredient' !== $post->post_type ) {
+					return self::embed_missing(
+						sprintf(
+							/* translators: %s: the ingredient given. */
+							__( 'Ingredient ranking: there is no ingredient "%s".', 'mixmymeals' ),
+							$given
+						)
+					);
+				}
+				$posts[ $att ][] = (int) $post->ID;
 			}
-			$exclude[] = (int) $post->ID;
 		}
 
-		$ranking = Mixmymeals_Ingredient::ranking( $by, $order, $terms['category'], $terms['exclude_category'], $exclude );
-		$ranking = array_slice( $ranking, 0, min( 50, max( 1, (int) $atts['limit'] ) ), true );
+		$include = array_values( array_unique( $posts['include'] ) );
+		$limit   = trim( (string) $atts['limit'] );
+		$limit   = min( 50, max( 1, '' !== $limit ? (int) $limit : ( $include ? count( $include ) : 10 ) ) );
+
+		$ranking = Mixmymeals_Ingredient::ranking( $by, $order, $terms['category'], $terms['exclude_category'], $posts['exclude'], $include );
+		$ranking = array_slice( $ranking, 0, $limit, true );
 
 		if ( ! $ranking ) {
 			return self::embed_missing( __( 'Ingredient ranking: no ingredient qualifies for this list.', 'mixmymeals' ) );
+		}
+
+		// A hand-picked food that drops out (figure not stated, unpublished,
+		// excluded) would otherwise vanish from the table without a word.
+		$dropped = array_diff( array_diff( $include, $posts['exclude'] ), array_keys( $ranking ) );
+		$notice  = '';
+		if ( $dropped && count( $ranking ) < $limit ) {
+			$notice = self::embed_missing(
+				sprintf(
+					/* translators: %s: comma-separated ingredient names. */
+					__( 'Ingredient ranking: not listed because the figure is missing or the ingredient is not public: %s.', 'mixmymeals' ),
+					implode( ', ', array_map( 'get_the_title', $dropped ) )
+				)
+			);
 		}
 
 		$value_heading = sprintf(
@@ -1818,7 +1843,7 @@ class Mixmymeals_Shortcodes {
 			$out .= '<figcaption class="mmm-ingredient-ranking__caption">' . esc_html( (string) $atts['caption'] ) . '</figcaption>';
 		}
 
-		return $out . '</figure>';
+		return $out . '</figure>' . $notice;
 	}
 
 	/**
