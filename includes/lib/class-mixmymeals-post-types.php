@@ -247,12 +247,21 @@ class Mixmymeals_Post_Types {
 			return;
 		}
 
-		$meta_query = $query->get( 'meta_query' );
-		$meta_query = is_array( $meta_query ) ? $meta_query : array();
+		// The "Besucherpläne" view (?mmm_uncategorized=1) is where plans
+		// saved from the planner are meant to be found — and those are
+		// unlisted since 4.0.0, so the clause would empty it. Passwords
+		// still keep a plan out (below).
+		$visitor_view = $query->is_post_type_archive( 'mmm_meal_plan' )
+			&& $query->get( 'mmm_uncategorized' );
 
-		$meta_query[] = self::unlisted_clause();
+		if ( ! $visitor_view ) {
+			$meta_query = $query->get( 'meta_query' );
+			$meta_query = is_array( $meta_query ) ? $meta_query : array();
 
-		$query->set( 'meta_query', $meta_query );
+			$meta_query[] = self::unlisted_clause();
+
+			$query->set( 'meta_query', $meta_query );
+		}
 
 		// Nor password-protected ones, on the plugin's own archives. The
 		// site search is left to core: it also lists posts and pages.

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.3.1
+Stable tag: 4.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.3.2 =
+
+Fixed:
+* The "visitor plans" view of the meal-plan archive lists plans saved
+  from the planner again. They are unlisted since 4.0.0, and the view
+  dropped them with every other unlisted plan; it now shows them, while
+  the main archive, the search and the start page still leave them out.
 
 = 4.3.1 =
 
@@ -2448,6 +2456,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.3.2 =
+The visitor-plans view shows plans saved from the planner again.
 
 = 4.3.1 =
 Meal-plan cards show the weekdays in the plan's order.
