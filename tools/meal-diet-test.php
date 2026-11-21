@@ -204,6 +204,7 @@ mmm_md_assert( 0 === (int) $rows[ $bruehe ]['product_id'], 'vegetarisch: die BrÃ
 mmm_md_assert( isset( $rows[ $kaese ] ), 'vegetarisch: der Parmesan bleibt' );
 
 mmm_md_assert( '' === $recipe->for_diet( 'zz-gibtsnicht' )->get_implemented_diet(), 'eine unbekannte DiÃ¤t gibt das Rezept wie geschrieben' );
+mmm_md_assert( ! $recipe->holds_as_written( $VEGAN ) && ! $recipe->for_diet( $VEGAN )->holds_as_written( $VEGAN ), 'holds_as_written(): vegan nur als Variante, auch auf der veganen Instanz' );
 
 echo "\n-- 2. Die Mahlzeit speichert die Umsetzung\n";
 

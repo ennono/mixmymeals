@@ -1525,6 +1525,9 @@ class Mixmymeals_Shortcodes {
 		$has_rating  = shortcode_exists( 'mmm_recipe_rating' );
 		$has_actions = shortcode_exists( 'mmm_recipe_actions' );
 
+		// The diet the figures were computed for (Mixmymeals_Recipe::ranking()).
+		$cook_as = $diets ? Mixmymeals_Diet::strongest( $diets, 'diet' ) : '';
+
 		$out = '<section class="mmm-ranking mmm-ranking--' . esc_attr( str_replace( '_', '-', $by ) ) . '">';
 
 		if ( '' !== trim( (string) $atts['title'] ) ) {
@@ -1566,8 +1569,23 @@ class Mixmymeals_Shortcodes {
 			if ( ! $thumb ) {
 				$out .= $disclosure;
 			}
+			/*
+			 * A dish that only holds the list's diet with other packets is
+			 * named as a variant, or a meat dish would read as vegan.
+			 */
+			$variant = '';
+			if ( '' !== $cook_as && ! ( new Mixmymeals_Recipe( $id ) )->holds_as_written( $cook_as ) ) {
+				$variant = ' <span class="mmm-ranking__variant">' . esc_html(
+					sprintf(
+						/* translators: %s: a diet, e.g. "Vegan". */
+						__( '(Variant: %s)', 'mixmymeals' ),
+						Mixmymeals_Diet::label( $cook_as )
+					)
+				) . '</span>';
+			}
+
 			$out .= '<h3 class="mmm-ranking__name"><a href="' . esc_url( $permalink ) . '">'
-				. esc_html( get_the_title( $id ) ) . '</a></h3>';
+				. esc_html( get_the_title( $id ) ) . '</a>' . $variant . '</h3>';
 			$out .= '<p class="mmm-ranking__figure">' . self::ranking_figure_html( $by, $value, $id ) . '</p>';
 
 			if ( $has_rating ) {

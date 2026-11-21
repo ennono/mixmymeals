@@ -8206,6 +8206,11 @@ msgstr "Rezept-Rangliste: Die Rezeptkategorie „%s“ gibt es nicht."
 msgid "Recipe ranking: no recipe qualifies for this list."
 msgstr "Rezept-Rangliste: Kein Rezept erfüllt die Bedingungen dieser Liste."
 
+#. translators: %s: a diet, e.g. "Vegan".
+#, php-format
+msgid "(Variant: %s)"
+msgstr "(Variante: %s)"
+
 #. translators: %s: a preparation time, e.g. "25 min".
 msgid "Ready in %s"
 msgstr "Fertig in %s"

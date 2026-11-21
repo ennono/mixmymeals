@@ -925,6 +925,22 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
+	 * Whether the recipe as written already holds a diet — false where it
+	 * only does once packets are swapped (for_diet()). A list cooking it as
+	 * that diet says so ("Variant: Vegan"), or "Königsberger Klopse" would
+	 * stand under "Vegan" as if the dish were.
+	 *
+	 * @param string $diet Diet slug.
+	 * @return bool
+	 */
+	public function holds_as_written( string $diet ): bool {
+
+		$diet = Mixmymeals_Diet::resolve( $diet );
+
+		return '' !== $diet && in_array( $diet, Mixmymeals_Diet::expand( $this->as_written()->get_diets() ), true );
+	}
+
+	/**
 	 * Whether every required row can be bought for a diet.
 	 *
 	 * The same answer as the "capable" chip: get_diet_suitabilities() is built

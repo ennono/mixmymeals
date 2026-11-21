@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.7.0
+Stable tag: 4.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.7.1 =
+
+Fixed:
+* [mmm_recipe_ranking] with a diet names dishes that only hold it with
+  other packets as a variant ("Königsberger Klopse (Variant: Vegan)"),
+  instead of listing a meat dish under "Vegan" as if it were.
 
 = 4.7.0 =
 
@@ -2516,6 +2523,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.7.1 =
+Diet rankings mark dishes that are only a variant of the recipe.
 
 = 4.6.1 =
 Shopping list details print amounts as "200 g" and "2× EL".
