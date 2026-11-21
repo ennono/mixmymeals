@@ -4077,6 +4077,27 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * One recipe's share of a shopping-list line, as its breakdown prints it:
+	 * "200 g" for an amount in grams, "2× EL" for a unit — never "200 × g".
+	 *
+	 * @param array $detail One entry of an ingredient's 'details' from
+	 *                      calc_shopping_list().
+	 * @return string
+	 */
+	public static function detail_amount_string( array $detail ): string {
+
+		$amount = (float) ( $detail['amount'] ?? 0 );
+		$unit   = trim( (string) ( $detail['unit_title'] ?? '' ) );
+
+		// A row without a unit is weighed in grams; its title is "g" or empty.
+		if ( '' === $unit || 'g' === strtolower( $unit ) ) {
+			return number_format_i18n( round( $amount ) ) . ' g';
+		}
+
+		return sprintf( '%s× %s', self::format_count_i18n( $amount ), $unit );
+	}
+
+	/**
 	 * Whether a shopping-list unit is something you count rather than weigh.
 	 *
 	 * True for anything that can only be taken in fixed steps — whole ones

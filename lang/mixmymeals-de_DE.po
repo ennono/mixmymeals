@@ -4433,11 +4433,10 @@ msgstr "Kein Essensplan gefunden."
 msgid "Ingredient no longer available."
 msgstr "Zutat nicht mehr verfügbar."
 
-#. translators: 1: amount, 2: unit name, 3: recipe name.
-#: includes/lib/class-mixmymeals-shortcodes.php:2625
+#. translators: 1: amount with its unit, e.g. "200 g" or "2× EL"; 2: recipe name.
 #, php-format
-msgid "%1$s × %2$s for %3$s"
-msgstr "%1$s × %2$s für %3$s"
+msgid "%1$s for %2$s"
+msgstr "%1$s für %2$s"
 
 #: includes/lib/class-mixmymeals-shortcodes.php:2685
 #: includes/lib/class-mixmymeals-shortcodes.php:6650

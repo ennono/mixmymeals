@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.6.0
+Stable tag: 4.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,12 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.6.1 =
+
+Fixed:
+* Shopping list details read "200 g for …" and "2× EL for …" instead of
+  "200 × g for …", with locale decimals ("1,5× Dose").
 
 = 4.6.0 =
 
@@ -2502,6 +2508,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.6.1 =
+Shopping list details print amounts as "200 g" and "2× EL".
 
 = 4.6.0 =
 [mmm_ingredient_ranking] can rank a hand-picked list of ingredients (include="…").
