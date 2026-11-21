@@ -1263,6 +1263,144 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * Published ingredients ranked by one figure per 100 g, for the
+	 * "richest in protein" table ([mmm_ingredient_ranking]).
+	 *
+	 * Figures through get_nutrition(), so the reference product counts as it
+	 * does on the ingredient's own page. Only ingredients with nutrition at all
+	 * (has_nutrition()) and the figure stated take part: a figure nobody filled
+	 * in is a gap, not a zero, and must not top a "least salt" list.
+	 * Password-protected ingredients stay out.
+	 *
+	 * Cached per arguments for a day under the recipe ranking's generation,
+	 * which every change to an ingredient or product already replaces
+	 * (Mixmymeals_Recipe::register_ranking_cache()).
+	 *
+	 * @param string $by            Key of Mixmymeals_Meal_Plan::NUTRITION_KEYS.
+	 * @param string $order         'asc' or 'desc'.
+	 * @param int[]  $categories    Ingredient category term IDs to keep; empty = all.
+	 * @param int[]  $exclude_terms Ingredient category term IDs to leave out.
+	 * @param int[]  $exclude_ids   Ingredient IDs to leave out.
+	 * @return array<int,float> Ingredient ID => value per 100 g, in rank order.
+	 */
+	public static function ranking( string $by, string $order, array $categories = array(), array $exclude_terms = array(), array $exclude_ids = array() ): array {
+
+		$own_key = self::NUTRITION_KEY_MAP[ $by ] ?? '';
+
+		if ( '' === $own_key ) {
+			return array();
+		}
+
+		$order         = 'desc' === $order ? 'desc' : 'asc';
+		$categories    = array_values( array_unique( array_filter( array_map( 'intval', $categories ) ) ) );
+		$exclude_terms = array_values( array_unique( array_filter( array_map( 'intval', $exclude_terms ) ) ) );
+		$exclude_ids   = array_values( array_unique( array_filter( array_map( 'intval', $exclude_ids ) ) ) );
+		sort( $categories );
+		sort( $exclude_terms );
+		sort( $exclude_ids );
+
+		$key = 'mmm_ingr_ranking_' . md5(
+			(string) wp_json_encode(
+				array( $by, $order, $categories, $exclude_terms, $exclude_ids, (string) get_option( Mixmymeals_Recipe::RANKING_GENERATION_OPTION, '' ) )
+			)
+		);
+
+		$cached = get_transient( $key );
+
+		if ( is_array( $cached ) ) {
+			$out = array();
+			foreach ( $cached as $pair ) {
+				$out[ (int) $pair[0] ] = (float) $pair[1];
+			}
+			return $out;
+		}
+
+		$args = array(
+			'post_type'      => 'mmm_ingredient',
+			'post_status'    => 'publish',
+			'has_password'   => false,
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		);
+
+		if ( $exclude_ids ) {
+			$args['post__not_in'] = $exclude_ids; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in
+		}
+
+		$tax = array();
+
+		if ( $categories ) {
+			$tax[] = array(
+				'taxonomy' => 'mmm_ingredient_category',
+				'field'    => 'term_id',
+				'terms'    => $categories,
+			);
+		}
+
+		if ( $exclude_terms ) {
+			$tax[] = array(
+				'taxonomy' => 'mmm_ingredient_category',
+				'field'    => 'term_id',
+				'terms'    => $exclude_terms,
+				'operator' => 'NOT IN',
+			);
+		}
+
+		if ( $tax ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			$args['tax_query'] = array_merge( array( 'relation' => 'AND' ), $tax );
+		}
+
+		$ids = array_map( 'intval', (array) get_posts( $args ) );
+
+		if ( $ids ) {
+			_prime_post_caches( $ids, false, true );
+		}
+
+		$values = array();
+		$titles = array();
+
+		foreach ( $ids as $id ) {
+
+			$ingredient = new self( $id );
+
+			if ( ! $ingredient->has_nutrition() ) {
+				continue;
+			}
+
+			$value = $ingredient->get_nutrition()[ $own_key ] ?? null;
+
+			if ( null === $value || ! is_numeric( $value ) ) {
+				continue;
+			}
+
+			$values[ $id ] = (float) $value;
+			$titles[ $id ] = (string) get_the_title( $id );
+		}
+
+		uksort(
+			$values,
+			static function ( $a, $b ) use ( $values, $titles, $order ) {
+				$cmp = $values[ $a ] <=> $values[ $b ];
+				if ( 'desc' === $order ) {
+					$cmp = -$cmp;
+				}
+				return 0 !== $cmp ? $cmp : strnatcasecmp( $titles[ $a ], $titles[ $b ] );
+			}
+		);
+
+		$pairs = array();
+		foreach ( $values as $id => $value ) {
+			$pairs[] = array( $id, $value );
+		}
+
+		set_transient( $key, $pairs, DAY_IN_SECONDS );
+
+		return $values;
+	}
+
+	/**
 	 * The ingredient's own stored figures, before any product is considered.
 	 *
 	 * @return array<string,float|null>

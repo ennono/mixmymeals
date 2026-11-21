@@ -660,6 +660,17 @@ body.mmm-cook-mode-open {
     pointer-events: none;
 }
 
+/* Ingredient ranking ([mmm_ingredient_ranking]) — structural only. */
+.mmm-ingredient-ranking__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.mmm-ingredient-ranking__value {
+    text-align: right;
+    white-space: nowrap;
+}
+
 /* Recipe ranking ([mmm_recipe_ranking]) — structural only. Rank, picture and
    text side by side; the number is printed by the plugin (aria-hidden, the
    <ol> carries the order), so the list's own markers are switched off. */

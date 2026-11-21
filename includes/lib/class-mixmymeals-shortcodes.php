@@ -150,6 +150,10 @@ class Mixmymeals_Shortcodes {
 			'mmm_recipe_ranking',
 			array( $this, 'mmm_recipe_ranking_callback' )
 		);
+		add_shortcode(
+			'mmm_ingredient_ranking',
+			array( $this, 'mmm_ingredient_ranking_callback' )
+		);
 	}
 
 	/**
@@ -1678,6 +1682,154 @@ class Mixmymeals_Shortcodes {
 			Mixmymeals_Meal_Plan::format_nutrition_value( $by, $value ),
 			$names[ $by ] ?? $by
 		);
+	}
+
+	/**
+	 * Shortcode [mmm_ingredient_ranking]: published ingredients ranked by one
+	 * figure per 100 g, as a two-column table — food and figure, each food
+	 * linked to its page. Which ingredients take part and in what order is
+	 * Mixmymeals_Ingredient::ranking().
+	 *
+	 * Attributes:
+	 * - by: calories (kcal), fat, saturates, carbs, sugar, fiber, protein,
+	 *   salt. Default protein.
+	 * - order: asc|desc; default follows the figure (more protein, less salt).
+	 * - limit: 1–50, default 10.
+	 * - category: ingredient category slug(s) or ID(s), comma-separated; only these.
+	 * - exclude: ingredient slug(s) or ID(s), comma-separated.
+	 * - exclude_category: ingredient category slug(s) or ID(s), comma-separated.
+	 * - caption: line under the table; none by default.
+	 *
+	 * Visitors get '' for a list that is empty or misconfigured; editors get a
+	 * line saying why — a misspelt exclusion would otherwise go unnoticed.
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_ingredient_ranking_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'by'               => 'protein',
+				'order'            => '',
+				'limit'            => 10,
+				'category'         => '',
+				'exclude'          => '',
+				'exclude_category' => '',
+				'caption'          => '',
+			),
+			$atts,
+			'mmm_ingredient_ranking'
+		);
+
+		$aliases = array(
+			'kcal'   => 'calories',
+			'energy' => 'calories',
+			'fibre'  => 'fiber',
+			'sugars' => 'sugar',
+		);
+
+		$by = strtolower( trim( (string) $atts['by'] ) );
+		$by = $aliases[ $by ] ?? $by;
+
+		if ( ! in_array( $by, Mixmymeals_Meal_Plan::NUTRITION_KEYS, true ) ) {
+			return self::embed_missing(
+				sprintf(
+					/* translators: %s: the value given for "by". */
+					__( 'Ingredient ranking: "%s" is not a figure ingredients can be ranked by.', 'mixmymeals' ),
+					(string) $atts['by']
+				)
+			);
+		}
+
+		$order = strtolower( trim( (string) $atts['order'] ) );
+		if ( ! in_array( $order, array( 'asc', 'desc' ), true ) ) {
+			$order = Mixmymeals_Recipe::ranking_default_order( $by );
+		}
+
+		$terms = array();
+		foreach ( array( 'category', 'exclude_category' ) as $att ) {
+			$terms[ $att ] = array();
+			foreach ( self::shortcode_list( (string) $atts[ $att ] ) as $given ) {
+				$term = ctype_digit( $given )
+					? get_term( (int) $given, 'mmm_ingredient_category' )
+					: get_term_by( 'slug', sanitize_title( $given ), 'mmm_ingredient_category' );
+				if ( ! $term instanceof WP_Term ) {
+					return self::embed_missing(
+						sprintf(
+							/* translators: %s: the category given. */
+							__( 'Ingredient ranking: there is no ingredient category "%s".', 'mixmymeals' ),
+							$given
+						)
+					);
+				}
+				$terms[ $att ][] = (int) $term->term_id;
+			}
+		}
+
+		$exclude = array();
+		foreach ( self::shortcode_list( (string) $atts['exclude'] ) as $given ) {
+			$post = ctype_digit( $given )
+				? get_post( (int) $given )
+				: get_page_by_path( sanitize_title( $given ), OBJECT, 'mmm_ingredient' );
+			if ( ! $post instanceof WP_Post || 'mmm_ingredient' !== $post->post_type ) {
+				return self::embed_missing(
+					sprintf(
+						/* translators: %s: the ingredient given. */
+						__( 'Ingredient ranking: there is no ingredient "%s".', 'mixmymeals' ),
+						$given
+					)
+				);
+			}
+			$exclude[] = (int) $post->ID;
+		}
+
+		$ranking = Mixmymeals_Ingredient::ranking( $by, $order, $terms['category'], $terms['exclude_category'], $exclude );
+		$ranking = array_slice( $ranking, 0, min( 50, max( 1, (int) $atts['limit'] ) ), true );
+
+		if ( ! $ranking ) {
+			return self::embed_missing( __( 'Ingredient ranking: no ingredient qualifies for this list.', 'mixmymeals' ) );
+		}
+
+		$value_heading = sprintf(
+			/* translators: %s: a nutrition figure, e.g. "Protein". */
+			__( '%s per 100 g', 'mixmymeals' ),
+			Mixmymeals_Ingredient::nutrition_label( $by )
+		);
+
+		$out  = '<figure class="mmm-ingredient-ranking mmm-ingredient-ranking--' . esc_attr( $by ) . '">';
+		$out .= '<table class="mmm-ingredient-ranking__table"><thead><tr>'
+			. '<th scope="col" class="mmm-ingredient-ranking__name">' . esc_html__( 'Food', 'mixmymeals' ) . '</th>'
+			. '<th scope="col" class="mmm-ingredient-ranking__value">' . esc_html( $value_heading ) . '</th>'
+			. '</tr></thead><tbody>';
+
+		foreach ( $ranking as $id => $value ) {
+			$out .= '<tr class="mmm-ingredient-ranking__row">'
+				. '<td class="mmm-ingredient-ranking__name"><a href="' . esc_url( (string) get_permalink( $id ) ) . '">'
+				. esc_html( get_the_title( $id ) ) . '</a></td>'
+				. '<td class="mmm-ingredient-ranking__value">'
+				. esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( $by, $value ) ) . '</td>'
+				. '</tr>';
+		}
+
+		$out .= '</tbody></table>';
+
+		if ( '' !== trim( (string) $atts['caption'] ) ) {
+			$out .= '<figcaption class="mmm-ingredient-ranking__caption">' . esc_html( (string) $atts['caption'] ) . '</figcaption>';
+		}
+
+		return $out . '</figure>';
+	}
+
+	/**
+	 * A comma-separated shortcode attribute as a list of trimmed, non-empty
+	 * entries.
+	 *
+	 * @param string $value Attribute value.
+	 * @return string[]
+	 */
+	private static function shortcode_list( string $value ): array {
+		return array_values( array_filter( array_map( 'trim', explode( ',', $value ) ), 'strlen' ) );
 	}
 
 	/**

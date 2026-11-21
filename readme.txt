@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.4.1
+Stable tag: 4.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.5.0 =
+
+Added:
+* Shortcode [mmm_ingredient_ranking]: published ingredients ranked by one
+  figure per 100 g (protein, energy, fibre, salt …) as a two-column table,
+  each food linked to its page. Attributes: by, order, limit (up to 50),
+  category, exclude (ingredient IDs or slugs), exclude_category (category
+  IDs or slugs), caption. Figures resolve through the reference product;
+  ingredients without the figure stated stay out. Cached like the recipe
+  ranking.
 
 = 4.4.1 =
 
@@ -2475,6 +2486,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.5.0 =
+New shortcode [mmm_ingredient_ranking] for tables like "foods richest in protein", with exclusions per ingredient and category.
 
 = 4.4.1 =
 Recipe facet views (vegan, under 20 minutes …) get their own canonical address.

@@ -8220,3 +8220,24 @@ msgstr "Zucker"
 #. translators: 1: an amount, e.g. "31 g"; 2: what it is an amount of, e.g. "Protein".
 msgid "%1$s %2$s per serving"
 msgstr "%1$s %2$s pro Portion"
+
+#. translators: %s: the value given for "by".
+#, php-format
+msgid "Ingredient ranking: \"%s\" is not a figure ingredients can be ranked by."
+msgstr "Zutaten-Rangliste: „%s“ ist keine Kennzahl, nach der Zutaten geordnet werden können."
+
+#. translators: %s: the category given.
+#, php-format
+msgid "Ingredient ranking: there is no ingredient category \"%s\"."
+msgstr "Zutaten-Rangliste: Es gibt keine Zutatenkategorie „%s“."
+
+#. translators: %s: the ingredient given.
+#, php-format
+msgid "Ingredient ranking: there is no ingredient \"%s\"."
+msgstr "Zutaten-Rangliste: Es gibt keine Zutat „%s“."
+
+msgid "Ingredient ranking: no ingredient qualifies for this list."
+msgstr "Zutaten-Rangliste: Keine Zutat erfüllt die Bedingungen dieser Liste."
+
+msgid "Food"
+msgstr "Lebensmittel"
