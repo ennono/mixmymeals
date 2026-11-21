@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MixMyMeals
- * Version: 4.3.2
+ * Version: 4.4.0
  * Plugin URI:
  * Description: Build recipes, plan weekly meals and generate shopping lists — with a frontend planner and nutrition data.
  * Author: Timo Fricke
@@ -102,7 +102,7 @@ function mixmymeals() {
 	// Must match the Version header above: this string is the cache buster on
 	// every enqueued script and stylesheet, so a stale value serves old assets
 	// to everyone who already has them cached.
-	$instance = Mixmymeals::instance( __FILE__, '4.3.2' );
+	$instance = Mixmymeals::instance( __FILE__, '4.4.0' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = Mixmymeals_Settings::instance( $instance );
@@ -131,6 +131,9 @@ Mixmymeals_Recipe::register_recipe_index();
 // Eigene Pfade für die Browse-Ansichten des Rezeptarchivs (/rezepte/favoriten/):
 // Rewrite-Regeln, Query-Var und die Reservierung dieser Slugs gegen Rezepte.
 Mixmymeals_Recipe::register_browse_views();
+// Ranglisten ([mmm_recipe_ranking]) werden einen Tag gemerkt; jede Änderung an
+// Rezepten, Zutaten, Einheiten oder Produkten verwirft sie.
+Mixmymeals_Recipe::register_ranking_cache();
 // Yoast-Platzhalter (%%mmm_servings%% und Verwandte). Hängt nur an Yoasts
 // eigener Action, ist ohne Yoast also ein No-op.
 Mixmymeals_Yoast::register();

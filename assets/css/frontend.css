@@ -660,6 +660,52 @@ body.mmm-cook-mode-open {
     pointer-events: none;
 }
 
+/* Recipe ranking ([mmm_recipe_ranking]) — structural only. Rank, picture and
+   text side by side; the number is printed by the plugin (aria-hidden, the
+   <ol> carries the order), so the list's own markers are switched off. */
+.mmm-ranking__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mmm-ranking__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 8rem) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    margin: 0 0 16px;
+}
+
+.mmm-ranking__item--noimg {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+.mmm-ranking__media {
+    position: relative;
+    display: block;
+}
+
+.mmm-ranking__media img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.mmm-ranking__media .mmm-disclosure--card {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    margin: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.mmm-ranking__name,
+.mmm-ranking__figure {
+    margin: 0;
+}
+
 /* Ingredient products ([mmm_ingredient_products]) — structural only.
    The table reuses .mmm-nutrition-table, so the theme styles it. As many
    columns as the ingredient has products will not fit a narrow viewport,

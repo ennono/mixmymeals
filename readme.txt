@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.3.2
+Stable tag: 4.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.4.0 =
+
+Added:
+* Shortcode [mmm_recipe_ranking]: published recipes ranked by one figure
+  per serving (protein, energy, fibre, salt, cost …), by preparation time
+  or by shelf life, as a numbered list with the figure on every entry.
+  Filters: diet, max_time, category; limit up to 50. Only recipes whose
+  figure is complete take part (nutrition coverage, every ingredient
+  priced — water and the like count as free). Cached for a day and
+  discarded by any change to recipes, ingredients, units or products.
 
 = 4.3.2 =
 
@@ -2456,6 +2467,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.4.0 =
+New shortcode [mmm_recipe_ranking] for ranked recipe lists ("richest in protein", "cheapest per serving").
 
 = 4.3.2 =
 The visitor-plans view shows plans saved from the planner again.

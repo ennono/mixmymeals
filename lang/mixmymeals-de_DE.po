@@ -8191,3 +8191,32 @@ msgstr "Zugangscode"
 
 msgid "Open meal plan"
 msgstr "Plan öffnen"
+
+#. translators: %s: the value given for "by".
+msgid "Recipe ranking: \"%s\" is not a figure recipes can be ranked by."
+msgstr "Rezept-Rangliste: Nach „%s“ lassen sich Rezepte nicht ordnen."
+
+#. translators: %s: the diet given.
+msgid "Recipe ranking: there is no diet \"%s\"."
+msgstr "Rezept-Rangliste: Die Ernährungsform „%s“ gibt es nicht."
+
+#. translators: %s: the category given.
+msgid "Recipe ranking: there is no recipe category \"%s\"."
+msgstr "Rezept-Rangliste: Die Rezeptkategorie „%s“ gibt es nicht."
+
+msgid "Recipe ranking: no recipe qualifies for this list."
+msgstr "Rezept-Rangliste: Kein Rezept erfüllt die Bedingungen dieser Liste."
+
+#. translators: %s: a preparation time, e.g. "25 min".
+msgid "Ready in %s"
+msgstr "Fertig in %s"
+
+msgid "saturated fat"
+msgstr "gesättigte Fettsäuren"
+
+msgid "sugars"
+msgstr "Zucker"
+
+#. translators: 1: an amount, e.g. "31 g"; 2: what it is an amount of, e.g. "Protein".
+msgid "%1$s %2$s per serving"
+msgstr "%1$s %2$s pro Portion"

@@ -2043,6 +2043,338 @@ class Mixmymeals_Recipe {
 		return self::$cost_cache[ $this->post_id ][ $this->diet ] = $total_cost;
 	}
 
+	/**
+	 * Whether calculate_cost_per_serving() is the price of the whole dish.
+	 *
+	 * The cost sum reads a missing price as nothing, so a dish whose cheese
+	 * nobody priced looks like a bargain. Checked over the same rows the sum
+	 * walks, in the same scale, so the answer describes exactly the figure
+	 * printed beside it.
+	 *
+	 * A row without a price is a gap — unless its ingredient states no
+	 * nutrition either. Published ingredients cannot be without nutrition
+	 * (the publish gate), so what is left there is water, ice and the like:
+	 * things that genuinely cost nothing and would otherwise disqualify every
+	 * soup.
+	 *
+	 * @return bool False for a recipe without ingredients.
+	 */
+	public function has_complete_prices(): bool {
+
+		if ( ! $this->is_valid() ) {
+			return false;
+		}
+
+		$servings = $this->get_servings();
+		$rows     = $this->get_ingredients_scaled( $servings > 0 ? 1.0 / $servings : 1.0 );
+		$weighed  = false;
+
+		foreach ( $rows as $ing ) {
+
+			if ( (float) ( $ing['weight_g'] ?? 0 ) <= 0 ) {
+				continue;
+			}
+
+			$weighed    = true;
+			$ingredient = new Mixmymeals_Ingredient( (int) $ing['id'] );
+			$pinned     = (int) ( $ing['product_id'] ?? 0 );
+
+			if ( $ingredient->get_price_per_100g_pinned( $pinned ) > 0 ) {
+				continue;
+			}
+
+			if ( $ingredient->has_nutrition( $pinned ) ) {
+				return false;
+			}
+		}
+
+		return $weighed;
+	}
+
+	/**
+	 * Option holding the ranking cache's generation; any change to a recipe,
+	 * ingredient, unit or product replaces it, which retires every cached
+	 * ranking at once.
+	 *
+	 * @var string
+	 */
+	const RANKING_GENERATION_OPTION = 'mixmymeals_ranking_generation';
+
+	/**
+	 * Post types whose changes can move a ranking.
+	 *
+	 * @var string[]
+	 */
+	const RANKING_POST_TYPES = array( 'mmm_recipe', 'mmm_ingredient', 'mmm_ingr_unit', 'mmm_product' );
+
+	/**
+	 * Meta keys that never move a ranking: counters and editor bookkeeping.
+	 * Without this list every planned meal (cook counter) and every opened
+	 * edit screen (_edit_lock) would throw all rankings away.
+	 *
+	 * @var string[]
+	 */
+	const RANKING_IGNORED_META = array( '_edit_lock', '_edit_last', '_mmm_cook_count', '_mmm_edit_count', '_mmm_rating_avg', '_mmm_rating_count' );
+
+	/**
+	 * What a ranking can be by: the eight nutrition figures per serving, the
+	 * cost per serving, the preparation time and the shelf life.
+	 *
+	 * @return string[]
+	 */
+	public static function ranking_figures(): array {
+		return array_merge( Mixmymeals_Meal_Plan::NUTRITION_KEYS, array( 'cost', 'time', 'shelf_life' ) );
+	}
+
+	/**
+	 * The order a ranking takes when none is asked for: most first for what
+	 * one wants more of (protein, fibre, shelf life), least first for the rest
+	 * — the direction nutrition_direction() already gives each figure.
+	 *
+	 * @param string $by Figure from ranking_figures().
+	 * @return string 'asc' or 'desc'.
+	 */
+	public static function ranking_default_order( string $by ): string {
+
+		if ( 'shelf_life' === $by ) {
+			return 'desc';
+		}
+
+		if ( in_array( $by, Mixmymeals_Meal_Plan::NUTRITION_KEYS, true ) ) {
+			return 'target' === Mixmymeals_Meal_Plan::nutrition_direction( $by ) ? 'desc' : 'asc';
+		}
+
+		return 'asc';
+	}
+
+	/**
+	 * Published recipes ranked by one figure.
+	 *
+	 * Only recipes whose figure can be trusted take part: a nutrition figure
+	 * needs complete coverage (unreliable_nutrition_keys(), the same answer
+	 * the traffic light gets), a cost needs complete prices, a time or shelf
+	 * life has to be stated. A dish that is low because data is missing must
+	 * not top a "lightest" list.
+	 *
+	 * With a diet of the `diet` axis asked for, the figures are those of the
+	 * dish as cooked for it (for_diet()) — a vegan list must not rank the
+	 * chili by the protein of its beef. Diets of other axes only select.
+	 *
+	 * Cached per arguments for a day, and retired at once by any change that
+	 * could move it (register_ranking_cache()).
+	 *
+	 * @param string   $by       Figure from ranking_figures().
+	 * @param string   $order    'asc' or 'desc'.
+	 * @param string[] $diets    Diet slugs (resolved, known).
+	 * @param int      $max_time Longest preparation time in minutes; 0 = any.
+	 * @param int      $category Recipe category term ID; 0 = any.
+	 * @return array<int,float> Recipe ID => value, in rank order.
+	 */
+	public static function ranking( string $by, string $order, array $diets, int $max_time, int $category ): array {
+
+		if ( ! in_array( $by, self::ranking_figures(), true ) ) {
+			return array();
+		}
+
+		$order = 'desc' === $order ? 'desc' : 'asc';
+		$key   = 'mmm_ranking_' . md5(
+			(string) wp_json_encode(
+				array( $by, $order, $diets, $max_time, $category, (string) get_option( self::RANKING_GENERATION_OPTION, '' ) )
+			)
+		);
+
+		$cached = get_transient( $key );
+
+		if ( is_array( $cached ) ) {
+			$out = array();
+			foreach ( $cached as $pair ) {
+				$out[ (int) $pair[0] ] = (float) $pair[1];
+			}
+			return $out;
+		}
+
+		$args = Mixmymeals_Shortcodes::archive_filter_query_args(
+			array(
+				'diets' => $diets,
+				'time'  => $max_time,
+			)
+		);
+
+		if ( $category > 0 ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			$args['tax_query'] = array(
+				array(
+					'taxonomy' => 'mmm_recipe_category',
+					'field'    => 'term_id',
+					'terms'    => $category,
+				),
+			);
+		}
+
+		$ids = get_posts(
+			Mixmymeals_Post_Types::exclude_unlisted(
+				array_merge(
+					$args,
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => -1,
+						'fields'         => 'ids',
+						'no_found_rows'  => true,
+					)
+				)
+			)
+		);
+
+		$ids = array_map( 'intval', $ids );
+
+		if ( $ids ) {
+			_prime_post_caches( $ids, false, true );
+		}
+
+		$cook_as = $diets ? Mixmymeals_Diet::strongest( $diets, 'diet' ) : '';
+		$values  = array();
+
+		foreach ( $ids as $id ) {
+
+			$recipe = new self( $id );
+
+			if ( '' !== $cook_as ) {
+				$recipe = $recipe->for_diet( $cook_as );
+			}
+
+			$value = $recipe->ranking_value( $by );
+
+			if ( null !== $value ) {
+				$values[ $id ] = $value;
+			}
+		}
+
+		$titles = array();
+		foreach ( array_keys( $values ) as $id ) {
+			$titles[ $id ] = (string) get_the_title( $id );
+		}
+
+		uksort(
+			$values,
+			static function ( $a, $b ) use ( $values, $titles, $order ) {
+				$cmp = $values[ $a ] <=> $values[ $b ];
+				if ( 'desc' === $order ) {
+					$cmp = -$cmp;
+				}
+				return 0 !== $cmp ? $cmp : strnatcasecmp( $titles[ $a ], $titles[ $b ] );
+			}
+		);
+
+		$pairs = array();
+		foreach ( $values as $id => $value ) {
+			$pairs[] = array( $id, $value );
+		}
+
+		set_transient( $key, $pairs, DAY_IN_SECONDS );
+
+		return $values;
+	}
+
+	/**
+	 * This recipe's value for a ranking, or null when it cannot take part.
+	 *
+	 * @param string $by Figure from ranking_figures().
+	 * @return float|null
+	 */
+	private function ranking_value( string $by ): ?float {
+
+		switch ( $by ) {
+
+			case 'cost':
+				$cost = $this->calculate_cost_per_serving();
+				return ( $cost > 0 && $this->has_complete_prices() ) ? $cost : null;
+
+			case 'time':
+				$minutes = $this->get_preparation_time();
+				return $minutes > 0 ? (float) $minutes : null;
+
+			case 'shelf_life':
+				$days = $this->get_shelf_life();
+				return null === $days ? null : (float) $days;
+		}
+
+		$figures = $this->calculate_nutrition_per_serving();
+
+		// A dish without energy has no ingredients worth the name.
+		if ( (float) ( $figures['calories'] ?? 0 ) <= 0 || ! isset( $figures[ $by ] ) ) {
+			return null;
+		}
+
+		if ( in_array( $by, self::unreliable_nutrition_keys( array( $this ) ), true ) ) {
+			return null;
+		}
+
+		return (float) $figures[ $by ];
+	}
+
+	/**
+	 * Attaches the ranking cache's invalidation. Called once per request from
+	 * mixmymeals.php.
+	 *
+	 * @return void
+	 */
+	public static function register_ranking_cache(): void {
+
+		static $done = false;
+
+		if ( $done ) {
+			return;
+		}
+
+		$done = true;
+
+		$post_changed = static function ( $post_id ) {
+			self::mark_ranking_dirty( (int) $post_id );
+		};
+
+		$meta_changed = static function ( $meta_ids, $object_id, $meta_key ) {
+			if ( ! in_array( (string) $meta_key, self::RANKING_IGNORED_META, true ) ) {
+				self::mark_ranking_dirty( (int) $object_id );
+			}
+		};
+
+		add_action( 'save_post', $post_changed );
+		add_action( 'deleted_post', $post_changed );
+		add_action( 'trashed_post', $post_changed );
+		add_action( 'untrashed_post', $post_changed );
+		add_action( 'set_object_terms', $post_changed );
+		add_action( 'added_post_meta', $meta_changed, 10, 3 );
+		add_action( 'updated_post_meta', $meta_changed, 10, 3 );
+		add_action( 'deleted_post_meta', $meta_changed, 10, 3 );
+	}
+
+	/**
+	 * Notes that a ranking may have moved; the generation is replaced once,
+	 * at the very end of the request, after the index flush has written.
+	 *
+	 * @param int $post_id Post that changed.
+	 * @return void
+	 */
+	private static function mark_ranking_dirty( int $post_id ): void {
+
+		static $queued = false;
+
+		if ( $queued || ! in_array( get_post_type( $post_id ), self::RANKING_POST_TYPES, true ) ) {
+			return;
+		}
+
+		$queued = true;
+
+		add_action(
+			'shutdown',
+			static function () {
+				update_option( self::RANKING_GENERATION_OPTION, uniqid( '', true ) );
+			},
+			PHP_INT_MAX
+		);
+	}
+
 	public function set_servings( float $servings ): bool {
 		if ( ! $this->is_valid() ) {
 			return false;

@@ -146,6 +146,10 @@ class Mixmymeals_Shortcodes {
 			'mmm_uncooked_recipes',
 			array( $this, 'mmm_uncooked_recipes_callback' )
 		);
+		add_shortcode(
+			'mmm_recipe_ranking',
+			array( $this, 'mmm_recipe_ranking_callback' )
+		);
 	}
 
 	/**
@@ -1392,6 +1396,275 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_uncooked_recipes_callback( $atts = array() ): string {
 		return $this->render_recipe_view_row( 'uncooked', $atts, 'mmm_uncooked_recipes' );
+	}
+
+	/**
+	 * Shortcode [mmm_recipe_ranking]: published recipes ranked by one figure,
+	 * as a numbered list with that figure on every entry — "1 · 31 g Protein
+	 * per serving". Built to be pasted onto a page of its own ("The ten
+	 * richest in protein …"); which recipes may take part and in what order is
+	 * Mixmymeals_Recipe::ranking().
+	 *
+	 * Attributes:
+	 * - by: calories (kcal), fat, saturates, carbs, sugar, fiber, protein,
+	 *   salt (per serving), cost (per serving), time, shelf_life. Default protein.
+	 * - order: asc|desc; default follows the figure (more protein, less salt).
+	 * - diet: diet slug(s), comma-separated, as the archive filter takes them.
+	 * - max_time: longest preparation time in minutes.
+	 * - category: recipe category slug.
+	 * - limit: 1–50, default 10.
+	 * - title: heading above the list; none by default.
+	 *
+	 * Visitors get '' for a list that is empty or misconfigured; editors get a
+	 * line saying why.
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_recipe_ranking_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'by'       => 'protein',
+				'order'    => '',
+				'diet'     => '',
+				'max_time' => 0,
+				'category' => '',
+				'limit'    => 10,
+				'title'    => '',
+			),
+			$atts,
+			'mmm_recipe_ranking'
+		);
+
+		$aliases = array(
+			'kcal'      => 'calories',
+			'energy'    => 'calories',
+			'fibre'     => 'fiber',
+			'sugars'    => 'sugar',
+			'price'     => 'cost',
+			'prep_time' => 'time',
+		);
+
+		$by = strtolower( trim( (string) $atts['by'] ) );
+		$by = $aliases[ $by ] ?? $by;
+
+		if ( ! in_array( $by, Mixmymeals_Recipe::ranking_figures(), true ) ) {
+			return self::embed_missing(
+				sprintf(
+					/* translators: %s: the value given for "by". */
+					__( 'Recipe ranking: "%s" is not a figure recipes can be ranked by.', 'mixmymeals' ),
+					(string) $atts['by']
+				)
+			);
+		}
+
+		$order = strtolower( trim( (string) $atts['order'] ) );
+		if ( ! in_array( $order, array( 'asc', 'desc' ), true ) ) {
+			$order = Mixmymeals_Recipe::ranking_default_order( $by );
+		}
+
+		$diets = array();
+		foreach ( array_filter( array_map( 'trim', explode( ',', (string) $atts['diet'] ) ) ) as $slug ) {
+			$resolved = Mixmymeals_Diet::resolve( sanitize_title( $slug ) );
+			if ( '' === $resolved || ! Mixmymeals_Diet::is_known( $resolved ) ) {
+				return self::embed_missing(
+					sprintf(
+						/* translators: %s: the diet given. */
+						__( 'Recipe ranking: there is no diet "%s".', 'mixmymeals' ),
+						$slug
+					)
+				);
+			}
+			$diets[] = $resolved;
+		}
+		$diets = self::archive_diets( self::archive_filters_with_diets( array(), $diets ) );
+
+		$category = 0;
+		if ( '' !== trim( (string) $atts['category'] ) ) {
+			$term = get_term_by( 'slug', sanitize_title( (string) $atts['category'] ), 'mmm_recipe_category' );
+			if ( ! $term instanceof WP_Term ) {
+				return self::embed_missing(
+					sprintf(
+						/* translators: %s: the category given. */
+						__( 'Recipe ranking: there is no recipe category "%s".', 'mixmymeals' ),
+						(string) $atts['category']
+					)
+				);
+			}
+			$category = (int) $term->term_id;
+		}
+
+		$ranking = Mixmymeals_Recipe::ranking( $by, $order, $diets, max( 0, (int) $atts['max_time'] ), $category );
+		$ranking = array_slice( $ranking, 0, min( 50, max( 1, (int) $atts['limit'] ) ), true );
+
+		if ( ! $ranking ) {
+			return self::embed_missing( __( 'Recipe ranking: no recipe qualifies for this list.', 'mixmymeals' ) );
+		}
+
+		$ids = array_keys( $ranking );
+		_prime_post_caches( $ids, true, true );
+
+		$has_rating  = shortcode_exists( 'mmm_recipe_rating' );
+		$has_actions = shortcode_exists( 'mmm_recipe_actions' );
+
+		$out = '<section class="mmm-ranking mmm-ranking--' . esc_attr( str_replace( '_', '-', $by ) ) . '">';
+
+		if ( '' !== trim( (string) $atts['title'] ) ) {
+			$out .= '<h2 class="mmm-ranking__title">' . esc_html( (string) $atts['title'] ) . '</h2>';
+		}
+
+		$out .= '<ol class="mmm-ranking__list">';
+		$rank = 0;
+
+		foreach ( $ranking as $id => $value ) {
+
+			++$rank;
+
+			// The per-card shortcodes (planner button) read the global post.
+			$GLOBALS['post'] = get_post( $id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			setup_postdata( $GLOBALS['post'] );
+
+			$permalink  = (string) get_permalink( $id );
+			$disclosure = self::disclosure_pill( $id );
+			$thumb      = get_the_post_thumbnail(
+				$id,
+				'medium',
+				array(
+					'loading' => 'lazy',
+					'alt'     => '',
+				)
+			);
+
+			$out .= '<li class="mmm-ranking__item' . ( $thumb ? '' : ' mmm-ranking__item--noimg' ) . '">';
+			$out .= '<span class="mmm-ranking__rank" aria-hidden="true">' . esc_html( number_format_i18n( $rank ) ) . '</span>';
+
+			if ( $thumb ) {
+				$out .= '<a class="mmm-ranking__media" href="' . esc_url( $permalink ) . '"'
+					. ' aria-label="' . esc_attr( self::card_media_label( $id ) ) . '">'
+					. $thumb . $disclosure . '</a>';
+			}
+
+			$out .= '<div class="mmm-ranking__body">';
+			if ( ! $thumb ) {
+				$out .= $disclosure;
+			}
+			$out .= '<h3 class="mmm-ranking__name"><a href="' . esc_url( $permalink ) . '">'
+				. esc_html( get_the_title( $id ) ) . '</a></h3>';
+			$out .= '<p class="mmm-ranking__figure">' . self::ranking_figure_html( $by, $value, $id ) . '</p>';
+
+			if ( $has_rating ) {
+				$out .= do_shortcode( '[mmm_recipe_rating id="' . (int) $id . '" hide_empty=1]' );
+			}
+			if ( $has_actions ) {
+				$out .= do_shortcode( '[mmm_recipe_actions]' );
+			}
+
+			$out .= '</div></li>';
+		}
+
+		wp_reset_postdata();
+
+		return $out . '</ol></section>';
+	}
+
+	/**
+	 * The figure line as markup: the sentence of ranking_figure_text(), with
+	 * the number itself wrapped in `strong.mmm-ranking__value`, so a theme can
+	 * set it as a column ("64,8 g" over "Protein per serving") while the
+	 * sentence stays translated as a whole. The shelf life has no single
+	 * number to lift out and stays plain.
+	 *
+	 * @param string $by        Figure from Mixmymeals_Recipe::ranking_figures().
+	 * @param float  $value     The recipe's value.
+	 * @param int    $recipe_id Recipe post ID.
+	 * @return string Escaped markup.
+	 */
+	private static function ranking_figure_html( string $by, float $value, int $recipe_id ): string {
+
+		$text = esc_html( self::ranking_figure_text( $by, $value, $recipe_id ) );
+
+		switch ( $by ) {
+			case 'shelf_life':
+				return $text;
+			case 'cost':
+				$number = number_format_i18n( $value, 2 ) . ' ' . get_option( 'mixmymeals_currency', '€' );
+				break;
+			case 'time':
+				$number = self::format_prep_time( (int) $value );
+				break;
+			default:
+				$number = Mixmymeals_Meal_Plan::format_nutrition_value( $by, $value );
+		}
+
+		$number = esc_html( $number );
+		$at     = '' !== $number ? strpos( $text, $number ) : false;
+
+		if ( false === $at ) {
+			return $text;
+		}
+
+		return substr( $text, 0, $at )
+			. '<strong class="mmm-ranking__value">' . $number . '</strong>'
+			. substr( $text, $at + strlen( $number ) );
+	}
+
+	/**
+	 * The figure a ranking entry is listed by, as one line of text:
+	 * "31 g Protein per serving", "1.40 € per serving", "Ready in 25 min",
+	 * "4 days in the fridge".
+	 *
+	 * @param string $by        Figure from Mixmymeals_Recipe::ranking_figures().
+	 * @param float  $value     The recipe's value.
+	 * @param int    $recipe_id Recipe post ID.
+	 * @return string Plain text; the caller escapes.
+	 */
+	private static function ranking_figure_text( string $by, float $value, int $recipe_id ): string {
+
+		switch ( $by ) {
+
+			case 'cost':
+				return sprintf(
+					/* translators: %s: a price, e.g. "1,40 €". */
+					__( '%s per serving', 'mixmymeals' ),
+					number_format_i18n( $value, 2 ) . ' ' . get_option( 'mixmymeals_currency', '€' )
+				);
+
+			case 'time':
+				return sprintf(
+					/* translators: %s: a preparation time, e.g. "25 min". */
+					__( 'Ready in %s', 'mixmymeals' ),
+					self::format_prep_time( (int) $value )
+				);
+
+			case 'shelf_life':
+				return self::keeping_text( $recipe_id );
+
+			case 'calories':
+				return sprintf(
+					/* translators: %s: energy, e.g. "420 kcal". */
+					__( '%s per serving', 'mixmymeals' ),
+					Mixmymeals_Meal_Plan::format_nutrition_value( $by, $value )
+				);
+		}
+
+		// Short names: "of which sugars" is a label row, not a noun to rank by.
+		$names = array(
+			'fat'       => __( 'Fat', 'mixmymeals' ),
+			'saturates' => __( 'saturated fat', 'mixmymeals' ),
+			'carbs'     => __( 'Carbohydrate', 'mixmymeals' ),
+			'sugar'     => __( 'sugars', 'mixmymeals' ),
+			'fiber'     => __( 'Fibre', 'mixmymeals' ),
+			'protein'   => __( 'Protein', 'mixmymeals' ),
+			'salt'      => __( 'Salt', 'mixmymeals' ),
+		);
+
+		return sprintf(
+			/* translators: 1: an amount, e.g. "31 g"; 2: what it is an amount of, e.g. "Protein". */
+			__( '%1$s %2$s per serving', 'mixmymeals' ),
+			Mixmymeals_Meal_Plan::format_nutrition_value( $by, $value ),
+			$names[ $by ] ?? $by
+		);
 	}
 
 	/**
