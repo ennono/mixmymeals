@@ -1955,7 +1955,8 @@ jQuery(function ($) {
         mmmPlanNutritionRequest = mmmPost('mmm_plan_nutrition', {
             meal_plan_id: $box.attr('data-plan-nutrition'),
             eater: this.getAttribute('data-eater') || '',
-            page_url: window.location.href.split('#')[0]
+            page_url: window.location.href.split('#')[0],
+            notes: $box.attr('data-notes') || '1'
         })
             .done(function (response) {
                 if (!response || !response.success || !response.data || !response.data.html) {
@@ -1970,6 +1971,11 @@ jQuery(function ($) {
                         $(this).html(html);
                     }
                 });
+
+                // Footnotes the page prints further down ([mmm_nutrition_notes]).
+                if (typeof response.data.notes === 'string') {
+                    $('[data-nutri-notes]').replaceWith(response.data.notes);
+                }
 
                 const $new = $(response.data.html);
                 $box.replaceWith($new);
@@ -2475,7 +2481,8 @@ jQuery(function ($) {
         const data = {
             people: parseInt($form.find('.mmm-plan-start__people').val(), 10) || 2,
             days: parseInt($form.find('input[name="days"]:checked').val(), 10) || 5,
-            diets: $form.find('input[name="diets[]"]:checked').map(function () { return this.value; }).get()
+            diets: $form.find('input[name="diets[]"]:checked').map(function () { return this.value; }).get(),
+            categories: $form.attr('data-categories') || ''
         };
 
         function send(ctx) {

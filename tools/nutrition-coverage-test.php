@@ -536,54 +536,83 @@ mmm_nc_is(
 	)
 );
 
-echo "\n=== 11. Disclaimer auf der Zutatenseite ===\n";
+echo "\n=== 11. Hinweistext nicht im Plugin ===\n";
 
 /*
- * Der Rezept-Disclaimer erreichte nur Rezept- und Mahlzeitenseiten. Die
- * Zutatenseite zeigt Nährwerttabelle und Ampel — also genau das, worüber so
- * ein Text etwas sagt.
+ * Der Hinweis unter Rezept, Mahlzeit und Zutat ist seit 4.10.0 eine
+ * Elementor-Vorlage (7666). Die drei Shortcodes und ihre Einstellung sind
+ * weg; auch die Nährwerttabelle trägt ihn nicht, sonst stünde er doppelt da.
  */
-$mmm_nc_disclaimer_before = get_option( 'mixmymeals_recipe_disclaimer_text', '' );
-$mmm_nc_switch_before     = get_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' );
-
-update_option( 'mixmymeals_recipe_disclaimer_text', 'ZZ Hinweis: Verbindlich ist die Packung.' );
-update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' );
+foreach ( array( 'recipe', 'meal', 'ingredient' ) as $mmm_nc_subject ) {
+	mmm_nc_assert(
+		! shortcode_exists( 'mmm_disclaimer_for_a_single_' . $mmm_nc_subject ),
+		"[mmm_disclaimer_for_a_single_{$mmm_nc_subject}] ist nicht mehr registriert"
+	);
+}
 
 $disc_ing = mmm_nc_ing( 'ZZ Mit Nährwerten', $full );
-$render   = static fn(): string => do_shortcode( '[mmm_disclaimer_for_a_single_ingredient]' );
-$table    = static fn() => do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' );
-
-mmm_nc_is( 'ausgeschaltet: der Shortcode gibt nichts zurück', '', trim( $render() ) );
-
-update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', 'on' );
-mmm_nc_assert( false !== strpos( $render(), 'ZZ Hinweis' ), 'eingeschaltet: der Hinweis steht da' );
 mmm_nc_assert(
-	false !== strpos( $render(), 'mmm-recipe-disclaimer' ),
-	'und trägt dieselbe Klasse wie auf der Rezeptseite'
+	false === strpos( do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' ), 'mmm-recipe-disclaimer' ),
+	'die Tabelle selbst trägt ihn nicht'
 );
 
 /*
- * Die Nährwerttabelle trägt ihn nicht mehr: der Hinweis steht im Template in
- * einer eigenen Section, wie auf der Rezeptseite. Stünde er in beidem, hätte
- * die Zutatenseite ihn zweimal.
+ * Die Fußnoten der Tabelle (Ampel, Referenzmenge, Garfaktor …) lassen sich
+ * mit notes="0" zurückhalten und mit [mmm_nutrition_notes] weiter unten
+ * ausgeben — beim Hinweis. Die Sternchen bleiben an der Tabelle, sonst
+ * verwiese nichts auf die Fußnote.
  */
-mmm_nc_assert( false === strpos( $table(), 'mmm-recipe-disclaimer' ), 'die Tabelle selbst trägt ihn nicht' );
+$mmm_nc_inline   = do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' );
+$mmm_nc_deferred = do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '" notes="0"]' );
+$mmm_nc_notes    = do_shortcode( '[mmm_nutrition_notes]' );
 
-// Ein leerer Disclaimer darf keinen leeren Absatz erzeugen — sonst steht im
-// Template ein Heading über nichts.
-update_option( 'mixmymeals_recipe_disclaimer_text', '   ' );
-mmm_nc_is( 'ohne Text: nichts, nicht ein leerer Absatz', '', trim( $render() ) );
-
-// Unabhängig von den Nährwerten: der Text spricht nicht nur über die Tabelle,
-// und auf der Rezeptseite steht er auch ohne sie.
-update_option( 'mixmymeals_recipe_disclaimer_text', 'ZZ Hinweis: Verbindlich ist die Packung.' );
+mmm_nc_assert( false !== strpos( $mmm_nc_inline, 'mmm-nutri-note' ), 'ohne Attribut: Fußnoten unter der Tabelle wie bisher' );
+mmm_nc_assert( false === strpos( $mmm_nc_deferred, 'mmm-nutri-note' ), 'notes="0": keine Fußnote unter der Tabelle' );
+mmm_nc_assert( false !== strpos( $mmm_nc_deferred, '*' ), 'notes="0": das Sternchen bleibt am Spaltenkopf' );
 mmm_nc_assert(
-	false !== strpos( $render(), 'ZZ Hinweis' ),
-	'auch für eine Zutat ohne Nährwerte'
+	0 === strpos( $mmm_nc_notes, '<div class="mmm-nutri-notes" data-nutri-notes>' ),
+	'[mmm_nutrition_notes] druckt sie im eigenen Block'
+);
+mmm_nc_is(
+	'Tabelle + Fußnoten ergeben genau die Tabelle von vorher',
+	$mmm_nc_inline,
+	preg_replace( '#</div>$#', '', $mmm_nc_deferred )
+		. preg_replace( '#^<div class="mmm-nutri-notes" data-nutri-notes>(.*)</div>$#s', '$1', $mmm_nc_notes ) . '</div>'
+);
+// Elementor wertet ein Dynamic Tag mitunter zweimal aus; der zweite Aufruf
+// muss dasselbe liefern, sonst bleibt der sichtbare Block leer.
+mmm_nc_is( 'ein zweiter Aufruf liefert dasselbe', $mmm_nc_notes, do_shortcode( '[mmm_nutrition_notes]' ) );
+
+do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '" notes="0"]' );
+do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '" notes="0"]' );
+mmm_nc_is(
+	'zwei Tabellen mit derselben Fußnote: einmal gelistet',
+	$mmm_nc_notes,
+	do_shortcode( '[mmm_nutrition_notes]' )
+);
+mmm_nc_assert(
+	false !== strpos( do_shortcode( '[mmm_nutrition_table_for_a_single_ingredient id="' . $disc_ing . '"]' ), 'mmm-nutri-note' ),
+	'danach druckt eine Tabelle ohne Attribut wieder selbst'
 );
 
-update_option( 'mixmymeals_recipe_disclaimer_text', $mmm_nc_disclaimer_before );
-update_option( 'mixmymeals_recipe_disclaimer_on_ingredients', $mmm_nc_switch_before );
+/*
+ * Elementor rendert die eingebundene Hinweis-Vorlage mitunter vor der
+ * Tabelle (oder verwendet ein früheres Ergebnis). Dann ist noch nichts
+ * gesammelt — der Shortcode rechnet die Fußnoten der Seite selbst aus.
+ */
+$mmm_nc_store = new ReflectionProperty( 'Mixmymeals_Shortcodes', 'deferred_notes' );
+$mmm_nc_store->setAccessible( true );
+$mmm_nc_store->setValue( null, array() );
+
+$GLOBALS['post'] = get_post( $disc_ing );
+setup_postdata( $GLOBALS['post'] );
+mmm_nc_is(
+	'ohne Tabelle davor: dieselben Fußnoten, aus der Seite selbst',
+	$mmm_nc_notes,
+	do_shortcode( '[mmm_nutrition_notes]' )
+);
+wp_reset_postdata();
+$mmm_nc_store->setValue( null, array() );
 
 echo "\n=== 12. Eine Optik für alle Tabellen ===\n";
 

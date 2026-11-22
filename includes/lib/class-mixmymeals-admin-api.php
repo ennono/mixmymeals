@@ -351,7 +351,6 @@ class Mixmymeals_Admin_API {
 						. '</p>';
 				break;
 
-			case 'recipe_disclaimer_text':
 			case 'affiliate_disclosure':
 			case 'notice_rating':
 			case 'notice_photo':
@@ -402,7 +401,6 @@ class Mixmymeals_Admin_API {
 			case 'matomo_toggle':
 			case 'disable_wp_emoji':
 			case 'show_recipe_steps':
-			case 'recipe_disclaimer_on_ingredients':
 			case 'delete_data_on_uninstall':
 				$checked = '';
 				if ( $data && 'on' === $data ) {

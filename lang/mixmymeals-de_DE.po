@@ -211,14 +211,6 @@ msgstr ""
 msgid "Archive & Display"
 msgstr "Archiv & Anzeige"
 
-#: includes/class-mixmymeals-settings.php:417
-msgid "Recipe Disclaimer"
-msgstr "Rezept-Disclaimer"
-
-#: includes/class-mixmymeals-settings.php:418
-msgid "Write a disclaimer for your recipes."
-msgstr "Schreibe einen Disclaimer für deine Rezepte."
-
 #: includes/class-mixmymeals-settings.php:429
 msgid "Recipe Archive Description"
 msgstr "Rezeptarchivbeschreibung"
@@ -6312,14 +6304,6 @@ msgstr "%s kcal je 100 g liegen über allem, was ein Lebensmittel erreicht (etwa
 msgid "%1$s: %2$s g per 100 g is more than 100 g."
 msgstr "%1$s: %2$s g je 100 g sind mehr als 100 g."
 
-#: includes/class-mixmymeals-settings.php
-msgid "Also show on ingredient pages"
-msgstr "Auch auf Zutatenseiten ausgeben"
-
-#: includes/class-mixmymeals-settings.php
-msgid "Same text, in a Note section as on recipe pages."
-msgstr "Derselbe Text, in einem eigenen Hinweis-Abschnitt wie auf Rezeptseiten."
-
 #~ msgid ""
 #~ "Legal bases: consent (Art. 6(1)(a) GDPR) for e-mail subscriptions, ratings "
 #~ "and photo uploads; legitimate interests (Art. 6(1)(f) GDPR) for the meal "
@@ -8377,3 +8361,8 @@ msgstr "die Bestätigung eines Abos"
 #, php-format
 msgid "Browser storage: ticks set on a shopping list are kept only in the browser's local storage (“%1$s”) so that they are still there on the next visit; they are never sent to us. The planner also remembers the chosen start day in the browser's session storage (“%2$s”) until the tab is closed. Both are technically necessary for the function the user requested (§ 25(2) no. 2 TDDDG) and can be removed at any time by deleting this website's data in the browser."
 msgstr "Speicher im Browser: Abgehakte Einträge einer Einkaufsliste werden nur im lokalen Speicher des Browsers („%1$s“) abgelegt, damit sie beim nächsten Besuch noch da sind; sie werden nie an uns übertragen. Außerdem merkt sich der Planer den gewählten Starttag im Sitzungsspeicher des Browsers („%2$s“), bis der Tab geschlossen wird. Beides ist für die vom Nutzer angeforderte Funktion technisch erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und lässt sich jederzeit entfernen, indem die Daten dieser Website im Browser gelöscht werden."
+
+#. translators: %s: what was given as category=
+#, php-format
+msgid "Plan start: not every recipe category was found (category=\"%s\")."
+msgstr "Plan-Start: Nicht jede Rezeptkategorie wurde gefunden (category=\"%s\")."

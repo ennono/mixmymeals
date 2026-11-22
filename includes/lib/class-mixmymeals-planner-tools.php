@@ -176,18 +176,53 @@ class Mixmymeals_Planner_Tools {
 	}
 
 	/**
+	 * Recipe categories as slugs of existing terms, in the order given.
+	 *
+	 * Accepts slugs or IDs, as one comma list or an array; anything that
+	 * names no recipe category is left out.
+	 *
+	 * @param string|array $raw Slugs or IDs.
+	 * @return string[]
+	 */
+	public static function clean_categories( $raw ): array {
+
+		$items = is_array( $raw ) ? $raw : explode( ',', (string) $raw );
+		$slugs = array();
+
+		foreach ( $items as $item ) {
+			$item = trim( (string) $item );
+
+			if ( '' === $item ) {
+				continue;
+			}
+
+			$term = ctype_digit( $item )
+				? get_term( (int) $item, 'mmm_recipe_category' )
+				: get_term_by( 'slug', sanitize_title( $item ), 'mmm_recipe_category' );
+
+			if ( $term instanceof WP_Term && ! in_array( $term->slug, $slugs, true ) ) {
+				$slugs[] = $term->slug;
+			}
+		}
+
+		return $slugs;
+	}
+
+	/**
 	 * Recipe IDs that can stand as the main meal of a day and are in force
 	 * as every diet asked for.
 	 *
-	 * The categories are site content, so they are a filter and not a
-	 * constant; a slug that does not exist is ignored, and with none left
-	 * every recipe counts.
+	 * The categories are site content: the form names them
+	 * ([mmm_plan_start category=""]), filter `mixmymeals_suggest_categories`
+	 * may change them. A category that does not exist is ignored, and with
+	 * none left every recipe counts.
 	 *
 	 * @param string[] $diets      Diet slugs, all of which must hold.
 	 * @param bool     $main_only  Only recipes of the main-meal categories.
+	 * @param string[] $categories Recipe category slugs or IDs.
 	 * @return int[]
 	 */
-	public static function candidate_ids( array $diets, bool $main_only = true ): array {
+	public static function candidate_ids( array $diets, bool $main_only = true, array $categories = array() ): array {
 
 		$args = array(
 			'post_type'              => 'mmm_recipe',
@@ -205,17 +240,9 @@ class Mixmymeals_Planner_Tools {
 			/**
 			 * Recipe categories (slugs) a suggested plan draws its meals from.
 			 *
-			 * @param string[] $slugs Category slugs.
+			 * @param string[] $slugs Category slugs; those the form names.
 			 */
-			$slugs = (array) apply_filters( 'mixmymeals_suggest_categories', array( 'hauptgerichte' ) );
-			$slugs = array_values(
-				array_filter(
-					array_map( 'sanitize_title', $slugs ),
-					static function ( $slug ) {
-						return (bool) term_exists( $slug, 'mmm_recipe_category' );
-					}
-				)
-			);
+			$slugs = self::clean_categories( (array) apply_filters( 'mixmymeals_suggest_categories', self::clean_categories( $categories ) ) );
 
 			if ( $slugs ) {
 				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- a few hundred recipes, asked once per suggestion.
@@ -272,6 +299,10 @@ class Mixmymeals_Planner_Tools {
 		$days = max( 1, min( 7, $days ) );
 
 		$asked = isset( $_POST['diets'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['diets'] ) ) : array();
+
+		// The form's categories; a visitor who sends others only narrows
+		// which published recipes are drawn first.
+		$categories = isset( $_POST['categories'] ) ? self::clean_categories( sanitize_text_field( wp_unslash( (string) $_POST['categories'] ) ) ) : array();
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		$diets = self::clean_diets( $asked );
@@ -285,7 +316,7 @@ class Mixmymeals_Planner_Tools {
 
 		foreach ( array( true, false ) as $main_only ) {
 
-			$ids = array_diff( self::candidate_ids( $diets, $main_only ), array_keys( $picked ) );
+			$ids = array_diff( self::candidate_ids( $diets, $main_only, $categories ), array_keys( $picked ) );
 			shuffle( $ids );
 
 			foreach ( $ids as $recipe_id ) {
@@ -524,15 +555,20 @@ class Mixmymeals_Planner_Tools {
 	 * plan. Three answers, each with a default, so that one tap on the
 	 * button is enough.
 	 *
-	 * @param array|string $atts people, days: the defaults shown.
+	 * `category` (recipe category slugs or IDs, comma-separated) names where
+	 * the meals are drawn from first; the rest of the recipes top up. Empty
+	 * = every recipe.
+	 *
+	 * @param array|string $atts people, days: the defaults shown; category.
 	 * @return string
 	 */
 	public static function plan_start_shortcode( $atts ): string {
 
 		$atts = shortcode_atts(
 			array(
-				'people' => 2,
-				'days'   => 5,
+				'people'   => 2,
+				'days'     => 5,
+				'category' => '',
 			),
 			$atts,
 			'mmm_plan_start'
@@ -541,9 +577,26 @@ class Mixmymeals_Planner_Tools {
 		$people = max( 1, min( 12, (int) $atts['people'] ) );
 		$days   = max( 1, min( 7, (int) $atts['days'] ) );
 
+		$categories = self::clean_categories( $atts['category'] );
+		$named      = array_filter( array_map( 'trim', explode( ',', (string) $atts['category'] ) ), 'strlen' );
+
 		ob_start();
+
+		// A category that names nothing would quietly draw from every recipe.
+		if ( count( $named ) > count( $categories ) && current_user_can( 'edit_posts' ) ) {
+			printf(
+				'<p class="mmm-embed mmm-embed--missing">%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: %s: what was given as category= */
+						__( 'Plan start: not every recipe category was found (category="%s").', 'mixmymeals' ),
+						$atts['category']
+					)
+				)
+			);
+		}
 		?>
-		<form class="mmm-plan-start" data-plan-start novalidate>
+		<form class="mmm-plan-start" data-plan-start<?php echo $categories ? ' data-categories="' . esc_attr( implode( ',', $categories ) ) . '"' : ''; ?> novalidate>
 
 			<div class="mmm-plan-start__field">
 				<span class="mmm-plan-start__label" id="mmm-plan-start-people"><?php esc_html_e( 'For how many?', 'mixmymeals' ); ?></span>

@@ -15,6 +15,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Mixmymeals_Shortcodes {
 
 	/**
+	 * Whether nutrition tables rendered now keep their footnotes back for
+	 * [mmm_nutrition_notes] instead of printing them under the table. Set
+	 * only for the length of one table shortcode (with_deferred_notes()).
+	 *
+	 * @var bool
+	 */
+	private static bool $defer_notes = false;
+
+	/**
+	 * Footnotes kept back this request, keyed so a note two tables share is
+	 * listed once: array{mark:string, kind:string, text:string} per entry.
+	 *
+	 * @var array<string,array{mark:string,kind:string,text:string}>
+	 */
+	private static array $deferred_notes = array();
+
+	/**
 	 * Registers all shortcodes and AJAX action hooks.
 	 */
 	public function __construct() {
@@ -171,6 +188,10 @@ class Mixmymeals_Shortcodes {
 			array( $this, 'mmm_nutrition_table_for_a_single_ingredient_callback' )
 		);
 		add_shortcode(
+			'mmm_nutrition_notes',
+			array( $this, 'mmm_nutrition_notes_callback' )
+		);
+		add_shortcode(
 			'mmm_ingredient_products',
 			array( $this, 'mmm_ingredient_products_callback' )
 		);
@@ -256,11 +277,6 @@ class Mixmymeals_Shortcodes {
 		add_shortcode(
 			'mmm_meta_for_a_single_meal',
 			array( $this, 'mmm_meta_for_a_single_meal_callback' )
-		);
-
-		add_shortcode(
-			'mmm_disclaimer_for_a_single_meal',
-			array( $this, 'mmm_disclaimer_for_a_single_meal_callback' )
 		);
 
 		add_shortcode(
@@ -426,15 +442,6 @@ class Mixmymeals_Shortcodes {
 		add_shortcode(
 			'mmm_add_to_planner',
 			array( $this, 'mmm_add_to_planner_callback' )
-		);
-
-		add_shortcode(
-			'mmm_disclaimer_for_a_single_recipe',
-			array( $this, 'mmm_disclaimer_for_a_single_recipe_callback' )
-		);
-		add_shortcode(
-			'mmm_disclaimer_for_a_single_ingredient',
-			array( $this, 'mmm_disclaimer_for_a_single_ingredient_callback' )
 		);
 
 		add_shortcode(
@@ -3572,15 +3579,150 @@ class Mixmymeals_Shortcodes {
 		 * 100 g the day somebody enters a factor, and nothing on the page
 		 * would say why.
 		 */
-		foreach ( $footnotes['notes'] as $mmm_note ) :
-			?>
-			<p class="mmm-nutri-note mmm-nutri-note--<?php echo esc_attr( $mmm_note['kind'] ); ?>">
-				<?php echo esc_html( $mmm_note['mark'] . ' ' . $mmm_note['text'] ); ?>
-			</p>
-		<?php endforeach; ?>
-		<?php
+		if ( self::$defer_notes ) {
+			foreach ( $footnotes['notes'] as $mmm_note ) {
+				self::$deferred_notes[ $mmm_note['mark'] . '|' . $mmm_note['kind'] . '|' . $mmm_note['text'] ] = $mmm_note;
+			}
+		} else {
+			echo self::nutrition_notes_markup( $footnotes['notes'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
+		}
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The footnotes of a nutrition table as printed: one paragraph per note,
+	 * the mark the table's heading carries in front.
+	 *
+	 * @param array<int,array{mark:string,kind:string,text:string}> $notes From Mixmymeals_Nutrition_Table::footnotes().
+	 * @return string
+	 */
+	private static function nutrition_notes_markup( array $notes ): string {
+
+		$html = '';
+
+		foreach ( $notes as $note ) {
+			$html .= '<p class="mmm-nutri-note mmm-nutri-note--' . esc_attr( $note['kind'] ) . '">'
+				. esc_html( $note['mark'] . ' ' . $note['text'] ) . '</p>';
+		}
+
+		return $html;
+	}
+
+	/**
+	 * Whether a table shortcode was asked to keep its footnotes back
+	 * (`notes="0"`) for [mmm_nutrition_notes] further down the page.
+	 *
+	 * @param mixed $value The shortcode's `notes` attribute.
+	 * @return bool
+	 */
+	private static function notes_deferred_by( $value ): bool {
+
+		return in_array( strtolower( trim( (string) $value ) ), array( '0', 'no', 'off', 'false', 'below' ), true );
+	}
+
+	/**
+	 * Renders with the footnotes of every nutrition table inside kept back
+	 * (or not), restoring the previous state afterwards.
+	 *
+	 * @param bool     $defer  Keep the notes back.
+	 * @param callable $render Returns the markup.
+	 * @return string
+	 */
+	private static function with_deferred_notes( bool $defer, callable $render ): string {
+
+		$before            = self::$defer_notes;
+		self::$defer_notes = $defer;
+
+		try {
+			return (string) $render();
+		} finally {
+			self::$defer_notes = $before;
+		}
+	}
+
+	/**
+	 * The footnotes kept back so far, as the [mmm_nutrition_notes] block;
+	 * '' when there are none.
+	 *
+	 * @param bool $forget Forget them afterwards (the AJAX answer, which
+	 *                     renders one box and nothing after it).
+	 * @return string
+	 */
+	private static function deferred_notes_html( bool $forget = false ): string {
+
+		$notes = array_values( self::$deferred_notes );
+
+		if ( $forget ) {
+			self::$deferred_notes = array();
+		}
+
+		return $notes
+			? '<div class="mmm-nutri-notes" data-nutri-notes>' . self::nutrition_notes_markup( $notes ) . '</div>'
+			: '';
+	}
+
+	/**
+	 * Shortcode [mmm_nutrition_notes].
+	 *
+	 * The footnotes of the nutrition tables above it on the page whose
+	 * shortcodes carry `notes="0"` — reference intake, cooking factor,
+	 * traffic light, day rating, open packet — so a template can print them
+	 * at the foot of the page, beside its disclaimer, rather than under the
+	 * table. The marks stay on the table's headings; a note two tables share
+	 * is listed once. Must stand below those tables: a shortcode cannot print
+	 * what has not been rendered yet. '' when nothing was kept back.
+	 *
+	 * It does not depend on that order alone: where nothing was kept back
+	 * yet, it renders the current page's own table with its notes kept
+	 * back and prints those. Elementor renders a template embedded through
+	 * the Template widget out of order in some requests, which left the
+	 * block empty on every page. Reading never uses the notes up, for the
+	 * same reason. Meant for pages whose table carries notes="0"; beside a
+	 * table that prints its own notes they would stand twice.
+	 *
+	 * @return string
+	 */
+	public function mmm_nutrition_notes_callback(): string {
+
+		if ( ! self::$deferred_notes ) {
+			$this->collect_page_nutrition_notes();
+		}
+
+		return self::deferred_notes_html();
+	}
+
+	/**
+	 * Renders the nutrition table of the page being viewed — recipe, meal,
+	 * ingredient or plan — with its notes kept back, and throws the table
+	 * away: what is left are the notes [mmm_nutrition_notes] prints.
+	 *
+	 * @return void
+	 */
+	private function collect_page_nutrition_notes(): void {
+
+		$post_id = is_singular() ? (int) get_queried_object_id() : (int) get_the_ID();
+
+		if ( ! $post_id || Mixmymeals_Post_Types::is_locked( $post_id ) ) {
+			return;
+		}
+
+		$keep_back = array( 'notes' => '0' );
+
+		switch ( get_post_type( $post_id ) ) {
+			case 'mmm_recipe':
+				$this->mmm_nutrition_table_for_a_single_recipe_callback( $keep_back + array( 'post_id' => $post_id ) );
+				break;
+			case 'mmm_meal':
+				$this->mmm_meal_nutrition_table_for_a_single_meal_callback( $keep_back );
+				break;
+			case 'mmm_ingredient':
+				$this->mmm_nutrition_table_for_a_single_ingredient_callback( $keep_back + array( 'id' => $post_id ) );
+				break;
+			case 'mmm_meal_plan':
+				$this->mmm_nutrition_overview_for_a_single_meal_plan_callback( $keep_back + array( 'meal_plan_id' => $post_id ) );
+				break;
+		}
 	}
 
 	/**
@@ -3683,9 +3825,25 @@ class Mixmymeals_Shortcodes {
 	 * Shortcode [mmm_meal_nutrition_table_for_a_single_meal].
 	 * Renders a nutrition table for the current meal, scaled to the meal's serving count.
 	 *
+	 * @param array|string $atts Shortcode attributes: `notes="0"` keeps the footnotes back for [mmm_nutrition_notes].
 	 * @return string
 	 */
-	public function mmm_meal_nutrition_table_for_a_single_meal_callback(): string {
+	public function mmm_meal_nutrition_table_for_a_single_meal_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts( array( 'notes' => '1' ), $atts, 'mmm_meal_nutrition_table_for_a_single_meal' );
+
+		return self::with_deferred_notes(
+			self::notes_deferred_by( $atts['notes'] ),
+			fn(): string => $this->render_meal_nutrition_table()
+		);
+	}
+
+	/**
+	 * The meal's nutrition table, for [mmm_meal_nutrition_table_for_a_single_meal].
+	 *
+	 * @return string
+	 */
+	private function render_meal_nutrition_table(): string {
 
 		$post_id = get_the_ID();
 
@@ -5236,7 +5394,7 @@ class Mixmymeals_Shortcodes {
 	 * Shortcode [mmm_nutrition_table_for_a_single_recipe].
 	 * Renders a nutrition table per serving and per 100 g for the current or specified recipe.
 	 *
-	 * @param array|string $atts Shortcode attributes: post_id.
+	 * @param array|string $atts Shortcode attributes: post_id; `notes="0"` keeps the footnotes back for [mmm_nutrition_notes].
 	 * @return string
 	 */
 	public function mmm_nutrition_table_for_a_single_recipe_callback( $atts = array() ): string {
@@ -5244,10 +5402,25 @@ class Mixmymeals_Shortcodes {
 		$atts = shortcode_atts(
 			array(
 				'post_id' => 0,
+				'notes'   => '1',
 			),
 			$atts,
 			'mmm_nutrition_table_for_a_single_recipe'
 		);
+
+		return self::with_deferred_notes(
+			self::notes_deferred_by( $atts['notes'] ),
+			fn(): string => $this->render_recipe_nutrition_table( $atts )
+		);
+	}
+
+	/**
+	 * The recipe's nutrition table, for [mmm_nutrition_table_for_a_single_recipe].
+	 *
+	 * @param array $atts Parsed shortcode attributes.
+	 * @return string
+	 */
+	private function render_recipe_nutrition_table( array $atts ): string {
 
 		$post_id = absint( $atts['post_id'] );
 		$post_id = $post_id ? $post_id : get_the_ID();
@@ -10065,13 +10238,16 @@ class Mixmymeals_Shortcodes {
 	 * Shortcode [mmm_nutrition_overview_for_a_single_meal_plan].
 	 * Renders a nutrition summary table (totals and averages) for a meal plan.
 	 *
-	 * @param array|string $atts Shortcode attributes: meal_plan_id.
+	 * @param array|string $atts Shortcode attributes: meal_plan_id; `notes="0"` keeps the footnotes back for [mmm_nutrition_notes].
 	 * @return string
 	 */
 	public function mmm_nutrition_overview_for_a_single_meal_plan_callback( $atts = array() ): string {
 
 		$atts = shortcode_atts(
-			array( 'meal_plan_id' => null ),
+			array(
+				'meal_plan_id' => null,
+				'notes'        => '1',
+			),
 			$atts,
 			'mmm_nutrition_overview_for_a_single_meal_plan'
 		);
@@ -10090,7 +10266,10 @@ class Mixmymeals_Shortcodes {
 			return '<p>' . esc_html__( 'No meals found.', 'mixmymeals' ) . '</p>';
 		}
 
-		return $this->render_plan_nutrition_overview( $plan, $plan->requested_eater() );
+		return self::with_deferred_notes(
+			self::notes_deferred_by( $atts['notes'] ),
+			fn(): string => $this->render_plan_nutrition_overview( $plan, $plan->requested_eater() )
+		);
 	}
 
 	/**
@@ -10214,6 +10393,9 @@ class Mixmymeals_Shortcodes {
 					$plan->for_eater( $eater ),
 					$this->render_eater_switch( $plan, $eater, $page_url ),
 					' data-plan-nutrition="' . esc_attr( (string) $plan->get_id() ) . '" data-eater="' . esc_attr( $eater ) . '"'
+					// The switch's answer must keep the notes back too, or they
+					// would turn up under the table beside the page's own.
+					. ( self::$defer_notes ? ' data-notes="0"' : '' )
 				);
 			}
 		);
@@ -10923,10 +11105,17 @@ class Mixmymeals_Shortcodes {
 		$page_url = isset( $_POST['page_url'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( (string) $_POST['page_url'] ) ), '' ) : '';
 		$page_url = '' !== $page_url ? $page_url : (string) get_permalink( $plan_id );
 
+		$defer = self::notes_deferred_by( isset( $_POST['notes'] ) ? sanitize_key( wp_unslash( $_POST['notes'] ) ) : '1' );
+		$html  = $plan->get_meal_rows()
+			? self::with_deferred_notes( $defer, fn(): string => $this->render_plan_nutrition_overview( $plan, $eater, $page_url ) )
+			: '';
+
 		wp_send_json_success(
 			array(
 				'eater' => $eater,
-				'html'  => $plan->get_meal_rows() ? $this->render_plan_nutrition_overview( $plan, $eater, $page_url ) : '',
+				'html'  => $html,
+				// That person's footnotes for the page's [mmm_nutrition_notes].
+				'notes' => $defer ? self::deferred_notes_html( true ) : null,
 				'parts' => array(
 					'days'   => $this->render_plan_days_nutrition( $plan, 'per_person', $eater ),
 					'impact' => $this->render_plan_product_impact( $plan, $eater ),
@@ -11308,60 +11497,6 @@ class Mixmymeals_Shortcodes {
 		}
 
 		return '<div class="mmm-input-notice">' . wpautop( esc_html( $text ) ) . '</div>';
-	}
-
-	/**
-	 * Shortcode [mmm_disclaimer_for_a_single_meal].
-	 * Renders the recipe disclaimer text for a single meal.
-	 *
-	 * @return string
-	 */
-	public function mmm_disclaimer_for_a_single_meal_callback(): string {
-		return '<p class="mmm-recipe-disclaimer">'
-				. esc_html( get_option( 'mixmymeals_recipe_disclaimer_text' ) )
-				. '</p>';
-	}
-
-	/**
-	 * Shortcode [mmm_disclaimer_for_a_single_recipe].
-	 * Renders the recipe disclaimer text for a single recipe.
-	 *
-	 * @return string
-	 */
-	public function mmm_disclaimer_for_a_single_recipe_callback(): string {
-		return '<p class="mmm-recipe-disclaimer">'
-				. esc_html( get_option( 'mixmymeals_recipe_disclaimer_text' ) )
-				. '</p>';
-	}
-
-	/**
-	 * Shortcode [mmm_disclaimer_for_a_single_ingredient].
-	 *
-	 * The same text as on a recipe, and only where the site has asked for it
-	 * (Settings → Recipes → "Also show on ingredient pages"). One wording
-	 * rather than a second setting: what such a text says about figures — that
-	 * they are estimates, that the traffic light is not an official labelling,
-	 * that the packet in the basket is what counts — holds for an ingredient
-	 * page as much as for a recipe, and two fields would drift apart the day
-	 * either is edited.
-	 *
-	 * Unlike its two siblings this one returns '' when switched off or empty,
-	 * so the theme can hide the whole section instead of printing a heading
-	 * over nothing.
-	 *
-	 * @return string
-	 */
-	public function mmm_disclaimer_for_a_single_ingredient_callback(): string {
-
-		if ( 'on' !== get_option( 'mixmymeals_recipe_disclaimer_on_ingredients', '' ) ) {
-			return '';
-		}
-
-		$text = trim( (string) get_option( 'mixmymeals_recipe_disclaimer_text', '' ) );
-
-		return '' === $text
-			? ''
-			: '<p class="mmm-recipe-disclaimer">' . esc_html( $text ) . '</p>';
 	}
 
 	/**
@@ -13832,12 +13967,19 @@ class Mixmymeals_Shortcodes {
 	 * ingredient's per-100 g nutrition table, mirroring the recipe/meal nutrition
 	 * shortcodes.
 	 *
-	 * @param array|string $atts Optional: id to force a specific ingredient.
+	 * @param array|string $atts Optional: id to force a specific ingredient; `notes="0"` keeps the footnotes back for [mmm_nutrition_notes].
 	 * @return string
 	 */
 	public function mmm_nutrition_table_for_a_single_ingredient_callback( $atts = array() ): string {
 
-		$atts          = shortcode_atts( array( 'id' => 0 ), $atts, 'mmm_nutrition_table_for_a_single_ingredient' );
+		$atts          = shortcode_atts(
+			array(
+				'id'    => 0,
+				'notes' => '1',
+			),
+			$atts,
+			'mmm_nutrition_table_for_a_single_ingredient'
+		);
 		$ingredient_id = (int) $atts['id'] > 0 ? (int) $atts['id'] : (int) get_the_ID();
 
 		if ( ! $ingredient_id || get_post_type( $ingredient_id ) !== 'mmm_ingredient' ) {
@@ -13849,7 +13991,10 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return $this->render_ingredient_nutrition_table( $ingredient->get_nutrition(), $this->traffic_lights( $ingredient_id ) );
+		return self::with_deferred_notes(
+			self::notes_deferred_by( $atts['notes'] ),
+			fn(): string => $this->render_ingredient_nutrition_table( $ingredient->get_nutrition(), $this->traffic_lights( $ingredient_id ) )
+		);
 	}
 
 	/**

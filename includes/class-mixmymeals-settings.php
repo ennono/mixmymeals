@@ -435,31 +435,6 @@ class Mixmymeals_Settings {
 					'label' => __( 'Archive & Display', 'mixmymeals' ),
 				),
 				array(
-					'id'          => 'recipe_disclaimer_text',
-					'label'       => __( 'Recipe Disclaimer', 'mixmymeals' ),
-					'description' => __(
-						'Write a disclaimer for your recipes.',
-						'mixmymeals'
-					),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'recipe_disclaimer_text_callback',
-					),
-				),
-				array(
-					'id'          => 'recipe_disclaimer_on_ingredients',
-					'label'       => __( 'Also show on ingredient pages', 'mixmymeals' ),
-					'description' => __( 'Same text, in a Note section as on recipe pages.', 'mixmymeals' ),
-					'default'     => '',
-					'placeholder' => '',
-					'callback'    => array(
-						$this,
-						'recipe_disclaimer_on_ingredients_callback',
-					),
-				),
-				array(
 					'id'          => 'all_recipes_description',
 					'label'       => __( 'Recipe Archive Description', 'mixmymeals' ),
 					'description' => __(
@@ -517,7 +492,7 @@ class Mixmymeals_Settings {
 					'description' => __( 'Shown on the rating and review form on recipe pages (e.g. a note that reviews are moderated). Leave empty to hide.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+					'callback'    => array( $this, 'textarea_callback' ),
 				),
 				array(
 					'id'    => 'recipes_group_equipment',
@@ -544,7 +519,7 @@ class Mixmymeals_Settings {
 					'description' => __( 'Shown below the shop links on equipment pages. Affiliate links must be labelled as advertising; leave empty to use the built-in wording.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+					'callback'    => array( $this, 'textarea_callback' ),
 				),
 				...$this->nutrition_table_fields( array( 'recipe' ) ),
 			),
@@ -877,7 +852,7 @@ class Mixmymeals_Settings {
 					'description' => __( 'Shown next to the “Save Plan” button (visitor plan creation). Leave empty to hide.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+					'callback'    => array( $this, 'textarea_callback' ),
 				),
 				array(
 					'id'    => 'mealplans_group_subscribe_on_save',
@@ -939,7 +914,7 @@ class Mixmymeals_Settings {
 					'description' => __( 'Shown on the meal-photo upload form (e.g. that you grant usage rights and photos are reviewed). Leave empty to hide.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+					'callback'    => array( $this, 'textarea_callback' ),
 				),
 				...$this->nutrition_table_fields( array( 'meal', 'plan' ) ),
 				...$this->reference_intake_fields(),
@@ -1023,7 +998,7 @@ class Mixmymeals_Settings {
 					'description' => __( 'Shown on the meal-plan subscription form, below the consent checkbox. Leave empty to hide.', 'mixmymeals' ),
 					'default'     => '',
 					'placeholder' => '',
-					'callback'    => array( $this, 'recipe_disclaimer_text_callback' ),
+					'callback'    => array( $this, 'textarea_callback' ),
 				),
 				array(
 					'id'    => 'subs_group_pages',
@@ -2407,23 +2382,13 @@ class Mixmymeals_Settings {
 	}
 
 	/**
-	 * Sanitizes the recipe disclaimer textarea setting value.
+	 * Sanitizes a plain-text textarea setting (notices, affiliate disclosure).
 	 *
 	 * @param mixed $input Raw input value.
 	 * @return string
 	 */
-	public function recipe_disclaimer_text_callback( mixed $input ): string {
+	public function textarea_callback( mixed $input ): string {
 		return sanitize_textarea_field( $input );
-	}
-
-	/**
-	 * Sanitizes the "also show on ingredient pages" checkbox.
-	 *
-	 * @param mixed $input Raw input value.
-	 * @return string 'on' or ''
-	 */
-	public function recipe_disclaimer_on_ingredients_callback( mixed $input ): string {
-		return ( 'on' === $input ) ? 'on' : '';
 	}
 
 	/**

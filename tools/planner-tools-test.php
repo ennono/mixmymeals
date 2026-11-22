@@ -552,6 +552,27 @@ wp_set_current_user( 1 );
 $cart->clear();
 remove_filter( 'mixmymeals_suggest_categories', $main_only );
 
+echo '-- 8. Die Kategorie nennt das Formular' . PHP_EOL;
+$ok( 'clean_categories() nimmt Slug und ID, lässt Unbekanntes weg', array( 'zz-hauptgerichte' ) === Mixmymeals_Planner_Tools::clean_categories( 'zz-gibtsnicht, zz-hauptgerichte,' . $main_cat ) );
+$ok( 'ohne Kategorie zählt jedes Rezept', in_array( $r5, Mixmymeals_Planner_Tools::candidate_ids( array(), true ), true ) );
+$ok( 'mit Kategorie nur deren Rezepte', ! in_array( $r5, Mixmymeals_Planner_Tools::candidate_ids( array(), true, array( 'zz-hauptgerichte' ) ), true ) );
+
+$html = Mixmymeals_Planner_Tools::plan_start_shortcode( array( 'category' => (string) $main_cat ) );
+$ok( 'das Formular trägt die Kategorie als Slug', false !== strpos( $html, 'data-categories="zz-hauptgerichte"' ) );
+$ok( 'ohne Attribut kein data-categories', false === strpos( Mixmymeals_Planner_Tools::plan_start_shortcode( array() ), 'data-categories' ) );
+$ok( 'eine unbekannte Kategorie meldet sich bei Redakteuren', false !== strpos( Mixmymeals_Planner_Tools::plan_start_shortcode( array( 'category' => 'zz-gibtsnicht' ) ), 'mmm-embed--missing' ) );
+
+$res = $call(
+	'suggest_plan_ajax',
+	array(
+		'people'     => 1,
+		'days'       => 4,
+		'categories' => 'zz-hauptgerichte',
+	)
+);
+$ok( 'der Vorschlag zieht aus der gesendeten Kategorie', ! empty( $res['success'] ) && ! array_diff( mmm_pt_ids( $cart ), array( $r1, $r2, $r3, $r4 ) ) && 4 === count( $cart->get_items() ) );
+$cart->clear();
+
 echo PHP_EOL . '=== Aufräumen ===' . PHP_EOL;
 foreach ( array_reverse( $GLOBALS['MMM_PT_TRASH'] ) as $trash_id ) {
 	wp_delete_post( $trash_id, true );

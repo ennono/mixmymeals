@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.9.1
+Stable tag: 4.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,45 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.11.0 =
+
+Added:
+* [mmm_plan_start] takes `category` (recipe category slugs or IDs,
+  comma-separated): the categories a suggested plan draws its meals from
+  first; the rest of the recipes top up. Editors see a note when a category
+  does not exist.
+
+Changed:
+* Without `category` a suggestion draws from every recipe. Until now the
+  category `hauptgerichte` was built in; filter
+  `mixmymeals_suggest_categories` still applies on top.
+
+= 4.10.1 =
+
+Fixed:
+* [mmm_nutrition_notes] stayed empty on the live templates: Elementor
+  renders a template embedded through the Template widget out of order. The
+  shortcode now works out the current page's notes itself where nothing was
+  collected yet, and reading no longer uses them up.
+
+= 4.10.0 =
+
+Added:
+* Shortcode [mmm_nutrition_notes]: the footnotes of the nutrition tables
+  above it (reference intake, cooking factor, traffic light, day rating,
+  open packet), so a template can print them at the foot of the page. The
+  table shortcodes for recipe, meal, ingredient and plan take `notes="0"` to
+  keep their footnotes back for it; the marks stay on the table headings.
+  Without the attribute nothing changes.
+
+Removed:
+* Shortcodes [mmm_disclaimer_for_a_single_recipe],
+  [mmm_disclaimer_for_a_single_meal] and
+  [mmm_disclaimer_for_a_single_ingredient], and the settings behind them
+  (Recipes → "Recipe Disclaimer", "Also show on ingredient pages"). A notice
+  under recipes, meals and ingredients belongs to the site's templates; a
+  theme still printing one of these shortcodes shows its literal text.
 
 = 4.9.1 =
 
