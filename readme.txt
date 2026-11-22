@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.8.0
+Stable tag: 4.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,15 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.8.1 =
+
+Fixed:
+* Cost per serving priced every unit at no less than one whole step per
+  serving: 1 tbsp of oil in a dish for four counted as 1 tbsp per serving,
+  likewise teaspoons, pinches, onions. It is now the whole dish divided by
+  its servings, like the nutrition. Price chips, plan averages and price
+  rankings drop accordingly.
 
 = 4.8.0 =
 
@@ -2531,6 +2540,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.8.1 =
+Cost per serving no longer rounds spoons and pieces up per serving; prices drop.
 
 = 4.8.0 =
 [mmm_recipe_ranking] can filter by price per serving (max_cost="2,50").

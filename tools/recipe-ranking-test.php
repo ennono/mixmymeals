@@ -224,6 +224,40 @@ echo "\n=== 3. Wasser ===\n";
 mmm_rr_assert( ( new Mixmymeals_Recipe( $r_quark ) )->has_complete_prices(), 'Wasser ohne Preis ist keine Lücke' );
 mmm_rr_assert( ! ( new Mixmymeals_Recipe( $r_kaese ) )->has_complete_prices(), 'Käse ohne Preis ist eine' );
 
+// 4.8.1: Kosten aus dem ganzen Rezept, danach geteilt. 1 EL Öl für vier
+// Portionen ist ein Viertel EL pro Portion, kein ganzer.
+$oel = mmm_rr_ing( 'ZZ Öl', mmm_rr_nutri( 0 ), 1.0 );
+$el  = Mixmymeals_Ingredient_Amount::create( $oel, 'ZZ EL' );
+$el->set_weight( 10 );
+$el->set_divisor( 1 );
+$GLOBALS['MMM_RR_TRASH'][] = $el->get_id();
+$r_vier = mmm_rr_recipe( 'ZZ R6 Vier Portionen', array( array( $reis, 400 ) ), $term_id );
+update_post_meta( $r_vier, '_mmm_servings', 4 );
+$vier = new Mixmymeals_Recipe( $r_vier );
+$vier->set_steps(
+	array(
+		array(
+			'title'       => 'S',
+			'description' => 'x',
+			'ingredients' => array(
+				array(
+					'id'        => $reis,
+					'amount'    => 400,
+					'amount_id' => 0,
+				),
+				array(
+					'id'        => $oel,
+					'amount'    => 1,
+					'amount_id' => $el->get_id(),
+				),
+			),
+		),
+	)
+);
+// Reis 400 g × 0,20 € + 10 g Öl × 1,00 € = 0,90 € ÷ 4.
+mmm_rr_is( 'Kosten pro Portion: ganzer EL nicht pro Portion aufgerundet', '0.225', (string) round( ( new Mixmymeals_Recipe( $r_vier ) )->calculate_cost_per_serving(), 3 ) );
+mmm_rr_assert( ( new Mixmymeals_Recipe( $r_vier ) )->has_complete_prices(), 'vier Portionen: Preise vollständig' );
+
 echo "\n=== 4. Zwischenspeicher ===\n";
 
 $before = (string) get_option( Mixmymeals_Recipe::RANKING_GENERATION_OPTION, '' );

@@ -2039,9 +2039,14 @@ class Mixmymeals_Recipe {
 			return self::$cost_cache[ $this->post_id ][ $this->diet ];
 		}
 
+		/*
+		 * The whole dish, divided afterwards — like the nutrition per serving.
+		 * Scaling down to one serving first snapped every unit to at least one
+		 * whole step (get_ingredients_scaled()), so 1 tbsp of oil for four
+		 * servings was priced as 1 tbsp per serving (fixed in 4.8.1).
+		 */
 		$servings    = $this->get_servings();
-		$scale       = $servings > 0 ? 1.0 / $servings : 1.0;
-		$ingredients = $this->get_ingredients_scaled( $scale );
+		$ingredients = $this->get_ingredients_scaled( 1.0 );
 		$total_cost  = 0.0;
 
 		foreach ( $ingredients as $ing ) {
@@ -2054,6 +2059,10 @@ class Mixmymeals_Recipe {
 				$ing['weight_g'],
 				(int) ( $ing['product_id'] ?? 0 )
 			);
+		}
+
+		if ( $servings > 0 ) {
+			$total_cost /= $servings;
 		}
 
 		return self::$cost_cache[ $this->post_id ][ $this->diet ] = $total_cost;
@@ -2081,9 +2090,9 @@ class Mixmymeals_Recipe {
 			return false;
 		}
 
-		$servings = $this->get_servings();
-		$rows     = $this->get_ingredients_scaled( $servings > 0 ? 1.0 / $servings : 1.0 );
-		$weighed  = false;
+		// Same rows as calculate_cost_per_serving(): the whole dish.
+		$rows    = $this->get_ingredients_scaled( 1.0 );
+		$weighed = false;
 
 		foreach ( $rows as $ing ) {
 
