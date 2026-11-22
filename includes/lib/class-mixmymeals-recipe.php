@@ -2126,6 +2126,19 @@ class Mixmymeals_Recipe {
 	const RANKING_GENERATION_OPTION = 'mixmymeals_ranking_generation';
 
 	/**
+	 * What every cached ranking is keyed with: the generation that content
+	 * changes replace, plus the plugin version — a release that changes how a
+	 * figure is computed must retire the cache too, or the lists keep the old
+	 * figures for a day while every price chip shows the new one (4.8.1).
+	 *
+	 * @return string
+	 */
+	public static function ranking_generation(): string {
+		$plugin = class_exists( 'Mixmymeals' ) ? (string) Mixmymeals::instance()->_version : '';
+		return (string) get_option( self::RANKING_GENERATION_OPTION, '' ) . '|' . $plugin;
+	}
+
+	/**
 	 * Post types whose changes can move a ranking.
 	 *
 	 * @var string[]
@@ -2210,7 +2223,7 @@ class Mixmymeals_Recipe {
 		$order = 'desc' === $order ? 'desc' : 'asc';
 		$key   = 'mmm_ranking_' . md5(
 			(string) wp_json_encode(
-				array( $by, $order, $diets, $max_time, $category, $max_cost > 0 ? round( $max_cost, 2 ) : 0, (string) get_option( self::RANKING_GENERATION_OPTION, '' ) )
+				array( $by, $order, $diets, $max_time, $category, $max_cost > 0 ? round( $max_cost, 2 ) : 0, self::ranking_generation() )
 			)
 		);
 

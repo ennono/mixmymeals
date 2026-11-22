@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.8.1
+Stable tag: 4.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.8.2 =
+
+Fixed:
+* Recipe and ingredient rankings are cached per plugin version too, so an
+  update that changes how a figure is computed shows in the lists at once
+  instead of up to a day later.
 
 = 4.8.1 =
 
@@ -2540,6 +2547,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.8.2 =
+Rankings refresh right after a plugin update.
 
 = 4.8.1 =
 Cost per serving no longer rounds spoons and pieces up per serving; prices drop.

@@ -1306,7 +1306,7 @@ class Mixmymeals_Ingredient {
 
 		$key = 'mmm_ingr_ranking_' . md5(
 			(string) wp_json_encode(
-				array( $by, $order, $categories, $exclude_terms, $exclude_ids, $include_ids, (string) get_option( Mixmymeals_Recipe::RANKING_GENERATION_OPTION, '' ) )
+				array( $by, $order, $categories, $exclude_terms, $exclude_ids, $include_ids, Mixmymeals_Recipe::ranking_generation() )
 			)
 		);
 
