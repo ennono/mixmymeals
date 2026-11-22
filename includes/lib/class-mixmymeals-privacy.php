@@ -27,6 +27,12 @@ class Mixmymeals_Privacy {
 	 */
 	const OPT_DISABLE_EMOJI = 'mixmymeals_disable_wp_emoji';
 
+	/**
+	 * Option: fingerprint of the generated section and when it last changed
+	 * (`hash`, `time` as a Unix timestamp), see section_changed().
+	 */
+	const OPT_SECTION_STAMP = 'mixmymeals_privacy_section_stamp';
+
 	public function __construct() {
 		add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_exporters' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_erasers' ) );
@@ -578,6 +584,21 @@ class Mixmymeals_Privacy {
 		);
 
 		/*
+		 * What frontend.js keeps in the browser without a setting deciding it
+		 * (4.9.1): the shopping-list ticks (MMM_SHOP_KEY) and the planner's
+		 * start day (sessionStorage). Storage on the device is § 25 TDDDG
+		 * whether it is a cookie or not. The access code's own storage is
+		 * said in the access item, which only exists once codes do. Key names
+		 * must match frontend.js.
+		 */
+		$items['browser_storage'] = sprintf(
+			/* translators: 1: localStorage key, 2: sessionStorage key. */
+			__( 'Browser storage: ticks set on a shopping list are kept only in the browser\'s local storage (“%1$s”) so that they are still there on the next visit; they are never sent to us. The planner also remembers the chosen start day in the browser\'s session storage (“%2$s”) until the tab is closed. Both are technically necessary for the function the user requested (§ 25(2) no. 2 TDDDG) and can be removed at any time by deleting this website\'s data in the browser.', 'mixmymeals' ),
+			'mmm_shopping_marks_v2',
+			'mmm_startday'
+		);
+
+		/*
 		 * Saving a plan publishes it — the public is a recipient (Art. 13(1)(e)
 		 * GDPR) and was not named. Each sentence follows what decides it: who
 		 * may save (public mode), whether a guest's plan waits as a draft, the
@@ -814,6 +835,70 @@ class Mixmymeals_Privacy {
 		$html .= $p( __( 'Access to, export and deletion of the stored data are possible at any time via the channels named in the section on the rights of data subjects.', 'mixmymeals' ) );
 
 		return $html;
+	}
+
+	/**
+	 * When the generated section last changed its wording, as a Unix
+	 * timestamp.
+	 *
+	 * The text moves with settings, plugin updates, translations and add-ons
+	 * without anybody saving the policy page, so no stored date can know it.
+	 * Instead the current text is compared with the fingerprint of the last
+	 * one seen; a difference records the moment it was first noticed. The
+	 * first look records itself as the change — before it, nothing was
+	 * tracked, and the page's own date (see policy_updated()) still counts.
+	 *
+	 * @return int
+	 */
+	public static function section_changed(): int {
+
+		// Always in the site's language, so a request in another one (wp-cli,
+		// a user locale) does not read as a change.
+		$site     = (string) get_option( 'WPLANG' );
+		$switched = switch_to_locale( '' !== $site ? $site : 'en_US' );
+		$hash     = md5( self::policy_section_html( '' ) );
+		if ( $switched ) {
+			restore_previous_locale();
+		}
+
+		$stamp = get_option( self::OPT_SECTION_STAMP );
+
+		if ( is_array( $stamp ) && ( $stamp['hash'] ?? '' ) === $hash && ! empty( $stamp['time'] ) ) {
+			return (int) $stamp['time'];
+		}
+
+		$time = time();
+		update_option(
+			self::OPT_SECTION_STAMP,
+			array(
+				'hash' => $hash,
+				'time' => $time,
+			),
+			false
+		);
+
+		return $time;
+	}
+
+	/**
+	 * When the privacy policy as published last changed: the later of the
+	 * policy page's own modification and the generated section's.
+	 *
+	 * @param int $post_id Policy page; 0 = the site's privacy policy page
+	 *                     (Settings → Privacy), else none.
+	 * @return int Unix timestamp.
+	 */
+	public static function policy_updated( int $post_id = 0 ): int {
+
+		if ( $post_id <= 0 ) {
+			$post_id = (int) get_option( 'wp_page_for_privacy_policy', 0 );
+		}
+
+		// get_post_datetime() also reads drafts, which have no GMT date yet.
+		$modified = $post_id > 0 ? get_post_datetime( $post_id, 'modified' ) : false;
+		$page     = $modified ? $modified->getTimestamp() : 0;
+
+		return max( $page, self::section_changed() );
 	}
 
 	/**

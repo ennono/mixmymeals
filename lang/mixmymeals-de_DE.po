@@ -8372,3 +8372,8 @@ msgstr "die Bestätigung eines Abos, mit der Nummer des Plans"
 
 msgid "confirming a subscription"
 msgstr "die Bestätigung eines Abos"
+
+#. translators: 1: localStorage key, 2: sessionStorage key.
+#, php-format
+msgid "Browser storage: ticks set on a shopping list are kept only in the browser's local storage (“%1$s”) so that they are still there on the next visit; they are never sent to us. The planner also remembers the chosen start day in the browser's session storage (“%2$s”) until the tab is closed. Both are technically necessary for the function the user requested (§ 25(2) no. 2 TDDDG) and can be removed at any time by deleting this website's data in the browser."
+msgstr "Speicher im Browser: Abgehakte Einträge einer Einkaufsliste werden nur im lokalen Speicher des Browsers („%1$s“) abgelegt, damit sie beim nächsten Besuch noch da sind; sie werden nie an uns übertragen. Außerdem merkt sich der Planer den gewählten Starttag im Sitzungsspeicher des Browsers („%2$s“), bis der Tab geschlossen wird. Beides ist für die vom Nutzer angeforderte Funktion technisch erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und lässt sich jederzeit entfernen, indem die Daten dieser Website im Browser gelöscht werden."

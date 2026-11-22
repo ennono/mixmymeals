@@ -489,6 +489,10 @@ class Mixmymeals_Shortcodes {
 			'mmm_privacy_policy',
 			array( $this, 'mmm_privacy_policy_callback' )
 		);
+		add_shortcode(
+			'mmm_privacy_policy_date',
+			array( $this, 'mmm_privacy_policy_date_callback' )
+		);
 
 		// Cart / Meal Plan Builder:
 
@@ -746,6 +750,44 @@ class Mixmymeals_Shortcodes {
 		$heading = 'none' === $atts['heading'] ? '' : sanitize_key( $atts['heading'] );
 
 		return '<div class="mmm-privacy-policy">' . Mixmymeals_Privacy::policy_section_html( $heading ) . '</div>';
+	}
+
+	/**
+	 * Shortcode [mmm_privacy_policy_date]: the date the privacy policy last
+	 * changed, as plain text (no markup) for a line like "Stand: …" — the
+	 * later of the page's own edit and the generated MixMyMeals section's
+	 * last change (Mixmymeals_Privacy::policy_updated()).
+	 *
+	 * Attributes: `format` (PHP date format; default the site's date format),
+	 * `post_id` (the policy page; default the page it stands on, else the
+	 * one set under Settings → Privacy).
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function mmm_privacy_policy_date_callback( $atts = array() ): string {
+
+		$atts = shortcode_atts(
+			array(
+				'format'  => '',
+				'post_id' => 0,
+			),
+			$atts,
+			'mmm_privacy_policy_date'
+		);
+
+		if ( ! class_exists( 'Mixmymeals_Privacy' ) ) {
+			return '';
+		}
+
+		$post_id = absint( $atts['post_id'] );
+		if ( ! $post_id && is_singular() ) {
+			$post_id = (int) get_queried_object_id();
+		}
+
+		$format = '' !== trim( (string) $atts['format'] ) ? (string) $atts['format'] : (string) get_option( 'date_format' );
+
+		return esc_html( wp_date( $format, Mixmymeals_Privacy::policy_updated( $post_id ) ) );
 	}
 
 	/**

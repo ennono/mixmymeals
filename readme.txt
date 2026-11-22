@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.9.0
+Stable tag: 4.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.9.1 =
+
+Added:
+* Shortcode [mmm_privacy_policy_date]: the date the privacy policy last
+  changed, as plain text — the later of the policy page's own edit and the
+  last change of the generated MixMyMeals section (settings, updates,
+  translations). Attributes `format`, `post_id`.
+
+Changed:
+* The generated privacy-policy section names what the plugin keeps in the
+  browser besides the planner cookie: shopping-list ticks (local storage)
+  and the planner's start day (session storage).
 
 = 4.9.0 =
 

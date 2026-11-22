@@ -57,6 +57,8 @@ $keys  = array(
 	'mixmymeals_save_meal_plans_published_by_visitors_as_draft',
 	'mixmymeals_enable_cleanup',
 	'mixmymeals_disable_wp_emoji',
+	'mixmymeals_privacy_section_stamp',
+	'wp_page_for_privacy_policy',
 	'mixmymeals_matomo_plan_event',
 	'mixmymeals_matomo_plan_event_name',
 	'mixmymeals_matomo_cook_mode_event',
@@ -106,6 +108,12 @@ mmm_ppt_assert( $has( 'our interest in protection against automated abuse' ), 'b
 mmm_ppt_assert( $has( 'becomes a publicly accessible page' ) && $has( 'display name of their account' ), 'gespeicherte Pläne werden öffentlich, mit Kontoname bei Angemeldeten' );
 update_option( 'mixmymeals_enable_cleanup', '' );
 mmm_ppt_assert( $has( 'kept until their deletion is requested' ), 'Aufräumen aus: Pläne bleiben bis zum Löschverlangen — gesagt statt verschwiegen' );
+$mmm_ppt_js = (string) file_get_contents( WP_PLUGIN_DIR . '/mixmymeals/assets/js/frontend.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local file.
+mmm_ppt_assert(
+	$has( 'local storage (“mmm_shopping_marks_v2”)' ) && $has( 'session storage (“mmm_startday”)' )
+		&& str_contains( $mmm_ppt_js, "MMM_SHOP_KEY = 'mmm_shopping_marks_v2'" ) && str_contains( $mmm_ppt_js, "sessionStorage.setItem('mmm_startday'" ),
+	'Browserspeicher: Abhak-Liste und Starttag genannt, mit den Schlüsseln, die frontend.js wirklich benutzt'
+);
 mmm_ppt_assert( $has( 'pseudonymous identifier' ) && ! $has( 'no personal reference' ), 'die Planer-Kennung heißt pseudonym' );
 mmm_ppt_assert( $has( 'user agent' ), 'Kommentarformular: IP und User-Agent genannt' );
 mmm_ppt_assert( $has( 'links for rating its recipes and sharing photos' ), 'der Mail-Inhalt wird genannt' );
@@ -218,6 +226,47 @@ mmm_ppt_assert(
 	'Option an: Skript, Styles und die s.w.org-Bilder in Mails sind ausgehängt'
 );
 mmm_ppt_assert( ! in_array( 'wpemoji', (array) apply_filters( 'tiny_mce_plugins', array( 'wpemoji', 'lists' ) ), true ), 'auch das Emoji-Plugin des klassischen Editors' );
+
+echo "-- 3c. Datum der letzten Änderung\n";
+
+delete_option( Mixmymeals_Privacy::OPT_SECTION_STAMP );
+$mmm_t0 = time();
+mmm_ppt_assert( Mixmymeals_Privacy::section_changed() >= $mmm_t0, 'erster Blick: zählt als Änderung, Fingerabdruck gespeichert' );
+
+$mmm_stamp         = get_option( Mixmymeals_Privacy::OPT_SECTION_STAMP );
+$mmm_stamp['time'] = 1000;
+update_option( Mixmymeals_Privacy::OPT_SECTION_STAMP, $mmm_stamp );
+mmm_ppt_assert( 1000 === Mixmymeals_Privacy::section_changed(), 'gleicher Text: das Datum bleibt' );
+switch_to_locale( 'de_DE' );
+$mmm_de = Mixmymeals_Privacy::section_changed();
+restore_previous_locale();
+mmm_ppt_assert( 1000 === $mmm_de && 1000 === Mixmymeals_Privacy::section_changed(), 'eine andere Sprache der Anfrage zählt nicht als Änderung' );
+
+update_option( 'mixmymeals_mail_log_enabled', 'on' === get_option( 'mixmymeals_mail_log_enabled' ) ? '' : 'on' );
+mmm_ppt_assert( Mixmymeals_Privacy::section_changed() >= $mmm_t0, 'geänderte Einstellung, geänderter Text: neues Datum' );
+
+$mmm_page = wp_insert_post(
+	array(
+		'post_type'   => 'page',
+		'post_status' => 'draft',
+		'post_title'  => 'T Datenschutz',
+	)
+);
+$mmm_stamp['time'] = 1000;
+$mmm_stamp['hash'] = get_option( Mixmymeals_Privacy::OPT_SECTION_STAMP )['hash'];
+update_option( Mixmymeals_Privacy::OPT_SECTION_STAMP, $mmm_stamp );
+mmm_ppt_assert( get_post_datetime( $mmm_page, 'modified' )->getTimestamp() === Mixmymeals_Privacy::policy_updated( $mmm_page ), 'Seite jünger als der Abschnitt: das Datum der Seite' );
+$mmm_stamp['time'] = time() + DAY_IN_SECONDS;
+update_option( Mixmymeals_Privacy::OPT_SECTION_STAMP, $mmm_stamp );
+mmm_ppt_assert( $mmm_stamp['time'] === Mixmymeals_Privacy::policy_updated( $mmm_page ), 'Abschnitt jünger als die Seite: das Datum des Abschnitts' );
+update_option( 'wp_page_for_privacy_policy', $mmm_page );
+mmm_ppt_assert( $mmm_stamp['time'] === Mixmymeals_Privacy::policy_updated(), 'ohne Seite: die Datenschutzseite aus den Einstellungen' );
+
+mmm_ppt_assert( shortcode_exists( 'mmm_privacy_policy_date' ), 'der Datums-Shortcode ist registriert' );
+$mmm_out = do_shortcode( '[mmm_privacy_policy_date post_id="' . $mmm_page . '" format="Y-m-d"]' );
+mmm_ppt_assert( wp_date( 'Y-m-d', $mmm_stamp['time'] ) === $mmm_out, 'Shortcode: das Datum im gewünschten Format, nur Text' );
+mmm_ppt_assert( wp_date( (string) get_option( 'date_format' ), $mmm_stamp['time'] ) === do_shortcode( '[mmm_privacy_policy_date]' ), 'ohne Format: das Datumsformat der Website' );
+wp_delete_post( $mmm_page, true );
 
 echo "-- 4. Aufräumen\n";
 
