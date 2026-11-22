@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.7.1
+Stable tag: 4.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.8.0 =
+
+Added:
+* [mmm_recipe_ranking] takes max_cost: the highest cost per serving
+  ("2,50" or "2.50"), e.g. "the richest in protein under 2,50 €". Only
+  recipes whose every price is known take part; with a diet the cost is
+  that of the dish as cooked for it.
 
 = 4.7.1 =
 
@@ -2523,6 +2531,9 @@ Changed:
 * Various security and code-quality improvements.
 
 == Upgrade Notice ==
+
+= 4.8.0 =
+[mmm_recipe_ranking] can filter by price per serving (max_cost="2,50").
 
 = 4.7.1 =
 Diet rankings mark dishes that are only a variant of the recipe.

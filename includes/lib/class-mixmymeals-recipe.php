@@ -2182,11 +2182,17 @@ class Mixmymeals_Recipe {
 	 * @param string   $by       Figure from ranking_figures().
 	 * @param string   $order    'asc' or 'desc'.
 	 * @param string[] $diets    Diet slugs (resolved, known).
+	 * A price ceiling ($max_cost) is judged on the cost per serving as cooked
+	 * for the diet, rounded to cents as printed, and only where every price is
+	 * known — a dish whose cost is low because prices are missing must not
+	 * pass as cheap.
+	 *
 	 * @param int      $max_time Longest preparation time in minutes; 0 = any.
 	 * @param int      $category Recipe category term ID; 0 = any.
+	 * @param float    $max_cost Highest cost per serving; 0 = any.
 	 * @return array<int,float> Recipe ID => value, in rank order.
 	 */
-	public static function ranking( string $by, string $order, array $diets, int $max_time, int $category ): array {
+	public static function ranking( string $by, string $order, array $diets, int $max_time, int $category, float $max_cost = 0.0 ): array {
 
 		if ( ! in_array( $by, self::ranking_figures(), true ) ) {
 			return array();
@@ -2195,7 +2201,7 @@ class Mixmymeals_Recipe {
 		$order = 'desc' === $order ? 'desc' : 'asc';
 		$key   = 'mmm_ranking_' . md5(
 			(string) wp_json_encode(
-				array( $by, $order, $diets, $max_time, $category, (string) get_option( self::RANKING_GENERATION_OPTION, '' ) )
+				array( $by, $order, $diets, $max_time, $category, $max_cost > 0 ? round( $max_cost, 2 ) : 0, (string) get_option( self::RANKING_GENERATION_OPTION, '' ) )
 			)
 		);
 
@@ -2257,6 +2263,13 @@ class Mixmymeals_Recipe {
 
 			if ( '' !== $cook_as ) {
 				$recipe = $recipe->for_diet( $cook_as );
+			}
+
+			if ( $max_cost > 0 ) {
+				$cost = $recipe->ranking_value( 'cost' );
+				if ( null === $cost || round( $cost, 2 ) > round( $max_cost, 2 ) ) {
+					continue;
+				}
 			}
 
 			$value = $recipe->ranking_value( $by );

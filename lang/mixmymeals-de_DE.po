@@ -8203,6 +8203,10 @@ msgstr "Rezept-Rangliste: Die Ernährungsform „%s“ gibt es nicht."
 msgid "Recipe ranking: there is no recipe category \"%s\"."
 msgstr "Rezept-Rangliste: Die Rezeptkategorie „%s“ gibt es nicht."
 
+#. translators: %s: the value given for "max_cost".
+msgid "Recipe ranking: \"%s\" is not a price. Write it like 2,50."
+msgstr "Rezept-Rangliste: „%s“ ist kein Preis. Schreib ihn wie 2,50."
+
 msgid "Recipe ranking: no recipe qualifies for this list."
 msgstr "Rezept-Rangliste: Kein Rezept erfüllt die Bedingungen dieser Liste."
 

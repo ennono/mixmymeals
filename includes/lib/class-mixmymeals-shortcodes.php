@@ -1428,6 +1428,8 @@ class Mixmymeals_Shortcodes {
 	 * - order: asc|desc; default follows the figure (more protein, less salt).
 	 * - diet: diet slug(s), comma-separated, as the archive filter takes them.
 	 * - max_time: longest preparation time in minutes.
+	 * - max_cost: highest cost per serving ("2,50" or "2.50"); only recipes
+	 *   whose every price is known take part.
 	 * - category: recipe category slug.
 	 * - limit: 1–50, default 10.
 	 * - title: heading above the list; none by default.
@@ -1446,6 +1448,7 @@ class Mixmymeals_Shortcodes {
 				'order'    => '',
 				'diet'     => '',
 				'max_time' => 0,
+				'max_cost' => '',
 				'category' => '',
 				'limit'    => 10,
 				'title'    => '',
@@ -1512,7 +1515,22 @@ class Mixmymeals_Shortcodes {
 			$category = (int) $term->term_id;
 		}
 
-		$ranking = Mixmymeals_Recipe::ranking( $by, $order, $diets, max( 0, (int) $atts['max_time'] ), $category );
+		$max_cost = 0.0;
+		$cost_raw = str_replace( ',', '.', trim( (string) $atts['max_cost'] ) );
+		if ( '' !== $cost_raw ) {
+			if ( ! preg_match( '/^\d{1,4}(\.\d{1,2})?$/', $cost_raw ) ) {
+				return self::embed_missing(
+					sprintf(
+						/* translators: %s: the value given for "max_cost". */
+						__( 'Recipe ranking: "%s" is not a price. Write it like 2,50.', 'mixmymeals' ),
+						(string) $atts['max_cost']
+					)
+				);
+			}
+			$max_cost = (float) $cost_raw;
+		}
+
+		$ranking = Mixmymeals_Recipe::ranking( $by, $order, $diets, max( 0, (int) $atts['max_time'] ), $category, $max_cost );
 		$ranking = array_slice( $ranking, 0, min( 50, max( 1, (int) $atts['limit'] ) ), true );
 
 		if ( ! $ranking ) {

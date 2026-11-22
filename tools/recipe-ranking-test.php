@@ -6,6 +6,7 @@
  *  2. Wer nicht verlässlich ist, fällt heraus: lückenhafte Nährwerte,
  *     unvollständige Preise, keine Zeit, keine Haltbarkeit.
  *  3. Wasser (kein Preis, keine Nährwerte) kostet nichts und ist keine Lücke.
+ *     max_cost lässt nur Rezepte mit vollständigen Preisen durch.
  *  4. Der Zwischenspeicher wird von einer Änderung verworfen.
  *  5. Ausgabe: nummerierte Liste mit der Kennzahl, Fehlkonfiguration nur für
  *     Redakteure sichtbar.
@@ -207,6 +208,14 @@ mmm_rr_is( 'nur gestoppte Rezepte, schnellstes zuerst', implode( ',', array( $r_
 $time30 = Mixmymeals_Recipe::ranking( 'time', 'asc', array(), 30, $term_id );
 mmm_rr_assert( ! isset( $time30[ $r_reis ] ), 'max_time schneidet ab' );
 
+// max_cost: Tofu (1,00 €) zu teuer, Käse ohne Preis fällt heraus, statt als billig durchzugehen.
+$cheap = Mixmymeals_Recipe::ranking( 'protein', 'desc', array(), 0, $term_id, 0.60 );
+mmm_rr_is( 'max_cost: Eiweiß unter 0,60 €', implode( ',', array( $r_quark, $r_reis ) ), implode( ',', array_keys( $cheap ) ) );
+$cheap = Mixmymeals_Recipe::ranking( 'cost', 'asc', array(), 0, $term_id, 0.5 );
+mmm_rr_is( 'max_cost: Kosten bis 0,50 €', (string) $r_reis, implode( ',', array_keys( $cheap ) ) );
+$cheap = Mixmymeals_Recipe::ranking( 'protein', 'desc', array(), 0, $term_id, 0.0 );
+mmm_rr_is( 'max_cost 0: kein Filter', implode( ',', array_keys( $protein ) ), implode( ',', array_keys( $cheap ) ) );
+
 $shelf = Mixmymeals_Recipe::ranking( 'shelf_life', 'desc', array(), 0, $term_id );
 mmm_rr_is( 'nur mit Haltbarkeit, längste zuerst', implode( ',', array( $r_tofu, $r_quark ) ), implode( ',', array_keys( $shelf ) ) );
 
@@ -237,7 +246,11 @@ mmm_rr_assert( false !== strpos( $html, '<h2 class="mmm-ranking__title">Viel Eiw
 $kcal = do_shortcode( '[mmm_recipe_ranking by="kcal" category="' . $slug . '"]' );
 mmm_rr_assert( false !== strpos( $kcal, 'mmm-ranking--calories' ), 'Alias kcal → calories' );
 
+$capped = do_shortcode( '[mmm_recipe_ranking by="protein" category="' . $slug . '" max_cost="0,60"]' );
+mmm_rr_assert( false !== strpos( $capped, 'ZZ R2 Quark' ) && false === strpos( $capped, 'ZZ R1 Tofu' ) && false === strpos( $capped, 'ZZ R4 Käse' ), 'max_cost="0,60" mit Komma' );
+
 wp_set_current_user( 0 );
+mmm_rr_is( 'ungültiger Preis: für Besucher nichts', '', do_shortcode( '[mmm_recipe_ranking category="' . $slug . '" max_cost="zwei Euro"]' ) );
 mmm_rr_is( 'unbekannte Kennzahl: für Besucher nichts', '', do_shortcode( '[mmm_recipe_ranking by="karma"]' ) );
 mmm_rr_is( 'unbekannte Kategorie: für Besucher nichts', '', do_shortcode( '[mmm_recipe_ranking category="gibt-es-nicht-zz"]' ) );
 
@@ -251,6 +264,7 @@ $admins = get_users(
 if ( $admins ) {
 	wp_set_current_user( (int) $admins[0] );
 	mmm_rr_assert( false !== strpos( do_shortcode( '[mmm_recipe_ranking by="karma"]' ), 'mmm-embed--missing' ), 'unbekannte Kennzahl: Redakteure sehen den Grund' );
+	mmm_rr_assert( false !== strpos( do_shortcode( '[mmm_recipe_ranking max_cost="zwei Euro"]' ), 'mmm-embed--missing' ), 'ungültiger Preis: Redakteure sehen den Grund' );
 	wp_set_current_user( 0 );
 }
 
