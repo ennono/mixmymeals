@@ -10707,7 +10707,8 @@ class Mixmymeals_Shortcodes {
 	/**
 	 * The planner's compact nutrition view: the eight figures per day and
 	 * person, each with its share of the reference intake and its rating,
-	 * and the full plan table behind a disclosure.
+	 * and the full plan table below them, all open (4.11.1: the box left
+	 * the narrow sidebar, so nothing needs folding away any more).
 	 *
 	 * Where the planner lists several people, the figures are one person's
 	 * — the switch above them says whose — and "per day and person" means
@@ -10747,21 +10748,9 @@ class Mixmymeals_Shortcodes {
 		$per_day = $plan->calc_nutrition_per_day_person();
 		$rating  = $plan->calc_day_rating();
 
-		// With figures to show, the heading is the handle of a closed
-		// disclosure: the week comes first, the eight tiles on request.
-		$mmm_fold = $per_day['days'] >= 1;
-
 		ob_start();
 		?>
-		<?php if ( $mmm_fold ) : ?>
-		<details class="mmm-planner-nutrition__fold">
-			<summary class="mmm-planner-nutrition__fold-summary">
-				<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
-				<span class="mmm-planner-nutrition__fold-value"><?php echo esc_html( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', (float) ( $per_day['average']['calories'] ?? 0 ) ) ); ?></span>
-			</summary>
-		<?php else : ?>
-			<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
-		<?php endif; ?>
+		<?php echo self::planner_heading( 'nutrition', 'mmm-planner-nutrition__title' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 		<?php if ( $per_day['days'] < 1 && $planner->has_eaters() && ! $plan->get_meal_rows() ) : ?>
 			<p class="mmm-planner-nutrition__hint"><?php esc_html_e( 'This person eats none of the planned meals yet.', 'mixmymeals' ); ?></p>
 		<?php elseif ( $per_day['days'] < 1 ) : ?>
@@ -10775,18 +10764,10 @@ class Mixmymeals_Shortcodes {
 				<p class="mmm-nutri-note mmm-nutri-note--rating"><?php echo esc_html( $mmm_rating_note ); ?></p>
 			<?php endif; ?>
 		<?php endif; ?>
-		<details class="mmm-planner-nutrition__details">
-			<summary><?php esc_html_e( 'Show nutrition table', 'mixmymeals' ); ?></summary>
-			<?php
-			// The table alone: the plan page prints these same tiles above it,
-			// and here they already stand above the disclosure.
-			echo $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
-			?>
-		</details>
-		<?php if ( $mmm_fold ) : ?>
-		</details>
-		<?php endif; ?>
 		<?php
+		// The table alone: the plan page prints these same tiles above it,
+		// and here they already stand above the table.
+		echo $plan->get_meal_rows() ? $this->render_plan_nutrition_table( $plan ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 
 		return (string) ob_get_clean();
 	}
