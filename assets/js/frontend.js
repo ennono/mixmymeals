@@ -302,10 +302,12 @@ jQuery(function ($) {
                 servings: parseInt(backdrop.find('.mmm-planner-dialog-servings').val(), 10) || 1,
                 diet: backdrop.find('.mmm-planner-dialog-diet').val() || '',
                 type: backdrop.find('.mmm-planner-dialog-type').val() || '',
-                day: backdrop.find('.mmm-planner-dialog-day').val() || null
+                day: backdrop.find('.mmm-planner-dialog-day').val() || null,
+                source: 'dialog'
             })
                 .done(function (response) {
                     if (response && response.success) {
+                        mmmTrackEvent(response.data && response.data.tracking);
                         const cfg = (window.mixmymeals && mixmymeals.planner_dialog) || {};
                         const added = cfg.added || {};
                         const count = response.data && response.data.count;
@@ -792,10 +794,12 @@ jQuery(function ($) {
             mmmPost('mmm_add_to_cart', {
                 recipe_id: recipeId,
                 servings: plannerServings > 0 ? plannerServings : defaultServings,
-                day: day || null
+                day: day || null,
+                source: 'sheet'
             })
                 .done(function (response) {
                     if (response && response.success) {
+                        mmmTrackEvent(response.data && response.data.tracking);
                         const added = cfg.added || {};
                         const count = response.data && response.data.count;
                         const countText = (typeof count === 'number')
@@ -997,6 +1001,10 @@ jQuery(function ($) {
         $('body').addClass('mmm-cook-mode-open').append(overlay);
         renderStep();
         overlay.find('.mmm-cook-mode-next').trigger('focus');
+
+        // The site's Matomo, where the button carries an event (the server
+        // puts data-mmm-track on it only while that event is switched on).
+        mmmTrackEvent($(origin).data('mmmTrack'));
 
         // Display anlassen, solange gekocht wird (wo unterstützt)
         if (navigator.wakeLock && navigator.wakeLock.request) {
@@ -1502,10 +1510,15 @@ jQuery(function ($) {
      * at the latest after 600 ms, so a redirect can wait for it without
      * ever hanging on it.
      *
-     * @param {?{category: string, action: string, name: ?string, value: ?number}} ev
+     * @param {?Object|Array} ev One event {category, action, name, value} or a list.
      * @return {jQuery.Promise}
      */
     function mmmTrackEvent(ev) {
+        // Several events at once (a plan saved with a subscription).
+        if (Array.isArray(ev)) {
+            return $.when.apply($, ev.map(function (one) { return mmmTrackEvent(one); }));
+        }
+
         const done = $.Deferred();
 
         if (!ev || !ev.category || !ev.action) {
@@ -1524,6 +1537,19 @@ jQuery(function ($) {
         window.setTimeout(done.resolve, loaded ? 600 : 0);
 
         return done.promise();
+    }
+
+    // An event a server redirect handed to this page (the confirmation
+    // link); the key is taken off the address so a reload sends nothing.
+    if (window.mixmymeals && mixmymeals.track) {
+        mmmTrackEvent(mixmymeals.track);
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('mmm_ev')) {
+                url.searchParams.delete('mmm_ev');
+                window.history.replaceState(window.history.state, '', url.toString());
+            }
+        } catch (err) {}
     }
 
     /* ==========================================================
@@ -2192,8 +2218,11 @@ jQuery(function ($) {
         })
             .done(function (response) {
                 if (response && response.success) {
+                    const tracked = mmmTrackEvent(response.data && response.data.tracking);
                     if (response.data && response.data.redirect) {
-                        window.location.assign(response.data.redirect);
+                        tracked.always(function () {
+                            window.location.assign(response.data.redirect);
+                        });
                         return;
                     }
                     mmmShowInlineMessage($msg, (response.data && response.data.message) || '', 'ok');
@@ -2390,10 +2419,12 @@ jQuery(function ($) {
             mmmPost('mmm_add_to_cart', {
                 recipe_id: $btn.attr('data-recipe-id'),
                 servings: plannerServings > 0 ? plannerServings : (parseInt($btn.attr('data-servings'), 10) || 1),
-                day: day || null
+                day: day || null,
+                source: 'picker'
             })
                 .done(function (response) {
                     if (response && response.success) {
+                        mmmTrackEvent(response.data && response.data.tracking);
                         mmmAnnounce(mmmAddedText(title, String(day || ''), ''));
                         mmmClosePicker();
                         // The button that opened the picker is redrawn with

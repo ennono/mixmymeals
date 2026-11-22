@@ -628,15 +628,52 @@ class Mixmymeals_Privacy {
 		}
 
 		/*
-		 * The Matomo event (Mixmymeals_Shortcodes::plan_saved_tracking_event()):
-		 * the plugin only hands it to the site's own analytics, whose section
-		 * of the policy covers consent and storage. Said here so the event's
-		 * content is named; the plan number only where the name carries it.
+		 * The Matomo events (Mixmymeals_Shortcodes::tracking_event()): the
+		 * plugin only hands them to the site's own analytics, whose section
+		 * of the policy covers consent and storage. Said here so each
+		 * event's content is named — plan and meal numbers only where the
+		 * configured name carries them.
 		 */
-		if ( 'on' === (string) get_option( 'mixmymeals_matomo_plan_event', '' ) ) {
-			$items['analytics'] = str_contains( (string) get_option( 'mixmymeals_matomo_plan_event_name', '' ), '{plan_id}' )
-				? __( 'Usage statistics: when a plan is saved in the planner, this is passed as an event to the web analytics (Matomo) described in this privacy policy, together with the number of meals, days and people and the number of the plan. It is processed only as that section describes.', 'mixmymeals' )
-				: __( 'Usage statistics: when a plan is saved in the planner, this is passed as an event to the web analytics (Matomo) described in this privacy policy, together with the number of meals, days and people. It is processed only as that section describes.', 'mixmymeals' );
+		$analytics = array();
+		$name_has  = static fn( string $event, string $token ): bool => str_contains(
+			(string) get_option( Mixmymeals_Shortcodes::tracking_option( $event, 'name' ), '' ),
+			'{' . $token . '}'
+		);
+
+		if ( Mixmymeals_Shortcodes::tracking_enabled( 'plan' ) ) {
+			$analytics[] = $name_has( 'plan', 'plan_id' )
+				? __( 'saving a plan in the planner, with the number of meals, days and people and the number of the plan', 'mixmymeals' )
+				: __( 'saving a plan in the planner, with the number of meals, days and people', 'mixmymeals' );
+		}
+
+		if ( Mixmymeals_Shortcodes::tracking_enabled( 'add_recipe' ) ) {
+			$analytics[] = __( 'adding a recipe to the planner, with the recipe, the day and servings chosen and the number of meals in the planner', 'mixmymeals' );
+		}
+
+		if ( Mixmymeals_Shortcodes::tracking_enabled( 'subscribe' ) ) {
+			$analytics[] = $name_has( 'subscribe', 'plan_id' )
+				? __( 'signing up for a plan by e-mail (without the address), with the number of the plan', 'mixmymeals' )
+				: __( 'signing up for a plan by e-mail (without the address)', 'mixmymeals' );
+		}
+
+		if ( Mixmymeals_Shortcodes::tracking_enabled( 'confirm' ) ) {
+			$analytics[] = $name_has( 'confirm', 'plan_id' )
+				? __( 'confirming a subscription, with the number of the plan', 'mixmymeals' )
+				: __( 'confirming a subscription', 'mixmymeals' );
+		}
+
+		if ( Mixmymeals_Shortcodes::tracking_enabled( 'cook_mode' ) ) {
+			$analytics[] = ( $name_has( 'cook_mode', 'meal_id' ) || $name_has( 'cook_mode', 'plan_id' ) )
+				? __( 'opening the cooking mode, with the recipe, the number of its steps and the number of the meal and its plan', 'mixmymeals' )
+				: __( 'opening the cooking mode, with the recipe and the number of its steps', 'mixmymeals' );
+		}
+
+		if ( $analytics ) {
+			$items['analytics'] = sprintf(
+				/* translators: %s: actions with the data passed along, separated by semicolons. */
+				__( 'Usage statistics: the following actions are passed as events to the web analytics (Matomo) described in this privacy policy: %s. They are processed only as that section describes.', 'mixmymeals' ),
+				implode( '; ', $analytics )
+			);
 		}
 
 		/*

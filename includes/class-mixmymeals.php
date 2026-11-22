@@ -404,6 +404,9 @@ class Mixmymeals {
 				// The access code that opened this page's plan, for the
 				// browser to remember (frontend.js); null everywhere else.
 				'access'                => self::access_for_script(),
+				// A Matomo event a server redirect handed to this page
+				// (?mmm_ev=, Mixmymeals_Shortcodes::tracking_defer()).
+				'track'                 => Mixmymeals_Shortcodes::tracking_pending(),
 				'load_into_cart_dialog' => array(
 					'title'   => __( 'Adjust in the planner', 'mixmymeals' ),
 					'message' => __( 'The planner will be cleared and replaced with this meal plan. Continue?', 'mixmymeals' ),

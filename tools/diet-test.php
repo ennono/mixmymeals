@@ -632,21 +632,21 @@ $set = array(
 );
 
 t( 'volle Adresse: Diaet als Pfad, Rest als Parameter',
-   '/vegan/?zutat=Zucchini%2C%20Feta&zeit=30',
+   '/vegan/?mmm_ingredients=Zucchini%2C%20Feta&mmm_time=30',
    $strip( Mixmymeals_Shortcodes::archive_url_for( $set ) ) );
 
 t( 'ohne Diaet uebernimmt die Zeit den Pfad',
-   '/unter-30-minuten/?zutat=Zucchini%2C%20Feta',
+   '/unter-30-minuten/?mmm_ingredients=Zucchini%2C%20Feta',
    $strip( Mixmymeals_Shortcodes::archive_url_for(
 	   Mixmymeals_Shortcodes::archive_filters_without( $set, 'diet' ) ) ) );
 
 t( 'ohne Zeit bleibt die Diaet der Pfad',
-   '/vegan/?zutat=Zucchini%2C%20Feta',
+   '/vegan/?mmm_ingredients=Zucchini%2C%20Feta',
    $strip( Mixmymeals_Shortcodes::archive_url_for(
 	   Mixmymeals_Shortcodes::archive_filters_without( $set, 'time' ) ) ) );
 
 t( 'eine einzelne Zutat faellt weg, die andere bleibt',
-   '/vegan/?zutat=Feta&zeit=30',
+   '/vegan/?mmm_ingredients=Feta&mmm_time=30',
    $strip( Mixmymeals_Shortcodes::archive_url_for(
 	   Mixmymeals_Shortcodes::archive_filters_without( $set, 'ingredient', 'Zucchini' ) ) ) );
 
@@ -681,7 +681,7 @@ t( 'das Rezept ohne Zeitangabe zaehlt nirgends', '2', (string) max( array_map( $
 // Die Zeile traegt die andere Facette mit.
 $mixed = array( 'view' => '', 'diet' => 'vegan', 'time' => 30, 'ingredients' => array(), 'title' => '' );
 $strip = fn( $u ) => str_replace( get_post_type_archive_link( 'mmm_recipe' ), '/', (string) $u );
-t( 'Zeit wechseln behaelt die Diaet', '/vegan/?zeit=20',
+t( 'Zeit wechseln behaelt die Diaet', '/vegan/?mmm_time=20',
    $strip( Mixmymeals_Shortcodes::archive_url_for( array_merge( $mixed, array( 'time' => 20 ) ) ) ) );
 t( 'Zeit loeschen laesst die Diaet den Pfad', '/vegan/',
    $strip( Mixmymeals_Shortcodes::archive_url_for( Mixmymeals_Shortcodes::archive_filters_without( $mixed, 'time' ) ) ) );
@@ -942,9 +942,9 @@ t( 'beide Formen: das Rezept, das beides kann', '1', (string) (int) in_array( $m
 t( 'beide Formen: nicht das nur vegane', '0', (string) (int) in_array( $mf_r2, $mf_ids, true ) );
 
 $strip = fn( $u ) => str_replace( get_post_type_archive_link( 'mmm_recipe' ), '/', (string) $u );
-t( 'zwei Diaeten ohne Pfad: als ein Parameter, in den Pfadwoertern', '/?diaet=glutenfrei%2Cvegan',
+t( 'zwei Diaeten ohne Pfad: als ein Parameter, in den Pfadwoertern', '/?mmm_diets=glutenfrei%2Cvegan',
    $strip( Mixmymeals_Shortcodes::archive_url_for( $mf_two ) ) );
-t( 'mit Zeit: die Zeit traegt den Pfad', '/unter-30-minuten/?diaet=glutenfrei%2Cvegan',
+t( 'mit Zeit: die Zeit traegt den Pfad', '/unter-30-minuten/?mmm_diets=glutenfrei%2Cvegan',
    $strip( Mixmymeals_Shortcodes::archive_url_for( array_merge( $mf_two, array( 'time' => 30 ) ) ) ) );
 t( 'eine abwaehlen: die andere wird wieder Pfad', '/glutenfrei/',
    $strip( Mixmymeals_Shortcodes::archive_url_for( Mixmymeals_Shortcodes::archive_filters_without( $mf_two, 'diet', 'vegan' ) ) ) );

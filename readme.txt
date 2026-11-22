@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.8.2
+Stable tag: 4.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,27 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.9.0 =
+
+Added:
+* Matomo event when somebody opens the cooking mode on a meal page
+  (tokens {recipe}, {recipe_id}, {meal_id}, {plan_id}, {steps}; value:
+  number of steps).
+* Matomo event when a recipe is added to the planner, from every plan
+  button and the planner's recipe picker (tokens {recipe}, {recipe_id},
+  {day}, {servings}, {count}, {source} = sheet/dialog/picker; value:
+  servings or meals in the planner).
+* Matomo events for a subscription requested (plan page form or while
+  saving, {source} = form/save) and confirmed (link in the mail; needs a
+  confirmation page, the event travels there once as ?mmm_ev=).
+
+Changed:
+* The Matomo events have a settings tab of their own (Settings → Matomo);
+  the plan event moved there from Meal Plans, its settings kept.
+* The recipe archive's filter parameters carry the plugin's prefix:
+  ?mmm_diets=, ?mmm_time=, ?mmm_ingredients= instead of ?diaet=, ?zeit=,
+  ?zutat=. Addresses with the old names are redirected (301).
 
 = 4.8.2 =
 

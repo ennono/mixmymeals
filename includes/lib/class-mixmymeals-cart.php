@@ -696,10 +696,30 @@ class Mixmymeals_Cart {
 		 * nothing a reader could see — the only trace was a badge in a header
 		 * that is far out of sight on a long archive.
 		 */
+		$count = count( ( new self() )->get_items() );
+
+		// Which way into the planner: a closed vocabulary, anything else empty.
+		$source = isset( $_POST['source'] ) ? sanitize_key( wp_unslash( $_POST['source'] ) ) : '';
+		if ( ! in_array( $source, array( 'sheet', 'dialog', 'picker' ), true ) ) {
+			$source = '';
+		}
+
 		wp_send_json_success(
 			array(
-				'message' => __( 'Recipe added to meal plan.', 'mixmymeals' ),
-				'count'   => count( ( new self() )->get_items() ),
+				'message'  => __( 'Recipe added to meal plan.', 'mixmymeals' ),
+				'count'    => $count,
+				// The Matomo event, or null while it is switched off.
+				'tracking' => Mixmymeals_Shortcodes::tracking_event(
+					'add_recipe',
+					array(
+						'recipe'    => html_entity_decode( get_the_title( $recipe_id ), ENT_QUOTES, 'UTF-8' ),
+						'recipe_id' => $recipe_id,
+						'day'       => null === $day ? '' : (string) $day,
+						'servings'  => (int) $servings,
+						'count'     => $count,
+						'source'    => $source,
+					)
+				),
 			)
 		);
 	}

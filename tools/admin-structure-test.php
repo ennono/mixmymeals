@@ -98,6 +98,22 @@ $privacy_html = ob_get_clean();
 unset( $_GET['tab'] );
 $check( false !== strpos( $privacy_html, 'mixmymeals_disable_wp_emoji' ), 'Datenschutz-Reiter: die Emoji-Option ist da' );
 $check( strpos( $privacy_html, 'mixmymeals_disable_wp_emoji' ) < strpos( $privacy_html, 'mmm-privacy-preview' ), 'Datenschutz-Reiter: Option oben, Vorschau darunter' );
+
+// --- Matomo-Reiter: je Ereignis Schalter, Texte, Wertauswahl ---
+$_GET['tab'] = 'mixmymeals-matomo'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- test harness.
+$GLOBALS['wp_settings_sections'] = array(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$GLOBALS['wp_settings_fields']   = array(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- test harness.
+$settings->register_settings();
+ob_start();
+$settings->settings_page();
+$matomo_html = ob_get_clean();
+unset( $_GET['tab'] );
+foreach ( Mixmymeals_Shortcodes::tracking_events() as $mmm_event => $mmm_def ) {
+	$check( (bool) preg_match( '/type="checkbox" name="mixmymeals_matomo_' . $mmm_event . '_event"/', $matomo_html ), "Matomo-Reiter: Schalter $mmm_event" );
+	$check( (bool) preg_match( '/type="text" name="mixmymeals_matomo_' . $mmm_event . '_event_name"/', $matomo_html ), "Matomo-Reiter: Name $mmm_event" );
+	$check( (bool) preg_match( '/<select id="matomo_' . $mmm_event . '_event_value"/', $matomo_html ) === ! empty( $mmm_def['values'] ), "Matomo-Reiter: Wertauswahl $mmm_event nur mit Werten" );
+}
+$check( false !== strpos( $matomo_html, 'value="steps"' ) && false !== strpos( $matomo_html, 'value="meals"' ), 'Matomo-Reiter: Werte je Ereignis' );
 $check( false !== strpos( $privacy_html, 'mmm-privacy-preview' ) && false !== strpos( $privacy_html, '[mmm_privacy_policy]' ), 'Datenschutz-Reiter: Vorschau und Shortcode-Hinweis' );
 
 // --- Der Helfer ---
@@ -253,6 +269,7 @@ $host_tabs = array(
 	'mixmymeals-email',
 	'mixmymeals-privacy',
 	'mixmymeals-language',
+	'mixmymeals-matomo',
 );
 $check( array_slice( $tabs, 0, count( $host_tabs ) ) === $host_tabs, 'Reiter: Reihenfolge des Hosts (' . implode( ', ', $tabs ) . ')' );
 $check( ! in_array( 'mixmymeals-equipment', $tabs, true ), 'Reiter: Kuechengeraete stehen unter Rezepte, kein eigener Reiter' );
@@ -262,6 +279,8 @@ foreach ( array(
 	'equipment_slug'       => 'mixmymeals-recipes',
 	'affiliate_disclosure' => 'mixmymeals-recipes',
 	'meal_slug'            => 'mixmymeals-meal-plans',
+	'matomo_plan_event'    => 'mixmymeals-matomo',
+	'matomo_cook_mode_event_value' => 'mixmymeals-matomo',
 	'currency'             => 'mixmymeals-general',
 ) as $field => $want ) {
 	$check( ( $ids[ $field ][0] ?? '' ) === $want, "Einstellungen: $field liegt in $want" );

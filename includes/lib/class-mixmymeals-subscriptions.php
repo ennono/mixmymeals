@@ -840,7 +840,15 @@ class Mixmymeals_Subscriptions {
 		}
 
 		$response = array(
-			'message' => __( 'Almost done! Please check your inbox and confirm your subscription.', 'mixmymeals' ),
+			'message'  => __( 'Almost done! Please check your inbox and confirm your subscription.', 'mixmymeals' ),
+			// The Matomo event, or null while it is switched off.
+			'tracking' => Mixmymeals_Shortcodes::tracking_event(
+				'subscribe',
+				array(
+					'plan_id' => $plan_id,
+					'source'  => 'form',
+				)
+			),
 		);
 
 		$redirect = self::redirect_url( self::OPT_SUBSCRIBE_PAGE );
@@ -997,21 +1005,33 @@ class Mixmymeals_Subscriptions {
 			$this->dispatch_subscription( $sub_id, $anchor );
 		}
 
-		$this->finish_confirmed( __( 'Thank you! Your subscription is now confirmed.', 'mixmymeals' ) );
+		$this->finish_confirmed(
+			__( 'Thank you! Your subscription is now confirmed.', 'mixmymeals' ),
+			Mixmymeals_Shortcodes::tracking_defer( 'confirm', array( 'plan_id' => $plan_id ) )
+		);
 	}
 
 	/**
 	 * Ends a successful confirmation: redirects to the configured page if set,
 	 * otherwise shows the built-in confirmation page.
 	 *
-	 * @param string $message Fallback message for the built-in page.
+	 * A Matomo event of the confirmation travels to the confirmation page
+	 * as ?mmm_ev= (Mixmymeals_Shortcodes::tracking_defer()); a repeated
+	 * click on the link ("already confirmed") passes none, so it is not
+	 * counted twice. The built-in page carries no Matomo.
+	 *
+	 * @param string $message   Fallback message for the built-in page.
+	 * @param string $track_key Deferred event key, or ''.
 	 * @return void
 	 */
-	private function finish_confirmed( string $message ): void {
+	private function finish_confirmed( string $message, string $track_key = '' ): void {
 
 		$redirect = self::redirect_url( self::OPT_CONFIRM_PAGE );
 
 		if ( '' !== $redirect ) {
+			if ( '' !== $track_key ) {
+				$redirect = add_query_arg( Mixmymeals_Shortcodes::TRACKING_QUERY_VAR, $track_key, $redirect );
+			}
 			wp_safe_redirect( $redirect );
 			exit;
 		}

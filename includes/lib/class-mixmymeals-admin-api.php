@@ -130,6 +130,14 @@ class Mixmymeals_Admin_API {
 			$field_id = 'nutrition_table';
 		}
 
+		// And for the Matomo events: matomo_<event>_event[_part].
+		$matomo_event = '';
+		if ( preg_match( '/^matomo_([a-z_]+?)_event(?:_(category|action|name|value))?$/', $field['id'], $m ) ) {
+			$matomo_event = $m[1];
+			$field_id     = 'value' === ( $m[2] ?? '' ) ? 'matomo_value'
+				: ( empty( $m[2] ) ? 'matomo_toggle' : 'matomo_text' );
+		}
+
 		switch ( $field_id ) {
 
 			case 'placeholder_image_id':
@@ -192,9 +200,7 @@ class Mixmymeals_Admin_API {
 			case 'individual_tab_label':
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
-			case 'matomo_plan_event_category':
-			case 'matomo_plan_event_action':
-			case 'matomo_plan_event_name':
+			case 'matomo_text':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 						. '" type="text" name="' . esc_attr( $option_name )
 						. '" placeholder="'
@@ -393,7 +399,7 @@ class Mixmymeals_Admin_API {
 			case 'photos_auto_approve':
 			case 'public_mode':
 			case 'plan_subscribe_notice_checkbox':
-			case 'matomo_plan_event':
+			case 'matomo_toggle':
 			case 'disable_wp_emoji':
 			case 'show_recipe_steps':
 			case 'recipe_disclaimer_on_ingredients':
@@ -580,10 +586,10 @@ class Mixmymeals_Admin_API {
 				$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
 				break;
 
-			case 'matomo_plan_event_value':
+			case 'matomo_value':
 				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
 
-				foreach ( Mixmymeals_Shortcodes::plan_event_value_choices() as $choice => $label ) {
+				foreach ( Mixmymeals_Shortcodes::tracking_value_choices( $matomo_event ) as $choice => $label ) {
 					$html .= sprintf(
 						'<option value="%s"%s>%s</option>',
 						esc_attr( $choice ),

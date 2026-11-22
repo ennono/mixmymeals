@@ -57,6 +57,14 @@ $keys  = array(
 	'mixmymeals_save_meal_plans_published_by_visitors_as_draft',
 	'mixmymeals_enable_cleanup',
 	'mixmymeals_disable_wp_emoji',
+	'mixmymeals_matomo_plan_event',
+	'mixmymeals_matomo_plan_event_name',
+	'mixmymeals_matomo_cook_mode_event',
+	'mixmymeals_matomo_cook_mode_event_name',
+	'mixmymeals_matomo_add_recipe_event',
+	'mixmymeals_matomo_subscribe_event',
+	'mixmymeals_matomo_confirm_event',
+	'mixmymeals_matomo_confirm_event_name',
 );
 $saved = array();
 foreach ( $keys as $k ) {
@@ -162,6 +170,38 @@ mmm_ppt_assert( str_contains( $with, 'ZZ add-on &lt;b&gt;line&lt;/b&gt;' ), 'Add
 if ( class_exists( 'Mixmymeals_Pinterest' ) ) {
 	mmm_ppt_assert( $has( 'Pin images' ), 'das Social-Add-on trägt seine Pinnwand-Bilder bei' );
 }
+
+echo "-- 3a. Matomo-Ereignisse\n";
+
+foreach ( array( 'plan', 'cook_mode' ) as $mmm_ev ) {
+	delete_option( "mixmymeals_matomo_{$mmm_ev}_event" );
+	delete_option( "mixmymeals_matomo_{$mmm_ev}_event_name" );
+}
+mmm_ppt_assert( ! $has( 'Usage statistics' ), 'Matomo aus: kein Punkt Nutzungsstatistik' );
+
+update_option( 'mixmymeals_matomo_plan_event', 'on' );
+mmm_ppt_assert( $has( 'saving a plan in the planner' ) && ! $has( 'number of the plan' ) && ! $has( 'cooking mode' ), 'Plan-Ereignis an: nur das Speichern, ohne Plannummer' );
+update_option( 'mixmymeals_matomo_plan_event_name', '#{plan_id}' );
+mmm_ppt_assert( $has( 'and the number of the plan' ), 'Name mit {plan_id}: Plannummer genannt' );
+
+update_option( 'mixmymeals_matomo_plan_event', '' );
+update_option( 'mixmymeals_matomo_cook_mode_event', 'on' );
+mmm_ppt_assert( $has( 'opening the cooking mode, with the recipe and the number of its steps.' ) && ! $has( 'saving a plan' ), 'Kochmodus an: nur der Kochmodus, ohne Mahlzeit' );
+update_option( 'mixmymeals_matomo_cook_mode_event_name', '{recipe} ({meal_id})' );
+mmm_ppt_assert( $has( 'number of the meal and its plan' ), 'Name mit {meal_id}: Mahlzeit und Plan genannt' );
+update_option( 'mixmymeals_matomo_plan_event', 'on' );
+mmm_ppt_assert( $has( 'number of the plan; opening the cooking mode' ), 'beide an: ein Punkt, beide Aktionen' );
+update_option( 'mixmymeals_matomo_add_recipe_event', 'on' );
+mmm_ppt_assert( $has( 'number of the plan; adding a recipe to the planner, with the recipe, the day and servings chosen and the number of meals in the planner; opening the cooking mode' ), 'Einplanen an: steht zwischen Plan und Kochmodus' );
+delete_option( 'mixmymeals_matomo_add_recipe_event' );
+update_option( 'mixmymeals_matomo_subscribe_event', 'on' );
+update_option( 'mixmymeals_matomo_confirm_event', 'on' );
+mmm_ppt_assert( $has( 'signing up for a plan by e-mail (without the address); confirming a subscription;' ), 'Abo-Ereignisse an: Anmelden und Bestätigen, ohne Plannummer' );
+update_option( 'mixmymeals_matomo_confirm_event_name', 'P{plan_id}' );
+mmm_ppt_assert( $has( 'confirming a subscription, with the number of the plan' ), 'Bestätigen mit {plan_id}: Plannummer genannt' );
+delete_option( 'mixmymeals_matomo_subscribe_event' );
+delete_option( 'mixmymeals_matomo_confirm_event' );
+delete_option( 'mixmymeals_matomo_confirm_event_name' );
 
 echo "-- 3b. WordPress-Emoji abschaltbar\n";
 

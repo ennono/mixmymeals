@@ -8270,12 +8270,6 @@ msgstr "Plan gespeichert"
 msgid "Matomo"
 msgstr "Matomo"
 
-msgid "Event when a plan is saved"
-msgstr "Ereignis beim Speichern eines Plans"
-
-msgid "Send an event to the site's Matomo when a visitor saves a plan from the planner. Matomo itself must be on the page (tracking code or plugin); consent and opt-out are handled there."
-msgstr "Sendet ein Ereignis an das Matomo der Website, wenn ein Besucher einen Plan aus dem Planer speichert. Matomo selbst muss auf der Seite eingebunden sein (Tracking-Code oder Plugin); Einwilligung und Widerspruch regelt es selbst."
-
 msgid "Event category"
 msgstr "Ereignis-Kategorie"
 
@@ -8288,17 +8282,93 @@ msgstr "Ereignis-Aktion"
 msgid "Event name"
 msgstr "Ereignis-Name"
 
-msgid "Optional. Placeholders: {meals}, {days}, {people}, {plan_id}. Empty sends no name."
-msgstr "Optional. Platzhalter: {meals}, {days}, {people}, {plan_id}. Leer = kein Name."
-
 msgid "Event value"
 msgstr "Ereignis-Wert"
 
 msgid "The number Matomo sums up for this event."
 msgstr "Die Zahl, die Matomo für dieses Ereignis aufsummiert."
 
-msgid "Usage statistics: when a plan is saved in the planner, this is passed as an event to the web analytics (Matomo) described in this privacy policy, together with the number of meals, days and people and the number of the plan. It is processed only as that section describes."
-msgstr "Nutzungsstatistik: Wird im Planer ein Plan gespeichert, wird dies als Ereignis an die in dieser Datenschutzerklärung beschriebene Webanalyse (Matomo) übergeben, zusammen mit der Anzahl der Mahlzeiten, Tage und Personen sowie der Nummer des Plans. Die Verarbeitung erfolgt nur so, wie es dort beschrieben ist."
+msgid "Sent when a visitor saves a plan from the planner."
+msgstr "Wird gesendet, wenn ein Besucher einen Plan aus dem Planer speichert."
 
-msgid "Usage statistics: when a plan is saved in the planner, this is passed as an event to the web analytics (Matomo) described in this privacy policy, together with the number of meals, days and people. It is processed only as that section describes."
-msgstr "Nutzungsstatistik: Wird im Planer ein Plan gespeichert, wird dies als Ereignis an die in dieser Datenschutzerklärung beschriebene Webanalyse (Matomo) übergeben, zusammen mit der Anzahl der Mahlzeiten, Tage und Personen. Die Verarbeitung erfolgt nur so, wie es dort beschrieben ist."
+msgid "Cooking mode started"
+msgstr "Kochmodus gestartet"
+
+msgid "Sent when somebody opens the cooking mode on a meal page."
+msgstr "Wird gesendet, wenn jemand auf einer Mahlzeitenseite den Kochmodus öffnet."
+
+msgid "Cooking mode"
+msgstr "Kochmodus"
+
+msgid "Started"
+msgstr "Gestartet"
+
+msgid "Number of steps"
+msgstr "Anzahl Schritte"
+
+msgid "Send event"
+msgstr "Ereignis senden"
+
+#. translators: %s: placeholders such as {meals}, {days}.
+#, php-format
+msgid "Optional. Placeholders: %s. Empty sends no name."
+msgstr "Optional. Platzhalter: %s. Leer = kein Name."
+
+msgid "Events handed to the site's own Matomo. The plugin loads no tracker: Matomo must be on the page already (tracking code or plugin), and consent and opt-out are handled there. Switching an event on adds it to the generated privacy policy section."
+msgstr "Ereignisse für das Matomo der Website. Das Plugin lädt keinen eigenen Tracker: Matomo muss bereits auf der Seite eingebunden sein (Tracking-Code oder Plugin), Einwilligung und Widerspruch regelt es selbst. Ein eingeschaltetes Ereignis erscheint im erzeugten Datenschutzabschnitt."
+
+msgid "saving a plan in the planner, with the number of meals, days and people and the number of the plan"
+msgstr "das Speichern eines Plans im Planer, mit der Anzahl der Mahlzeiten, Tage und Personen sowie der Nummer des Plans"
+
+msgid "saving a plan in the planner, with the number of meals, days and people"
+msgstr "das Speichern eines Plans im Planer, mit der Anzahl der Mahlzeiten, Tage und Personen"
+
+msgid "opening the cooking mode, with the recipe, the number of its steps and the number of the meal and its plan"
+msgstr "das Öffnen des Kochmodus, mit dem Rezept, der Anzahl seiner Schritte und der Nummer der Mahlzeit und ihres Plans"
+
+msgid "opening the cooking mode, with the recipe and the number of its steps"
+msgstr "das Öffnen des Kochmodus, mit dem Rezept und der Anzahl seiner Schritte"
+
+#. translators: %s: actions with the data passed along, separated by semicolons.
+#, php-format
+msgid "Usage statistics: the following actions are passed as events to the web analytics (Matomo) described in this privacy policy: %s. They are processed only as that section describes."
+msgstr "Nutzungsstatistik: Folgende Aktionen werden als Ereignisse an die in dieser Datenschutzerklärung beschriebene Webanalyse (Matomo) übergeben: %s. Die Verarbeitung erfolgt nur so, wie es dort beschrieben ist."
+
+msgid "Recipe planned"
+msgstr "Rezept eingeplant"
+
+msgid "Sent when a recipe is added to the planner — from every plan button (recipe pages, cards, rankings, embeds) and from the recipe picker in the planner. {source} says how: sheet (day chosen), dialog (more options) or picker."
+msgstr "Wird gesendet, wenn ein Rezept in den Planer kommt – über jeden Einplanen-Button (Rezeptseiten, Karten, Ranglisten, Einbettungen) und über die Rezeptauswahl im Planer. {source} sagt, wie: sheet (Tag gewählt), dialog (weitere Optionen) oder picker (Rezeptauswahl)."
+
+msgid "Meals in the planner"
+msgstr "Mahlzeiten im Planer"
+
+msgid "adding a recipe to the planner, with the recipe, the day and servings chosen and the number of meals in the planner"
+msgstr "das Einplanen eines Rezepts, mit dem Rezept, dem gewählten Tag und den Portionen sowie der Anzahl der Mahlzeiten im Planer"
+
+msgid "Subscription requested"
+msgstr "Abo angefordert"
+
+msgid "Sent when somebody signs up for a plan by e-mail — on the plan page or while saving a plan in the planner ({source}: form or save). The address is never part of the event."
+msgstr "Wird gesendet, wenn sich jemand per E-Mail für einen Plan anmeldet – auf der Planseite oder beim Speichern im Planer ({source}: form oder save). Die Adresse ist nie Teil des Ereignisses."
+
+msgid "Requested"
+msgstr "Angefordert"
+
+msgid "Subscription confirmed"
+msgstr "Abo bestätigt"
+
+msgid "Sent when somebody confirms a subscription through the link in the e-mail. Works only with a confirmation page (E-Mail & Subscriptions tab): the built-in page carries no Matomo."
+msgstr "Wird gesendet, wenn jemand ein Abo über den Link in der E-Mail bestätigt. Funktioniert nur mit einer Bestätigungsseite (Reiter E-Mail & Abos): Die eingebaute Seite enthält kein Matomo."
+
+msgid "signing up for a plan by e-mail (without the address), with the number of the plan"
+msgstr "die Anmeldung zu einem Plan per E-Mail (ohne die Adresse), mit der Nummer des Plans"
+
+msgid "signing up for a plan by e-mail (without the address)"
+msgstr "die Anmeldung zu einem Plan per E-Mail (ohne die Adresse)"
+
+msgid "confirming a subscription, with the number of the plan"
+msgstr "die Bestätigung eines Abos, mit der Nummer des Plans"
+
+msgid "confirming a subscription"
+msgstr "die Bestätigung eines Abos"

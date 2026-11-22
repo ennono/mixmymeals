@@ -627,6 +627,13 @@ class Mixmymeals_Shortcodes {
 			20
 		);
 
+		// Die Filter-Parameter hiessen bis 4.9.0 diaet, zeit, zutat; alte
+		// Links landen dauerhaft auf der neuen Adresse.
+		add_action(
+			'template_redirect',
+			array( __CLASS__, 'redirect_legacy_archive_params' )
+		);
+
 		add_filter(
 			'get_the_archive_title',
 			array( $this, 'remove_recipe_category_archive_title_prefix' ),
@@ -4585,7 +4592,8 @@ class Mixmymeals_Shortcodes {
 			return '';
 		}
 
-		return '<button type="button" class="mmm-cook-mode-start">'
+		return '<button type="button" class="mmm-cook-mode-start"'
+				. self::tracking_attr( 'cook_mode', self::cook_mode_facts( $meal, $recipe ) ) . '>'
 				. esc_html__( 'Start cooking mode', 'mixmymeals' )
 				. '</button>';
 	}
@@ -6657,13 +6665,28 @@ class Mixmymeals_Shortcodes {
 				'redirect_url' => $redirect_url,
 				'post_status'  => $post_status,
 				'subscribed'   => $subscribed,
-				// The Matomo event, or null while it is switched off.
-				'tracking'     => self::plan_saved_tracking_event(
-					array(
-						'plan_id' => $meal_plan_id,
-						'meals'   => $meals_created,
-						'days'    => count( array_unique( $days ) ),
-						'people'  => count( $meal_plan->get_eaters() ),
+				// The Matomo events that are switched on: the plan, and the
+				// subscription when one was requested with it.
+				'tracking'     => array_values(
+					array_filter(
+						array(
+							self::tracking_event(
+								'plan',
+								array(
+									'plan_id' => $meal_plan_id,
+									'meals'   => $meals_created,
+									'days'    => count( array_unique( $days ) ),
+									'people'  => count( $meal_plan->get_eaters() ),
+								)
+							),
+							$subscribed ? self::tracking_event(
+								'subscribe',
+								array(
+									'plan_id' => $meal_plan_id,
+									'source'  => 'save',
+								)
+							) : null,
+						)
 					)
 				),
 			)
@@ -6671,89 +6694,230 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Values the Matomo event's value may carry, value => label.
-	 *
-	 * @return array<string, string>
+	 * Query var carrying a deferred Matomo event (tracking_defer()).
 	 */
-	public static function plan_event_value_choices(): array {
+	const TRACKING_QUERY_VAR = 'mmm_ev';
+
+	/**
+	 * The Matomo events this plugin can send, key => definition.
+	 *
+	 * Each is configured on the Matomo settings tab under the options
+	 * mixmymeals_matomo_<key>_event ('on'), _event_category, _event_action
+	 * (empty = the default here), _event_name (the tokens here in curly
+	 * braces; empty = no name) and _event_value (a key of `values`).
+	 *
+	 * @return array<string, array{label: string, description: string, category: string, action: string, tokens: string[], values: array<string, string>}>
+	 */
+	public static function tracking_events(): array {
 		return array(
-			''       => __( 'No value', 'mixmymeals' ),
-			'meals'  => __( 'Number of meals', 'mixmymeals' ),
-			'days'   => __( 'Number of days', 'mixmymeals' ),
-			'people' => __( 'Number of people', 'mixmymeals' ),
+			'plan'       => array(
+				'label'       => __( 'Plan saved', 'mixmymeals' ),
+				'description' => __( 'Sent when a visitor saves a plan from the planner.', 'mixmymeals' ),
+				'category'    => __( 'Planner', 'mixmymeals' ),
+				'action'      => __( 'Plan saved', 'mixmymeals' ),
+				'tokens'      => array( 'meals', 'days', 'people', 'plan_id' ),
+				'values'      => array(
+					'meals'  => __( 'Number of meals', 'mixmymeals' ),
+					'days'   => __( 'Number of days', 'mixmymeals' ),
+					'people' => __( 'Number of people', 'mixmymeals' ),
+				),
+			),
+			'add_recipe' => array(
+				'label'       => __( 'Recipe planned', 'mixmymeals' ),
+				'description' => __( 'Sent when a recipe is added to the planner — from every plan button (recipe pages, cards, rankings, embeds) and from the recipe picker in the planner. {source} says how: sheet (day chosen), dialog (more options) or picker.', 'mixmymeals' ),
+				'category'    => __( 'Planner', 'mixmymeals' ),
+				'action'      => __( 'Recipe planned', 'mixmymeals' ),
+				'tokens'      => array( 'recipe', 'recipe_id', 'day', 'servings', 'count', 'source' ),
+				'values'      => array(
+					'servings' => __( 'Number of servings', 'mixmymeals' ),
+					'count'    => __( 'Meals in the planner', 'mixmymeals' ),
+				),
+			),
+			'subscribe'  => array(
+				'label'       => __( 'Subscription requested', 'mixmymeals' ),
+				'description' => __( 'Sent when somebody signs up for a plan by e-mail — on the plan page or while saving a plan in the planner ({source}: form or save). The address is never part of the event.', 'mixmymeals' ),
+				'category'    => __( 'Subscription', 'mixmymeals' ),
+				'action'      => __( 'Requested', 'mixmymeals' ),
+				'tokens'      => array( 'plan_id', 'source' ),
+				'values'      => array(),
+			),
+			'confirm'    => array(
+				'label'       => __( 'Subscription confirmed', 'mixmymeals' ),
+				'description' => __( 'Sent when somebody confirms a subscription through the link in the e-mail. Works only with a confirmation page (E-Mail & Subscriptions tab): the built-in page carries no Matomo.', 'mixmymeals' ),
+				'category'    => __( 'Subscription', 'mixmymeals' ),
+				'action'      => __( 'Confirmed', 'mixmymeals' ),
+				'tokens'      => array( 'plan_id' ),
+				'values'      => array(),
+			),
+			'cook_mode'  => array(
+				'label'       => __( 'Cooking mode started', 'mixmymeals' ),
+				'description' => __( 'Sent when somebody opens the cooking mode on a meal page.', 'mixmymeals' ),
+				'category'    => __( 'Cooking mode', 'mixmymeals' ),
+				'action'      => __( 'Started', 'mixmymeals' ),
+				'tokens'      => array( 'recipe', 'recipe_id', 'meal_id', 'plan_id', 'steps' ),
+				'values'      => array(
+					'steps' => __( 'Number of steps', 'mixmymeals' ),
+				),
+			),
 		);
 	}
 
 	/**
-	 * The Matomo event for a plan saved from the planner.
+	 * Option name of one part of a Matomo event.
 	 *
-	 * Built here rather than in the browser, so the settings are read in one
-	 * place and nothing about them is printed on every page. The browser
-	 * only hands the result to the site's Matomo (`_paq`); this plugin loads
-	 * no tracker of its own and sends nothing anywhere.
+	 * @param string $event Key of tracking_events().
+	 * @param string $part  '' (the switch), 'category', 'action', 'name' or 'value'.
+	 * @return string
+	 */
+	public static function tracking_option( string $event, string $part = '' ): string {
+		return 'mixmymeals_matomo_' . $event . '_event' . ( '' !== $part ? '_' . $part : '' );
+	}
+
+	/**
+	 * Whether a Matomo event is switched on.
 	 *
-	 * Options (Meal Plans tab): mixmymeals_matomo_plan_event ('on'),
-	 * _category and _action (empty = default), _name (placeholders
-	 * {plan_id}, {meals}, {days}, {people}; empty = no name), _value (one of
-	 * plan_event_value_choices()).
+	 * @param string $event Key of tracking_events().
+	 * @return bool
+	 */
+	public static function tracking_enabled( string $event ): bool {
+		return isset( self::tracking_events()[ $event ] )
+			&& 'on' === (string) get_option( self::tracking_option( $event ), '' );
+	}
+
+	/**
+	 * What an event's value may carry, value => label, '' = none.
 	 *
-	 * @param array $facts plan_id, meals, days, people (integers).
+	 * @param string $event Key of tracking_events().
+	 * @return array<string, string>
+	 */
+	public static function tracking_value_choices( string $event ): array {
+		return array( '' => __( 'No value', 'mixmymeals' ) )
+			+ ( self::tracking_events()[ $event ]['values'] ?? array() );
+	}
+
+	/**
+	 * A Matomo event as the browser hands it to `_paq`.
+	 *
+	 * Built on the server, so the settings are read in one place; the
+	 * browser only passes the result to the site's Matomo. This plugin
+	 * loads no tracker of its own and sends nothing anywhere.
+	 *
+	 * @param string $event Key of tracking_events().
+	 * @param array  $facts Token => value; the event's tokens fill the name,
+	 *                      its value keys pick the value (as an integer).
 	 * @return array|null category, action, name (string|null), value
 	 *                    (int|null); null while the event is off.
 	 */
-	public static function plan_saved_tracking_event( array $facts ): ?array {
+	public static function tracking_event( string $event, array $facts ): ?array {
 
-		if ( 'on' !== (string) get_option( 'mixmymeals_matomo_plan_event', '' ) ) {
+		if ( ! self::tracking_enabled( $event ) ) {
 			return null;
 		}
 
-		$facts = array_map(
-			'intval',
-			wp_parse_args(
-				$facts,
-				array(
-					'plan_id' => 0,
-					'meals'   => 0,
-					'days'    => 0,
-					'people'  => 1,
-				)
-			)
-		);
-
-		$category = trim( (string) get_option( 'mixmymeals_matomo_plan_event_category', '' ) );
-		$action   = trim( (string) get_option( 'mixmymeals_matomo_plan_event_action', '' ) );
-		$name     = trim( (string) get_option( 'mixmymeals_matomo_plan_event_name', '' ) );
-		$value    = (string) get_option( 'mixmymeals_matomo_plan_event_value', '' );
+		$def      = self::tracking_events()[ $event ];
+		$category = trim( (string) get_option( self::tracking_option( $event, 'category' ), '' ) );
+		$action   = trim( (string) get_option( self::tracking_option( $event, 'action' ), '' ) );
+		$name     = trim( (string) get_option( self::tracking_option( $event, 'name' ), '' ) );
+		$value    = (string) get_option( self::tracking_option( $event, 'value' ), '' );
 
 		$tokens = array();
-		foreach ( $facts as $key => $number ) {
-			$tokens[ '{' . $key . '}' ] = (string) $number;
+		foreach ( $def['tokens'] as $token ) {
+			$tokens[ '{' . $token . '}' ] = (string) ( $facts[ $token ] ?? '' );
 		}
 
-		$name = strtr( $name, $tokens );
+		$name = trim( strtr( $name, $tokens ) );
 
 		return array(
-			'category' => '' !== $category ? $category : self::plan_event_default( 'category' ),
-			'action'   => '' !== $action ? $action : self::plan_event_default( 'action' ),
+			'category' => '' !== $category ? $category : $def['category'],
+			'action'   => '' !== $action ? $action : $def['action'],
 			'name'     => '' !== $name ? $name : null,
-			'value'    => ( '' !== $value && isset( self::plan_event_value_choices()[ $value ], $facts[ $value ] ) )
-				? $facts[ $value ]
+			'value'    => ( '' !== $value && isset( $def['values'][ $value ], $facts[ $value ] ) )
+				? (int) $facts[ $value ]
 				: null,
 		);
 	}
 
 	/**
-	 * Default category or action of the plan-saved event.
+	 * The event as a data attribute for an element whose use is tracked
+	 * (` data-mmm-track="…"`), or '' while it is off.
 	 *
-	 * @param string $part 'category' or 'action'.
+	 * @param string $event Key of tracking_events().
+	 * @param array  $facts See tracking_event().
 	 * @return string
 	 */
-	public static function plan_event_default( string $part ): string {
-		return 'category' === $part
-			? __( 'Planner', 'mixmymeals' )
-			: __( 'Plan saved', 'mixmymeals' );
+	public static function tracking_attr( string $event, array $facts ): string {
+		$data = self::tracking_event( $event, $facts );
+
+		return null === $data ? '' : ' data-mmm-track="' . esc_attr( (string) wp_json_encode( $data ) ) . '"';
 	}
 
+	/**
+	 * Hands an event to the next page this browser opens, for actions that
+	 * end in a redirect from the server (the confirmation link): stored
+	 * for ten minutes under a random key, which the caller puts on the
+	 * target address as ?mmm_ev=. Read once by tracking_pending().
+	 *
+	 * @param string $event Key of tracking_events().
+	 * @param array  $facts See tracking_event().
+	 * @return string The key, or '' while the event is off.
+	 */
+	public static function tracking_defer( string $event, array $facts ): string {
+		$data = self::tracking_event( $event, $facts );
+
+		if ( null === $data ) {
+			return '';
+		}
+
+		$key = strtolower( wp_generate_password( 24, false ) );
+		set_transient( 'mmm_track_' . $key, $data, 10 * MINUTE_IN_SECONDS );
+
+		return $key;
+	}
+
+	/**
+	 * The event deferred to this page (?mmm_ev=), at most once.
+	 *
+	 * @return array|null
+	 */
+	public static function tracking_pending(): ?array {
+		static $done = false;
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a random key, read once.
+		$key = isset( $_GET[ self::TRACKING_QUERY_VAR ] ) ? strtolower( sanitize_key( wp_unslash( $_GET[ self::TRACKING_QUERY_VAR ] ) ) ) : '';
+
+		if ( $done || ! preg_match( '/^[a-z0-9]{24}$/', $key ) ) {
+			return null;
+		}
+
+		$done = true;
+
+		// A page that carries one visitor's event must not be cached.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+
+		$data = get_transient( 'mmm_track_' . $key );
+		delete_transient( 'mmm_track_' . $key );
+
+		return is_array( $data ) ? $data : null;
+	}
+
+	/**
+	 * Facts of the cooking-mode event for a meal.
+	 *
+	 * @param Mixmymeals_Meal   $meal   The meal.
+	 * @param Mixmymeals_Recipe $recipe Its dish (Mixmymeals_Meal::get_recipe()).
+	 * @return array
+	 */
+	private static function cook_mode_facts( Mixmymeals_Meal $meal, Mixmymeals_Recipe $recipe ): array {
+		return array(
+			'recipe'    => html_entity_decode( get_the_title( $meal->get_recipe_id() ), ENT_QUOTES, 'UTF-8' ),
+			'recipe_id' => (int) $meal->get_recipe_id(),
+			'meal_id'   => (int) $meal->get_id(),
+			'plan_id'   => (int) $meal->get_parent_plan_id(),
+			'steps'     => count( $recipe->get_steps() ),
+		);
+	}
 
 	/**
 	 * Shortcode [mmm_meal_ingredients].
@@ -9554,7 +9718,7 @@ class Mixmymeals_Shortcodes {
 
 			<div class="mmm-plan-hero__actions">
 				<?php if ( $has_steps ) : ?>
-					<button type="button" class="mmm-btn mmm-btn--primary mmm-cook-mode-start">
+					<button type="button" class="mmm-btn mmm-btn--primary mmm-cook-mode-start"<?php echo self::tracking_attr( 'cook_mode', self::cook_mode_facts( $meal, $recipe ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 						<i class="mmm-icon fa-solid fa-fire" aria-hidden="true"></i><?php esc_html_e( 'Start cooking mode', 'mixmymeals' ); ?>
 					</button>
 				<?php endif; ?>
@@ -12033,7 +12197,7 @@ class Mixmymeals_Shortcodes {
 			<?php if ( $recipes && apply_filters( 'mixmymeals_archive_search_ingredient_field', true ) ) : ?>
 				<input
 					type="search"
-					name="zutat"
+					name="<?php echo esc_attr( self::ARCHIVE_INGREDIENTS_PARAM ); ?>"
 					class="mmm-archive-search__text mmm-archive-search__text--ingredients"
 					value="<?php echo esc_attr( implode( ', ', (array) $filters['ingredients'] ) ); ?>"
 					aria-label="<?php esc_attr_e( 'Recipes with these ingredients', 'mixmymeals' ); ?>"
@@ -12137,18 +12301,18 @@ class Mixmymeals_Shortcodes {
 
 		/*
 		 * Everything except the facet the action's path already carries —
-		 * repeating that one would produce /rezepte/vegan/?diaet=vegan on every
+		 * repeating that one would produce /rezepte/vegan/?mmm_diets=vegan on every
 		 * submit. The time needs no hidden field either way: the select posts
 		 * it.
 		 */
 		$diets = self::archive_diets( $filters );
 
 		if ( $diets && 'diet' !== $primary ) {
-			$hidden['diaet'] = self::archive_diet_param( $diets );
+			$hidden[ self::ARCHIVE_DIETS_PARAM ] = self::archive_diet_param( $diets );
 		}
 
 		if ( ! empty( $filters['time'] ) && 'time' !== $primary ) {
-			$hidden['zeit'] = (string) $filters['time'];
+			$hidden[ self::ARCHIVE_TIME_PARAM ] = (string) $filters['time'];
 		}
 
 		if ( ! empty( $filters['view'] ) && 'view' !== $primary ) {
@@ -12654,7 +12818,7 @@ class Mixmymeals_Shortcodes {
 	 * /rezepte/vegan/ declared /rezepte/ as its original and could never rank
 	 * on its own — although filter_archive_noindex() keeps it indexable for
 	 * exactly that purpose. The address comes from archive_url_for(), the one
-	 * builder, so /rezepte/?zeit=20 names /rezepte/unter-20-minuten/ too.
+	 * builder, so /rezepte/?mmm_time=20 names /rezepte/unter-20-minuten/ too.
 	 *
 	 * Views that stay out of the index (combinations, searches) and the plain
 	 * archive keep what they were given.
@@ -12676,9 +12840,16 @@ class Mixmymeals_Shortcodes {
 
 		$url = self::archive_url_for( $filters );
 
-		if ( '' === $url ) {
-			return $canonical;
-		}
+		return '' !== $url ? self::archive_url_with_page( $url ) : $canonical;
+	}
+
+	/**
+	 * An archive address on the page the current request is on.
+	 *
+	 * @param string $url As archive_url_for() returns it.
+	 * @return string
+	 */
+	private static function archive_url_with_page( string $url ): string {
 
 		$paged = (int) get_query_var( 'paged' );
 
@@ -12692,6 +12863,106 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Sends an address with the archive parameters' old names on to the new one.
+	 *
+	 * A 301 to what archive_url_for() builds from the same request, so the
+	 * filters (search term and browse view included) survive and only the
+	 * names change; parameters the archive does not own (utm_* and the like)
+	 * are dropped, as on every address the archive builds. Recipe archive only — the old names never meant
+	 * anything elsewhere.
+	 *
+	 * @return void
+	 */
+	public static function redirect_legacy_archive_params(): void {
+
+		if ( ! is_post_type_archive( 'mmm_recipe' ) || ! self::has_legacy_archive_param() ) {
+			return;
+		}
+
+		$url = self::archive_url_for( self::archive_filters() );
+
+		if ( '' === $url ) {
+			return;
+		}
+
+		wp_safe_redirect( self::archive_url_with_page( $url ), 301 );
+		exit;
+	}
+
+	/**
+	 * Whether the request carries an archive parameter under its old name.
+	 *
+	 * @return bool
+	 */
+	public static function has_legacy_archive_param(): bool {
+
+		foreach ( self::ARCHIVE_LEGACY_PARAMS as $old ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presence only.
+			if ( isset( $_GET[ $old ] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Parameter for diets on the recipe archive (several, comma-separated).
+	 *
+	 * Not `mmm_diet`: that is the taxonomy's name.
+	 */
+	const ARCHIVE_DIETS_PARAM = 'mmm_diets';
+
+	/**
+	 * Parameter for the preparation-time step on the recipe archive.
+	 */
+	const ARCHIVE_TIME_PARAM = 'mmm_time';
+
+	/**
+	 * Parameter for the ingredients on hand on the recipe archive.
+	 *
+	 * Not `mmm_ingredient`: that is the post type's query variable.
+	 */
+	const ARCHIVE_INGREDIENTS_PARAM = 'mmm_ingredients';
+
+	/**
+	 * The archive parameters' names until 4.9.0, still read for shared links.
+	 *
+	 * Never written: every address the plugin builds uses the new name, and an
+	 * indexable facet names its canonical address anyway.
+	 */
+	const ARCHIVE_LEGACY_PARAMS = array(
+		self::ARCHIVE_DIETS_PARAM       => 'diaet',
+		self::ARCHIVE_TIME_PARAM        => 'zeit',
+		self::ARCHIVE_INGREDIENTS_PARAM => 'zutat',
+	);
+
+	/**
+	 * The raw value of an archive parameter, under its name or its old one.
+	 *
+	 * @param string $name One of the ARCHIVE_*_PARAM constants.
+	 * @return string Unslashed, unsanitised; '' when absent or not a string.
+	 */
+	private static function archive_param( string $name ): string {
+
+		$names = array( $name );
+
+		if ( isset( self::ARCHIVE_LEGACY_PARAMS[ $name ] ) ) {
+			$names[] = self::ARCHIVE_LEGACY_PARAMS[ $name ];
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only public GET filters, sanitised by the caller.
+		foreach ( $names as $key ) {
+			if ( isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] ) ) {
+				return (string) wp_unslash( $_GET[ $key ] );
+			}
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		return '';
+	}
+
+	/**
 	 * What the current request asks the recipe archive to show.
 	 *
 	 * One place reads the request, so the query, the heading, the pills, the
@@ -12702,11 +12973,12 @@ class Mixmymeals_Shortcodes {
 	 * a form submitted from /rezepte/vegan/ has to be able to say "vegetarian"
 	 * without the path contradicting it.
 	 *
-	 * The parameters are read straight from $_GET and validated here rather
-	 * than registered as query variables: short German names like `zeit` are
-	 * only safe to use because nothing else in WordPress ever sees them.
+	 * The parameters (ARCHIVE_DIETS_PARAM, ARCHIVE_TIME_PARAM,
+	 * ARCHIVE_INGREDIENTS_PARAM) are read straight from $_GET and validated
+	 * here rather than registered as query variables. Their German names until
+	 * 4.9.0 are still read (archive_param()), because shared links carry them.
 	 *
-	 * Several diets travel as one parameter, `?diaet=vegan,glutenfrei`; when it
+	 * Several diets travel as one parameter, `?mmm_diets=vegan,glutenfrei`; when it
 	 * is there it replaces the path's diet rather than adding to it, which is
 	 * what keeps "a parameter beats a path" true with more than one value.
 	 * `diets` is the answer; `diet` is that list when it holds exactly one —
@@ -12723,11 +12995,9 @@ class Mixmymeals_Shortcodes {
 			return $filters;
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only public GET filters, like mmm_s.
-		$diet = isset( $_GET['diaet'] ) ? sanitize_text_field( wp_unslash( $_GET['diaet'] ) ) : '';
-		$time = isset( $_GET['zeit'] ) ? absint( wp_unslash( $_GET['zeit'] ) ) : 0;
-		$raw  = isset( $_GET['zutat'] ) ? sanitize_text_field( wp_unslash( $_GET['zutat'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$diet = sanitize_text_field( self::archive_param( self::ARCHIVE_DIETS_PARAM ) );
+		$time = absint( self::archive_param( self::ARCHIVE_TIME_PARAM ) );
+		$raw  = sanitize_text_field( self::archive_param( self::ARCHIVE_INGREDIENTS_PARAM ) );
 
 		if ( '' === $diet ) {
 			$diet = sanitize_title( (string) get_query_var( Mixmymeals_Recipe::DIET_VIEW_VAR, '' ) );
@@ -12787,11 +13057,11 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Several diets as the `diaet` parameter, in the words the paths use.
+	 * Several diets as the ARCHIVE_DIETS_PARAM parameter, in the words the paths use.
 	 *
 	 * The last slug registered for a diet is the translated one — the same
 	 * choice archive_view_url() makes for a path — so the address reads
-	 * `?diaet=glutenfrei,vegan` rather than the internal keys.
+	 * `?mmm_diets=glutenfrei,vegan` rather than the internal keys.
 	 *
 	 * @param string[] $diets Diet slugs.
 	 * @return string
@@ -13031,7 +13301,7 @@ class Mixmymeals_Shortcodes {
 		$params = array();
 
 		if ( ! empty( $filters['ingredients'] ) ) {
-			$params['zutat'] = implode( ', ', (array) $filters['ingredients'] );
+			$params[ self::ARCHIVE_INGREDIENTS_PARAM ] = implode( ', ', (array) $filters['ingredients'] );
 		}
 
 		if ( ! empty( $filters['title'] ) ) {
@@ -13048,7 +13318,7 @@ class Mixmymeals_Shortcodes {
 		$diets = self::archive_diets( $filters );
 
 		if ( $diets && 'diet' !== $primary ) {
-			$params['diaet'] = self::archive_diet_param( $diets );
+			$params[ self::ARCHIVE_DIETS_PARAM ] = self::archive_diet_param( $diets );
 		}
 
 		foreach ( array( 'time', 'view' ) as $kind ) {
@@ -13057,7 +13327,7 @@ class Mixmymeals_Shortcodes {
 				continue;
 			}
 
-			$params[ 'time' === $kind ? 'zeit' : Mixmymeals_Recipe::BROWSE_VIEW_VAR ] = (string) $filters[ $kind ];
+			$params[ 'time' === $kind ? self::ARCHIVE_TIME_PARAM : Mixmymeals_Recipe::BROWSE_VIEW_VAR ] = (string) $filters[ $kind ];
 		}
 
 		if ( '' === $primary ) {
