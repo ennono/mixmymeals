@@ -10476,12 +10476,7 @@ class Mixmymeals_Shortcodes {
 				}
 
 				// What the bar draws for a maximum, in the figure's own unit.
-				$mmm_room = '';
-				if ( null !== $mmm_bar['room'] ) {
-					$mmm_left = max( 0.0, (float) Mixmymeals_Meal_Plan::reference_intake()[ $key ] - (float) $average[ $key ] );
-					/* translators: %s: amount still unused below a daily maximum, e.g. "53,6 g". */
-					$mmm_room = sprintf( __( '%s left', 'mixmymeals' ), Mixmymeals_Meal_Plan::format_nutrition_value( $key, $mmm_left ) );
-				}
+				$mmm_room = Mixmymeals_Meal_Plan::nutrition_room_text( $key, (float) $percentages[ $key ], (float) $average[ $key ] );
 				?>
 				<li class="mmm-planner-nutrition__item<?php echo '' === $mmm_verdict ? '' : ' mmm-planner-nutrition__item--' . esc_attr( $mmm_verdict ); ?>" data-key="<?php echo esc_attr( $key ); ?>">
 					<span class="mmm-planner-nutrition__label"><?php

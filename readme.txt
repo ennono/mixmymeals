@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.13.2
+Stable tag: 4.13.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.13.3 =
+
+Changed:
+* The room left below a daily maximum ("noch 30,0 g frei") is worded by one
+  method, `Mixmymeals_Meal_Plan::nutrition_room_text()`, which the planner's
+  tiles and the PDF of MixMyMeals Printer 3.2.1 both call.
 
 = 4.13.2 =
 

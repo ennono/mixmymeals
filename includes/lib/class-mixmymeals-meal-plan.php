@@ -2398,6 +2398,29 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * The room a bar for a maximum draws, in the figure's own unit: "30,0 g
+	 * left". The one wording for the planner's tiles and the Printer's PDF,
+	 * which used to compute it each on its own.
+	 *
+	 * @param string $key     Nutrition key.
+	 * @param float  $percent The share, as nutrition_percentages() gives it.
+	 * @param float  $average The figure the share was taken of.
+	 * @return string '' wherever nutrition_bar() has no room (not a maximum,
+	 *                or exceeded).
+	 */
+	public static function nutrition_room_text( string $key, float $percent, float $average ): string {
+
+		if ( null === self::nutrition_bar( $key, $percent )['room'] ) {
+			return '';
+		}
+
+		$left = max( 0.0, (float) ( self::reference_intake()[ $key ] ?? 0 ) - $average );
+
+		/* translators: %s: amount still unused below a daily maximum, e.g. "53,6 g". */
+		return sprintf( __( '%s left', 'mixmymeals' ), self::format_nutrition_value( $key, $left ) );
+	}
+
+	/**
 	 * The sentence that explains the inverted bars, wherever a maximum has one.
 	 *
 	 * @return string

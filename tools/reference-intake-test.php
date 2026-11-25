@@ -58,6 +58,16 @@ try {
 	mmm_ri_assert( 60 === (int) round( $pct['protein'] ) && 50 === (int) round( $pct['calories'] ) && 50 === (int) round( $pct['salt'] ), 'Prozente rechnen mit den eigenen Werten' );
 	mmm_ri_assert( 60 === Mixmymeals_Meal_Plan::nutrition_bar( 'protein', $pct['protein'] )['fill'], 'Balken folgt' );
 
+	// Der Rest bis zur Höchstmenge: eine Formulierung für Planer und PDF (HG-107).
+	$mmm_salt_ri = (float) Mixmymeals_Meal_Plan::reference_intake()['salt'];
+	mmm_ri_assert( '' === Mixmymeals_Meal_Plan::nutrition_room_text( 'protein', $pct['protein'], 60.0 ), 'Kein Rest bei einem Ziel' );
+	mmm_ri_assert(
+		sprintf( __( '%s left', 'mixmymeals' ), Mixmymeals_Meal_Plan::format_nutrition_value( 'salt', $mmm_salt_ri - 3.0 ) ) === Mixmymeals_Meal_Plan::nutrition_room_text( 'salt', $pct['salt'], 3.0 ),
+		'Rest beim Salz in den eigenen Werten: ' . Mixmymeals_Meal_Plan::nutrition_room_text( 'salt', $pct['salt'], 3.0 )
+	);
+	$mmm_over = Mixmymeals_Meal_Plan::nutrition_percentages( array( 'salt' => $mmm_salt_ri * 1.2 ) );
+	mmm_ri_assert( '' === Mixmymeals_Meal_Plan::nutrition_room_text( 'salt', $mmm_over['salt'], $mmm_salt_ri * 1.2 ), 'Kein Rest über der Höchstmenge' );
+
 	$note = Mixmymeals_Meal_Plan::reference_intake_note();
 	mmm_ri_assert( false === strpos( $note, '2 000' ) && false !== strpos( $note, number_format_i18n( 2500 ) ), 'Fußnote nennt die eigene Energie: ' . $note );
 	$rating_note = Mixmymeals_Meal_Plan::day_rating_note();

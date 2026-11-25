@@ -7442,7 +7442,7 @@ msgid "%1$s of %2$s"
 msgstr "%1$s von %2$s"
 
 #. translators: amount still unused below a daily maximum, e.g. "53,6 g".
-#: includes/lib/class-mixmymeals-shortcodes.php
+#: includes/lib/class-mixmymeals-meal-plan.php
 #, php-format
 msgid "%s left"
 msgstr "noch %s frei"
