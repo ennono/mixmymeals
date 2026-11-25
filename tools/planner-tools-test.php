@@ -10,7 +10,8 @@
  * Damit die Inhalte der Seite die Auswahl nicht stören, sieht jede
  * Rezeptabfrage während eines Aufrufs nur die Testrezepte (pre_get_posts).
  * Die Zuordnung der vier früheren Diät-Schlüssel wird für die Dauer des
- * Laufs auf die Testterme gelegt und danach zurückgesetzt.
+ * Laufs auf die Testterme gelegt und danach zurückgesetzt; echte Terme, die
+ * einen dieser Schlüssel noch als Slug tragen, gelten so lange nicht als Diät.
  *
  * wp --require=<dbhost.php> eval-file \
  *    wp-content/plugins/mixmymeals/tools/planner-tools-test.php
@@ -250,6 +251,16 @@ update_option(
 		'lactose_free' => $lactose_id,
 	)
 );
+// Trägt ein echter Term noch einen früheren Schlüssel als Slug (lokal oft
+// so), gewönne er in resolve() gegen die Umleitung oben. Für den Lauf sind
+// solche Terme deshalb keine Diäten.
+$mmm_hide_former = static function ( array $types ): array {
+	foreach ( array( 'vegetarian', 'vegan', 'gluten_free', 'lactose_free' ) as $key ) {
+		unset( $types[ $key ] );
+	}
+	return $types;
+};
+add_filter( 'mixmymeals_diet_types', $mmm_hide_former );
 Mixmymeals_Diet::reset_types();
 
 $veggi   = 'zz-vegetarisch';
@@ -585,6 +596,7 @@ if ( null === $mmm_former_bak ) {
 } else {
 	update_option( Mixmymeals_Diet::FORMER_OPTION, $mmm_former_bak );
 }
+remove_filter( 'mixmymeals_diet_types', $mmm_hide_former );
 Mixmymeals_Diet::reset_types();
 echo 'entfernt: ' . count( $GLOBALS['MMM_PT_TRASH'] ) . ' Posts, ' . count( $GLOBALS['MMM_PT_TERMS'] ) . ' Terme; Diät-Zuordnung zurückgesetzt' . PHP_EOL;
 
