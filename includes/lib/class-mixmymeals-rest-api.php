@@ -638,6 +638,25 @@ class Mixmymeals_Rest_Api {
 			'description' => 'Attachment ID of the featured image, 0 removes it.',
 		);
 
+		// Commercial disclosure. See Mixmymeals_Post_Meta::DISCLOSURE_TYPES.
+		$disclosure_arg = array(
+			'required'             => false,
+			'type'                 => 'object',
+			'description'          => 'How the post came about commercially. Only supplied keys change; type "" makes it editorial and clears the sponsor.',
+			'properties'           => array(
+				'type'    => array(
+					'type'        => 'string',
+					'enum'        => array_merge( array( '' ), Mixmymeals_Post_Meta::DISCLOSURE_TYPES ),
+					'description' => '"" editorial, "guest" unpaid guest contribution, "cooperation" goods or services provided, "sponsored" paid. The last two are labelled as advertising.',
+				),
+				'sponsor' => array(
+					'type'        => 'string',
+					'description' => 'Brand or company behind a cooperation or sponsorship; dropped for other types. Empty clears it.',
+				),
+			),
+			'additionalProperties' => false,
+		);
+
 		// Credit for the featured image. See Mixmymeals_Post_Meta::IMAGE_CREDIT_FIELDS.
 		$image_credit_arg = array(
 			'required'    => false,
@@ -766,6 +785,7 @@ class Mixmymeals_Rest_Api {
 					'author'           => $author_arg,
 					'featured_image'   => $featured_arg,
 					'image_credit'     => $image_credit_arg,
+					'disclosure'       => $disclosure_arg,
 				),
 			)
 		);
@@ -847,6 +867,7 @@ class Mixmymeals_Rest_Api {
 					'author'           => $author_arg,
 					'featured_image'   => $featured_arg,
 					'image_credit'     => $image_credit_arg,
+					'disclosure'       => $disclosure_arg,
 				),
 			)
 		);
@@ -1842,6 +1863,7 @@ class Mixmymeals_Rest_Api {
 					'author'         => $author_arg,
 					'featured_image' => $featured_arg,
 					'image_credit'   => $image_credit_arg,
+					'disclosure'     => $disclosure_arg,
 					'premium'        => array(
 						'required'    => false,
 						'type'        => 'boolean',
@@ -1915,6 +1937,7 @@ class Mixmymeals_Rest_Api {
 					'author'         => $author_arg,
 					'featured_image' => $featured_arg,
 					'image_credit'   => $image_credit_arg,
+					'disclosure'     => $disclosure_arg,
 					'premium'        => array(
 						'required'    => false,
 						'type'        => 'boolean',
@@ -2262,6 +2285,7 @@ class Mixmymeals_Rest_Api {
 					'author'         => $author_arg,
 					'featured_image' => $featured_arg,
 					'image_credit'   => $image_credit_arg,
+					'disclosure'     => $disclosure_arg,
 					'premium'        => array(
 						'required'    => false,
 						'type'        => 'boolean',
@@ -2836,6 +2860,7 @@ class Mixmymeals_Rest_Api {
 			'featured_image'          => $this->featured_image_id( $post_id ),
 			'featured_image_url'      => $this->featured_image_url( $post_id ),
 			'image_credit'            => $this->serialize_image_credit( $post_id ),
+			'disclosure'              => $this->serialize_disclosure( $post_id ),
 		);
 	}
 
@@ -2965,6 +2990,7 @@ class Mixmymeals_Rest_Api {
 			'featured_image'     => $this->featured_image_id( $post_id ),
 			'featured_image_url' => $this->featured_image_url( $post_id ),
 			'image_credit'       => $this->serialize_image_credit( $post_id ),
+			'disclosure'         => $this->serialize_disclosure( $post_id ),
 			'eaters'             => $this->serialize_eaters( $plan ),
 			'premium'            => Mixmymeals_Meal_Plan::is_premium( $post_id ),
 			'meals'              => $meals,
@@ -3292,6 +3318,47 @@ class Mixmymeals_Rest_Api {
 	}
 
 	/**
+	 * The disclosure of a post as stored, plus the label the frontend shows
+	 * ('' for editorial content) and whether it counts as advertising.
+	 *
+	 * @param int $post_id Recipe or plan ID.
+	 * @return array{type:string,sponsor:string,label:string,requires_label:bool}
+	 */
+	private function serialize_disclosure( int $post_id ): array {
+
+		$data  = Mixmymeals_Post_Meta::get_disclosure( $post_id );
+		$label = Mixmymeals_Shortcodes::disclosure_label_for( $post_id );
+
+		$data['label']          = (string) ( $label['text'] ?? '' );
+		$data['requires_label'] = Mixmymeals_Post_Meta::requires_disclosure_label( $post_id );
+
+		return $data;
+	}
+
+	/**
+	 * Merges supplied fields into the stored disclosure; absent keys keep
+	 * their value. save_disclosure() drops the sponsor of a type that is not
+	 * labelled, so switching to editorial or guest clears it as the meta box
+	 * does.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $fields  Subset of type, sponsor.
+	 * @return void
+	 */
+	private function apply_disclosure( int $post_id, array $fields ): void {
+
+		$data = Mixmymeals_Post_Meta::get_disclosure( $post_id );
+
+		foreach ( array( 'type', 'sponsor' ) as $key ) {
+			if ( array_key_exists( $key, $fields ) ) {
+				$data[ $key ] = (string) $fields[ $key ];
+			}
+		}
+
+		Mixmymeals_Post_Meta::save_disclosure( $post_id, $data );
+	}
+
+	/**
 	 * Featured image of a post, or null when it has none.
 	 *
 	 * @param int $post_id Post ID.
@@ -3505,6 +3572,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'image_credit' ) ) {
 			$this->apply_image_credit( $recipe->get_id(), (array) $request->get_param( 'image_credit' ) );
 		}
+		if ( $request->has_param( 'disclosure' ) ) {
+			$this->apply_disclosure( $recipe->get_id(), (array) $request->get_param( 'disclosure' ) );
+		}
 		return new WP_REST_Response( $this->serialize_recipe( $recipe->get_id() ), 201 );
 	}
 
@@ -3583,6 +3653,9 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'image_credit' ) ) {
 			$this->apply_image_credit( $id, (array) $request->get_param( 'image_credit' ) );
+		}
+		if ( $request->has_param( 'disclosure' ) ) {
+			$this->apply_disclosure( $id, (array) $request->get_param( 'disclosure' ) );
 		}
 		return new WP_REST_Response( $this->serialize_recipe( $id ), 200 );
 	}
@@ -3966,6 +4039,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'image_credit' ) ) {
 			$this->apply_image_credit( $plan->get_id(), (array) $request->get_param( 'image_credit' ) );
 		}
+		if ( $request->has_param( 'disclosure' ) ) {
+			$this->apply_disclosure( $plan->get_id(), (array) $request->get_param( 'disclosure' ) );
+		}
 		if ( $request->has_param( 'eaters' ) ) {
 			$plan->set_eaters( (array) $request->get_param( 'eaters' ) );
 		}
@@ -4034,6 +4110,9 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'image_credit' ) ) {
 			$this->apply_image_credit( $id, (array) $request->get_param( 'image_credit' ) );
+		}
+		if ( $request->has_param( 'disclosure' ) ) {
+			$this->apply_disclosure( $id, (array) $request->get_param( 'disclosure' ) );
 		}
 		if ( $request->has_param( 'eaters' ) ) {
 			$plan->set_eaters( $this->merge_eater_names( $plan, (array) $request->get_param( 'eaters' ) ) );
@@ -4496,6 +4575,9 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'image_credit' ) ) {
 			$this->apply_image_credit( $plan_id, (array) $request->get_param( 'image_credit' ) );
+		}
+		if ( $request->has_param( 'disclosure' ) ) {
+			$this->apply_disclosure( $plan_id, (array) $request->get_param( 'disclosure' ) );
 		}
 		if ( $request->has_param( 'premium' ) ) {
 			Mixmymeals_Meal_Plan::set_premium( $plan_id, (bool) $request->get_param( 'premium' ) );

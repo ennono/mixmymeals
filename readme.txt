@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.13.3
+Stable tag: 4.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,16 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.14.0 =
+
+Added:
+* Disclosure beyond the pages: recipes name their sponsor in schema.org
+  (`sponsor`); the REST API reads and writes `disclosure` on recipes and
+  plans (type, sponsor; plus the shown label); subscription mails label a
+  sponsored or guest plan at the top and each such dish in the meal list.
+  Templates may place `{{ disclosure_html }}` themselves; otherwise it goes
+  above their content.
 
 = 4.13.3 =
 

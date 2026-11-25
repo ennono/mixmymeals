@@ -5638,6 +5638,32 @@ class Mixmymeals_Post_Meta {
 	}
 
 	/**
+	 * The schema.org `sponsor` of a post, or an empty array.
+	 *
+	 * Only for the commercial types (requires_disclosure_label()) and only
+	 * with a stated sponsor name: a guest contribution has nobody who paid,
+	 * and a sponsor without a name is no statement a crawler can use. The
+	 * type is Organization because the field holds a brand or company name;
+	 * a person behind a cooperation reads as their label.
+	 *
+	 * @param int $post_id Recipe or plan ID.
+	 * @return array<string, string>
+	 */
+	public static function disclosure_schema_sponsor( int $post_id ): array {
+
+		if ( ! self::requires_disclosure_label( $post_id ) ) {
+			return array();
+		}
+
+		$sponsor = self::get_disclosure_sponsor( $post_id );
+
+		return '' === $sponsor ? array() : array(
+			'@type' => 'Organization',
+			'name'  => $sponsor,
+		);
+	}
+
+	/**
 	 * Nonce action/field for the visibility meta box.
 	 *
 	 * @var string

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * WordPress REST API – MCP Server (MixMyMeals-Edition v5.1)
+ * WordPress REST API – MCP Server (MixMyMeals-Edition v5.2)
  *
  * Umgebungsvariablen:
  *   WP_URL           z.B. https://speisengeplant.de
@@ -11,6 +11,11 @@
  * Endpunkt-Strategie:
  *   MixMyMeals-Daten  → /wp-json/mixmymeals/v1/  (Plugin-eigene API)
  *   Generisches WP    → /wp-json/wp/v2/           (Posts, Taxonomien, Media)
+ *
+ * Neu in v5.2:
+ *   - Werbekennzeichnung: disclosure (type, sponsor) in mmm_create_recipe /
+ *     mmm_update_recipe / mmm_create_meal_plan / mmm_update_meal_plan /
+ *     mmm_build_meal_plan. Lesend zusätzlich label und requires_label.
  *
  * Neu in v5.1:
  *   - Datenkorrektur in Mengen: mmm_bulk_update (Nährwerte, Preis, Diät, Garfaktor für
@@ -221,6 +226,22 @@ const IMAGE_CREDIT_SCHEMA = {
     license: { type: "string", description: "Lizenz, z.B. \"CC BY 4.0\"." },
     url:     { type: "string", description: "Optionaler Link; verlinkt Urheber und Quelle, nicht die Lizenz." },
   },
+};
+
+// ── Werbekennzeichnung ───────────────────────────────────────────────────────
+
+// Wie ein Rezept oder Plan geschäftlich zustande kam. cooperation und sponsored
+// tragen auf jeder öffentlichen Darstellung die Kennzeichnung „Werbung“, guest
+// den Hinweis „Gastautor“ (Transparenz, keine Werbung). Nur übergebene Felder
+// werden geändert.
+const DISCLOSURE_SCHEMA = {
+  type: "object",
+  description: "Werbekennzeichnung. Nur übergebene Felder werden geändert. type \"\" = redaktionell (löscht auch sponsor), \"guest\" = unbezahlter Gastbeitrag, \"cooperation\" = Ware/Leistung gestellt, \"sponsored\" = bezahlt; die letzten beiden werden als Werbung gekennzeichnet. Antworten nennen zusätzlich label (der angezeigte Text) und requires_label.",
+  properties: {
+    type:    { type: "string", enum: ["", "guest", "cooperation", "sponsored"] },
+    sponsor: { type: "string", description: "Marke oder Firma hinter Kooperation/Sponsoring; bei anderen Typen verworfen. \"\" löscht." },
+  },
+  additionalProperties: false,
 };
 
 // ── Nährwerte ────────────────────────────────────────────────────────────────
@@ -446,6 +467,7 @@ const TOOLS = [
         author:           AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        disclosure:     DISCLOSURE_SCHEMA,
         steps: {
           type: "array",
           description: "Rezept-Schritte",
@@ -503,6 +525,7 @@ const TOOLS = [
         author:           AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        disclosure:     DISCLOSURE_SCHEMA,
         steps: {
           type: "array",
           items: {
@@ -1015,6 +1038,7 @@ const TOOLS = [
         author:     AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        disclosure:     DISCLOSURE_SCHEMA,
         eaters:         EATERS_SCHEMA,
       },
     },
@@ -1037,6 +1061,7 @@ const TOOLS = [
         author:    AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        disclosure:     DISCLOSURE_SCHEMA,
         eaters:         EATERS_SCHEMA,
         premium:        { type: "boolean", description: "Premiumplan: nur per Zugangscode zu öffnen (zufälliges Passwort). false macht den Plan öffentlich." },
       },
@@ -1138,6 +1163,7 @@ const TOOLS = [
         author:     AUTHOR_SCHEMA,
         featured_image: { type: "number", description: "Attachment-ID des Beitragsbilds, 0 entfernt es. Neue Bilder vorher mit mmm_upload_image hochladen." },
         image_credit:   IMAGE_CREDIT_SCHEMA,
+        disclosure:     DISCLOSURE_SCHEMA,
         eaters:         EATERS_SCHEMA,
         meals: {
           type: "array",
@@ -1464,11 +1490,12 @@ async function handleTool(name, args) {
       return mmm("GET", `/recipes/${args.id}`);
 
     case "mmm_create_recipe": {
-      const { title, excerpt, status = "draft", servings, preparation_time, shelf_life_days, storage_type, priority, equipment, related_recipes, categories, tags, steps, author, featured_image, image_credit } = args;
+      const { title, excerpt, status = "draft", servings, preparation_time, shelf_life_days, storage_type, priority, equipment, related_recipes, categories, tags, steps, author, featured_image, image_credit, disclosure } = args;
       const body = { title, status };
       if (author           !== undefined) body.author           = author;
       if (featured_image   !== undefined) body.featured_image   = featured_image;
       if (image_credit     !== undefined) body.image_credit     = image_credit;
+      if (disclosure       !== undefined) body.disclosure       = disclosure;
       if (excerpt          !== undefined) body.excerpt          = excerpt;
       if (servings         !== undefined) body.servings         = servings;
       if (preparation_time !== undefined) body.preparation_time = preparation_time;
@@ -1486,7 +1513,7 @@ async function handleTool(name, args) {
     case "mmm_update_recipe": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["title", "excerpt", "status", "servings", "preparation_time", "shelf_life_days", "storage_type", "priority", "equipment", "related_recipes", "categories", "tags", "steps", "author", "featured_image", "image_credit"];
+      const allowed = ["title", "excerpt", "status", "servings", "preparation_time", "shelf_life_days", "storage_type", "priority", "equipment", "related_recipes", "categories", "tags", "steps", "author", "featured_image", "image_credit", "disclosure"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }
@@ -1674,7 +1701,7 @@ async function handleTool(name, args) {
       return mmm("GET", `/meal-plans/${args.id}`);
 
     case "mmm_create_meal_plan": {
-      const { title, status = "draft", content, excerpt, start_day, end_day, categories, tags, author, featured_image, image_credit } = args;
+      const { title, status = "draft", content, excerpt, start_day, end_day, categories, tags, author, featured_image, image_credit, disclosure } = args;
       const body = { title, status };
       if (content    !== undefined) body.content    = content;
       if (excerpt    !== undefined) body.excerpt    = excerpt;
@@ -1685,6 +1712,7 @@ async function handleTool(name, args) {
       if (author     !== undefined) body.author     = author;
       if (featured_image !== undefined) body.featured_image = featured_image;
       if (image_credit   !== undefined) body.image_credit   = image_credit;
+      if (disclosure     !== undefined) body.disclosure     = disclosure;
       if (args.eaters    !== undefined) body.eaters         = args.eaters;
       return mmm("POST", "/meal-plans", body);
     }
@@ -1692,7 +1720,7 @@ async function handleTool(name, args) {
     case "mmm_update_meal_plan": {
       const { id, ...fields } = args;
       const body = {};
-      const allowed = ["title", "status", "content", "excerpt", "start_day", "end_day", "author", "featured_image", "image_credit", "eaters", "premium"];
+      const allowed = ["title", "status", "content", "excerpt", "start_day", "end_day", "author", "featured_image", "image_credit", "disclosure", "eaters", "premium"];
       for (const key of allowed) {
         if (fields[key] !== undefined) body[key] = fields[key];
       }
@@ -1751,7 +1779,7 @@ async function handleTool(name, args) {
     }
 
     case "mmm_build_meal_plan": {
-      const { title, status = "draft", content, excerpt, start_day, end_day, categories, tags, meals, author, featured_image, image_credit } = args;
+      const { title, status = "draft", content, excerpt, start_day, end_day, categories, tags, meals, author, featured_image, image_credit, disclosure } = args;
       const body = { title, status };
       if (content    !== undefined) body.content    = content;
       if (excerpt    !== undefined) body.excerpt    = excerpt;
@@ -1763,6 +1791,7 @@ async function handleTool(name, args) {
       if (author     !== undefined) body.author     = author;
       if (featured_image !== undefined) body.featured_image = featured_image;
       if (image_credit   !== undefined) body.image_credit   = image_credit;
+      if (disclosure     !== undefined) body.disclosure     = disclosure;
       if (args.eaters    !== undefined) body.eaters         = args.eaters;
       return mmm("POST", "/meal-plans/build", body);
     }
@@ -1857,7 +1886,7 @@ async function handleTool(name, args) {
 // ── MCP Server ───────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "wordpress-rest", version: "5.1.0" },
+  { name: "wordpress-rest", version: "5.2.0" },
   { capabilities: { tools: {} } }
 );
 

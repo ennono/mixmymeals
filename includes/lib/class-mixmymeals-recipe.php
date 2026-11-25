@@ -4713,6 +4713,11 @@ class Mixmymeals_Recipe {
 			),
 		);
 
+		$sponsor = Mixmymeals_Post_Meta::disclosure_schema_sponsor( $recipe_id );
+		if ( $sponsor ) {
+			$schema['sponsor'] = $sponsor;
+		}
+
 		$description = Mixmymeals_Post_Types::meta_description( $recipe_id );
 		if ( '' !== $description ) {
 			$schema['description'] = $description;

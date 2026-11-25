@@ -319,6 +319,9 @@ class Mixmymeals_Mailer {
 	 *                    {{ content }} token receives the body verbatim.
 	 *  - 'html'   bool   Force HTML/plain handling (otherwise derived from the
 	 *                    file extension; inline defaults to HTML).
+	 *  - 'prepend_html' string Trusted HTML put before the rendered template,
+	 *                    inside the layout (e.g. a disclosure label the
+	 *                    template does not place itself).
 	 *  - 'link_filter' callable  string $url → string; applied to every href
 	 *                    of the finished HTML body (layout included), e.g. to
 	 *                    add campaign parameters.
@@ -376,7 +379,7 @@ class Mixmymeals_Mailer {
 
 		if ( $is_html && '' !== $layout ) {
 
-			$inner = self::render( $raw, $vars, true );
+			$inner = (string) ( $args['prepend_html'] ?? '' ) . self::render( $raw, $vars, true );
 
 			// Optional admin-defined block appended to the content (e.g. a legal
 			// note on every subscription mail). Already-sanitized trusted HTML.
@@ -409,6 +412,10 @@ class Mixmymeals_Mailer {
 		} else {
 			$body = self::render( $raw, $vars, $is_html );
 
+			if ( $is_html && ! empty( $args['prepend_html'] ) ) {
+				$body = (string) $args['prepend_html'] . $body;
+			}
+
 			if ( $is_html && ! empty( $args['append_html'] ) ) {
 				$body .= (string) $args['append_html'];
 			}
@@ -423,7 +430,7 @@ class Mixmymeals_Mailer {
 		$args['html']         = $is_html;
 		$args['trusted_html'] = $is_html;
 
-		unset( $args['inline'], $args['layout'], $args['append_html'], $args['link_filter'] );
+		unset( $args['inline'], $args['layout'], $args['append_html'], $args['prepend_html'], $args['link_filter'] );
 
 		return self::send( $to, $subject, $body, $args );
 	}

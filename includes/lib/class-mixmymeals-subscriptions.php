@@ -1910,6 +1910,7 @@ class Mixmymeals_Subscriptions {
 			'transactional'   => true,
 			'unsubscribe_url' => $unsubscribe_url,
 			'append_html'     => $append ? self::append_block() : '',
+			'prepend_html'    => self::disclosure_prepend( $template, $vars['disclosure_html'] ),
 			'link_filter'     => self::campaign_link_filter( (string) preg_replace( '/\.html?$/i', '', $template ), $plan_id ),
 		);
 
@@ -2135,6 +2136,86 @@ class Mixmymeals_Subscriptions {
 	}
 
 	/**
+	 * The disclosure label of a recipe or plan for a mail, or ''.
+	 *
+	 * The same resolver and wording as the pages (Mixmymeals_Shortcodes::
+	 * disclosure_label_for(), meals via their recipe). Inline styles only;
+	 * "Werbung" is a framed capital label, "Gastautor" a quiet italic line,
+	 * so the two never look alike — as on the site.
+	 *
+	 * @param int $post_id Recipe, plan or meal ID.
+	 * @return string
+	 */
+	public static function disclosure_label_html( int $post_id ): string {
+
+		$label = Mixmymeals_Shortcodes::disclosure_label_for( $post_id );
+
+		if ( ! $label ) {
+			return '';
+		}
+
+		if ( in_array( $label['type'], Mixmymeals_Post_Meta::DISCLOSURE_LABELLED_TYPES, true ) ) {
+			// Body text, not the heading colour: on this site that is the
+			// green of the badges, which an advertising label must not wear.
+			$style = 'display:inline-block;padding:1px 8px;border:1px solid ' . self::mail_color( 'text' ) . ';border-radius:4px;'
+				. 'font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:' . self::mail_color( 'text' );
+		} else {
+			$style = 'font-size:13px;font-style:italic;color:' . self::mail_color( 'muted' );
+		}
+
+		return '<span class="mmm-mail-disclosure mmm-mail-disclosure--' . esc_attr( $label['type'] ) . '" style="' . esc_attr( $style ) . '">'
+			. esc_html( $label['text'] ) . '</span>';
+	}
+
+	/**
+	 * The plan's disclosure as a paragraph for the top of a mail: label and,
+	 * for advertising, the sponsor, as the plan page prints it. '' for
+	 * editorial plans. Placeholder {{ disclosure_html }}.
+	 *
+	 * @param int $plan_id Plan ID.
+	 * @return string
+	 */
+	public static function disclosure_block_html( int $plan_id ): string {
+
+		$label = self::disclosure_label_html( $plan_id );
+
+		if ( '' === $label ) {
+			return '';
+		}
+
+		$sponsor = Mixmymeals_Post_Meta::requires_disclosure_label( $plan_id )
+			? Mixmymeals_Post_Meta::get_disclosure_sponsor( $plan_id )
+			: '';
+
+		if ( '' !== $sponsor ) {
+			$label .= ' <span style="font-size:13px;color:' . self::mail_color( 'muted' ) . '">' . esc_html( $sponsor ) . '</span>';
+		}
+
+		return '<p class="mmm-mail-disclosure-line" style="margin:0 0 16px">' . $label . '</p>';
+	}
+
+	/**
+	 * What the mailer puts above a template: the plan's disclosure, unless the
+	 * template places {{ disclosure_html }} itself. A template that knows
+	 * nothing of it still sends a labelled mail — the label is an obligation,
+	 * not a design choice a template could forget.
+	 *
+	 * @param string $template        Template file name.
+	 * @param string $disclosure_html The rendered block, possibly ''.
+	 * @return string
+	 */
+	private static function disclosure_prepend( string $template, string $disclosure_html ): string {
+
+		if ( '' === $disclosure_html ) {
+			return '';
+		}
+
+		$raw = Mixmymeals_Mailer::load_template( $template );
+
+		return preg_match( '/\{\{\s*disclosure_html\s*\}\}/', $raw ) ? '' : $disclosure_html;
+	}
+
+	/**
 	 * Builds the full set of placeholders available to every subscription
 	 * template, for a given plan and weekday. There is no per-content provider:
 	 * every placeholder is always present and the chosen template simply decides
@@ -2202,6 +2283,7 @@ class Mixmymeals_Subscriptions {
 			'plan_number'          => Mixmymeals_Meal_Plan::number_label( $plan->get_id() ),
 			'plan_number_html'     => self::plan_number_html( $plan->get_id() ),
 			'plan_url'             => (string) get_permalink( $plan->get_id() ),
+			'disclosure_html'      => self::disclosure_block_html( $plan->get_id() ),
 			'unsubscribe_url'      => $unsubscribe_url,
 			'weekday'              => $this->weekday_name( $day ),
 			'greeting'             => $this->greeting( $name ),
@@ -2634,6 +2716,7 @@ class Mixmymeals_Subscriptions {
 			'unsubscribe_url' => home_url( '/' ),
 			'force'           => true,
 			'append_html'     => $append ? self::append_block() : '',
+			'prepend_html'    => self::disclosure_prepend( $template, $vars['disclosure_html'] ),
 		);
 
 		$sent = Mixmymeals_Mailer::send_template( $to, $subject, $template, $vars, $args );
@@ -2816,7 +2899,10 @@ class Mixmymeals_Subscriptions {
 				$meta[] = $cal_line;
 			}
 
-			$content = '<a href="' . esc_url( $link ) . '" style="font-weight:700;color:' . self::mail_color( 'heading' ) . ';text-decoration:none;">' . esc_html( $title ) . '</a>'
+			// The meal's dish as a listing shows it: the label, no sponsor.
+			$label   = self::disclosure_label_html( $meal_post->ID );
+			$content = ( '' !== $label ? $label . '<br>' : '' )
+				. '<a href="' . esc_url( $link ) . '" style="font-weight:700;color:' . self::mail_color( 'heading' ) . ';text-decoration:none;">' . esc_html( $title ) . '</a>'
 				. '<br><span style="color:' . self::mail_color( 'subtle' ) . ';font-size:14px;">' . esc_html( implode( ' · ', $meta ) ) . '</span>'
 				. '<br><a href="' . esc_url( $link ) . '" style="display:inline-block;margin-top:4px;color:' . self::mail_color( 'accent' ) . ';font-weight:700;text-decoration:none;">'
 				. esc_html__( 'Cook now', 'mixmymeals' ) . ' →</a>';
