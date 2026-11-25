@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * WordPress REST API – MCP Server (MixMyMeals-Edition v5.2)
+ * WordPress REST API – MCP Server (MixMyMeals-Edition v5.3)
  *
  * Umgebungsvariablen:
  *   WP_URL           z.B. https://speisengeplant.de
@@ -11,6 +11,10 @@
  * Endpunkt-Strategie:
  *   MixMyMeals-Daten  → /wp-json/mixmymeals/v1/  (Plugin-eigene API)
  *   Generisches WP    → /wp-json/wp/v2/           (Posts, Taxonomien, Media)
+ *
+ * Neu in v5.3:
+ *   - Zugangscodes verkaufter Pläne: mmm_create_access_key, mmm_lookup_access_key,
+ *     mmm_get_access_key, mmm_revoke_access_key, mmm_list_access_keys.
  *
  * Neu in v5.2:
  *   - Werbekennzeichnung: disclosure (type, sponsor) in mmm_create_recipe /
@@ -868,6 +872,63 @@ const TOOLS = [
   },
 
   {
+    name: "mmm_create_access_key",
+    description: "Zugangscode für einen verkauften Plan anlegen (einer je Käufer, öffnet genau diesen Plan). Der Code steht NUR in dieser Antwort (gespeichert wird nur ein Hash) — code und url sofort weitergeben. url ist der Link, der den Plan öffnet. warnings: plan_not_protected (Plan hat kein Passwort, ist also ohnehin offen), plan_not_published. Verwendet /mixmymeals/v1/access-keys.",
+    inputSchema: {
+      type: "object",
+      required: ["plan_id"],
+      properties: {
+        plan_id:   { type: "number" },
+        order_ref: { type: "string", maxLength: 100, description: "Bestellnummer o.ä., um den Code später zuzuordnen." },
+        expires:   { type: ["string", "null"], description: "Datum (YYYY-MM-DD, gilt bis Tagesende) oder Zeitpunkt in Seitenzeit; weglassen/null = unbefristet." },
+      },
+    },
+  },
+
+  {
+    name: "mmm_lookup_access_key",
+    description: "Einen Code nachschlagen, den ein Käufer vorliest (Groß-/Kleinschreibung, Leerzeichen, Bindestriche und O/0, I/L/1 egal). Antwortet mit id, plan_id, hint, order_ref, created, expires, revoked, uses, last_used. Verwendet /mixmymeals/v1/access-keys/lookup.",
+    inputSchema: {
+      type: "object",
+      required: ["code"],
+      properties: { code: { type: "string" } },
+    },
+  },
+
+  {
+    name: "mmm_get_access_key",
+    description: "Einen Zugangscode per id abrufen (ohne den Code selbst, nur hint = erste vier Zeichen). Verwendet /mixmymeals/v1/access-keys/{id}.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "number" } },
+    },
+  },
+
+  {
+    name: "mmm_revoke_access_key",
+    description: "Zugangscode sperren (revoked: true) oder wieder freigeben (false). Verwendet POST /mixmymeals/v1/access-keys/{id}.",
+    inputSchema: {
+      type: "object",
+      required: ["id", "revoked"],
+      properties: {
+        id:      { type: "number" },
+        revoked: { type: "boolean" },
+      },
+    },
+  },
+
+  {
+    name: "mmm_list_access_keys",
+    description: "Alle Zugangscodes eines Plans, neueste zuerst, dazu protected (hat der Plan ein Passwort). Verwendet /mixmymeals/v1/meal-plans/{id}/access-keys.",
+    inputSchema: {
+      type: "object",
+      required: ["plan_id"],
+      properties: { plan_id: { type: "number" } },
+    },
+  },
+
+  {
     name: "mmm_audit",
     description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Rezepte mit nur teilweisen Naehrwerten (recipes_partial_nutrition: die Summe ist aus einem Teil des Gerichts gebaut, weil ein leeres Feld als 0 zaehlt. Feldweise gerechnet: figure nennt den schlechtesten der sieben Werte, covered dessen gedeckten Gewichtsanteil in Prozent — nicht den Durchschnitt, der mehr verspraeche als die Tabelle haelt —, und missing jede Zutat mit figures, den Werten, die ihr fehlen; gefaehrlicher als ganz fehlende Naehrwerte, weil die Zahl fertig aussieht und zu niedrig ist). Dazu ingredients_partial_nutrition: Zutaten, die einige der sieben Werte nennen und andere nicht. Sie duerfen veroeffentlicht sein — eine Packung, die Energie und Fett nennt und sonst nichts, ist eine echte Packung —, aber jedes leere Feld geht in jede Rezeptsumme dieses Werts als 0 ein. Jeder Eintrag nennt figures und die Zahl der Rezepte, die die Zutat verwenden; danach sortiert lohnt die Pflege zuerst. Nachtragen mit mmm_update_ingredient_nutrition. Dazu nutrition_implausible: Angaben, die sich widersprechen — gesaettigte Fettsaeuren ueber dem Gesamtfett, Zucker ueber den Kohlenhydraten, mehr als 100 g in 100 g, oder eine Energieangabe, die nicht aus den Makros folgt (9/4/4/2 kcal je g Fett/KH/Eiweiss/Ballaststoffe, ein Fuenftel Spielraum). Jeder Eintrag nennt kind (ingredient oder product), bei Produkten die zugehoerige Zutat, und warnings als fertige Saetze. Ein Tippfehler hier wandert in jedes Rezept, jeden Plan, jede Mail und das schema.org-Markup, und nachgelagert ist er von einem gehaltvollen Lebensmittel nicht zu unterscheiden. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu ingredients_without_diet: Zutaten, zu denen weder sie selbst noch eines ihrer Produkte eine Ernaehrungsform nennt. Eine einzige davon nimmt jedem Rezept, das sie verwendet, die Pille \"Geeignet fuer …\" — diese Gruppe entscheidet also, wie viele Rezepte ueberhaupt eine tragen koennen. Jeder Eintrag nennt Kategorie und die Zahl der Rezepte, die die Zutat verwenden: danach sortiert lohnt sich die Pflege zuerst. Zum Nachtragen mmm_set_diets, das viele auf einmal schreibt. Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
@@ -1633,6 +1694,25 @@ async function handleTool(name, args) {
       return mmm("POST", "/keeping/bulk", body);
     }
 
+    case "mmm_create_access_key": {
+      const body = { plan_id: args.plan_id };
+      if (args.order_ref !== undefined) body.order_ref = args.order_ref;
+      if (args.expires   !== undefined) body.expires   = args.expires;
+      return mmm("POST", "/access-keys", body);
+    }
+
+    case "mmm_lookup_access_key":
+      return mmm("GET", `/access-keys/lookup?code=${encodeURIComponent(args.code)}`);
+
+    case "mmm_get_access_key":
+      return mmm("GET", `/access-keys/${args.id}`);
+
+    case "mmm_revoke_access_key":
+      return mmm("POST", `/access-keys/${args.id}`, { revoked: args.revoked });
+
+    case "mmm_list_access_keys":
+      return mmm("GET", `/meal-plans/${args.plan_id}/access-keys`);
+
     case "mmm_audit":
       return mmm("GET", `/audit?scope=${encodeURIComponent(args.scope || "all")}`);
 
@@ -1886,7 +1966,7 @@ async function handleTool(name, args) {
 // ── MCP Server ───────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "wordpress-rest", version: "5.2.0" },
+  { name: "wordpress-rest", version: "5.3.0" },
   { capabilities: { tools: {} } }
 );
 
