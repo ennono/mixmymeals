@@ -2578,8 +2578,11 @@ class Mixmymeals_Post_Meta {
 					$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
 
 				} else {
-					// Neue Menge anlegen
-					if ( ! empty( $amount_data['title'] ) ) {
+					// Neue Menge anlegen. The block editor posts this box
+					// again on a second Save without re-rendering it, so the
+					// filled-in row would create the unit twice.
+					if ( ! empty( $amount_data['title'] )
+						&& $this->spend_new_row_token( 'ingredient_unit', $amount_data['token'] ?? '' ) ) {
 						$title      = sanitize_text_field( $amount_data['title'] );
 						$amount_obj = Mixmymeals_Ingredient_Amount::create(
 							$post_ID,
@@ -4029,6 +4032,10 @@ class Mixmymeals_Post_Meta {
 		echo '<input type="text" name="mmm_ingredient_amounts[new][title]" placeholder="'
 			. esc_attr__( 'New Amount', 'mixmymeals' )
 			. '" class="regular-text">';
+		printf(
+			'<input type="hidden" name="mmm_ingredient_amounts[new][token]" value="%s">',
+			esc_attr( wp_generate_uuid4() )
+		);
 		echo '</td>';
 		echo '<td>';
 		echo '<em>' . esc_html__( '–', 'mixmymeals' ) . '</em>';

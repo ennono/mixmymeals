@@ -43,7 +43,7 @@ wp --exec="define('DB_HOST','localhost:<socket>');" \
    eval-file wp-content/plugins/mixmymeals/tools/diet-test.php
 ```
 
-Test posts are titled `T …` or `R<n>` and carry the brand `ZZ`, so a run cut short leaves something recognisable to clean up. One script per subject — `diet`, `meal-diet`, `excluded-products`, `reference-product`, `product-usage`, `bulk-update`, `cooking-factor`, `nutrition-coverage`, `traffic-light`, `reference-intake`, `prep-steps`, `meal-text`, `ingredient-list`, `password`, `premium`, `plan-meals`, `plan-number`, `plan-servings`, `plan-eaters`, `plan-subscribe`, `planner-shopping`, `planner-templates`, `planner-tools`, `cart-share`, `recipe-ranking`, `ingredient-ranking`, `equipment`, `privacy-policy`, `admin-structure`, `author-image`, `access-key`, `subscription-message`, `mail-campaign`. Run the one for the subject you touched.
+Test posts are titled `T …` or `R<n>` and carry the brand `ZZ`, so a run cut short leaves something recognisable to clean up. One script per subject — `diet`, `meal-diet`, `excluded-products`, `reference-product`, `product-usage`, `bulk-update`, `cooking-factor`, `nutrition-coverage`, `traffic-light`, `reference-intake`, `prep-steps`, `ingredient-units`, `meal-text`, `ingredient-list`, `password`, `premium`, `plan-meals`, `plan-number`, `plan-servings`, `plan-eaters`, `plan-subscribe`, `planner-shopping`, `planner-templates`, `planner-tools`, `cart-share`, `recipe-ranking`, `ingredient-ranking`, `equipment`, `privacy-policy`, `admin-structure`, `author-image`, `access-key`, `subscription-message`, `mail-campaign`. Run the one for the subject you touched.
 
 Conventions the scripts rely on:
 - Save callbacks are tested by a **round trip through the callback**, not through the setter behind it (see *Recipes*).
@@ -246,7 +246,7 @@ Taxonomies: `mmm_recipe_category` (hierarchical), `mmm_recipe_tag`, `mmm_ingredi
 
 **Deleting a used unit corrupts recipes silently**: the amount stays, the unit goes, and it reads as grams. `GET /units/{id}/usage` reports recipes, lines, default-unit status, `can_delete`; `DELETE /units/{id}` refuses with 409 unless `force=true`; `POST /units/bulk-delete` judges each id, supports `dry_run` and `force` — read `affected_recipes` before forcing; feed it `/audit`'s `units_unused`. All read `get_usage()` → `usage_map()` (one pass, memoised; `get_amount_usage_count()` derives from it). Drafts count as usage (`post_status => any`).
 
-Known gap: the units table on the ingredient creates rows without a one-shot token, so a second block-editor Save can add a unit twice.
+The units table on the ingredient creates its new row through a one-shot token (`spend_new_row_token( 'ingredient_unit', … )`, 4.13.2 — before, a second block-editor Save added the unit twice).
 
 ### Amounts and weights
 
