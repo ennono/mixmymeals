@@ -961,7 +961,7 @@ jQuery(document).ready(function ($) {
         const $eqNew = $equipmentTable.find('input[name="mmm_equipment_new"]');
 
         const addEquipment = () => {
-            const title = $.trim($eqNew.val());
+            const title = String($eqNew.val() || '').trim();
 
             if (!title || $eqNew.prop('disabled')) {
                 return;
@@ -1013,7 +1013,7 @@ jQuery(document).ready(function ($) {
         $equipmentTable.on('change', '.mmm-equipment__title', function () {
             const $input = $(this);
             const id = ($input.attr('name') || '').replace(/\D+/g, '');
-            const title = $.trim($input.val());
+            const title = String($input.val() || '').trim();
 
             if (!id || title === $input.data('mmm-title')) {
                 return;

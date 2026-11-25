@@ -996,7 +996,7 @@ jQuery(function ($) {
         // Named after the button that opened it; the focus comes back to
         // that button when cooking is over.
         mmmCookModeOrigin = origin || null;
-        overlay.attr('aria-label', $.trim($(origin).text()) || labels.exit || '');
+        overlay.attr('aria-label', $(origin).text().trim() || labels.exit || '');
 
         $('body').addClass('mmm-cook-mode-open').append(overlay);
         renderStep();
@@ -2391,7 +2391,7 @@ jQuery(function ($) {
         backdrop.find(fine ? '.mmm-picker__search' : '.mmm-picker__close').trigger('focus');
 
         backdrop.on('input', '.mmm-picker__search', function () {
-            const term = $.trim(this.value);
+            const term = String(this.value || '').trim();
             clearTimeout(mmmPickerTimer);
             mmmPickerTimer = setTimeout(function () { load(term.length >= 2 ? term : ''); }, 300);
         });
@@ -2661,7 +2661,7 @@ jQuery(function ($) {
 
     // Which list a [data-shopping-check] holds.
     function mmmShopListName($scope) {
-        const named = $.trim($scope.attr('data-shopping-check') || '');
+        const named = ($scope.attr('data-shopping-check') || '').trim();
         if (named) return named;
         if ($scope.find('[data-planner-shopping]').length || $scope.is('[data-planner-shopping]')) return 'planner';
         const plan = $scope.find('[data-plan-shopping]').first().attr('data-plan-shopping')
@@ -2703,8 +2703,8 @@ jQuery(function ($) {
     }
 
     function mmmShopLineKey(li) {
-        return $.trim($(li).find('.mmm-shopping-item-name').first().text()) + '|'
-            + $.trim($(li).find('.mmm-shopping-item-diet').first().text());
+        return $(li).find('.mmm-shopping-item-name').first().text().trim() + '|'
+            + $(li).find('.mmm-shopping-item-diet').first().text().trim();
     }
 
     function mmmShopSummary($scope) {
@@ -2750,7 +2750,7 @@ jQuery(function ($) {
                 const done = mmmShopIsDone(list, key);
 
                 if (!$li.children('.mmm-shop-check').length) {
-                    const name = $.trim($li.find('.mmm-shopping-item-name').first().text());
+                    const name = $li.find('.mmm-shopping-item-name').first().text().trim();
                     const $check = $('<button type="button" class="mmm-shop-check" role="checkbox"></button>')
                         .attr('aria-label', mmmFormat(labels.tick, name));
                     $li.prepend($check);
@@ -2801,7 +2801,7 @@ jQuery(function ($) {
             if (out.normalize) out = out.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             return out;
         };
-        const term = fold($.trim(this.value));
+        const term = fold(String(this.value || '').trim());
         let shown = 0;
 
         $index.find('.mmm-ingredients-index__group').each(function () {

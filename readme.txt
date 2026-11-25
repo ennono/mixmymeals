@@ -2,9 +2,9 @@
 Contributors: frickemedia
 Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.16.0
+Stable tag: 4.16.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.16.1 =
+
+Changed:
+* Tested up to WordPress 7.2.
+* Scripts no longer call `jQuery.trim()`, which jQuery 3.5 deprecated and
+  jQuery 4 removes; WordPress 7.2's jQuery Migrate 3.6.0 prepares that
+  switch.
+
+Fixed:
+* Plugin Check: the plan card's picture count is cast where the check
+  can see it, the one error left in the package.
 
 = 4.16.0 =
 

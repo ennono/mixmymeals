@@ -2476,7 +2476,7 @@ class Mixmymeals_Shortcodes {
 				if ( $mosaic ) {
 					printf(
 						'<span class="mmm-recipe-row__mosaic mmm-recipe-row__mosaic--%d">',
-						$tiles
+						(int) $tiles
 					);
 				}
 
