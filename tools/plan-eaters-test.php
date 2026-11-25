@@ -747,6 +747,60 @@ try {
 	$page = do_shortcode( '[mmm_nutrition_overview_for_a_single_meal_plan meal_plan_id="' . $pp_id . '"]' );
 	$ok( 'on the page too, without switch or wrapper attributes', false === strpos( $page, 'mmm-eater-switch' ) && false !== strpos( $page, '<div class="mmm-meal-plan-nutrition">' ) && false !== strpos( $page, Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', 0.5 * ( $cal_b + $cal_d ) ) ) );
 
+	echo PHP_EOL . '-- 16. Subscription mail and PDF per person (HG-102)' . PHP_EOL;
+
+	$mail_vars = new ReflectionMethod( 'Mixmymeals_Subscriptions', 'mail_vars' );
+	$mailer    = ( new ReflectionClass( 'Mixmymeals_Subscriptions' ) )->newInstanceWithoutConstructor();
+	$table_of  = static fn( $vars ) => (string) $vars['nutrition_table_html'] . (string) $vars['day_summary_html'] . (string) $vars['day_nutrition_html'];
+
+	// One person at half portions: their figures, no label.
+	$vars = $mail_vars->invoke( $mailer, $pp, 1, '', '' );
+	$ok( 'mail, one person at half portions: no person named', false === strpos( $table_of( $vars ), Mixmymeals_Meal_Plan::eater_label( 1 ) ) );
+	$ok( 'mail: the bare figures are that person\'s', number_format_i18n( $pp->for_eater( 'p1' )->calc_nutrition( 1 )['per_person']['protein'], 1 ) === $vars['day_protein'] );
+
+	$plan->set_eaters(
+		array(
+			array(
+				'id'   => 'p1',
+				'name' => $names[0],
+			),
+			array(
+				'id'   => 'p2',
+				'name' => $names[1],
+			),
+		)
+	);
+	$plan = new Mixmymeals_Meal_Plan( $plan_id );
+	$meal_of['b1']->set_eaters( array( 'p1' ) );
+	$meal_of['d2']->set_eaters( array() );
+	$meal_of['d2']->set_eater_portions( array() );
+	$meal_of['b1']->set_eater_portions( array() );
+	Mixmymeals_Meal_Plan::flush_meals_cache( $plan_id );
+	$plan = new Mixmymeals_Meal_Plan( $plan_id );
+
+	$vars = $mail_vars->invoke( $mailer, $plan, 1, '', '' );
+	$html = $table_of( $vars );
+	$ok( 'mail, two people: both named', false !== strpos( $html, Mixmymeals_Meal_Plan::eater_label( 1 ) ) && false !== strpos( $html, Mixmymeals_Meal_Plan::eater_label( 2 ) ) );
+	$p1_kcal = $plan->for_eater( 'p1' )->calc_nutrition( 1 )['per_person']['calories'];
+	$p2_kcal = $plan->for_eater( 'p2' )->calc_nutrition( 1 )['per_person']['calories'];
+	$ok( 'person 1 has breakfast on day 1, person 2 does not', $p1_kcal > $p2_kcal && $p2_kcal > 0 );
+	$ok( 'mail: each person\'s own energy', false !== strpos( $html, number_format_i18n( round( $p1_kcal ) ) ) && false !== strpos( $html, number_format_i18n( round( $p2_kcal ) ) ) );
+	$ok( 'mail: the reference-intake note once', 1 === substr_count( (string) $vars['nutrition_table_html'], esc_html( Mixmymeals_Meal_Plan::reference_intake_note() ) ) );
+	$ok( 'mail: no name an editor gave', false === strpos( implode( '', $vars ), $names[0] ) && false === strpos( implode( '', $vars ), $names[1] ) );
+
+	if ( class_exists( 'Mixmymeals_Printer_Context' ) && class_exists( 'Mixmymeals_Printer_Renderer' ) ) {
+		$doc  = Mixmymeals_Printer_Context::for_plan( $plan_id );
+		$ok( 'PDF: a nutrition block per person', array( Mixmymeals_Meal_Plan::eater_label( 1 ), Mixmymeals_Meal_Plan::eater_label( 2 ) ) === array_column( $doc['nutrition_people'], 'person' ) );
+		$ok( 'PDF: each from for_eater()', serialize( Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', $plan->for_eater( 'p2' )->calc_nutrition_per_day_person()['average']['calories'] ) ) === serialize( $doc['nutrition_people'][1]['average']['calories']['value'] ) );
+		$pdf  = Mixmymeals_Printer_Renderer::html( $doc, Mixmymeals_Printer_Renderer::settings() );
+		$ok( 'PDF: two nutrition sections with their own anchors', false !== strpos( $pdf, 'id="section-nutrition-p1"' ) && false !== strpos( $pdf, 'id="section-nutrition-p2"' ) );
+		$ok( 'PDF: no name an editor gave', false === strpos( $pdf, $names[0] ) && false === strpos( $pdf, $names[1] ) );
+		$solo = Mixmymeals_Printer_Context::for_plan( $pp_id );
+		$ok( 'PDF, one person: one block of their figures', array() === $solo['nutrition_people'] && Mixmymeals_Meal_Plan::format_nutrition_value( 'calories', $pp->for_eater( 'p1' )->calc_nutrition_per_day_person()['average']['calories'] ) === $solo['nutrition']['average']['calories']['value'] );
+	} else {
+		echo 'skip PDF checks: MixMyMeals Printer not active' . PHP_EOL;
+	}
+
 	if ( null === $step_before ) {
 		delete_option( Mixmymeals_Meal_Plan::PORTION_STEP_OPTION );
 	} else {

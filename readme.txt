@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.15.0
+Stable tag: 4.16.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.16.0 =
+
+Changed:
+* Subscription mails of a plan with several people print the day's
+  nutrition per person ("Person 2"), each from that person's meals and
+  portions and against their reference intakes. A plan of one person at
+  other portions shows that person's figures.
 
 = 4.15.0 =
 

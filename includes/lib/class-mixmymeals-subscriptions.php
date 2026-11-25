@@ -2276,7 +2276,15 @@ class Mixmymeals_Subscriptions {
 		// the PDF quote the same figures. {{ day_kcal }} keeps coming from
 		// render_meal_list(), which computes the identical value alongside the
 		// cost — left untouched so existing templates cannot shift.
-		$nutrition = $plan->calc_nutrition( $day )['per_person'];
+		// With several people each block is printed once per person; the bare
+		// figures ({{ day_protein }} …) are the first person's.
+		$people    = $this->day_people( $plan, $day );
+		$first     = $people ? $people[0] : array(
+			'label'     => '',
+			'profile'   => Mixmymeals_Meal_Plan::DEFAULT_PROFILE,
+			'nutrition' => $plan->calc_nutrition( $day )['per_person'],
+		);
+		$nutrition = $first['nutrition'];
 
 		return array(
 			'plan'                 => get_the_title( $plan->get_id() ),
@@ -2290,7 +2298,7 @@ class Mixmymeals_Subscriptions {
 			'meal_list_html'       => $meals['list_html'],
 			'meal_images_html'     => $this->render_meal_images( $plan, $day ),
 			'rating_links_html'    => $this->render_rating_links( $plan, $day, $rate_token ),
-			'day_summary_html'     => $this->render_day_summary( $nutrition ),
+			'day_summary_html'     => $this->render_for_people( $people, 'render_day_summary' ),
 			'day_kcal'             => $meals['day_kcal'],
 			'day_cost'             => $meals['day_cost'],
 			'day_protein'          => number_format_i18n( $nutrition['protein'], 1 ),
@@ -2300,9 +2308,12 @@ class Mixmymeals_Subscriptions {
 			'day_saturates'        => number_format_i18n( $nutrition['saturates'], 1 ),
 			'day_fiber'            => number_format_i18n( $nutrition['fiber'], 1 ),
 			'day_salt'             => number_format_i18n( $nutrition['salt'], 2 ),
-			'day_kcal_percent'     => (string) (int) Mixmymeals_Meal_Plan::nutrition_percentages( $nutrition )['calories'],
-			'day_nutrition_html'   => $this->render_day_nutrition( $nutrition ),
-			'nutrition_table_html' => $this->render_nutrition_table( $nutrition ),
+			'day_kcal_percent'     => (string) (int) Mixmymeals_Meal_Plan::with_reference_profile(
+				$first['profile'],
+				static fn() => Mixmymeals_Meal_Plan::nutrition_percentages( $nutrition )['calories']
+			),
+			'day_nutrition_html'   => $this->render_for_people( $people, 'render_day_nutrition' ),
+			'nutrition_table_html' => $this->render_for_people( $people, 'render_nutrition_table' ),
 			'meal_nutrition_html'  => $this->render_meal_nutrition( $plan, $day ),
 			'currency'             => (string) get_option( 'mixmymeals_currency', '€' ),
 			'day_ingredients_html' => $this->render_ingredient_list( $plan, $day, __( 'No ingredients needed for this day.', 'mixmymeals' ) ),
@@ -2320,6 +2331,73 @@ class Mixmymeals_Subscriptions {
 	 * @return string
 	 */
 	/**
+	 * Whose figures the mail prints for one day, in the plan's order: each
+	 * `label` ("Person 2", '' for a plan without several people), `profile`
+	 * and the day's `nutrition` as that person eats it.
+	 *
+	 * Mixmymeals_Meal_Plan::for_eater() decides — the same plan object the
+	 * plan page reads, so the mail cannot disagree with it. A plan without
+	 * several people gets one entry without a label, its one person (whose
+	 * plan for_eater() returns unchanged unless they eat other portions). A
+	 * person who eats nothing that day is left out.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan Plan.
+	 * @param int                  $day  Weekday (1-7).
+	 * @return array<int, array{label:string, profile:string, nutrition:array<string,float>}>
+	 */
+	private function day_people( Mixmymeals_Meal_Plan $plan, int $day ): array {
+
+		$several = $plan->has_eaters();
+		$out     = array();
+
+		foreach ( $plan->get_eaters() as $person ) {
+
+			$figures = $plan->for_eater( $person['id'] )->calc_nutrition( $day );
+
+			if ( $several && empty( $figures['meals'] ) ) {
+				continue;
+			}
+
+			$out[] = array(
+				'label'     => $several ? (string) $person['label'] : '',
+				'profile'   => (string) $person['profile'],
+				'nutrition' => $figures['per_person'],
+			);
+
+			if ( ! $several ) {
+				break;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * One of the day's nutrition renderers, once per person of day_people(),
+	 * each inside that person's reference profile so percentages and notes
+	 * compare with their intakes. The reference-intake note of the table is
+	 * printed under the last table only.
+	 *
+	 * @param array  $people   From day_people().
+	 * @param string $renderer render_day_summary|render_day_nutrition|render_nutrition_table.
+	 * @return string
+	 */
+	private function render_for_people( array $people, string $renderer ): string {
+
+		$html = '';
+		$last = count( $people ) - 1;
+
+		foreach ( $people as $i => $person ) {
+			$html .= Mixmymeals_Meal_Plan::with_reference_profile(
+				$person['profile'],
+				fn() => $this->$renderer( $person['nutrition'], $person['label'], $i === $last )
+			);
+		}
+
+		return $html;
+	}
+
+	/**
 	 * The day's headline: the same figures as the nutrition line, under a label
 	 * and set in the accent colour, for templates that want one prominent line
 	 * above the meals instead of a quiet one below them.
@@ -2328,9 +2406,10 @@ class Mixmymeals_Subscriptions {
 	 * template using both cannot show two different numbers.
 	 *
 	 * @param array<string,float> $nutrition Per-person figures for the day.
+	 * @param string              $person    "Person 2" on a plan with several people, else ''.
 	 * @return string
 	 */
-	private function render_day_summary( array $nutrition ): string {
+	private function render_day_summary( array $nutrition, string $person = '' ): string {
 
 		$parts = $this->nutrition_parts( $nutrition );
 
@@ -2340,16 +2419,23 @@ class Mixmymeals_Subscriptions {
 
 		return '<p style="font-weight:700;color:' . self::mail_color( 'heading' ) . ';">'
 			. esc_html(
-				sprintf(
-					/* translators: %s: the day's nutrition figures, already formatted. */
-					__( 'Day total per person: %s', 'mixmymeals' ),
-					implode( ' · ', $parts )
-				)
+				'' === $person
+					? sprintf(
+						/* translators: %s: the day's nutrition figures, already formatted. */
+						__( 'Day total per person: %s', 'mixmymeals' ),
+						implode( ' · ', $parts )
+					)
+					: sprintf(
+						/* translators: 1: a person of the plan, "Person 2"; 2: the day's nutrition figures, already formatted. */
+						__( 'Day total for %1$s: %2$s', 'mixmymeals' ),
+						$person,
+						implode( ' · ', $parts )
+					)
 			)
 			. '</p>';
 	}
 
-	private function render_day_nutrition( array $nutrition ): string {
+	private function render_day_nutrition( array $nutrition, string $person = '' ): string {
 
 		$parts = $this->nutrition_parts( $nutrition );
 
@@ -2358,6 +2444,7 @@ class Mixmymeals_Subscriptions {
 		}
 
 		return '<p style="margin:0 0 8px;">'
+			. ( '' === $person ? '' : '<strong>' . esc_html( $person ) . ':</strong> ' )
 			. esc_html( implode( ' · ', $parts ) )
 			. '</p>';
 	}
@@ -2437,9 +2524,11 @@ class Mixmymeals_Subscriptions {
 	 * and strip <style> blocks.
 	 *
 	 * @param array<string,float> $nutrition Per-person figures for the day.
+	 * @param string              $person    "Person 2" on a plan with several people, else ''.
+	 * @param bool                $note      Whether the reference-intake note follows.
 	 * @return string
 	 */
-	private function render_nutrition_table( array $nutrition ): string {
+	private function render_nutrition_table( array $nutrition, string $person = '', bool $note = true ): string {
 
 		if ( empty( $nutrition['calories'] ) ) {
 			return '';
@@ -2484,20 +2573,27 @@ class Mixmymeals_Subscriptions {
 		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;border-collapse:collapse;">'
 			. '<tr>'
 			. '<th align="left" style="' . self::section_heading_style() . '">'
-			. esc_html__( 'Per person, this day', 'mixmymeals' ) . '</th>'
+			. esc_html(
+				'' === $person
+					? __( 'Per person, this day', 'mixmymeals' )
+					/* translators: %s: a person of the plan, "Person 2". */
+					: sprintf( __( '%s, this day', 'mixmymeals' ), $person )
+			) . '</th>'
 			. '<th style="border-bottom:1px solid ' . self::mail_color( 'rule' ) . ';"></th>'
 			. '<th align="right" style="' . self::section_heading_style() . 'padding-left:12px;white-space:nowrap;">'
 			. esc_html__( 'of RI', 'mixmymeals' ) . '</th>'
 			. '</tr>'
 			. $rows
 			. '</table>'
-			. '<p style="margin:0 0 8px;line-height:1.4;color:' . self::mail_color( 'muted' ) . ';font-size:12px;">'
-			. esc_html(
-				Mixmymeals_Meal_Plan::reference_intake_note()
-				. ' '
-				. __( 'The figures are estimates and may vary.', 'mixmymeals' )
-			)
-			. '</p>';
+			. ( $note
+				? '<p style="margin:0 0 8px;line-height:1.4;color:' . self::mail_color( 'muted' ) . ';font-size:12px;">'
+					. esc_html(
+						Mixmymeals_Meal_Plan::reference_intake_note()
+						. ' '
+						. __( 'The figures are estimates and may vary.', 'mixmymeals' )
+					)
+					. '</p>'
+				: '' );
 	}
 
 	/**

@@ -8538,3 +8538,13 @@ msgstr "Links in Abo-Mails: Links auf diese Website tragen eine Kampagnenkennung
 msgid "The marker contains neither the e-mail address nor anything else that would tie a visit to a subscriber; links with a personal access token (rating, photos, unsubscribe) carry none. The visits are processed only as that section describes."
 msgstr "Die Kennung enthält weder die E-Mail-Adresse noch sonst etwas, das einen Besuch einem Abonnenten zuordnen würde; Links mit einem persönlichen Zugangstoken (Bewerten, Fotos, Abmelden) tragen keine. Die Besuche werden nur so verarbeitet, wie dort beschrieben."
 
+
+#. translators: 1: a person of the plan, "Person 2"; 2: the day's nutrition figures, already formatted.
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Day total for %1$s: %2$s"
+msgstr "Tagessumme für %1$s: %2$s"
+
+#. translators: %s: a person of the plan, "Person 2".
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "%s, this day"
+msgstr "%s an diesem Tag"
