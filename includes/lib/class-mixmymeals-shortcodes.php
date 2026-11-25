@@ -3008,13 +3008,7 @@ class Mixmymeals_Shortcodes {
 		$meal_servings   = max( 1.0, floatval( $meal->get_shown_servings() ) );
 		$scaling_factor  = $meal_servings / $recipe_servings;
 
-		$ingredients_scaled = $recipe->get_ingredients_scaled( $scaling_factor );
-
-		$ingredients_map = array();
-		foreach ( $ingredients_scaled as $ing ) {
-			$key                     = $ing['id'] . '_' . ( $ing['amount_id'] ?? 0 ) . '_' . ( $ing['step'] ?? 0 );
-			$ingredients_map[ $key ] = $ing;
-		}
+		$mmm_rows = self::scaled_rows_by_step( $recipe->get_ingredients_scaled( $scaling_factor ) );
 
 		ob_start();
 		?>
@@ -3058,87 +3052,7 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
 
 					<?php if ( ! empty( $step['ingredients'] ) ) : ?>
-						<ul class="mmm-step-ingredients">
-							<?php foreach ( $step['ingredients'] as $ing ) :
-
-								if ( empty( $ing['id'] ) ) {
-									continue;
-								}
-
-								$ingredient_obj = new Mixmymeals_Ingredient( $ing['id'] );
-								if ( ! $ingredient_obj->is_valid() ) {
-									continue;
-								}
-
-								$amount_id = ! empty( $ing['amount_id'] )
-									? intval( $ing['amount_id'] ) : 0;
-
-								$is_optional = ! empty( $ing['optional'] );
-
-								$key = $ing['id'] . '_' . $amount_id . '_' . $index;
-
-								// Werte aus skalierter Quelle holen
-								$scaled_amount = $ingredients_map[ $key ]['amount'] ?? 0;
-								$total_weight  = $ingredients_map[ $key ]['weight_g'] ?? 0;
-
-								$unit_title      = '';
-								$weight_per_unit = 0.0;
-
-								if ( $amount_id ) {
-									$amt_obj         = new Mixmymeals_Ingredient_Amount( $amount_id );
-									$unit_title      = $amt_obj->get_title() ?: '';
-									$weight_per_unit = floatval( $amt_obj->get_weight() );
-								}
-
-								if ( ! $amount_id ) {
-									$nutrition = $ingredient_obj->get_nutrition();
-
-									if ( ! empty( $nutrition['weight_item'] ) ) {
-										$weight_per_unit = floatval( $nutrition['weight_item'] );
-										if ( empty( $unit_title ) ) {
-											$unit_title = 'g';
-										}
-									}
-								}
-
-								$display_amount = $scaled_amount > 0
-									? rtrim( rtrim( number_format_i18n( $scaled_amount, 2 ), '0' ), ',' )
-									: '';
-
-								$line = '';
-								if ( $display_amount ) {
-									$line .= $display_amount . ' ' . ( $unit_title ?: 'g' );
-
-									if ( $weight_per_unit > 0 ) {
-										$line .= ' à ' . number_format_i18n( $weight_per_unit ) . ' g';
-									}
-
-									if ( $total_weight > 0 ) {
-										$line .= ' (≙ ' . number_format_i18n( $total_weight ) . ' g)';
-									}
-								}
-								?>
-								<li>
-								<span class="mmm-ingredient-name">
-									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
-								</span>
-									<?php if ( $line ) : ?>
-										<span class="mmm-ingredient-amount">
-										<?php echo esc_html( $line ); ?>
-									</span>
-									<?php endif; ?>
-									<?php if ( $is_optional ) :
-										?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
-									<?php
-									echo $this->row_product_markup( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
-										(int) $ing['id'],
-										(int) ( $ing['product_id'] ?? 0 ),
-										! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
-									);
-									?>
-								</li>
-							<?php endforeach; ?>
-						</ul>
+						<?php echo $this->render_step_ingredients( (array) $step['ingredients'], $mmm_rows[ $index ] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 					<?php endif; ?>
 				</div>
 			<?php endforeach; ?>
@@ -5228,6 +5142,8 @@ class Mixmymeals_Shortcodes {
 			return $html;
 		}
 
+		$mmm_rows = self::scaled_rows_by_step( $recipe->get_ingredients_scaled( 1.0 ) );
+
 		ob_start();
 		?>
 		<div class="mmm-recipe-steps">
@@ -5272,114 +5188,7 @@ class Mixmymeals_Shortcodes {
 					<?php endif; ?>
 
 					<?php if ( ! empty( $step['ingredients'] ) ) : ?>
-						<ul class="mmm-step-ingredients">
-							<?php foreach ( $step['ingredients'] as $ing ) :
-
-								if ( empty( $ing['id'] ) ) {
-									continue;
-								}
-
-								$ingredient_obj = new Mixmymeals_Ingredient( $ing['id'] );
-
-								if ( ! $ingredient_obj->is_valid() ) {
-									continue;
-								}
-
-								$amount          = floatval(
-									$ing['amount'] ??
-															0
-								);
-								$unit_title      = '';
-								$weight_per_unit = 0.0;
-
-								$amount_id = ! empty( $ing['amount_id'] )
-									? intval( $ing['amount_id'] )
-									: 0;
-
-								$is_optional = ! empty( $ing['optional'] );
-
-								if ( $amount_id ) {
-									$amt_obj         = new Mixmymeals_Ingredient_Amount( $amount_id );
-									$unit_title      = $amt_obj->get_title() ?: '';
-									$weight_per_unit = floatval( $amt_obj->get_weight() );
-								}
-
-								if ( ! $amount_id ) {
-									$nutrition       = $ingredient_obj->get_nutrition();
-									$weight_per_unit = floatval(
-										$nutrition['weight_item'] ??
-										0
-									);
-
-									if ( $weight_per_unit > 0
-										&& empty( $unit_title ) ) {
-										$unit_title = __(
-											'Piece',
-											'mixmymeals'
-										);
-									}
-								}
-
-								$decimals       = ( floor( $amount )
-													!= $amount ) ? 2 : 0;
-								$display_amount = $amount > 0
-									? number_format_i18n( $amount, $decimals )
-									: '';
-
-								$total_weight = ( $weight_per_unit > 0
-													&& $amount > 0 )
-									? (float) round(
-										$weight_per_unit * $amount,
-										2
-									)
-									: 0.0;
-
-								$line = '';
-
-								if ( $display_amount ) {
-									$line .= $display_amount;
-
-									if ( $unit_title ) {
-										$line .= ' ' . $unit_title;
-									} else {
-										$line .= ' g';
-									}
-
-									if ( $weight_per_unit > 0 ) {
-										$line .= ' à '
-												. number_format_i18n( $weight_per_unit )
-												. ' g';
-									}
-
-									if ( $total_weight > 0 ) {
-										$line .= ' (≙ '
-												. number_format_i18n( $total_weight )
-												. ' g)';
-									}
-								}
-								?>
-								<li>
-								<span class="mmm-ingredient-name">
-									<?php echo esc_html( get_the_title( $ing['id'] ) ); ?>
-								</span>
-
-									<?php if ( $line ) : ?>
-										<span class="mmm-ingredient-amount">
-										<?php echo esc_html( $line ); ?>
-									</span>
-									<?php endif; ?>
-									<?php if ( $is_optional ) :
-										?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>
-									<?php
-									echo $this->row_product_markup( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
-										(int) $ing['id'],
-										(int) ( $ing['product_id'] ?? 0 ),
-										! empty( $ing['product_open'] ) ? (string) ( $ing['implemented_for'] ?? '' ) : ''
-									);
-									?>
-								</li>
-							<?php endforeach; ?>
-						</ul>
+						<?php echo $this->render_step_ingredients( (array) $step['ingredients'], $mmm_rows[ $index ] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped. ?>
 					<?php endif; ?>
 				</div>
 			<?php endforeach; ?>
@@ -7400,14 +7209,6 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * Aggregates raw (already scaled) step ingredients by ingredient ID and
-	 * renders them as the shared collapsible ingredients list used on both
-	 * the meal and recipe pages.
-	 *
-	 * @param array $ingredients_raw Entries from Mixmymeals_Recipe::get_ingredients_scaled().
-	 * @return string
-	 */
-	/**
 	 * The article a recipe row names, ready to print beside the ingredient.
 	 *
 	 * Only what the row itself pins — deliberately not the ingredient's
@@ -7457,6 +7258,118 @@ class Mixmymeals_Shortcodes {
 		return '' === $label ? '' : '<span class="mmm-ingredient-product">' . esc_html( $label ) . '</span>';
 	}
 
+	/**
+	 * The amount an ingredient list prints for one ingredient: "3 EL",
+	 * "250 g", "2 EL + 50 g" where its steps use different units.
+	 *
+	 * The amount only. The weight in grams beside it repeated a gram amount
+	 * ("250 g (250 g)") and, beside a unit, said the same thing twice in
+	 * another way ("3 EL (10 g)") — HG-101.
+	 *
+	 * @param array<string,float> $amounts Unit title => scaled amount.
+	 * @return string '' when nothing is above zero.
+	 */
+	private static function ingredient_amounts_text( array $amounts ): string {
+
+		$parts = array();
+
+		foreach ( $amounts as $unit => $amount ) {
+
+			$amount = round( (float) $amount, 2 );
+			if ( $amount <= 0 ) {
+				continue;
+			}
+
+			$decimals = 0;
+			while ( $decimals < 2 && round( $amount, $decimals ) !== $amount ) {
+				++$decimals;
+			}
+
+			$parts[] = number_format_i18n( $amount, $decimals ) . ' ' . $unit;
+		}
+
+		return implode( ' + ', $parts );
+	}
+
+	/**
+	 * Rows of get_ingredients_scaled() as [ step ][ row ], the position each
+	 * had in the stored step — what the step lists look their amounts up by.
+	 *
+	 * @param array $rows Entries from Mixmymeals_Recipe::get_ingredients_scaled().
+	 * @return array<int,array<int,array>>
+	 */
+	private static function scaled_rows_by_step( array $rows ): array {
+
+		$by_step = array();
+
+		foreach ( $rows as $row ) {
+			$by_step[ (int) ( $row['step'] ?? 0 ) ][ (int) ( $row['row'] ?? 0 ) ] = $row;
+		}
+
+		return $by_step;
+	}
+
+	/**
+	 * The ingredients under one step, on recipe and meal pages alike.
+	 *
+	 * Amounts, units and packets come from get_ingredients_scaled() — the
+	 * canonical list, so the step says what the ingredient list says, scaled
+	 * and with the meal's diet applied — and are worded by
+	 * ingredient_amounts_text(). A stored row without an amount ("Salz")
+	 * is listed by name; one the diet dropped (optional, cannot hold it)
+	 * is not listed.
+	 *
+	 * @param array $stored Rows of the stored step.
+	 * @param array $scaled Its scaled rows, keyed by position (scaled_rows_by_step()).
+	 * @return string '' when nothing is left to list.
+	 */
+	private function render_step_ingredients( array $stored, array $scaled ): string {
+
+		$items = '';
+
+		foreach ( $stored as $position => $ing ) {
+
+			$id = (int) ( $ing['id'] ?? 0 );
+			if ( $id <= 0 ) {
+				continue;
+			}
+
+			$row = $scaled[ (int) $position ] ?? null;
+
+			if ( null === $row ) {
+				// Not scaled: no amount stated, or dropped by the diet.
+				if ( (float) ( $ing['amount'] ?? 0 ) > 0 || ! ( new Mixmymeals_Ingredient( $id ) )->is_valid() ) {
+					continue;
+				}
+				$row = $ing + array( 'product_open' => false );
+			}
+
+			$amount = isset( $row['unit'] )
+				? self::ingredient_amounts_text( array( (string) $row['unit'] => (float) $row['amount'] ) )
+				: '';
+
+			$items .= '<li><span class="mmm-ingredient-name">' . esc_html( get_the_title( $id ) ) . '</span>'
+				. ( '' !== $amount ? ' <span class="mmm-ingredient-amount">' . esc_html( $amount ) . '</span>' : '' )
+				. ( ! empty( $row['optional'] ) ? ' <span class="mmm-ingredient-optional">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>' : '' )
+				. $this->row_product_markup(
+					$id,
+					(int) ( $row['product_id'] ?? 0 ),
+					! empty( $row['product_open'] ) ? (string) ( $row['implemented_for'] ?? '' ) : ''
+				)
+				. "</li>\n";
+		}
+
+		return '' === $items ? '' : "<ul class=\"mmm-step-ingredients\">\n" . $items . '</ul>';
+	}
+
+	/**
+	 * Aggregates raw (already scaled) step ingredients by ingredient ID and
+	 * renders them as the shared collapsible ingredients list used on both
+	 * the meal and recipe pages.
+	 *
+	 * @param array $ingredients_raw Entries from Mixmymeals_Recipe::get_ingredients_scaled().
+	 * @return string
+	 */
 	private function render_ingredients_list( array $ingredients_raw ): string {
 
 		if ( empty( $ingredients_raw ) ) {
@@ -7482,9 +7395,9 @@ class Mixmymeals_Shortcodes {
 				$ingredients[ $id ] = array(
 					'id'       => $id,
 					'name'     => $ing['name'] ?? get_the_title( $id ),
-					'unit'     => $ing['unit'] ?? '',
-					'amount'   => 0.0,
-					'weight_g' => 0.0,
+					// Amount per unit, in the order the units first occur:
+					// two steps using "2 EL" and "50 g" are not 52 of either.
+					'amounts'  => array(),
 					// Optional only while every use is optional.
 					'optional' => true,
 					// Named only while every step of the dish names the same
@@ -7503,9 +7416,11 @@ class Mixmymeals_Shortcodes {
 				? $pinned
 				: '0';
 
-			// Aggregation (skalierte Werte direkt verwenden)
-			$ingredients[ $id ]['amount']   += (float) ( $ing['amount'] ?? 0 );
-			$ingredients[ $id ]['weight_g'] += (float) ( $ing['weight_g'] ?? 0 );
+			// Scaled values as they come; summed per unit.
+			$unit = (string) ( $ing['unit'] ?? '' );
+			$unit = '' === $unit ? 'g' : $unit;
+
+			$ingredients[ $id ]['amounts'][ $unit ] = ( $ingredients[ $id ]['amounts'][ $unit ] ?? 0.0 ) + (float) ( $ing['amount'] ?? 0 );
 			$ingredients[ $id ]['optional']  = $ingredients[ $id ]['optional'] && ! empty( $ing['optional'] );
 		}
 
@@ -7539,26 +7454,11 @@ class Mixmymeals_Shortcodes {
 							echo $this->row_product_markup( (int) $ingredient['id'], (int) $mmm_pinned, $mmm_open ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped.
 							?>
 
-							<?php if ( ! empty( $ingredient['amount'] ) ) :
-
-								$amount   = (float) $ingredient['amount'];
-								$unit     = $ingredient['unit'] ?: '';
-								$weight_g = round( (float) $ingredient['weight_g'] );
-
-								$amount_display = rtrim(
-									rtrim(
-										number_format( $amount, 2, ',', '.' ),
-										'0'
-									),
-									','
-								);
+							<?php
+							$mmm_amount = self::ingredient_amounts_text( $ingredient['amounts'] );
+							if ( '' !== $mmm_amount ) :
 								?>
-								<span class="mmm-ingredient-amount">
-								<?php echo esc_html( $amount_display ); ?>
-									<?php if ( $unit ) {
-										echo ' ' . esc_html( $unit );} ?>
-								(<?php echo esc_html( $weight_g ); ?> g)
-							</span>
+								<span class="mmm-ingredient-amount"><?php echo esc_html( $mmm_amount ); ?></span>
 							<?php endif; ?>
 							<?php if ( ! empty( $ingredient['optional'] ) ) :
 								?><span class="mmm-ingredient-optional">(<?php echo esc_html__( 'optional', 'mixmymeals' ); ?>)</span><?php endif; ?>

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.13.0
+Stable tag: 4.13.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.13.1 =
+
+Fixed:
+* Ingredient lists of recipes and meals no longer state an amount twice
+  ("250 g (250 g)", "3 EL (10 g)"): the amount alone is printed. An
+  ingredient used in different units across the steps is summed per unit
+  ("2 EL + 50 g") instead of adding both numbers under the first unit.
+* The ingredients under each step are read from the same scaled list and
+  worded the same way: no "à 50 g (≙ 250 g)" any more, a gram amount is no
+  longer turned into pieces, and on a meal page the step rows follow the
+  meal's diet like the ingredient list does.
 
 = 4.13.0 =
 

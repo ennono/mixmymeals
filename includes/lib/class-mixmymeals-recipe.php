@@ -2605,7 +2605,7 @@ class Mixmymeals_Recipe {
 		self::prime_rows( $steps );
 
 		foreach ( $steps as $step_index => $step ) {
-			foreach ( ( $step['ingredients'] ?? array() ) as $ing ) {
+			foreach ( ( $step['ingredients'] ?? array() ) as $row_index => $ing ) {
 
 				$ing = $this->implement_row( (array) $ing );
 
@@ -2690,6 +2690,8 @@ class Mixmymeals_Recipe {
 					// Several packets hold that diet; the list names none.
 					'product_open'      => ! empty( $ing['product_open'] ),
 					'step'              => $step_index,
+					// Its position in the step, for the step lists.
+					'row'               => $row_index,
 				);
 			}
 		}
