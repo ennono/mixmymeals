@@ -8380,3 +8380,119 @@ msgid "%s attempt"
 msgid_plural "%s attempts"
 msgstr[0] "%s Versuch"
 msgstr[1] "%s Versuche"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Messages"
+msgstr "Nachrichten"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "The subscriber agreed to e-mails about the subscribed meal plan. Write only about that plan (a correction, an answer to a question) — the consent does not cover advertising for anything else. The message carries the unsubscribe link and is recorded below."
+msgstr "Die Einwilligung gilt für E-Mails zum abonnierten Essensplan. Schreib nur zu diesem Plan (eine Korrektur, eine Antwort auf eine Frage) – Werbung für anderes deckt sie nicht. Die Nachricht trägt den Abmelde-Link und wird unten protokolliert."
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Message"
+msgstr "Nachricht"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Send message"
+msgstr "Nachricht senden"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Messages can be sent only to a running (confirmed) subscription whose address has not been unsubscribed."
+msgstr "Nachrichten gehen nur an ein laufendes (bestätigtes) Abo, dessen Adresse nicht abgemeldet ist."
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Messages sent"
+msgstr "Gesendete Nachrichten"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "From"
+msgstr "Von"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "failed"
+msgstr "fehlgeschlagen"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "Message sent and recorded."
+msgstr "Nachricht gesendet und protokolliert."
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "The message could not be sent and is recorded as failed."
+msgstr "Die Nachricht konnte nicht gesendet werden und ist als fehlgeschlagen protokolliert."
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "The message was not sent: subject and text are both required."
+msgstr "Die Nachricht wurde nicht gesendet: Betreff und Text sind beide nötig."
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "The message was not sent: only running subscriptions whose address has not been unsubscribed can receive messages."
+msgstr "Die Nachricht wurde nicht gesendet: Nachrichten gehen nur an laufende Abos, deren Adresse nicht abgemeldet ist."
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "While a subscription runs, we may also write to subscribers individually about the subscribed plan, for example with a correction or an answer to a question. Such a message is stored with the subscription (time, subject and text) and deleted with it."
+msgstr "Solange ein Abo läuft, können wir Abonnenten zum abonnierten Plan auch persönlich schreiben, etwa mit einer Korrektur oder einer Antwort auf eine Frage. Eine solche Nachricht wird beim Abo gespeichert (Zeitpunkt, Betreff und Text) und mit ihm gelöscht."
+
+#. translators: %s: date and time (ISO 8601).
+#: includes/lib/class-mixmymeals-privacy.php
+#, php-format
+msgid "Message of %s"
+msgstr "Nachricht vom %s"
+
+#. translators: %s: reason, e.g. "Template not found: message.html".
+#: includes/lib/class-mixmymeals-subscriptions.php
+#, php-format
+msgid "Reason: %s"
+msgstr "Grund: %s"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "unknown error"
+msgstr "unbekannter Fehler"
+
+#: includes/lib/class-mixmymeals-mailer.php
+msgid "no details"
+msgstr "keine Angaben"
+
+#. translators: %s: masked address(es).
+#: includes/lib/class-mixmymeals-mail-log.php
+#, php-format
+msgid "No valid recipient, or the address is on the suppression list: %s"
+msgstr "Keine gültige Empfängeradresse, oder die Adresse steht auf der Sperrliste: %s"
+
+#. translators: %s: number of mails per hour.
+#: includes/lib/class-mixmymeals-mail-log.php
+#, php-format
+msgid "Limit of %s mails per hour to this address reached"
+msgstr "Grenze von %s Mails pro Stunde an diese Adresse erreicht"
+
+#. translators: %s: error message of the mail system.
+#: includes/lib/class-mixmymeals-mail-log.php
+#, php-format
+msgid "The mail system refused the mail: %s"
+msgstr "Das Mailsystem hat die Mail abgelehnt: %s"
+
+#. translators: %s: template file name.
+#: includes/lib/class-mixmymeals-subscriptions.php
+#, php-format
+msgid "%s (missing)"
+msgstr "%s (fehlt)"
+
+#. translators: 1: template file name, 2: "theme" or "plugin".
+#: includes/lib/class-mixmymeals-subscriptions.php
+#, php-format
+msgid "%1$s (%2$s)"
+msgstr "%1$s (%2$s)"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "theme"
+msgstr "Theme"
+
+#: includes/lib/class-mixmymeals-subscriptions.php
+msgid "plugin"
+msgstr "Plugin"
+
+#. translators: %s: template file name.
+#: includes/lib/class-mixmymeals-subscriptions.php
+#, php-format
+msgid "Without %s no message can be sent. Place it in the theme under mixmymeals/emails/."
+msgstr "Ohne %s kann keine Nachricht gesendet werden. Lege sie im Theme unter mixmymeals/emails/ ab."

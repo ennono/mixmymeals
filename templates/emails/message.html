@@ -1,0 +1,27 @@
+<!--
+	Vorlage für individuelle Nachrichten an Abonnenten
+	(Abo bearbeiten → Kasten „Nachrichten“).
+
+	Wird nur verwendet, wenn das Theme KEINE eigene
+	mixmymeals/emails/message.html bereitstellt – das Theme hat Vorrang.
+	Der gemeinsame Rahmen (layout.html) legt sich darum, samt Fußzeile
+	und Abmelde-Link.
+
+	Platzhalter:
+		greeting          Anrede (z. B. „Hallo Timo,")
+		subject           Betreff der Nachricht
+		message_html      der Text der Nachricht, mit Absätzen
+		plan              Titel des abonnierten Plans
+		plan_url          Link zum Plan
+		plan_number       Plannummer, „#4812"
+		plan_number_html  dieselbe als gerahmtes Etikett
+		unsubscribe_url   Abmelde-Link
+		site_name / site_url / year
+-->
+<p style="margin:0 0 8px;text-align:right;">{{ plan_number_html }}</p>
+
+<p>{{ greeting }}</p>
+
+{{ message_html }}
+
+<p style="font-size:14px;">Du bekommst diese Nachricht, weil du den Essensplan <a href="{{ plan_url }}">{{ plan }}</a> abonniert hast.</p>

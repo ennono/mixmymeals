@@ -102,6 +102,25 @@ class Mixmymeals_Subscriptions {
 
 	const OPT_APPEND_TEXT = 'mixmymeals_subscription_append_text';
 
+	/*
+	 * Individual messages (send_message()): the template, the per-record
+	 * history and its bounds. The history lives on the subscription, so it
+	 * is exported, erased and pruned together with it.
+	 */
+	const MESSAGE_TEMPLATE    = 'message.html';
+	const META_MESSAGES       = '_mmm_sub_messages';
+	const MESSAGES_MAX        = 50;
+	const MESSAGE_SUBJECT_MAX = 150;
+	const MESSAGE_BODY_MAX    = 20000;
+
+	/**
+	 * Result of a message sent from the edit screen during this request, for
+	 * the redirect after the save (redirect_post_location).
+	 *
+	 * @var string
+	 */
+	private static $message_result = '';
+
 	const DEFAULT_PENDING_HOURS = 48;
 	const DEFAULT_RETENTION     = 365;
 	const DISPATCH_BATCH        = 100;
@@ -161,6 +180,8 @@ class Mixmymeals_Subscriptions {
 			add_action( 'admin_post_mmm_sub_resend', array( $this, 'admin_action_resend' ) );
 			add_action( 'admin_notices', array( $this, 'admin_notices' ) );
 			add_action( 'wp_ajax_mmm_sub_test_rule', array( $this, 'ajax_test_rule' ) );
+			add_action( 'save_post_' . self::POST_TYPE, array( $this, 'save_message_box' ) );
+			add_filter( 'redirect_post_location', array( $this, 'message_redirect_location' ), 10, 2 );
 		}
 
 		if ( $plugin_file ) {
@@ -1894,6 +1915,201 @@ class Mixmymeals_Subscriptions {
 		return Mixmymeals_Mailer::send_template( $email, $subject, $template, $vars, $args );
 	}
 
+	/*
+	----------------------------------------------------------
+	 * INDIVIDUAL MESSAGES
+	 * ---------------------------------------------------------- */
+
+	/**
+	 * The template individual messages are rendered with. Theme first
+	 * (<theme>/mixmymeals/emails/message.html), then the plugin's own, like
+	 * every other mail; wrapped in the shared layout.html.
+	 *
+	 * @return string Template file name.
+	 */
+	public static function message_template(): string {
+
+		/**
+		 * Filters the template file of individual messages to subscribers.
+		 *
+		 * @param string $template Template file name.
+		 */
+		$template = (string) apply_filters( 'mixmymeals_subscription_message_template', self::MESSAGE_TEMPLATE );
+
+		return '' !== $template ? $template : self::MESSAGE_TEMPLATE;
+	}
+
+	/**
+	 * May this subscription be written to individually?
+	 *
+	 * Only while subscriptions are switched on, and only a running
+	 * subscription (confirmed) whose address is not on the
+	 * suppression list. The consent covers e-mails about the subscribed plan
+	 * while it runs: an unconfirmed sign-up has given none, and a finished or
+	 * cancelled record is kept only as proof of consent — the privacy text
+	 * says so, and writing to it would use it for something else.
+	 *
+	 * @param int $sub_id Subscription ID.
+	 * @return bool
+	 */
+	public static function may_receive_message( int $sub_id ): bool {
+
+		// Switched off, the privacy text no longer describes subscriptions.
+		if ( ! self::is_enabled() || self::POST_TYPE !== get_post_type( $sub_id ) ) {
+			return false;
+		}
+
+		if ( 'confirmed' !== (string) get_post_meta( $sub_id, '_mmm_sub_status', true ) ) {
+			return false;
+		}
+
+		$email = (string) get_post_meta( $sub_id, '_mmm_sub_email', true );
+
+		if ( ! is_email( $email ) ) {
+			return false;
+		}
+
+		return ! ( class_exists( 'Mixmymeals_Mailer' ) && Mixmymeals_Mailer::is_suppressed( $email ) );
+	}
+
+	/**
+	 * Sends one individual message to a subscriber and records it on the
+	 * subscription (time, sender, subject, text, outcome); the mailer adds
+	 * its usual line to the send log.
+	 *
+	 * The mail carries the unsubscribe link and the List-Unsubscribe header
+	 * like the drip, and honours the suppression list (never forced).
+	 *
+	 * Placeholders of message.html: {{ greeting }}, {{ subject }},
+	 * {{ message_html }}, {{ plan }}, {{ plan_url }}, {{ plan_number }},
+	 * {{ plan_number_html }}, {{ unsubscribe_url }}, plus the mailer's
+	 * defaults (site_name, site_url, year, footer_html, unsubscribe_html).
+	 *
+	 * @param int    $sub_id  Subscription ID.
+	 * @param string $subject Subject line (plain text).
+	 * @param string $message Message (text or simple HTML; paragraphs are added).
+	 * @return string sent | failed | empty | not_active
+	 */
+	public static function send_message( int $sub_id, string $subject, string $message ): string {
+
+		$subject = trim( sanitize_text_field( $subject ) );
+		$message = trim( wp_kses_post( $message ) );
+
+		if ( '' === $subject || '' === $message ) {
+			return 'empty';
+		}
+
+		if ( ! self::may_receive_message( $sub_id ) || ! class_exists( 'Mixmymeals_Mailer' ) ) {
+			return 'not_active';
+		}
+
+		$subject = mb_substr( $subject, 0, self::MESSAGE_SUBJECT_MAX );
+		$message = mb_substr( $message, 0, self::MESSAGE_BODY_MAX );
+
+		$email   = (string) get_post_meta( $sub_id, '_mmm_sub_email', true );
+		$name    = (string) get_post_meta( $sub_id, '_mmm_sub_name', true );
+		$token   = (string) get_post_meta( $sub_id, '_mmm_sub_token', true );
+		$plan_id = (int) get_post_meta( $sub_id, '_mmm_sub_plan_id', true );
+
+		$unsubscribe_url = self::endpoint_url( 'unsubscribe', $token );
+		$has_plan        = $plan_id && 'mmm_meal_plan' === get_post_type( $plan_id );
+
+		$vars = array(
+			'greeting'         => self::greeting( $name ),
+			'subject'          => $subject,
+			'message_html'     => wpautop( $message ),
+			'plan'             => $has_plan ? get_the_title( $plan_id ) : '',
+			'plan_url'         => $has_plan ? (string) get_permalink( $plan_id ) : '',
+			'plan_number'      => $has_plan ? Mixmymeals_Meal_Plan::number_label( $plan_id ) : '',
+			'plan_number_html' => $has_plan ? self::plan_number_html( $plan_id ) : '',
+			'unsubscribe_url'  => $unsubscribe_url,
+		);
+
+		$sent = Mixmymeals_Mailer::send_template(
+			$email,
+			$subject,
+			self::message_template(),
+			$vars,
+			array(
+				'layout'          => 'layout.html',
+				'transactional'   => true,
+				'unsubscribe_url' => $unsubscribe_url,
+			)
+		);
+
+		// Why it failed, worded like the send log — stored with the message,
+		// so it can be told even where the send log is switched off.
+		$error = $sent ? '' : Mixmymeals_Mail_Log::reason_text( Mixmymeals_Mailer::last_error() );
+
+		self::record_message( $sub_id, $subject, $message, $sent, '' !== $error ? $error : __( 'unknown error', 'mixmymeals' ) );
+
+		return $sent ? 'sent' : 'failed';
+	}
+
+	/**
+	 * Appends a message to the subscription's history, newest last, keeping
+	 * at most MESSAGES_MAX entries.
+	 *
+	 * @param int    $sub_id  Subscription ID.
+	 * @param string $subject Subject as sent.
+	 * @param string $message Message as sent (sanitized).
+	 * @param bool   $sent    Whether the mailer reported success.
+	 * @param string $error   Why it failed (plain text; ignored when sent).
+	 * @return void
+	 */
+	private static function record_message( int $sub_id, string $subject, string $message, bool $sent, string $error = '' ): void {
+
+		$log   = self::get_messages( $sub_id );
+		$log[] = array(
+			'time'    => time(),
+			'user'    => get_current_user_id(),
+			'subject' => $subject,
+			'message' => $message,
+			'sent'    => $sent,
+			'error'   => $sent ? '' : $error,
+		);
+
+		if ( count( $log ) > self::MESSAGES_MAX ) {
+			$log = array_slice( $log, -self::MESSAGES_MAX );
+		}
+
+		update_post_meta( $sub_id, self::META_MESSAGES, $log );
+	}
+
+	/**
+	 * The subscription's message history, oldest first. Entries that are not
+	 * arrays are dropped.
+	 *
+	 * @param int $sub_id Subscription ID.
+	 * @return array<int,array{time:int,user:int,subject:string,message:string,sent:bool,error:string}>
+	 */
+	public static function get_messages( int $sub_id ): array {
+
+		$log = get_post_meta( $sub_id, self::META_MESSAGES, true );
+
+		if ( ! is_array( $log ) ) {
+			return array();
+		}
+
+		$out = array();
+
+		foreach ( $log as $entry ) {
+			if ( ! is_array( $entry ) ) {
+				continue;
+			}
+			$out[] = array(
+				'time'    => (int) ( $entry['time'] ?? 0 ),
+				'user'    => (int) ( $entry['user'] ?? 0 ),
+				'subject' => (string) ( $entry['subject'] ?? '' ),
+				'message' => (string) ( $entry['message'] ?? '' ),
+				'sent'    => ! empty( $entry['sent'] ),
+				'error'   => (string) ( $entry['error'] ?? '' ),
+			);
+		}
+
+		return $out;
+	}
+
 	/**
 	 * Builds the full set of placeholders available to every subscription
 	 * template, for a given plan and weekday. There is no per-content provider:
@@ -2492,7 +2708,7 @@ class Mixmymeals_Subscriptions {
 	 * @param string $name Subscriber name (may be empty).
 	 * @return string Escaped greeting (no markup).
 	 */
-	private function greeting( string $name ): string {
+	private static function greeting( string $name ): string {
 		return '' !== $name
 			? sprintf( /* translators: %s: subscriber name. */ __( 'Hi %s,', 'mixmymeals' ), $name )
 			: __( 'Hi there,', 'mixmymeals' );
@@ -3149,6 +3365,172 @@ class Mixmymeals_Subscriptions {
 			'normal',
 			'high'
 		);
+
+		add_meta_box(
+			'mmm_sub_message',
+			__( 'Messages', 'mixmymeals' ),
+			array( $this, 'render_message_box' ),
+			self::POST_TYPE,
+			'normal',
+			'default'
+		);
+	}
+
+	/**
+	 * Renders the "Messages" box: a form for an individual message (only for
+	 * a running subscription) and the history of messages sent.
+	 *
+	 * The fields post with the edit form; the box's own button and nonce
+	 * tell save_message_box() to send, the ordinary Update button does not.
+	 *
+	 * @param WP_Post $post Subscription post.
+	 * @return void
+	 */
+	public function render_message_box( WP_Post $post ): void {
+
+		$sub_id = $post->ID;
+
+		if ( self::may_receive_message( $sub_id ) ) {
+
+			wp_nonce_field( 'mmm_sub_message_' . $sub_id, 'mmm_sub_message_nonce' );
+
+			echo '<p class="description">'
+				. esc_html__( 'The subscriber agreed to e-mails about the subscribed meal plan. Write only about that plan (a correction, an answer to a question) — the consent does not cover advertising for anything else. The message carries the unsubscribe link and is recorded below.', 'mixmymeals' )
+				. '</p>';
+
+			echo '<p><label for="mmm-sub-message-subject"><strong>' . esc_html__( 'Subject', 'mixmymeals' ) . '</strong></label><br>'
+				. '<input type="text" id="mmm-sub-message-subject" name="mmm_sub_message_subject" class="large-text" maxlength="'
+				. esc_attr( (string) self::MESSAGE_SUBJECT_MAX ) . '"></p>';
+
+			echo '<p><label for="mmm-sub-message-body"><strong>' . esc_html__( 'Message', 'mixmymeals' ) . '</strong></label><br>'
+				. '<textarea id="mmm-sub-message-body" name="mmm_sub_message_body" class="large-text" rows="8"></textarea></p>';
+
+			$template = self::message_template();
+			$file     = Mixmymeals_Mailer::locate_template( $template );
+
+			// Shown, not chosen: individual messages always use the one
+			// template (message_template()). A disabled select says which
+			// one, where it comes from, and that it is missing.
+			if ( '' === $file ) {
+				$option = sprintf(
+					/* translators: %s: template file name. */
+					__( '%s (missing)', 'mixmymeals' ),
+					$template
+				);
+			} else {
+				$in_theme = 0 === strpos( wp_normalize_path( $file ), wp_normalize_path( get_stylesheet_directory() ) )
+					|| 0 === strpos( wp_normalize_path( $file ), wp_normalize_path( get_template_directory() ) );
+				$option   = sprintf(
+					/* translators: 1: template file name, 2: "theme" or "plugin". */
+					__( '%1$s (%2$s)', 'mixmymeals' ),
+					$template,
+					$in_theme ? __( 'theme', 'mixmymeals' ) : __( 'plugin', 'mixmymeals' )
+				);
+			}
+
+			echo '<p><label for="mmm-sub-message-template"><strong>' . esc_html__( 'Template', 'mixmymeals' ) . '</strong></label><br>'
+				. '<select id="mmm-sub-message-template" disabled><option selected>' . esc_html( $option ) . '</option></select>';
+
+			if ( '' === $file ) {
+				echo '<br><span class="description" style="color:#b32d2e;">' . esc_html(
+					sprintf(
+						/* translators: %s: template file name. */
+						__( 'Without %s no message can be sent. Place it in the theme under mixmymeals/emails/.', 'mixmymeals' ),
+						$template
+					)
+				) . '</span>';
+			}
+
+			echo '</p><p>';
+			submit_button(
+				__( 'Send message', 'mixmymeals' ),
+				'secondary',
+				'mmm_sub_message_send',
+				false,
+				'' === $file ? array( 'disabled' => 'disabled' ) : null
+			);
+			echo '</p>';
+		} else {
+			echo '<p class="description">'
+				. esc_html__( 'Messages can be sent only to a running (confirmed) subscription whose address has not been unsubscribed.', 'mixmymeals' )
+				. '</p>';
+		}
+
+		$messages = self::get_messages( $sub_id );
+
+		if ( empty( $messages ) ) {
+			return;
+		}
+
+		$fmt = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+
+		echo '<h3 style="margin:18px 0 6px;">' . esc_html__( 'Messages sent', 'mixmymeals' ) . '</h3>';
+		echo '<table class="widefat striped"><thead><tr>';
+		echo '<th>' . esc_html__( 'When', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'From', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Message', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'State', 'mixmymeals' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( array_reverse( $messages ) as $entry ) {
+			$user = $entry['user'] ? get_userdata( $entry['user'] ) : false;
+
+			echo '<tr><td>' . esc_html( $entry['time'] ? wp_date( $fmt, $entry['time'] ) : '—' ) . '</td>'
+				. '<td>' . esc_html( $user ? $user->display_name : '—' ) . '</td>'
+				. '<td><details><summary>' . esc_html( $entry['subject'] ) . '</summary>'
+				. wp_kses_post( wpautop( $entry['message'] ) ) . '</details></td>'
+				. '<td>' . esc_html( $entry['sent'] ? __( 'sent', 'mixmymeals' ) : __( 'failed', 'mixmymeals' ) )
+				. ( '' !== $entry['error'] ? '<br><span class="description">' . esc_html( $entry['error'] ) . '</span>' : '' )
+				. '</td></tr>';
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Sends the message from the "Messages" box when its own button was
+	 * pressed. Runs inside the edit form's save, so the redirect after it
+	 * (post.php's PRG) keeps a reload from sending twice.
+	 *
+	 * @param int $post_id Subscription ID.
+	 * @return void
+	 */
+	public function save_message_box( int $post_id ): void {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked right below.
+		if ( empty( $_POST['mmm_sub_message_send'] ) || ! isset( $_POST['mmm_sub_message_nonce'] ) ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['mmm_sub_message_nonce'] ) ), 'mmm_sub_message_' . $post_id ) ) {
+			return;
+		}
+
+		if ( wp_is_post_revision( $post_id ) || ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		$subject = isset( $_POST['mmm_sub_message_subject'] ) ? (string) wp_unslash( $_POST['mmm_sub_message_subject'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in send_message().
+		$message = isset( $_POST['mmm_sub_message_body'] ) ? (string) wp_unslash( $_POST['mmm_sub_message_body'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in send_message().
+
+		self::$message_result = self::send_message( $post_id, $subject, $message );
+	}
+
+	/**
+	 * Carries the result of a message into the address post.php redirects
+	 * to, where admin_notices() words it.
+	 *
+	 * @param string $location Redirect target.
+	 * @param int    $post_id  Post ID.
+	 * @return string
+	 */
+	public function message_redirect_location( string $location, int $post_id ): string {
+
+		if ( '' === self::$message_result || self::POST_TYPE !== get_post_type( $post_id ) ) {
+			return $location;
+		}
+
+		return add_query_arg( 'mmm_sub_done', 'message_' . self::$message_result, remove_query_arg( 'message', $location ) );
 	}
 
 	/**
@@ -3250,6 +3632,11 @@ class Mixmymeals_Subscriptions {
 		if ( 'pending' === $status ) {
 			$actions['mmm_resend'] = '<a href="' . esc_url( $this->action_url( 'mmm_sub_resend', $post->ID ) ) . '">'
 				. esc_html__( 'Resend confirmation', 'mixmymeals' ) . '</a>';
+		}
+
+		if ( self::may_receive_message( $post->ID ) ) {
+			$actions['mmm_message'] = '<a href="' . esc_url( get_edit_post_link( $post->ID ) . '#mmm_sub_message' ) . '">'
+				. esc_html__( 'Send message', 'mixmymeals' ) . '</a>';
 		}
 
 		if ( in_array( $status, array( 'pending', 'confirmed' ), true ) ) {
@@ -3363,10 +3750,37 @@ class Mixmymeals_Subscriptions {
 			'unsubscribed' => __( 'Subscription unsubscribed and the address added to the suppression list.', 'mixmymeals' ),
 			'resent'       => __( 'Confirmation e-mail re-sent.', 'mixmymeals' ),
 			'noop'         => __( 'Nothing to do for this subscription.', 'mixmymeals' ),
+			'message_sent' => __( 'Message sent and recorded.', 'mixmymeals' ),
+		);
+
+		$errors = array(
+			'message_failed'     => __( 'The message could not be sent and is recorded as failed.', 'mixmymeals' ),
+			'message_empty'      => __( 'The message was not sent: subject and text are both required.', 'mixmymeals' ),
+			'message_not_active' => __( 'The message was not sent: only running subscriptions whose address has not been unsubscribed can receive messages.', 'mixmymeals' ),
 		);
 
 		if ( isset( $messages[ $result ] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $messages[ $result ] ) . '</p></div>';
+		} elseif ( isset( $errors[ $result ] ) ) {
+			$text = $errors[ $result ];
+
+			// The reason was stored with the message; name it here rather
+			// than send the reader to a log that may be switched off.
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$post_id = isset( $_GET['post'] ) ? absint( wp_unslash( $_GET['post'] ) ) : 0;
+			if ( 'message_failed' === $result && $post_id ) {
+				$last = self::get_messages( $post_id );
+				$last = end( $last );
+				if ( $last && ! $last['sent'] && '' !== $last['error'] ) {
+					$text .= ' ' . sprintf(
+						/* translators: %s: reason, e.g. "Template not found: message.html". */
+						__( 'Reason: %s', 'mixmymeals' ),
+						$last['error']
+					);
+				}
+			}
+
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
 		}
 	}
 }

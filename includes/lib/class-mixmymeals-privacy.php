@@ -219,6 +219,17 @@ class Mixmymeals_Privacy {
 				);
 			}
 
+			foreach ( Mixmymeals_Subscriptions::get_messages( $sub_id ) as $message ) {
+				$data[] = array(
+					'name'  => sprintf(
+						/* translators: %s: date and time (ISO 8601). */
+						__( 'Message of %s', 'mixmymeals' ),
+						wp_date( 'c', $message['time'] )
+					),
+					'value' => $message['subject'] . "\n\n" . wp_strip_all_tags( $message['message'] ),
+				);
+			}
+
 			$export[] = array(
 				'group_id'    => 'mixmymeals-subscriptions',
 				'group_label' => __( 'MixMyMeals newsletter subscriptions', 'mixmymeals' ),
@@ -757,6 +768,12 @@ class Mixmymeals_Privacy {
 			$sub .= ' ' . ( '' !== trim( (string) get_option( Mixmymeals_Subscriptions::OPT_APPEND_TEXT, '' ) )
 				? __( 'The e-mails contain the meals and the shopping list of the subscribed plan, links for rating its recipes and sharing photos, and a short additional text from us.', 'mixmymeals' )
 				: __( 'The e-mails contain the meals and the shopping list of the subscribed plan and links for rating its recipes and sharing photos.', 'mixmymeals' ) );
+
+			// Individual messages (Mixmymeals_Subscriptions::send_message()):
+			// within the purpose consented to — the subscribed plan — and only
+			// while the subscription runs; their text is personal data kept
+			// with the record, so storage and deletion are named.
+			$sub .= ' ' . __( 'While a subscription runs, we may also write to subscribers individually about the subscribed plan, for example with a correction or an answer to a question. Such a message is stored with the subscription (time, subject and text) and deleted with it.', 'mixmymeals' );
 
 			// Art. 13(2)(e) GDPR: whether the address is required, and what
 			// follows if it is not given or not confirmed.

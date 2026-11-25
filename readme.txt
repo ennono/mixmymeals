@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.11.2
+Stable tag: 4.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,29 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.12.0 =
+
+Added:
+* Individual messages to subscribers: the subscription's edit screen has a
+  box "Messages" (subject, text, "Send message"; row action "Send message"
+  in the list). Only for a running (confirmed) subscription while
+  subscriptions are on and the address is not on the suppression list —
+  pending and finished records are kept as proof of consent, not for
+  writing to. The mail uses its own template `message.html` (theme first,
+  plugin fallback; filter `mixmymeals_subscription_message_template`)
+  inside the shared layout, with the unsubscribe link and the
+  List-Unsubscribe header. Each message is recorded on the subscription
+  (time, sender, subject, text, outcome; at most 50) and in the send log,
+  exported with the subscription and deleted with it. The privacy section
+  says so.
+
+Fixed:
+* Every mail that fails is now entered in the send log with its reason:
+  the hourly limit per address and the mail system's own error message
+  ("The mail system refused the mail: SMTP Error …") left no trace before.
+  A failed message to a subscriber names its reason in the notice and in
+  the subscription's history, also where the send log is switched off.
 
 = 4.11.2 =
 

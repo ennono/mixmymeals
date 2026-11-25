@@ -80,6 +80,42 @@ class Mixmymeals_Mailer {
 	const MAX_RECIPIENTS = 50;
 
 	/**
+	 * Why the last send() / send_template() call failed: reason key of
+	 * Mixmymeals_Mail_Log::reasons() plus its detail; empty after success.
+	 * Lets a caller tell the person who pressed the button what happened,
+	 * also where the send log is switched off.
+	 *
+	 * @var array{reason:string,detail:string}
+	 */
+	private static $last_error = array(
+		'reason' => '',
+		'detail' => '',
+	);
+
+	/**
+	 * Why the last send failed (see $last_error).
+	 *
+	 * @return array{reason:string,detail:string}
+	 */
+	public static function last_error(): array {
+		return self::$last_error;
+	}
+
+	/**
+	 * Sets (or clears) the reason of the current send's failure.
+	 *
+	 * @param string $reason Key of Mixmymeals_Mail_Log::reasons(), '' clears.
+	 * @param string $detail What the reason is about.
+	 * @return void
+	 */
+	private static function fail( string $reason, string $detail = '' ): void {
+		self::$last_error = array(
+			'reason' => $reason,
+			'detail' => $detail,
+		);
+	}
+
+	/**
 	 * Not instantiable — this is a stateless service.
 	 */
 	private function __construct() {
@@ -138,6 +174,8 @@ class Mixmymeals_Mailer {
 
 		$args = wp_parse_args( $args, $defaults );
 
+		self::fail( '' );
+
 		$is_html = (bool) $args['html'];
 		$force   = (bool) $args['force'];
 
@@ -146,6 +184,7 @@ class Mixmymeals_Mailer {
 
 		if ( empty( $recipients ) ) {
 			self::log( 'No valid (non-suppressed) recipient for subject: ' . self::sanitize_header_value( $subject ) );
+			self::fail( 'no_recipient', self::mask_email( is_array( $to ) ? implode( ', ', $to ) : (string) $to ) );
 			return false;
 		}
 
@@ -172,6 +211,11 @@ class Mixmymeals_Mailer {
 
 			if ( ! self::passes_rate_limit( $recipient ) ) {
 				self::log( 'Rate limit reached for ' . self::mask_email( $recipient ) );
+				$limit = (string) (int) apply_filters( 'mixmymeals_mail_rate_limit_per_hour', 0, $recipient );
+				self::fail( 'rate_limited', $limit );
+				if ( class_exists( 'Mixmymeals_Mail_Log' ) ) {
+					Mixmymeals_Mail_Log::record( $recipient, $subject, false, (bool) $args['transactional'], 'rate_limited', $limit );
+				}
 				$all_sent = false;
 				continue;
 			}
@@ -196,6 +240,16 @@ class Mixmymeals_Mailer {
 				$recipient
 			);
 
+			// wp_mail() answers only true/false; what went wrong arrives
+			// through wp_mail_failed, so it is caught for this one call.
+			$mail_error = '';
+			$catch      = static function ( $error ) use ( &$mail_error ) {
+				if ( is_wp_error( $error ) ) {
+					$mail_error = $error->get_error_message();
+				}
+			};
+			add_action( 'wp_mail_failed', $catch );
+
 			$sent = wp_mail(
 				$mail['to'],
 				$mail['subject'],
@@ -203,6 +257,8 @@ class Mixmymeals_Mailer {
 				$mail['headers'],
 				$mail['attachments']
 			);
+
+			remove_action( 'wp_mail_failed', $catch );
 
 			if ( $sent ) {
 				self::record_send( $recipient );
@@ -215,6 +271,7 @@ class Mixmymeals_Mailer {
 				do_action( 'mixmymeals_mail_sent', self::mask_email( $recipient ), $subject );
 			} else {
 				$all_sent = false;
+				self::fail( 'wp_mail', '' !== $mail_error ? $mail_error : __( 'no details', 'mixmymeals' ) );
 				self::log( 'wp_mail() failed for ' . self::mask_email( $recipient ) );
 				/**
 				 * Fires when wp_mail() reported a failure for a recipient.
@@ -227,7 +284,11 @@ class Mixmymeals_Mailer {
 
 			// Send log (bounded ring buffer; no-op when disabled / unavailable).
 			if ( class_exists( 'Mixmymeals_Mail_Log' ) ) {
-				Mixmymeals_Mail_Log::record( $recipient, $subject, (bool) $sent, (bool) $args['transactional'] );
+				if ( $sent ) {
+					Mixmymeals_Mail_Log::record( $recipient, $subject, true, (bool) $args['transactional'] );
+				} else {
+					Mixmymeals_Mail_Log::record( $recipient, $subject, false, (bool) $args['transactional'], 'wp_mail', self::$last_error['detail'] );
+				}
 			}
 		}
 
@@ -272,6 +333,8 @@ class Mixmymeals_Mailer {
 
 		$vars = array_merge( self::default_vars(), $vars );
 
+		self::fail( '' );
+
 		// Build a ready-to-render unsubscribe note from whichever unsubscribe URL
 		// is available, so every layout can surface a visible opt-out link without
 		// emitting an empty link in mails that have none (e.g. confirmations).
@@ -298,6 +361,7 @@ class Mixmymeals_Mailer {
 		if ( '' === trim( $raw ) ) {
 			self::log( 'Template not found or empty: ' . ( $inline ? '(inline)' : $template ) );
 			self::record_unsent( $to, self::render( $subject, $vars, false ), $args, 'template_missing', $inline ? '(inline)' : $template );
+			self::fail( 'template_missing', $inline ? '(inline)' : $template );
 			return false;
 		}
 

@@ -287,6 +287,12 @@ class Mixmymeals_Mail_Log {
 		return array(
 			/* translators: %s: template file name, e.g. "each-day.html". */
 			'template_missing' => __( 'Template not found: %s', 'mixmymeals' ),
+			/* translators: %s: masked address(es). */
+			'no_recipient'     => __( 'No valid recipient, or the address is on the suppression list: %s', 'mixmymeals' ),
+			/* translators: %s: number of mails per hour. */
+			'rate_limited'     => __( 'Limit of %s mails per hour to this address reached', 'mixmymeals' ),
+			/* translators: %s: error message of the mail system. */
+			'wp_mail'          => __( 'The mail system refused the mail: %s', 'mixmymeals' ),
 		);
 	}
 
