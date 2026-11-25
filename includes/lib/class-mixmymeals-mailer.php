@@ -297,6 +297,7 @@ class Mixmymeals_Mailer {
 
 		if ( '' === trim( $raw ) ) {
 			self::log( 'Template not found or empty: ' . ( $inline ? '(inline)' : $template ) );
+			self::record_unsent( $to, self::render( $subject, $vars, false ), $args, 'template_missing', $inline ? '(inline)' : $template );
 			return false;
 		}
 
@@ -354,6 +355,32 @@ class Mixmymeals_Mailer {
 		unset( $args['inline'], $args['layout'], $args['append_html'] );
 
 		return self::send( $to, $subject, $body, $args );
+	}
+
+	/**
+	 * Enters a mail that failed before wp_mail() in the send log, so it shows
+	 * up there as failed instead of not at all. Until 4.11.2 a missing
+	 * template left no trace but error_log(): after the switch to the Hello
+	 * child theme no subscription mail went out for ten days, unnoticed.
+	 *
+	 * @param string|string[] $to      Recipient(s) as passed to send_template().
+	 * @param string          $subject Rendered subject.
+	 * @param array           $args    send_template() arguments.
+	 * @param string          $reason  Key of Mixmymeals_Mail_Log::reasons().
+	 * @param string          $detail  What the reason is about.
+	 * @return void
+	 */
+	private static function record_unsent( $to, string $subject, array $args, string $reason, string $detail ): void {
+
+		if ( ! class_exists( 'Mixmymeals_Mail_Log' ) ) {
+			return;
+		}
+
+		$transactional = ! array_key_exists( 'transactional', $args ) || (bool) $args['transactional'];
+
+		foreach ( self::normalize_recipients( $to, ! empty( $args['force'] ) ) as $recipient ) {
+			Mixmymeals_Mail_Log::record( $recipient, self::sanitize_subject( $subject ), false, $transactional, $reason, $detail );
+		}
 	}
 
 	/**

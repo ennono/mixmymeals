@@ -2262,6 +2262,11 @@ class Mixmymeals_Settings {
 				? '<span style="color:#3F6F1E;font-weight:600;">' . esc_html__( 'Sent', 'mixmymeals' ) . '</span>'
 				: '<span style="color:#D2622C;font-weight:600;">' . esc_html__( 'Failed', 'mixmymeals' ) . '</span>';
 
+			$reason = Mixmymeals_Mail_Log::reason_text( $entry );
+			if ( '' !== $reason ) {
+				$badge .= '<br /><span class="description">' . esc_html( $reason ) . '</span>';
+			}
+
 			$html .= '<tr>'
 					. '<td>' . esc_html( $when ) . '</td>'
 					. '<td>' . esc_html( $to ) . '</td>'

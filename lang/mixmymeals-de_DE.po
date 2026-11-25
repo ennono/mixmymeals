@@ -8366,3 +8366,17 @@ msgstr "Speicher im Browser: Abgehakte Einträge einer Einkaufsliste werden nur 
 #, php-format
 msgid "Plan start: not every recipe category was found (category=\"%s\")."
 msgstr "Plan-Start: Nicht jede Rezeptkategorie wurde gefunden (category=\"%s\")."
+
+#. translators: %s: template file name, e.g. "each-day.html".
+#: includes/lib/class-mixmymeals-mail-log.php
+#, php-format
+msgid "Template not found: %s"
+msgstr "Vorlage nicht gefunden: %s"
+
+#. translators: %s: number of attempts.
+#: includes/lib/class-mixmymeals-mail-log.php
+#, php-format
+msgid "%s attempt"
+msgid_plural "%s attempts"
+msgstr[0] "%s Versuch"
+msgstr[1] "%s Versuche"

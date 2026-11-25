@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.11.1
+Stable tag: 4.11.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.11.2 =
+
+Fixed:
+* A mail whose template cannot be found is now entered in the send log as
+  failed, naming the template ("Template not found: each-day.html"), instead
+  of leaving no trace. The drip retries such a slot every 15 minutes; the log
+  keeps one row per recipient, subject and template and counts the attempts.
 
 = 4.11.1 =
 

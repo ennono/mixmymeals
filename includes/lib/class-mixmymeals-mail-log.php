@@ -207,10 +207,13 @@ class Mixmymeals_Mail_Log {
 	 * @param string $subject       Subject line.
 	 * @param bool   $success       Whether wp_mail() reported success.
 	 * @param bool   $transactional Whether the mail was transactional.
+	 * @param string $reason        Why it failed before reaching wp_mail(), one
+	 *                              of reasons() ('' = wp_mail() itself answered).
+	 * @param string $detail        What the reason is about (e.g. the template name).
 	 *
 	 * @return void
 	 */
-	public static function record( string $recipient, string $subject, bool $success, bool $transactional = true ): void {
+	public static function record( string $recipient, string $subject, bool $success, bool $transactional = true, string $reason = '', string $detail = '' ): void {
 
 		if ( ! self::is_enabled() ) {
 			return;
@@ -222,20 +225,48 @@ class Mixmymeals_Mail_Log {
 			return;
 		}
 
+		$subject = sanitize_text_field( $subject );
+		$reason  = array_key_exists( $reason, self::reasons() ) ? $reason : '';
+		$detail  = sanitize_text_field( $detail );
+
 		// The array is loaded and rewritten anyway, so applying the age limit
 		// here is free and keeps the log clean between cron runs.
 		$entries = self::drop_aged_out( self::get_entries() );
 
-		array_unshift(
-			$entries,
-			array(
-				'time'          => time(),
-				'to'            => $recipient,
-				'subject'       => sanitize_text_field( $subject ),
-				'status'        => $success ? 'sent' : 'failed',
-				'transactional' => $transactional,
-			)
+		// A failure with a reason is retried by the drip on every cron run
+		// (every 15 minutes): one row that counts the attempts, not a log
+		// that pushes everything else out within a day.
+		if ( '' !== $reason ) {
+			foreach ( $entries as $i => $entry ) {
+				if ( ( $entry['reason'] ?? '' ) === $reason
+					&& ( $entry['detail'] ?? '' ) === $detail
+					&& ( $entry['to'] ?? '' ) === $recipient
+					&& ( $entry['subject'] ?? '' ) === $subject ) {
+					$entry['time']     = time();
+					$entry['attempts'] = max( 1, (int) ( $entry['attempts'] ?? 1 ) ) + 1;
+					unset( $entries[ $i ] );
+					array_unshift( $entries, $entry );
+					update_option( self::OPTION, array_values( $entries ), false );
+					return;
+				}
+			}
+		}
+
+		$entry = array(
+			'time'          => time(),
+			'to'            => $recipient,
+			'subject'       => $subject,
+			'status'        => $success ? 'sent' : 'failed',
+			'transactional' => $transactional,
 		);
+
+		if ( '' !== $reason ) {
+			$entry['reason']   = $reason;
+			$entry['detail']   = $detail;
+			$entry['attempts'] = 1;
+		}
+
+		array_unshift( $entries, $entry );
 
 		$max = self::get_max_entries();
 
@@ -244,6 +275,49 @@ class Mixmymeals_Mail_Log {
 		}
 
 		update_option( self::OPTION, $entries, false );
+	}
+
+	/**
+	 * Reasons a mail can fail before it reaches wp_mail(), worded for the log.
+	 * Each wording takes the entry's detail as %s.
+	 *
+	 * @return array<string,string> Reason key => translated wording.
+	 */
+	public static function reasons(): array {
+		return array(
+			/* translators: %s: template file name, e.g. "each-day.html". */
+			'template_missing' => __( 'Template not found: %s', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * Explains a failed entry: its reason with the detail filled in, plus the
+	 * number of attempts when it was retried. '' for entries without a reason.
+	 *
+	 * @param array $entry Log entry.
+	 * @return string Plain text; escape on output.
+	 */
+	public static function reason_text( array $entry ): string {
+
+		$reasons = self::reasons();
+		$reason  = (string) ( $entry['reason'] ?? '' );
+
+		if ( ! isset( $reasons[ $reason ] ) ) {
+			return '';
+		}
+
+		$text     = sprintf( $reasons[ $reason ], (string) ( $entry['detail'] ?? '' ) );
+		$attempts = (int) ( $entry['attempts'] ?? 1 );
+
+		if ( $attempts > 1 ) {
+			$text .= ' · ' . sprintf(
+				/* translators: %s: number of attempts. */
+				_n( '%s attempt', '%s attempts', $attempts, 'mixmymeals' ),
+				number_format_i18n( $attempts )
+			);
+		}
+
+		return $text;
 	}
 
 	/**
