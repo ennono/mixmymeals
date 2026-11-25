@@ -8496,3 +8496,45 @@ msgstr "Plugin"
 #, php-format
 msgid "Without %s no message can be sent. Place it in the theme under mixmymeals/emails/."
 msgstr "Ohne %s kann keine Nachricht gesendet werden. Lege sie im Theme unter mixmymeals/emails/ ab."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgctxt "Matomo campaign name of subscription mails"
+msgid "subscription"
+msgstr "abo-mail"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Links in subscription e-mails"
+msgstr "Links in Abo-Mails"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Campaign parameters"
+msgstr "Kampagnenparameter"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Add Matomo campaign parameters to the links in subscription e-mails, so Matomo counts visits that come from them. Counted per kind of e-mail, never per subscriber: links that carry the subscription's token (rating, photos, unsubscribe) are left as they are."
+msgstr "Matomo-Kampagnenparameter an die Links in Abo-Mails hängen, damit Matomo Besuche zählt, die von dort kommen. Gezählt wird pro Mail-Art, nie pro Abonnent: Links mit dem Token des Abos (Bewerten, Fotos, Abmelden) bleiben, wie sie sind."
+
+#: includes/class-mixmymeals-settings.php
+msgid "Campaign name"
+msgstr "Kampagnenname"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Campaign keyword"
+msgstr "Kampagnen-Stichwort"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Placeholders: {mail} (the e-mail's template, e.g. each-day, or \"message\" for an individual message), {plan_id} (the number of the plan). Leave empty for {mail}."
+msgstr "Platzhalter: {mail} (die Vorlage der Mail, z. B. each-day, oder „message“ für eine individuelle Nachricht), {plan_id} (die Nummer des Plans). Leer bedeutet {mail}."
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "Links in subscription e-mails: links to this website carry a campaign marker naming the kind of e-mail and the number of the plan, so that the web analytics (Matomo) described in this privacy policy can count visits that come from the e-mails."
+msgstr "Links in Abo-Mails: Links auf diese Website tragen eine Kampagnenkennung, die die Art der Mail und die Nummer des Plans nennt, damit die in dieser Datenschutzerklärung beschriebene Webanalyse (Matomo) Besuche zählen kann, die aus den Mails kommen."
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "Links in subscription e-mails: links to this website carry a campaign marker naming the kind of e-mail, so that the web analytics (Matomo) described in this privacy policy can count visits that come from the e-mails."
+msgstr "Links in Abo-Mails: Links auf diese Website tragen eine Kampagnenkennung, die die Art der Mail nennt, damit die in dieser Datenschutzerklärung beschriebene Webanalyse (Matomo) Besuche zählen kann, die aus den Mails kommen."
+
+#: includes/lib/class-mixmymeals-privacy.php
+msgid "The marker contains neither the e-mail address nor anything else that would tie a visit to a subscriber; links with a personal access token (rating, photos, unsubscribe) carry none. The visits are processed only as that section describes."
+msgstr "Die Kennung enthält weder die E-Mail-Adresse noch sonst etwas, das einen Besuch einem Abonnenten zuordnen würde; Links mit einem persönlichen Zugangstoken (Bewerten, Fotos, Abmelden) tragen keine. Die Besuche werden nur so verarbeitet, wie dort beschrieben."
+

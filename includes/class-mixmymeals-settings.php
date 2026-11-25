@@ -1592,6 +1592,36 @@ class Mixmymeals_Settings {
 			);
 		}
 
+		$fields[] = array(
+			'id'    => 'matomo_mail_campaign_heading',
+			'type'  => 'heading',
+			'label' => __( 'Links in subscription e-mails', 'mixmymeals' ),
+		);
+		$fields[] = array(
+			'id'          => 'matomo_mail_campaign',
+			'label'       => __( 'Campaign parameters', 'mixmymeals' ),
+			'description' => __( 'Add Matomo campaign parameters to the links in subscription e-mails, so Matomo counts visits that come from them. Counted per kind of e-mail, never per subscriber: links that carry the subscription\'s token (rating, photos, unsubscribe) are left as they are.', 'mixmymeals' ),
+			'default'     => '',
+			'placeholder' => '',
+			'callback'    => array( $this, 'public_mode_callback' ),
+		);
+		$fields[] = array(
+			'id'          => 'matomo_mail_campaign_name',
+			'label'       => __( 'Campaign name', 'mixmymeals' ),
+			'description' => __( 'Leave empty for the default.', 'mixmymeals' ),
+			'default'     => '',
+			'placeholder' => Mixmymeals_Shortcodes::mail_campaign_default_name(),
+			'callback'    => $text,
+		);
+		$fields[] = array(
+			'id'          => 'matomo_mail_campaign_keyword',
+			'label'       => __( 'Campaign keyword', 'mixmymeals' ),
+			'description' => __( 'Placeholders: {mail} (the e-mail\'s template, e.g. each-day, or "message" for an individual message), {plan_id} (the number of the plan). Leave empty for {mail}.', 'mixmymeals' ),
+			'default'     => '',
+			'placeholder' => '{mail}',
+			'callback'    => $text,
+		);
+
 		return array(
 			'title'       => __( 'Matomo', 'mixmymeals' ),
 			'description' => __( 'Events handed to the site\'s own Matomo. The plugin loads no tracker: Matomo must be on the page already (tracking code or plugin), and consent and opt-out are handled there. Switching an event on adds it to the generated privacy policy section.', 'mixmymeals' ),

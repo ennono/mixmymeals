@@ -201,6 +201,8 @@ class Mixmymeals_Admin_API {
 			case 'mail_from_name':
 			case 'subscription_privacy_url':
 			case 'matomo_text':
+			case 'matomo_mail_campaign_name':
+			case 'matomo_mail_campaign_keyword':
 				$html .= '<input id="' . esc_attr( $field['id'] )
 						. '" type="text" name="' . esc_attr( $option_name )
 						. '" placeholder="'
@@ -399,6 +401,7 @@ class Mixmymeals_Admin_API {
 			case 'public_mode':
 			case 'plan_subscribe_notice_checkbox':
 			case 'matomo_toggle':
+			case 'matomo_mail_campaign':
 			case 'disable_wp_emoji':
 			case 'show_recipe_steps':
 			case 'delete_data_on_uninstall':

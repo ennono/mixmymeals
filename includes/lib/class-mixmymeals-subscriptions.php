@@ -1910,9 +1910,32 @@ class Mixmymeals_Subscriptions {
 			'transactional'   => true,
 			'unsubscribe_url' => $unsubscribe_url,
 			'append_html'     => $append ? self::append_block() : '',
+			'link_filter'     => self::campaign_link_filter( (string) preg_replace( '/\.html?$/i', '', $template ), $plan_id ),
 		);
 
 		return Mixmymeals_Mailer::send_template( $email, $subject, $template, $vars, $args );
+	}
+
+	/**
+	 * The mailer's link filter for one subscription mail: Matomo campaign
+	 * parameters on links to this site (Mixmymeals_Shortcodes::
+	 * mail_campaign_url()), or null while the setting is off.
+	 *
+	 * @param string $mail    Kind of mail (template name without extension, or "message").
+	 * @param int    $plan_id Subscribed plan.
+	 * @return callable|null
+	 */
+	private static function campaign_link_filter( string $mail, int $plan_id ): ?callable {
+
+		$args = Mixmymeals_Shortcodes::mail_campaign_args( $mail, $plan_id );
+
+		if ( empty( $args ) ) {
+			return null;
+		}
+
+		return static function ( string $url ) use ( $args ): string {
+			return Mixmymeals_Shortcodes::mail_campaign_url( $url, $args );
+		};
 	}
 
 	/*
@@ -2034,6 +2057,7 @@ class Mixmymeals_Subscriptions {
 				'layout'          => 'layout.html',
 				'transactional'   => true,
 				'unsubscribe_url' => $unsubscribe_url,
+				'link_filter'     => self::campaign_link_filter( 'message', $plan_id ),
 			)
 		);
 

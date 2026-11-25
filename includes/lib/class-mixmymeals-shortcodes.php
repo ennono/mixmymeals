@@ -6978,6 +6978,108 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
+	 * Option of the campaign parameters on links in subscription mails
+	 * (Matomo tab); `_name` and `_keyword` hold the two texts.
+	 */
+	const MAIL_CAMPAIGN_OPTION = 'mixmymeals_matomo_mail_campaign';
+
+	/**
+	 * Whether links in subscription mails carry Matomo campaign parameters.
+	 *
+	 * @return bool
+	 */
+	public static function mail_campaign_enabled(): bool {
+		return 'on' === (string) get_option( self::MAIL_CAMPAIGN_OPTION, '' );
+	}
+
+	/**
+	 * Campaign name used when the setting is empty.
+	 *
+	 * @return string
+	 */
+	public static function mail_campaign_default_name(): string {
+		return _x( 'subscription', 'Matomo campaign name of subscription mails', 'mixmymeals' );
+	}
+
+	/**
+	 * The campaign parameters for one subscription mail, [] while off.
+	 *
+	 * Nothing in them points to a person: the kind of mail (its template,
+	 * "message" for an individual message) and, if the keyword asks for it,
+	 * the plan's number — never the address or the subscription's token.
+	 *
+	 * @param string $mail    Kind of mail, e.g. "each-day" or "message".
+	 * @param int    $plan_id Subscribed plan (for {plan_id}).
+	 * @return array<string,string> Query arguments (mtm_campaign, mtm_kwd, mtm_medium).
+	 */
+	public static function mail_campaign_args( string $mail, int $plan_id = 0 ): array {
+
+		if ( ! self::mail_campaign_enabled() ) {
+			return array();
+		}
+
+		$name = trim( (string) get_option( self::MAIL_CAMPAIGN_OPTION . '_name', '' ) );
+		$kwd  = trim( (string) get_option( self::MAIL_CAMPAIGN_OPTION . '_keyword', '' ) );
+
+		$kwd = strtr(
+			'' !== $kwd ? $kwd : '{mail}',
+			array(
+				'{mail}'    => $mail,
+				'{plan_id}' => $plan_id ? (string) $plan_id : '',
+			)
+		);
+
+		return array_filter(
+			array(
+				'mtm_campaign' => '' !== $name ? $name : self::mail_campaign_default_name(),
+				'mtm_kwd'      => trim( (string) preg_replace( '/\s+/', ' ', $kwd ) ),
+				'mtm_medium'   => 'email',
+			),
+			'strlen'
+		);
+	}
+
+	/**
+	 * Adds the campaign parameters to one link of a subscription mail.
+	 *
+	 * Only links to this site are tagged. A link that carries the
+	 * subscription's token (rating, photo upload, confirm, unsubscribe) is
+	 * left alone: Matomo would see the token next to the campaign, and a
+	 * click could be traced back to a subscriber — which is exactly what
+	 * this counting promises not to do. Links already tagged stay as they are.
+	 *
+	 * @param string               $url  Link target (decoded).
+	 * @param array<string,string> $args mail_campaign_args().
+	 * @return string
+	 */
+	public static function mail_campaign_url( string $url, array $args ): string {
+
+		if ( empty( $args ) ) {
+			return $url;
+		}
+
+		$parts = wp_parse_url( $url );
+		$home  = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) || ! is_string( $home )
+			|| 0 !== strcasecmp( $parts['host'], $home )
+			|| ! in_array( strtolower( $parts['scheme'] ?? '' ), array( 'http', 'https' ), true ) ) {
+			return $url;
+		}
+
+		$query = array();
+		wp_parse_str( $parts['query'] ?? '', $query );
+
+		foreach ( array_keys( $query ) as $key ) {
+			if ( in_array( $key, array( 'token', 'mmm_sub' ), true ) || str_starts_with( (string) $key, 'mtm_' ) ) {
+				return $url;
+			}
+		}
+
+		return add_query_arg( array_map( 'rawurlencode', $args ), $url );
+	}
+
+	/**
 	 * Option name of one part of a Matomo event.
 	 *
 	 * @param string $event Key of tracking_events().

@@ -319,6 +319,9 @@ class Mixmymeals_Mailer {
 	 *                    {{ content }} token receives the body verbatim.
 	 *  - 'html'   bool   Force HTML/plain handling (otherwise derived from the
 	 *                    file extension; inline defaults to HTML).
+	 *  - 'link_filter' callable  string $url → string; applied to every href
+	 *                    of the finished HTML body (layout included), e.g. to
+	 *                    add campaign parameters.
 	 *
 	 * @param string|string[] $to       Recipient address(es).
 	 * @param string          $subject  Subject line (may contain placeholders).
@@ -413,12 +416,41 @@ class Mixmymeals_Mailer {
 
 		$subject = self::render( $subject, $vars, false );
 
+		if ( $is_html && ! empty( $args['link_filter'] ) && is_callable( $args['link_filter'] ) ) {
+			$body = self::filter_links( $body, $args['link_filter'] );
+		}
+
 		$args['html']         = $is_html;
 		$args['trusted_html'] = $is_html;
 
-		unset( $args['inline'], $args['layout'], $args['append_html'] );
+		unset( $args['inline'], $args['layout'], $args['append_html'], $args['link_filter'] );
 
 		return self::send( $to, $subject, $body, $args );
+	}
+
+	/**
+	 * Runs every href of an HTML body through a callback. The value is
+	 * decoded before (templates and esc_url() write &amp;) and escaped again
+	 * after; an unchanged link is left byte for byte as it was.
+	 *
+	 * @param string   $html     HTML body.
+	 * @param callable $callback string $url → string.
+	 * @return string
+	 */
+	private static function filter_links( string $html, callable $callback ): string {
+
+		$result = preg_replace_callback(
+			'/\bhref\s*=\s*(["\'])(.*?)\1/is',
+			static function ( array $m ) use ( $callback ): string {
+				$url = html_entity_decode( $m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+				$new = (string) call_user_func( $callback, $url );
+
+				return $new === $url ? $m[0] : 'href=' . $m[1] . esc_url( $new ) . $m[1];
+			},
+			$html
+		);
+
+		return is_string( $result ) ? $result : $html;
 	}
 
 	/**

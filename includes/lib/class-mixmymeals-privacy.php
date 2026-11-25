@@ -708,6 +708,16 @@ class Mixmymeals_Privacy {
 			);
 		}
 
+		// Links in subscription mails (Mixmymeals_Shortcodes::mail_campaign_url()):
+		// a visit, not an event, hence a sentence of its own. Counted per kind
+		// of mail; links carrying the token are not tagged.
+		if ( Mixmymeals_Shortcodes::mail_campaign_enabled() ) {
+			$items['analytics_mail'] = ( str_contains( (string) get_option( Mixmymeals_Shortcodes::MAIL_CAMPAIGN_OPTION . '_keyword', '' ), '{plan_id}' )
+				? __( 'Links in subscription e-mails: links to this website carry a campaign marker naming the kind of e-mail and the number of the plan, so that the web analytics (Matomo) described in this privacy policy can count visits that come from the e-mails.', 'mixmymeals' )
+				: __( 'Links in subscription e-mails: links to this website carry a campaign marker naming the kind of e-mail, so that the web analytics (Matomo) described in this privacy policy can count visits that come from the e-mails.', 'mixmymeals' ) )
+				. ' ' . __( 'The marker contains neither the e-mail address nor anything else that would tie a visit to a subscriber; links with a personal access token (rating, photos, unsubscribe) carry none. The visits are processed only as that section describes.', 'mixmymeals' );
+		}
+
 		/*
 		 * Bought plans: only once a code has been issued. The code is a
 		 * pseudonym of the purchase — nothing on this site ties it to a

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.12.0
+Stable tag: 4.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.13.0 =
+
+Added:
+* Matomo campaign parameters on the links in subscription e-mails (Matomo
+  tab, "Links in subscription e-mails": switch, campaign name, keyword with
+  {mail} and {plan_id}). Matomo then counts visits that come from the mails,
+  per kind of mail (`mtm_kwd` = the template, e.g. `each-day`, or `message`),
+  never per subscriber: only links to this site are tagged, and none that
+  carries the subscription's token (rating, photos, confirm, unsubscribe).
+  The mailer takes a `link_filter` for this. The privacy section gets a
+  paragraph while it is on.
 
 = 4.12.0 =
 
