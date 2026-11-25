@@ -46,6 +46,24 @@ class Mixmymeals_Equipment {
 		return $this->post_id > 0 && get_post_type( $this->post_id ) === 'mmm_equipment';
 	}
 
+	/**
+	 * The query arguments of [mmm_equipment_index]: every published one, A–Z.
+	 *
+	 * The one selection for the shortcode and the theme's loop of the same
+	 * name; count and fields are the caller's.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function index_args(): array {
+
+		return array(
+			'post_type'   => 'mmm_equipment',
+			'post_status' => 'publish',
+			'orderby'     => 'title',
+			'order'       => 'ASC',
+		);
+	}
+
 	public static function exists_by_id( int $post_id ): bool {
 		return $post_id > 0 && get_post_type( $post_id ) === 'mmm_equipment';
 	}

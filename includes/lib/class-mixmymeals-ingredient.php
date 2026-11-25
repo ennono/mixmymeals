@@ -56,6 +56,24 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * The query arguments of [mmm_ingredients_index]: every published one, A–Z.
+	 *
+	 * The one selection for the shortcode and the theme's loop of the same
+	 * name; count and fields are the caller's.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function index_args(): array {
+
+		return array(
+			'post_type'   => 'mmm_ingredient',
+			'post_status' => 'publish',
+			'orderby'     => 'title',
+			'order'       => 'ASC',
+		);
+	}
+
+	/**
 	 * @throws \Exception On post creation failure.
 	 */
 	public static function create( string $title, string $status = 'publish' ): self {

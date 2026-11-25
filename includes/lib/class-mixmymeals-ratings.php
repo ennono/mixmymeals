@@ -301,6 +301,40 @@ class Mixmymeals_Ratings {
 	}
 
 	/**
+	 * The query arguments that select "top rated": recipes with at least
+	 * $min_ratings ratings, best average first, then most ratings.
+	 *
+	 * The one definition for [mmm_top_rated_recipes] and the theme's loop of
+	 * the same name. Like Mixmymeals_Recipe::browse_view_args(), it leaves
+	 * post type, status, count and the unlisted clause to the caller.
+	 *
+	 * @param int $min_ratings Fewest ratings a recipe needs (at least 1).
+	 * @return array<string,mixed>
+	 */
+	public static function top_rated_args( int $min_ratings = 1 ): array {
+
+		return array(
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'meta_query' => array(
+				'rating_avg'   => array(
+					'key'  => self::META_AVG,
+					'type' => 'DECIMAL(3,2)',
+				),
+				'rating_count' => array(
+					'key'     => self::META_COUNT,
+					'value'   => max( 1, $min_ratings ),
+					'compare' => '>=',
+					'type'    => 'NUMERIC',
+				),
+			),
+			'orderby'    => array(
+				'rating_avg'   => 'DESC',
+				'rating_count' => 'DESC',
+			),
+		);
+	}
+
+	/**
 	 * Recomputes and stores the per-recipe average and count from approved rating
 	 * comments. Static so the subscriber-rating path can call it without the
 	 * instance.

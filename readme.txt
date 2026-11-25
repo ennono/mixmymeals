@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 4.14.0
+Stable tag: 4.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.15.0 =
+
+Added:
+* Public readers for the selections the theme's Elementor loops mirrored:
+  `Mixmymeals_Ratings::top_rated_args()`, `Mixmymeals_Recipe::index_ids()`,
+  `Mixmymeals_Ingredient::index_args()`, `Mixmymeals_Equipment::index_args()`.
+  The four shortcodes use them too, so loop and shortcode cannot drift apart.
 
 = 4.14.0 =
 

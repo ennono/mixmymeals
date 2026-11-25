@@ -1293,49 +1293,15 @@ class Mixmymeals_Shortcodes {
 	 */
 	public function mmm_recipes_index_callback( $atts = array() ): string {
 
-		$ids = get_posts(
-			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'posts_per_page' => -1,
-					'orderby'        => 'title',
-					'order'          => 'ASC',
-					'fields'         => 'ids',
-					'no_found_rows'  => true,
-				)
-			)
-		);
+		$search = self::archive_search_term();
+		$ids    = Mixmymeals_Recipe::index_ids( $search );
 
 		if ( empty( $ids ) ) {
-			return '';
-		}
-
-		// Honour the archive title search ([mmm_archive_search], GET param
-		// mmm_s). The grouped index runs its own query, so the main-query filter
-		// apply_archive_search() / archive_search_title_where() does not reach
-		// it — filter the titles here the same way (title-only, case-insensitive).
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only public GET filter.
-		$search = isset( $_GET['mmm_s'] )
-			? trim( sanitize_text_field( wp_unslash( $_GET['mmm_s'] ) ) )
-			: '';
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-
-		if ( '' !== $search ) {
-			$ids = array_values(
-				array_filter(
-					$ids,
-					static function ( $id ) use ( $search ) {
-						return false !== mb_stripos( get_the_title( $id ), $search );
-					}
-				)
-			);
-
-			if ( empty( $ids ) ) {
-				return '<div class="mmm-recipes-index mmm-recipes-index--empty"><p>'
+			return '' === $search || empty( Mixmymeals_Recipe::index_ids() )
+				? ''
+				: '<div class="mmm-recipes-index mmm-recipes-index--empty"><p>'
 					. esc_html__( 'No recipes found.', 'mixmymeals' )
 					. '</p></div>';
-			}
 		}
 
 		// Group recipes by category. A recipe with several categories is listed
@@ -2369,29 +2335,15 @@ class Mixmymeals_Shortcodes {
 
 		$ids = get_posts(
 			Mixmymeals_Post_Types::exclude_unlisted(
-				array(
-					'post_type'      => 'mmm_recipe',
-					'post_status'    => 'publish',
-					'posts_per_page' => $count,
-					'fields'         => 'ids',
-					'no_found_rows'  => true,
-					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-					'meta_query'     => array(
-						'rating_avg'   => array(
-							'key'  => '_mmm_rating_avg',
-							'type' => 'DECIMAL(3,2)',
-						),
-						'rating_count' => array(
-							'key'     => '_mmm_rating_count',
-							'value'   => $min,
-							'compare' => '>=',
-							'type'    => 'NUMERIC',
-						),
+				array_merge(
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => $count,
+						'fields'         => 'ids',
+						'no_found_rows'  => true,
 					),
-					'orderby'        => array(
-						'rating_avg'   => 'DESC',
-						'rating_count' => 'DESC',
-					),
+					Mixmymeals_Ratings::top_rated_args( $min )
 				)
 			)
 		);
@@ -14739,14 +14691,13 @@ class Mixmymeals_Shortcodes {
 	public function mmm_ingredients_index_callback( $atts = array() ): string {
 
 		$ids = get_posts(
-			array(
-				'post_type'      => 'mmm_ingredient',
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'orderby'        => 'title',
-				'order'          => 'ASC',
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
+			array_merge(
+				Mixmymeals_Ingredient::index_args(),
+				array(
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
 			)
 		);
 
@@ -15011,14 +14962,13 @@ class Mixmymeals_Shortcodes {
 	public function mmm_equipment_index_callback( $atts = array() ): string {
 
 		$ids = get_posts(
-			array(
-				'post_type'      => 'mmm_equipment',
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'orderby'        => 'title',
-				'order'          => 'ASC',
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
+			array_merge(
+				Mixmymeals_Equipment::index_args(),
+				array(
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				)
 			)
 		);
 

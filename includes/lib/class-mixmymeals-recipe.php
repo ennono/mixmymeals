@@ -3746,6 +3746,51 @@ class Mixmymeals_Recipe {
 	}
 
 	/**
+	 * The recipes of [mmm_recipes_index]: every published, listed recipe by
+	 * title, narrowed by a title search the way the archive's ?mmm_s= narrows
+	 * (title only, case-insensitive).
+	 *
+	 * The one selection for the shortcode and the theme's loop of the same
+	 * name. The grouped index runs a query of its own, so the main-query
+	 * filter apply_archive_search() does not reach it.
+	 *
+	 * @param string $search Title search; '' for all.
+	 * @return int[] Recipe IDs, A–Z.
+	 */
+	public static function index_ids( string $search = '' ): array {
+
+		$ids = array_map(
+			'intval',
+			get_posts(
+				Mixmymeals_Post_Types::exclude_unlisted(
+					array(
+						'post_type'      => 'mmm_recipe',
+						'post_status'    => 'publish',
+						'posts_per_page' => -1,
+						'orderby'        => 'title',
+						'order'          => 'ASC',
+						'fields'         => 'ids',
+						'no_found_rows'  => true,
+					)
+				)
+			)
+		);
+
+		$search = trim( $search );
+
+		if ( '' === $search ) {
+			return $ids;
+		}
+
+		return array_values(
+			array_filter(
+				$ids,
+				static fn( $id ) => false !== mb_stripos( get_the_title( $id ), $search )
+			)
+		);
+	}
+
+	/**
 	 * The recipes that use an ingredient, from the index.
 	 *
 	 * @param int                  $ingredient_id Ingredient ID.
