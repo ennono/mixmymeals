@@ -4300,10 +4300,7 @@ class Mixmymeals_Shortcodes {
 						// Bedarfsanzeige: was wird gebraucht — die
 						// Kaufentscheidung trifft der Nutzer im Laden.
 						$ingredient_name = get_the_title( $ing_id );
-						$needed_amount   = Mixmymeals_Meal_Plan::build_needed_amount_string(
-							$data['units'] ?? array(),
-							$total_weight
-						);
+						$needed_amount   = Mixmymeals_Ingredient_Amount::format_line( $data, 'shopping_list' );
 						$is_optional     = ! empty( $data['optional'] );
 
 						// Anzeige: Zutat und Menge getrennt auszeichnen. "(optional)"
@@ -4382,6 +4379,7 @@ class Mixmymeals_Shortcodes {
 
 				</ul>
 			<?php endforeach; ?>
+			<?php echo self::shopping_cost_html( $meal_plan_obj, $ingredients_by_cat ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 		</div>
 
 		<?php
@@ -4392,6 +4390,27 @@ class Mixmymeals_Shortcodes {
 		// (Mixmymeals_Meal_Plan::render_bring_page()).
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * The shopping costs under a shopping list (HG-115), worded by the chip
+	 * text shopping_cost and price_text() — "ab …" where prices are missing.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan The plan the list belongs to.
+	 * @param array                $list Its calc_shopping_list(), already computed.
+	 * @return string '' while nothing is priced.
+	 */
+	public static function shopping_cost_html( Mixmymeals_Meal_Plan $plan, array $list ): string {
+
+		$cost = $plan->calc_shopping_cost( null, $list );
+
+		if ( $cost['cost'] <= 0 ) {
+			return '';
+		}
+
+		return '<p class="mmm-shopping-cost" data-shopping-cost-basis="' . esc_attr( $cost['basis'] ) . '">'
+			. esc_html( self::chip_text( 'shopping_cost', array( 'price' => self::price_text( $cost['cost'], $cost['complete'] ) ) ) )
+			. '</p>';
 	}
 
 	/**
@@ -7218,15 +7237,29 @@ class Mixmymeals_Shortcodes {
 	 * ("250 g (250 g)") and, beside a unit, said the same thing twice in
 	 * another way ("3 EL (10 g)") — HG-101.
 	 *
+	 * At the ingredient list's level (Mixmymeals_Ingredient_Amount::level(),
+	 * default 1 — the amount alone); never rounded to packages.
+	 *
 	 * @param array<string,float> $amounts Unit title => scaled amount.
+	 * @param array<string,array> $meta    Unit title => weight (grams of the
+	 *                                     amount), each (grams of one unit),
+	 *                                     package (bought whole) — for levels 2, 3.
 	 * @return string '' when nothing is above zero.
 	 */
-	private static function ingredient_amounts_text( array $amounts ): string {
+	private static function ingredient_amounts_text( array $amounts, array $meta = array() ): string {
 
 		$parts = array();
+		$level = (int) Mixmymeals_Ingredient_Amount::level( 'ingredient_list' );
 
 		foreach ( $amounts as $unit => $amount ) {
-			$text = Mixmymeals_Ingredient_Amount::format_text( (float) $amount, (string) $unit );
+			$text = Mixmymeals_Ingredient_Amount::format_text_at_level(
+				(float) $amount,
+				(string) $unit,
+				(float) ( $meta[ $unit ]['weight'] ?? 0 ),
+				(float) ( $meta[ $unit ]['each'] ?? 0 ),
+				! empty( $meta[ $unit ]['package'] ),
+				$level
+			);
 
 			if ( '' !== $text ) {
 				$parts[] = $text;
@@ -7290,7 +7323,16 @@ class Mixmymeals_Shortcodes {
 			}
 
 			$amount = isset( $row['unit'] )
-				? self::ingredient_amounts_text( array( (string) $row['unit'] => (float) $row['amount'] ) )
+				? self::ingredient_amounts_text(
+					array( (string) $row['unit'] => (float) $row['amount'] ),
+					array(
+						(string) $row['unit'] => array(
+							'weight'  => (float) ( $row['weight_g'] ?? 0 ),
+							'each'    => (float) ( $row['weight_per_unit'] ?? 0 ),
+							'package' => ! empty( $row['is_package'] ),
+						),
+					)
+				)
 				: '';
 
 			$items .= '<li><span class="mmm-ingredient-name">' . esc_html( get_the_title( $id ) ) . '</span>'
@@ -7343,6 +7385,9 @@ class Mixmymeals_Shortcodes {
 					// Amount per unit, in the order the units first occur:
 					// two steps using "2 EL" and "50 g" are not 52 of either.
 					'amounts'  => array(),
+					// Per unit: grams, grams of one, bought whole — for the
+					// list's levels 2 and 3.
+					'meta'     => array(),
 					// Optional only while every use is optional.
 					'optional' => true,
 					// Named only while every step of the dish names the same
@@ -7366,6 +7411,11 @@ class Mixmymeals_Shortcodes {
 			$unit = '' === $unit ? 'g' : $unit;
 
 			$ingredients[ $id ]['amounts'][ $unit ] = ( $ingredients[ $id ]['amounts'][ $unit ] ?? 0.0 ) + (float) ( $ing['amount'] ?? 0 );
+			$ingredients[ $id ]['meta'][ $unit ]    = array(
+				'weight'  => (float) ( $ingredients[ $id ]['meta'][ $unit ]['weight'] ?? 0 ) + (float) ( $ing['weight_g'] ?? 0 ),
+				'each'    => (float) ( $ing['weight_per_unit'] ?? 0 ),
+				'package' => ! empty( $ing['is_package'] ),
+			);
 			$ingredients[ $id ]['optional']  = $ingredients[ $id ]['optional'] && ! empty( $ing['optional'] );
 		}
 
@@ -7400,7 +7450,7 @@ class Mixmymeals_Shortcodes {
 							?>
 
 							<?php
-							$mmm_amount = self::ingredient_amounts_text( $ingredient['amounts'] );
+							$mmm_amount = self::ingredient_amounts_text( $ingredient['amounts'], $ingredient['meta'] );
 							if ( '' !== $mmm_amount ) :
 								?>
 								<span class="mmm-ingredient-amount"><?php echo esc_html( $mmm_amount ); ?></span>
@@ -8999,6 +9049,15 @@ class Mixmymeals_Shortcodes {
 					$unit_token
 				),
 				'required' => array( 'count' ),
+			),
+			'shopping_cost'            => array(
+				'group'    => 'plan',
+				'label'    => __( 'Shopping costs', 'mixmymeals' ),
+				'note'     => __( 'Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set on the Meal Plans tab; with prices missing the price reads as a lower bound.', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency, possibly as "from …". */
+				'default'  => __( 'Shopping costs: {price}', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
 			),
 			'plan_servings'            => array(
 				'group'    => 'plan',

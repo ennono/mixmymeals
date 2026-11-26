@@ -3140,10 +3140,7 @@ class Mixmymeals_Subscriptions {
 					continue;
 				}
 
-				$amount = Mixmymeals_Shortcodes::build_needed_amount_string(
-					$data['units'] ?? array(),
-					(float) ( $data['total_weight'] ?? 0 )
-				);
+				$amount = Mixmymeals_Ingredient_Amount::format_line( $data, 'mail' );
 
 				$optional_label = ! empty( $data['optional'] )
 					? ' <span style="color:' . self::mail_color( 'muted' ) . ';">(' . esc_html__( 'optional', 'mixmymeals' ) . ')</span>'

@@ -2577,6 +2577,11 @@ class Mixmymeals_Post_Meta {
 
 					$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
 
+					// A checkbox posts nothing when unticked; the hidden
+					// marker tells "unticked" from "column not rendered".
+					if ( ! empty( $amount_data['package_shown'] ) ) {
+						$amount_obj->set_package( ! empty( $amount_data['package'] ) );
+					}
 				} else {
 					// Neue Menge anlegen. The block editor posts this box
 					// again on a second Save without re-rendering it, so the
@@ -2595,6 +2600,7 @@ class Mixmymeals_Post_Meta {
 
 						// Unteilbarkeit setzen
 						$amount_obj->set_divisor( absint( $amount_data['divisor'] ?? 0 ) );
+						$amount_obj->set_package( ! empty( $amount_data['package'] ) );
 					}
 				}
 			}
@@ -3937,6 +3943,7 @@ class Mixmymeals_Post_Meta {
 		echo '<th>' . esc_html__( 'Used in', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Weight', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Divisibility', 'mixmymeals' ) . '</th>';
+		echo '<th>' . esc_html__( 'Package', 'mixmymeals' ) . '</th>';
 		echo '<th>' . esc_html__( 'Delete', 'mixmymeals' ) . '</th>';
 		echo '</tr>';
 		echo '</thead>';
@@ -3987,6 +3994,17 @@ class Mixmymeals_Post_Meta {
 					. '</p>';
 				echo '</td>';
 
+				// Gebinde: wird als Ganzes gekauft (Dose, Glas, Packung).
+				echo '<td>';
+				echo '<input type="hidden" name="mmm_ingredient_amounts['
+					. esc_attr( $unit->ID ) . '][package_shown]" value="1">';
+				echo '<label>';
+				echo '<input type="checkbox" name="mmm_ingredient_amounts['
+					. esc_attr( $unit->ID ) . '][package]" value="1"' . checked( $amount->is_package(), true, false ) . '> ';
+				echo esc_html__( 'Bought whole', 'mixmymeals' );
+				echo '</label>';
+				echo '</td>';
+
 				// Löschen-Checkbox
 				echo '<td>';
 				echo '<label>';
@@ -4019,6 +4037,9 @@ class Mixmymeals_Post_Meta {
 		echo '</td>';
 		echo '<td>';
 		echo '<input type="number" step="1" min="0" name="mmm_ingredient_amounts[new][divisor]" value="" class="small-text" placeholder="—">';
+		echo '</td>';
+		echo '<td>';
+		echo '<label><input type="checkbox" name="mmm_ingredient_amounts[new][package]" value="1"> ' . esc_html__( 'Bought whole', 'mixmymeals' ) . '</label>';
 		echo '</td>';
 		echo '<td>';
 		echo '<em>' . esc_html__( '–', 'mixmymeals' ) . '</em>';

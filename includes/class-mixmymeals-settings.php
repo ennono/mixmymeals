@@ -855,6 +855,31 @@ class Mixmymeals_Settings {
 					'callback'    => array( $this, 'textarea_callback' ),
 				),
 				array(
+					'id'          => 'mealplans_group_amounts',
+					'type'        => 'heading',
+					'label'       => __( 'Amounts and shopping costs', 'mixmymeals' ),
+					'description' => __( 'How much of an amount each place shows, and what a shopping list rounds up to. A product with a package weight is always bought in its packages; otherwise a unit marked "Bought whole" on the ingredient is the package.', 'mixmymeals' ),
+				),
+				...$this->amount_level_fields(),
+				array(
+					'id'          => 'amount_mixed',
+					'label'       => __( 'Lines mixing packages and grams', 'mixmymeals' ),
+					'description' => __( 'When one recipe uses a tin and another grams of the same ingredient. Rounding up changes what is bought — the list, the mail, the PDF and Bring! — not only how it reads. Ingredient lists of recipes and meals never round.', 'mixmymeals' ),
+					'default'     => Mixmymeals_Ingredient_Amount::MIXED_PLUS,
+					'placeholder' => '',
+					'choices'     => Mixmymeals_Ingredient_Amount::mixed_modes(),
+					'callback'    => array( Mixmymeals_Ingredient_Amount::class, 'sanitize_mixed_mode' ),
+				),
+				array(
+					'id'          => 'shopping_cost_basis',
+					'label'       => __( 'Shopping costs follow', 'mixmymeals' ),
+					'description' => __( 'The costs printed under a shopping list. "What is bought" prices whole packages (a product\'s package price where it has one); "What the recipes need" prices the amounts themselves. The price per serving always follows what the recipes need.', 'mixmymeals' ),
+					'default'     => 'bought',
+					'placeholder' => '',
+					'choices'     => Mixmymeals_Meal_Plan::shopping_cost_bases(),
+					'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_shopping_cost_basis' ),
+				),
+				array(
 					'id'    => 'mealplans_group_subscribe_on_save',
 					'type'  => 'heading',
 					'label' => __( 'Subscribe while saving', 'mixmymeals' ),
@@ -1416,6 +1441,34 @@ class Mixmymeals_Settings {
 					'under' => isset( $default['under'] ) ? (string) $default['under'] : '',
 				),
 				'callback'    => array( Mixmymeals_Meal_Plan::class, 'sanitize_day_rating' ),
+			);
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * One level field per place amounts are shown (HG-115), choices and
+	 * sanitiser from Mixmymeals_Ingredient_Amount. The sanitiser is a closure
+	 * per field, carrying the place in.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function amount_level_fields(): array {
+
+		$fields = array();
+
+		foreach ( Mixmymeals_Ingredient_Amount::level_places() as $place => $label ) {
+			$fields[] = array(
+				'id'          => 'amount_level_' . $place,
+				'label'       => $label,
+				'description' => 'ingredient_list' === $place
+					? __( 'The recipe\'s amounts, never rounded to packages.', 'mixmymeals' )
+					: ( 'pdf' === $place ? __( 'Read by the Printer add-on.', 'mixmymeals' ) : '' ),
+				'default'     => Mixmymeals_Ingredient_Amount::LEVEL_DEFAULTS[ $place ],
+				'placeholder' => '',
+				'choices'     => Mixmymeals_Ingredient_Amount::level_choices( $place ),
+				'callback'    => static fn( $value ) => Mixmymeals_Ingredient_Amount::sanitize_level( $place, $value ),
 			);
 		}
 

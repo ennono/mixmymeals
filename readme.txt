@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.17.1
+Stable tag: 4.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,27 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.18.0 =
+
+Added:
+* Units can be marked "Bought whole" (tin, jar, pack) on the ingredient;
+  REST and MCP `is_package`.
+* Shopping lists are bought in packages: a product with a package
+  weight (pinned, else the reference, where the whole plan agrees) is
+  bought in its packets, "2× Brand Tomatoes à 400 g"; otherwise a unit
+  bought whole is the package. Lines left open by a diet, or where the
+  recipes use different products, never name a product's package.
+* Setting for lines mixing packages and grams: list both (default) or
+  round up into packages. Rounding changes what is bought — list, mail,
+  PDF and Bring! follow one number; Bring! gets no brand.
+* How much of an amount each place shows — ingredient lists, shopping
+  list, teaser, mails, PDF: count, with the weight of a package, with
+  the total weight. Defaults are what each showed before.
+* Shopping costs under the shopping list of a plan and of the planner,
+  following what is bought (whole packages) or what the recipes need
+  (setting); "from …" where prices are missing. The price per serving
+  is unchanged.
 
 = 4.17.1 =
 

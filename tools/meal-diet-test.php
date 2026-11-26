@@ -444,6 +444,21 @@ foreach ( $list2 as $data ) {
 mmm_md_assert( $jline && 0 === (int) $jline['product_id'] && '' === $jline['product'], 'die Einkaufsliste nennt kein Paket' );
 mmm_md_assert( $jline && $VEGAN === $jline['diet'] && '(ZZ Vegan)' === Mixmymeals_Shortcodes::shopping_item_product_text( $jline ), 'nur „(Vegan)“ hinter der Zutat' );
 
+// HG-115: an open line never takes a product's package, even where every
+// candidate states one — that would read as a recommendation.
+foreach ( array( $natur, $vanil, $milch ) as $mmm_product ) {
+	( new Mixmymeals_Product( $mmm_product ) )->set_package_weight( 150 );
+}
+$list3 = ( new Mixmymeals_Meal_Plan( $plan2_id ) )->calc_shopping_list( false );
+$jline = null;
+foreach ( reset( $list3 ) as $data ) {
+	if ( $jog === (int) $data['ingredient_id'] ) {
+		$jline = $data;
+	}
+}
+mmm_md_assert( $jline && 'product' !== $jline['package']['kind'] && 0 === (int) $jline['package']['product_id'], 'offene Zeile: keine Produktpackung (HG-115)' );
+mmm_md_assert( $jline && false === strpos( Mixmymeals_Ingredient_Amount::format_line( $jline, 'shopping_list' ), 'Soja' ), 'offene Zeile: die Menge nennt kein Produkt' );
+
 $groups = $bowl_meal->get_recipe()->calc_product_impact();
 $jgroup = null;
 foreach ( $groups as $group ) {

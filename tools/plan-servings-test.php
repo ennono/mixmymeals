@@ -50,7 +50,24 @@ function mmm_ps_without_diet_fields( array $list ): ?array {
 			if ( (int) $key !== ( $line['ingredient_id'] ?? null ) || '' !== ( $line['diet'] ?? null ) ) {
 				return null;
 			}
-			unset( $list[ $cat ][ $key ]['ingredient_id'], $list[ $cat ][ $key ]['diet'] );
+
+			/*
+			 * 4.18.0 (HG-115) adds what the recipes need, its cost and the
+			 * package a line is bought in. A plan without packages is bought
+			 * in grams (`none`) and must be otherwise unchanged.
+			 */
+			if ( 'none' !== ( $line['package']['kind'] ?? null ) || ! isset( $line['needed_weight'], $line['needed_cost'], $line['price_gap'] ) ) {
+				return null;
+			}
+
+			unset(
+				$list[ $cat ][ $key ]['ingredient_id'],
+				$list[ $cat ][ $key ]['diet'],
+				$list[ $cat ][ $key ]['needed_weight'],
+				$list[ $cat ][ $key ]['needed_cost'],
+				$list[ $cat ][ $key ]['price_gap'],
+				$list[ $cat ][ $key ]['package']
+			);
 		}
 	}
 

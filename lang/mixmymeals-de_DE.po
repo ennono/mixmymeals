@@ -8561,3 +8561,113 @@ msgstr "Umschließt einen Preis, dem einzelne Zutatenpreise fehlen – eine Unte
 #: includes/lib/class-mixmymeals-shortcodes.php
 msgid "from {price}"
 msgstr "ab {price}"
+
+#. translators: 1: a count with its package, "2× Dose"; 2: the weight of one, "400 g".
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "%1$s à %2$s"
+msgstr "%1$s à %2$s"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Amounts and shopping costs"
+msgstr "Mengenangaben und Einkaufskosten"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Bought whole"
+msgstr "wird als Ganzes gekauft"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "Count and unit — \"2× tin\""
+msgstr "Anzahl und Einheit – „2× Dose“"
+
+#: includes/class-mixmymeals-settings.php
+msgid "How much of an amount each place shows, and what a shopping list rounds up to. A product with a package weight is always bought in its packages; otherwise a unit marked \"Bought whole\" on the ingredient is the package."
+msgstr "Wie viel jede Stelle von einer Menge zeigt und worauf eine Einkaufsliste aufrundet. Ein Produkt mit Packungsgewicht wird immer in seinen Packungen gekauft; sonst gilt eine Einheit der Zutat mit dem Merkmal „Gebinde“ als Packung."
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "Ingredient lists (recipe, meal)"
+msgstr "Zutatenlisten (Rezept, Mahlzeit)"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Lines mixing packages and grams"
+msgstr "Zeilen mit Packungen und Gramm"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "List both — \"2× tin + 100 g\""
+msgstr "Beides nennen – „2× Dose + 100 g“"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "One figure — \"2× tin\" or \"1.2 kg\""
+msgstr "Eine Zahl – „2× Dose“ oder „1,2 kg“"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "PDF"
+msgstr "PDF"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Package"
+msgstr "Gebinde"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Read by the Printer add-on."
+msgstr "Gelesen vom Printer-Add-on."
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "Round up into packages — \"3× tin\""
+msgstr "In Packungen aufrunden – „3× Dose“"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Shopping costs follow"
+msgstr "Einkaufskosten nach"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Shopping costs"
+msgstr "Einkaufskosten"
+
+#. translators: chip wording. {price} includes the currency, possibly as "from …".
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Shopping costs: {price}"
+msgstr "Einkaufskosten: {price}"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "Shopping list (plan page, planner)"
+msgstr "Einkaufsliste (Planseite, Planer)"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "Shopping list teaser"
+msgstr "Einkaufslisten-Teaser"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "Subscription mails"
+msgstr "Abo-Mails"
+
+#: includes/class-mixmymeals-settings.php
+msgid "The costs printed under a shopping list. \"What is bought\" prices whole packages (a product's package price where it has one); \"What the recipes need\" prices the amounts themselves. The price per serving always follows what the recipes need."
+msgstr "Die Kosten unter einer Einkaufsliste. „Eingekaufte Menge“ rechnet ganze Packungen (mit dem Packungspreis des Produkts, wo es einen hat); „Benötigte Menge“ rechnet die Mengen selbst. Der Preis pro Portion folgt immer der benötigten Menge."
+
+#: includes/class-mixmymeals-settings.php
+msgid "The recipe's amounts, never rounded to packages."
+msgstr "Die Mengen des Rezepts, nie auf Packungen gerundet."
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set on the Meal Plans tab; with prices missing the price reads as a lower bound."
+msgstr "Unter der Einkaufsliste eines Plans und des Planers. Ob sie der eingekauften oder der benötigten Menge folgt, steht im Reiter Essenspläne; fehlen Preise, ist der Betrag eine Untergrenze."
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "What is bought — whole packages"
+msgstr "Eingekaufte Menge – ganze Packungen"
+
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "What the recipes need"
+msgstr "Benötigte Menge"
+
+#: includes/class-mixmymeals-settings.php
+msgid "When one recipe uses a tin and another grams of the same ingredient. Rounding up changes what is bought — the list, the mail, the PDF and Bring! — not only how it reads. Ingredient lists of recipes and meals never round."
+msgstr "Wenn ein Rezept eine Dose nimmt und ein anderes Gramm derselben Zutat. Aufrunden ändert, was gekauft wird – Liste, Mail, PDF und Bring! –, nicht nur die Anzeige. Zutatenlisten von Rezepten und Mahlzeiten runden nie."
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "With the total weight — \"2× tin à 400 g (≈ 800 g)\""
+msgstr "Mit Gesamtgewicht – „2× Dose à 400 g (≈ 800 g)“"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "With the weight of a package — \"2× tin à 400 g\""
+msgstr "Mit Gewicht pro Packung – „2× Dose à 400 g“"

@@ -71,6 +71,33 @@ $unit = new Mixmymeals_Ingredient_Amount( $ids[0] );
 $ok( 'weight changed', 425.0 === (float) $unit->get_weight() );
 $ok( 'divisor changed', 1 === (int) $unit->get_divisor() );
 
+echo '-- 6. "Bought whole" (HG-115)' . PHP_EOL;
+ob_start();
+$meta->render_ingredient_amounts_meta_box_content( get_post( $ingredient ) );
+$html = ob_get_clean();
+$ok( 'checkbox and marker per row', false !== strpos( $html, 'name="mmm_ingredient_amounts[' . $ids[0] . '][package]"' ) && false !== strpos( $html, 'name="mmm_ingredient_amounts[' . $ids[0] . '][package_shown]"' ) );
+$ok( 'checkbox in the new row', false !== strpos( $html, 'name="mmm_ingredient_amounts[new][package]"' ) );
+
+$post_rows( array( $ids[0] => array( 'title' => 'Dose', 'weight' => '425', 'divisor' => '1', 'package_shown' => '1', 'package' => '1' ) ) );
+$ok( 'ticked: stored', ( new Mixmymeals_Ingredient_Amount( $ids[0] ) )->is_package() );
+
+$post_rows( array( $ids[0] => array( 'title' => 'Dose', 'weight' => '425', 'divisor' => '1' ) ) );
+$ok( 'column not posted: kept', ( new Mixmymeals_Ingredient_Amount( $ids[0] ) )->is_package() );
+
+$post_rows( array( $ids[0] => array( 'title' => 'Dose', 'weight' => '425', 'divisor' => '1', 'package_shown' => '1' ) ) );
+$ok( 'unticked: cleared, no row left', ! ( new Mixmymeals_Ingredient_Amount( $ids[0] ) )->is_package() && '' === get_post_meta( $ids[0], Mixmymeals_Ingredient_Amount::META_PACKAGE, true ) );
+
+$post_rows( array( 'new' => array( 'title' => 'Glas', 'weight' => '350', 'package' => '1', 'token' => wp_generate_uuid4() ) ) );
+$glas = array_values( array_diff( $units_of(), $ids ) );
+$glas = array_values( array_filter( $glas, static fn( $id ) => 'Glas' === get_the_title( $id ) ) );
+$ok( 'new row: ticked on creation', $glas && ( new Mixmymeals_Ingredient_Amount( $glas[0] ) )->is_package() );
+
+$request = new WP_REST_Request( 'POST', '/mixmymeals/v1/units/' . $ids[0] );
+$request->set_param( 'is_package', true );
+$response = rest_get_server()->dispatch( $request );
+$data     = $response->get_data();
+$ok( 'REST: writes and reads is_package', 200 === $response->get_status() && true === ( $data['is_package'] ?? null ), wp_json_encode( $data ) );
+
 // Cleanup.
 foreach ( $units_of() as $id ) {
 	wp_delete_post( $id, true );

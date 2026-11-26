@@ -700,7 +700,7 @@ const TOOLS = [
 
   {
     name: "mmm_get_ingr_unit",
-    description: "Einzelne Einheit abrufen (Gewicht, Verkaufseinheit, Teilbarkeit). Verwendet /mixmymeals/v1/units/{id}. divisor gibt die Teilbarkeit an: 1 = nur ganze, 2 = halbierbar, 0 = beliebige Menge. step_divisor ist derselbe Wert und wird für die Mengenrundung verwendet; is_indivisible ist die veraltete Kurzform für divisor === 1.",
+    description: "Einzelne Einheit abrufen (Gewicht, Verkaufseinheit, Teilbarkeit). Verwendet /mixmymeals/v1/units/{id}. divisor gibt die Teilbarkeit an: 1 = nur ganze, 2 = halbierbar, 0 = beliebige Menge. step_divisor ist derselbe Wert und wird für die Mengenrundung verwendet; is_indivisible ist die veraltete Kurzform für divisor === 1. is_package: Gebinde (wird als Ganzes gekauft).",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -722,6 +722,7 @@ const TOOLS = [
         weight_g:       { type: "number", description: "Gewicht in g" },
         is_indivisible: { type: "boolean", default: false, description: "Veraltet — entspricht divisor 1 (true) bzw. 0 (false). Bevorzugt divisor verwenden; wird divisor mitgesendet, gewinnt divisor." },
         divisor:        { type: "number", default: 0, description: "Teilbarkeit der Einheit: 1 = nur ganze (z.B. ein Ei), 2 = halbierbar (z.B. eine Dose), 4 = Viertel. 0 oder weglassen = beliebige Menge. Dies ist die maßgebliche Angabe." },
+        is_package:     { type: "boolean", default: false, description: "Gebinde: wird als Ganzes gekauft (Dose, Glas, Packung, Bund) – nicht für Maße wie EL, TL, Prise. Für Zutaten ohne festes Produkt rundet die Einkaufsliste darauf auf (Einstellung 'gemischte Zeilen'); ab Plugin 4.18.0." },
       },
     },
   },
@@ -738,6 +739,7 @@ const TOOLS = [
         weight_g:       { type: "number", description: "Gewicht in g" },
         is_indivisible: { type: "boolean", description: "Veraltet — entspricht divisor 1 (true) bzw. 0 (false). Bevorzugt divisor verwenden; wird divisor mitgesendet, gewinnt divisor." },
         divisor:        { type: "number", description: "Teilbarkeit der Einheit: 1 = nur ganze (z.B. ein Ei), 2 = halbierbar (z.B. eine Dose), 4 = Viertel. 0 oder weglassen = beliebige Menge. Dies ist die maßgebliche Angabe." },
+        is_package:     { type: "boolean", description: "Gebinde: wird als Ganzes gekauft (Dose, Glas, Packung, Bund) – nicht für Maße wie EL, TL, Prise. false entfernt das Merkmal. Ab Plugin 4.18.0." },
       },
     },
   },
@@ -1755,20 +1757,22 @@ async function handleTool(name, args) {
       return mmm("GET", `/units/${args.id}`);
 
     case "mmm_create_ingr_unit": {
-      const { ingredient_id, title, weight_g, is_indivisible = false, divisor = 0 } = args;
+      const { ingredient_id, title, weight_g, is_indivisible = false, divisor = 0, is_package = false } = args;
       const body = { ingredient_id, title, weight_g };
       if (is_indivisible) body.is_indivisible = true;
       if (divisor) body.divisor = divisor;
+      if (is_package) body.is_package = true;
       return mmm("POST", "/units", body);
     }
 
     case "mmm_update_ingr_unit": {
-      const { id, title, weight_g, is_indivisible, divisor } = args;
+      const { id, title, weight_g, is_indivisible, divisor, is_package } = args;
       const body = {};
       if (title          !== undefined) body.title          = title;
       if (weight_g       !== undefined) body.weight_g       = weight_g;
       if (is_indivisible !== undefined) body.is_indivisible = is_indivisible;
       if (divisor !== undefined) body.divisor = divisor;
+      if (is_package !== undefined) body.is_package = is_package;
       return mmm("POST", `/units/${id}`, body);
     }
 
@@ -1966,7 +1970,7 @@ async function handleTool(name, args) {
 // ── MCP Server ───────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "wordpress-rest", version: "5.3.0" },
+  { name: "wordpress-rest", version: "5.4.0" },
   { capabilities: { tools: {} } }
 );
 
