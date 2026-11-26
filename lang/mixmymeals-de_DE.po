@@ -8548,3 +8548,16 @@ msgstr "Tagessumme für %1$s: %2$s"
 #: includes/lib/class-mixmymeals-subscriptions.php
 msgid "%s, this day"
 msgstr "%s an diesem Tag"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Price, prices missing"
+msgstr "Preis, Preise fehlen"
+
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "Wraps a price that misses some ingredients' prices, so it is a lower bound — on a plan's price per serving and its shopping costs."
+msgstr "Umschließt einen Preis, dem einzelne Zutatenpreise fehlen – eine Untergrenze. Gilt für den Preis pro Portion eines Plans und seine Einkaufskosten."
+
+#. translators: chip wording. {price} includes the currency; the sum lacks some prices, so it is a lower bound.
+#: includes/lib/class-mixmymeals-shortcodes.php
+msgid "from {price}"
+msgstr "ab {price}"

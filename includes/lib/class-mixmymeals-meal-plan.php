@@ -3968,26 +3968,69 @@ class Mixmymeals_Meal_Plan {
 		);
 	}
 
-	public function calculate_avg_cost_per_serving(): float {
-		$meals = $this->get_meals();
-		if ( empty( $meals ) ) {
-			return 0.0;
-		}
-		$total = 0.0;
-		$count = 0;
-		foreach ( $meals as $meal_post ) {
-			$meal   = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe = $meal->get_recipe();
+	/**
+	 * What a serving of this plan costs on average, and whether that is the
+	 * whole price — the one reading of the plan's price (HG-116).
+	 *
+	 * From the rows, like every plan calculation: each meal as it is cooked
+	 * (row_recipe(), so a meal settled vegan is priced vegan), weighted by
+	 * the servings it is cooked for — a meal for six counts six times, one
+	 * for one once. A plan made of rows (planner, ?mmm_persons_to_add) is
+	 * priced by the same sum.
+	 *
+	 * A recipe that misses a price (has_complete_prices()) still counts with
+	 * what is priced, but makes the result a lower bound: `complete` false,
+	 * which the chips print as "ab …". A recipe nobody priced at all counts
+	 * as nothing and likewise makes the result incomplete.
+	 *
+	 * @return array{cost: float, complete: bool} cost 0 when nothing is priced.
+	 */
+	public function calc_cost_per_serving(): array {
+
+		$total    = 0.0;
+		$servings = 0.0;
+		$complete = true;
+
+		foreach ( $this->get_meal_rows() as $row ) {
+
+			if ( empty( $row['recipe_id'] ) ) {
+				continue;
+			}
+
+			$recipe = self::row_recipe( $row );
 			if ( ! $recipe->is_valid() ) {
 				continue;
 			}
-			$cost = $recipe->calculate_cost_per_serving();
-			if ( $cost > 0 ) {
-				$total += $cost;
-				++$count;
+
+			$meal_servings = (float) ( $row['servings'] ?? 0 );
+			if ( $meal_servings <= 0 ) {
+				continue;
+			}
+
+			$total    += $recipe->calculate_cost_per_serving() * $meal_servings;
+			$servings += $meal_servings;
+
+			if ( ! $recipe->has_complete_prices() ) {
+				$complete = false;
 			}
 		}
-		return $count > 0 ? $total / $count : 0.0;
+
+		$cost = $servings > 0 ? $total / $servings : 0.0;
+
+		return array(
+			'cost'     => $cost,
+			'complete' => $cost > 0 && $complete,
+		);
+	}
+
+	/**
+	 * Average cost per serving; the figure of calc_cost_per_serving().
+	 *
+	 * @return float 0 when nothing is priced.
+	 */
+	public function calculate_avg_cost_per_serving(): float {
+
+		return $this->calc_cost_per_serving()['cost'];
 	}
 
 	/**

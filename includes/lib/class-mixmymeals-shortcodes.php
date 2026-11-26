@@ -935,11 +935,10 @@ class Mixmymeals_Shortcodes {
 			echo '<span class="mmm-meta__item mmm-meta__item--servings">'
 				. esc_html( $serving_range_string ) . '</span>';
 		}
-		$avg_cost = $plan->calculate_avg_cost_per_serving();
-		if ( $avg_cost > 0 ) {
-			$currency = get_option( 'mixmymeals_currency', '€' );
+		$avg_cost = $plan->calc_cost_per_serving();
+		if ( $avg_cost['cost'] > 0 ) {
 			echo '<span class="mmm-meta__item mmm-meta__item--cost">'
-				. esc_html( number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
+				. esc_html( self::price_text( $avg_cost['cost'], $avg_cost['complete'] ) )
 				. '</span>';
 		}
 		echo self::diet_chips( (int) $plan->get_id(), 'mmm-meta__item' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
@@ -7876,8 +7875,7 @@ class Mixmymeals_Shortcodes {
 		$num_of_days   = $plan->count_days();
 		$num_of_meals  = $plan->count_meals();
 		$servings_text = self::plan_servings_chip_text( $plan );
-		$avg_cost      = $plan->calculate_avg_cost_per_serving();
-		$currency      = get_option( 'mixmymeals_currency', '€' );
+		$avg_cost      = $plan->calc_cost_per_serving();
 		$texts         = array();
 
 		if ( $num_of_days ) {
@@ -7906,11 +7904,28 @@ class Mixmymeals_Shortcodes {
 			$texts['servings'] = $servings_text;
 		}
 
-		if ( $avg_cost > 0 ) {
-			$texts['price'] = self::chip_text( 'price', array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency ) );
+		if ( $avg_cost['cost'] > 0 ) {
+			$texts['price'] = self::chip_text( 'price', array( 'price' => self::price_text( $avg_cost['cost'], $avg_cost['complete'] ) ) );
 		}
 
 		return $texts;
+	}
+
+	/**
+	 * An amount of money as chips print it, "3,20 €"; a sum that misses
+	 * prices is a lower bound and says so, "ab 3,20 €" (chip text
+	 * price_from). The one rule for incomplete prices on a plan (HG-116)
+	 * and its shopping costs (HG-115).
+	 *
+	 * @param float $amount   Amount in the site's currency.
+	 * @param bool  $complete Whether every price that belongs in it is there.
+	 * @return string Plain text; the caller escapes.
+	 */
+	public static function price_text( float $amount, bool $complete = true ): string {
+
+		$price = number_format_i18n( $amount, 2 ) . ' ' . get_option( 'mixmymeals_currency', '€' );
+
+		return $complete ? $price : self::chip_text( 'price_from', array( 'price' => $price ) );
 	}
 
 	/**
@@ -8933,6 +8948,15 @@ class Mixmymeals_Shortcodes {
 				'label'    => __( 'Price', 'mixmymeals' ),
 				/* translators: chip wording. {price} includes the currency. */
 				'default'  => __( '{price} / serving', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
+			),
+			'price_from'               => array(
+				'group'    => 'stats',
+				'label'    => __( 'Price, prices missing', 'mixmymeals' ),
+				'note'     => __( 'Wraps a price that misses some ingredients\' prices, so it is a lower bound — on a plan\'s price per serving and its shopping costs.', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency; the sum lacks some prices, so it is a lower bound. */
+				'default'  => __( 'from {price}', 'mixmymeals' ),
 				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
 				'required' => array( 'price' ),
 			),
@@ -10157,11 +10181,10 @@ class Mixmymeals_Shortcodes {
 		-------------------------
 		 * Average cost per serving
 		 * ------------------------- */
-		$avg_cost = $plan->calculate_avg_cost_per_serving();
-		if ( $avg_cost > 0 ) {
-			$currency = get_option( 'mixmymeals_currency', '€' );
-			$items[]  = '<span class="mmm-meta__item mmm-meta__item--cost">'
-						. esc_html( number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
+		$avg_cost = $plan->calc_cost_per_serving();
+		if ( $avg_cost['cost'] > 0 ) {
+			$items[] = '<span class="mmm-meta__item mmm-meta__item--cost">'
+						. esc_html( self::price_text( $avg_cost['cost'], $avg_cost['complete'] ) )
 						. '</span>';
 		}
 

@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.17.0
+Stable tag: 4.17.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,17 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.17.1 =
+
+Fixed:
+* A plan's price per serving is weighted by the servings each meal is
+  cooked for — a meal for six no longer counts as much as one for one.
+* Recipes with missing prices are no longer silently left out or
+  under-priced: the plan's price then reads as a lower bound, "from
+  3.20 €" (chip text "Price, prices missing").
+* The price is read from the plan's rows, so it follows the meal's diet
+  and works for plans that are not saved yet.
 
 = 4.17.0 =
 
