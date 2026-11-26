@@ -7211,8 +7211,9 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * The amount an ingredient list prints for one ingredient: "3 EL",
-	 * "250 g", "2 EL + 50 g" where its steps use different units.
+	 * The amount an ingredient list prints for one ingredient: "3× EL",
+	 * "250 g", "2× EL + 50 g" where its steps use different units — each
+	 * worded by Mixmymeals_Ingredient_Amount::format_text() (HG-114).
 	 *
 	 * The amount only. The weight in grams beside it repeated a gram amount
 	 * ("250 g (250 g)") and, beside a unit, said the same thing twice in
@@ -7226,18 +7227,11 @@ class Mixmymeals_Shortcodes {
 		$parts = array();
 
 		foreach ( $amounts as $unit => $amount ) {
+			$text = Mixmymeals_Ingredient_Amount::format_text( (float) $amount, (string) $unit );
 
-			$amount = round( (float) $amount, 2 );
-			if ( $amount <= 0 ) {
-				continue;
+			if ( '' !== $text ) {
+				$parts[] = $text;
 			}
-
-			$decimals = 0;
-			while ( $decimals < 2 && round( $amount, $decimals ) !== $amount ) {
-				++$decimals;
-			}
-
-			$parts[] = number_format_i18n( $amount, $decimals ) . ' ' . $unit;
 		}
 
 		return implode( ' + ', $parts );

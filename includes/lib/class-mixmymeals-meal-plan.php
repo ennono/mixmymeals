@@ -4062,46 +4062,11 @@ class Mixmymeals_Meal_Plan {
 		return Mixmymeals_Diet::combine( $sets );
 	}
 	/**
-	 * Builds the human-readable needed-amount string for one shopping
-	 * list ingredient from its per-unit totals.
-	 *
-	 * Indivisible units are listed as counts ("3× Stück"), everything
-	 * else is collapsed into grams. A gram equivalent is appended when
-	 * piece counts are shown.
-	 *
-	 * Moved here from Mixmymeals_Shortcodes: it formats the output of
-	 * calc_shopping_list(), which lives in this class.
-	 *
-	 * @param array $units        Per-unit totals from calc_shopping_list().
-	 * @param float $total_weight Total weight in grams.
-	 * @return string E.g. "3× Stück + 150 g (≈ 405 g)".
-	 */
-	/**
-	 * A countable quantity for human eyes: locale separators, and only as many
-	 * decimals as the value actually needs — "1", "0,5", "0,75".
-	 *
-	 * Deliberately not Mixmymeals_Ingredient::format_amount(), which is the
-	 * parser-facing format: it prints a decimal point on purpose, because
-	 * Bring! reads "0,5" as something else entirely. That one belongs in the
-	 * Bring! lines, this one on the page.
-	 *
-	 * @param float $value Quantity in units.
-	 * @return string
-	 */
-	private static function format_count_i18n( float $value ): string {
-
-		$decimals = 0;
-
-		if ( abs( $value - round( $value ) ) > 0.001 ) {
-			$decimals = abs( $value * 10 - round( $value * 10 ) ) < 0.001 ? 1 : 2;
-		}
-
-		return number_format_i18n( $value, $decimals );
-	}
-
-	/**
 	 * One recipe's share of a shopping-list line, as its breakdown prints it:
-	 * "200 g" for an amount in grams, "2× EL" for a unit — never "200 × g".
+	 * "200 g" for an amount in grams, "2× EL" for a unit.
+	 *
+	 * Worded by Mixmymeals_Ingredient_Amount::format_text(), the one wording
+	 * of an amount for people (HG-114).
 	 *
 	 * @param array $detail One entry of an ingredient's 'details' from
 	 *                      calc_shopping_list().
@@ -4109,89 +4074,33 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function detail_amount_string( array $detail ): string {
 
-		$amount = (float) ( $detail['amount'] ?? 0 );
-		$unit   = trim( (string) ( $detail['unit_title'] ?? '' ) );
-
-		// A row without a unit is weighed in grams; its title is "g" or empty.
-		if ( '' === $unit || 'g' === strtolower( $unit ) ) {
-			return number_format_i18n( round( $amount ) ) . ' g';
-		}
-
-		return sprintf( '%s× %s', self::format_count_i18n( $amount ), $unit );
+		return Mixmymeals_Ingredient_Amount::format_text(
+			(float) ( $detail['amount'] ?? 0 ),
+			(string) ( $detail['unit_title'] ?? '' ),
+			(float) ( $detail['weight_g'] ?? 0 )
+		);
 	}
 
 	/**
-	 * Whether a shopping-list unit is something you count rather than weigh.
+	 * The needed amount of one shopping-list line: "2× Dose + 100 g (≈ 900 g)".
 	 *
-	 * True for anything that can only be taken in fixed steps — whole ones
-	 * when indivisible, halves at a divisor of 2. Those belong in the list as
-	 * "1,5× Dose", because that is what goes in the basket; a unit without a
-	 * step is better expressed as a weight.
+	 * Forwards to Mixmymeals_Ingredient_Amount::format_units(); kept because
+	 * the Printer calls it (add-on API).
 	 *
-	 * @param array $unit One entry of an ingredient's 'units' array.
-	 * @return bool
+	 * @param array $units        Per-unit totals from calc_shopping_list().
+	 * @param float $total_weight Total weight in grams.
+	 * @return string
 	 */
-	private static function unit_is_counted( array $unit ): bool {
-
-		return ! empty( $unit['is_indivisible'] ) || (int) ( $unit['step_divisor'] ?? 0 ) > 0;
-	}
-
 	public static function build_needed_amount_string( array $units, float $total_weight ): string {
 
-		$piece_parts = array();
-		$loose_grams = 0.0;
-
-		foreach ( $units as $unit ) {
-			/*
-			 * Counted, not weighed, whenever the unit has a step at all — a
-			 * divisor of 2 makes "1,5× Dose" the honest answer, and turning it
-			 * into grams would hide what to put in the basket. format_amount()
-			 * rather than %d for exactly that reason: %d turned half a tin
-			 * into a whole one.
-			 */
-			if ( self::unit_is_counted( $unit ) ) {
-				$piece_parts[] = trim(
-					sprintf(
-						'%s× %s',
-						self::format_count_i18n( (float) ( $unit['amount'] ?? 0 ) ),
-						$unit['unit_title'] ?? ''
-					)
-				);
-			} else {
-				$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
-			}
-		}
-
-		$parts = $piece_parts;
-
-		if ( $loose_grams > 0 || empty( $parts ) ) {
-			$parts[] = number_format_i18n( round( $loose_grams ) ) . ' g';
-		}
-
-		$result = implode( ' + ', $parts );
-
-		if ( ! empty( $piece_parts ) && $total_weight > 0 ) {
-			$result .= sprintf(
-				' (≈ %s g)',
-				number_format_i18n( round( $total_weight ) )
-			);
-		}
-
-		return $result;
+		return Mixmymeals_Ingredient_Amount::format_units( $units, $total_weight );
 	}
 
 	/**
-	 * Short amount for teasers — one figure, no compounds.
+	 * Short amount for teasers — one figure: "4× EL", "1,2 kg".
 	 *
-	 * build_needed_amount_string() is built for the full shopping list, where
-	 * "3× EL + 400 g (≈ 430 g)" is the honest answer. On a teaser that has room
-	 * for one line per item it only produces noise, so this variant commits to a
-	 * single figure:
-	 *
-	 * - every unit indivisible → count and unit, e.g. "4 EL", "2 Stück"
-	 * - otherwise             → total weight, switching to kg from 1000 g
-	 *
-	 * The full breakdown stays available on the meal plan page.
+	 * Forwards to Mixmymeals_Ingredient_Amount::format_units( …, 'short' );
+	 * kept as add-on API.
 	 *
 	 * @param array $units        Units of one ingredient from calc_shopping_list().
 	 * @param float $total_weight Total weight in grams.
@@ -4199,34 +4108,7 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function build_short_amount_string( array $units, float $total_weight ): string {
 
-		$divisible = array_filter(
-			$units,
-			static fn( $unit ) => ! self::unit_is_counted( $unit )
-		);
-
-		// Nur Stückgut: Anzahl und Einheit sagen mehr als ein Gewicht.
-		if ( ! empty( $units ) && empty( $divisible ) ) {
-
-			$count = 0;
-			$label = '';
-
-			foreach ( $units as $unit ) {
-				$count += (float) ( $unit['amount'] ?? 0 );
-				$label  = (string) ( $unit['unit_title'] ?? '' );
-			}
-
-			return trim( self::format_count_i18n( $count ) . ' ' . $label );
-		}
-
-		$grams = (int) round( $total_weight );
-
-		if ( $grams >= 1000 ) {
-			$kilos = $grams / 1000;
-
-			return number_format_i18n( $kilos, 0 === $grams % 1000 ? 0 : 1 ) . ' kg';
-		}
-
-		return number_format_i18n( $grams ) . ' g';
+		return Mixmymeals_Ingredient_Amount::format_units( $units, $total_weight, 'short' );
 	}
 
 	/*
@@ -4503,7 +4385,7 @@ class Mixmymeals_Meal_Plan {
 				$added       = false;
 
 				foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
-					if ( self::unit_is_counted( $unit ) ) {
+					if ( Mixmymeals_Ingredient_Amount::unit_is_counted( $unit ) ) {
 						$lines[] = trim(
 							sprintf(
 								'%s %s %s',

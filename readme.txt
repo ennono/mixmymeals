@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.16.1
+Stable tag: 4.17.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,19 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.17.0 =
+
+Changed:
+* Amounts read the same everywhere — ingredient lists, step lists,
+  shopping lists and their breakdown, teasers, mails and the recipe's
+  backend shopping list: counts as "2× Dose", halves and quarters as
+  fractions ("1½× Dose"), other decimals with at most one place, grams
+  from 1000 g as kilograms ("1,2 kg"), and an amount without a unit as
+  its weight only. One formatter,
+  `Mixmymeals_Ingredient_Amount::format_text()` / `format_units()`;
+  the former methods forward to it.
+* Bring!, schema.org and REST keep their machine-readable amounts.
 
 = 4.16.1 =
 

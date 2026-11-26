@@ -452,4 +452,234 @@ class Mixmymeals_Ingredient_Amount {
 
 		return (int) array_sum( array_column( $this->get_usage(), 'occurrences' ) );
 	}
+
+	/*
+	 * =========================================================================
+	 * Amounts for people (HG-114)
+	 * =========================================================================
+	 *
+	 * Every amount a person reads — ingredient lists, shopping lists, their
+	 * breakdowns, teasers, mails, the backend, the PDF — is worded here, so
+	 * the same quantity reads the same everywhere:
+	 *
+	 * - a count as "2× Dose", never a plural of the unit;
+	 * - halves and quarters as fractions (½, ¼, ¾, "1½× Dose"), anything
+	 *   else with a decimal comma and at most one decimal;
+	 * - grams as "200 g", from 1000 g as "1,2 kg";
+	 * - no unit (or a metric one) as the quantity itself, never "200× g".
+	 *
+	 * Machine-read output (Bring!, schema.org, REST) does not come here: it
+	 * keeps Mixmymeals_Ingredient::format_amount(), without fractions and
+	 * without thousands separators.
+	 */
+
+	/**
+	 * Unit titles that are measures of mass or volume: their amount is a
+	 * quantity, "250 ml", not a count, "250× ml". Compared in lower case.
+	 *
+	 * @var string[]
+	 */
+	const METRIC_UNITS = array( 'g', 'kg', 'mg', 'ml', 'cl', 'dl', 'l' );
+
+	/**
+	 * Fractions printed as such, keyed by their value in quarters.
+	 *
+	 * @var array<int,string>
+	 */
+	const FRACTIONS = array(
+		1 => '¼',
+		2 => '½',
+		3 => '¾',
+	);
+
+	/**
+	 * The one wording of an amount for people.
+	 *
+	 * @param float  $count    Quantity in the unit (for a gram row: the grams).
+	 * @param string $unit     Unit title; '' or "g" for an amount in grams.
+	 * @param float  $weight_g Weight in grams; preferred over $count for a
+	 *                         gram row, ignored for every other unit.
+	 * @return string "2× EL", "1½× Dose", "250 ml", "200 g", "1,2 kg";
+	 *                '' when there is nothing above zero.
+	 */
+	public static function format_text( float $count, string $unit = '', float $weight_g = 0.0 ): string {
+
+		$unit = trim( $unit );
+
+		if ( '' === $unit || 'g' === strtolower( $unit ) ) {
+			$grams = $weight_g > 0 ? $weight_g : $count;
+
+			return $grams > 0 ? self::format_weight( $grams ) : '';
+		}
+
+		if ( $count <= 0 ) {
+			return '';
+		}
+
+		if ( self::is_metric_unit( $unit ) ) {
+			return self::format_decimal( $count ) . ' ' . $unit;
+		}
+
+		return self::format_count( $count ) . '× ' . $unit;
+	}
+
+	/**
+	 * Whether a unit title is a measure (g, ml, l …) rather than a thing
+	 * counted (Dose, EL, Stück).
+	 *
+	 * @param string $unit Unit title.
+	 * @return bool
+	 */
+	public static function is_metric_unit( string $unit ): bool {
+
+		$metric = (array) apply_filters( 'mixmymeals_metric_units', self::METRIC_UNITS );
+
+		return in_array( strtolower( trim( $unit ) ), array_map( 'strtolower', $metric ), true );
+	}
+
+	/**
+	 * A count: ¼, ½ and ¾ as fractions ("1½"), otherwise at most one decimal
+	 * with the locale's separator ("0,3", "2"). Never shown as zero: a count
+	 * too small for one decimal reads as the smallest one.
+	 *
+	 * @param float $count Quantity.
+	 * @return string
+	 */
+	public static function format_count( float $count ): string {
+
+		if ( $count <= 0 ) {
+			return '0';
+		}
+
+		$quarters = $count * 4;
+
+		if ( abs( $quarters - round( $quarters ) ) < 0.02 ) {
+			$quarters = (int) round( $quarters );
+			$whole    = intdiv( $quarters, 4 );
+			$rest     = $quarters % 4;
+
+			if ( 0 === $rest ) {
+				return number_format_i18n( $whole );
+			}
+
+			return ( $whole > 0 ? number_format_i18n( $whole ) : '' ) . self::FRACTIONS[ $rest ];
+		}
+
+		return self::format_decimal( $count );
+	}
+
+	/**
+	 * A weight: whole grams below 10 g with at most one decimal ("2,5 g"),
+	 * whole grams up to 999 g, kilograms with at most one decimal from 1000 g
+	 * ("1,2 kg", "2 kg").
+	 *
+	 * @param float $grams Weight in grams.
+	 * @return string
+	 */
+	public static function format_weight( float $grams ): string {
+
+		if ( round( $grams ) >= 1000 ) {
+			return self::format_decimal( $grams / 1000 ) . ' kg';
+		}
+
+		if ( $grams < 10 ) {
+			return self::format_decimal( $grams ) . ' g';
+		}
+
+		return number_format_i18n( round( $grams ) ) . ' g';
+	}
+
+	/**
+	 * A number with at most one decimal, none where it is whole after
+	 * rounding; above zero never printed as "0".
+	 *
+	 * @param float $value Value.
+	 * @return string
+	 */
+	private static function format_decimal( float $value ): string {
+
+		$rounded = round( $value, 1 );
+
+		if ( $value > 0 && $rounded <= 0 ) {
+			$rounded = 0.1;
+		}
+
+		$decimals = abs( $rounded - round( $rounded ) ) < 0.001 ? 0 : 1;
+
+		return number_format_i18n( $rounded, $decimals );
+	}
+
+	/**
+	 * Whether a shopping-list unit is counted rather than weighed: anything
+	 * taken in fixed steps (whole ones, halves …) goes into the basket as
+	 * "1½× Dose"; a unit without a step reads better as its weight.
+	 *
+	 * @param array $unit One entry of a line's 'units' from calc_shopping_list().
+	 * @return bool
+	 */
+	public static function unit_is_counted( array $unit ): bool {
+
+		return ! empty( $unit['is_indivisible'] ) || (int) ( $unit['step_divisor'] ?? 0 ) > 0;
+	}
+
+	/**
+	 * One shopping-list line worded from its units, through format_text().
+	 *
+	 * Counted units are listed as counts, everything else is summed into
+	 * grams; where counts are shown the total weight follows:
+	 * "2× Dose + 100 g (≈ 900 g)". The short form commits to one figure for a
+	 * teaser: the count where every unit is counted, else the total weight.
+	 *
+	 * @param array  $units        A line's 'units' from calc_shopping_list().
+	 * @param float  $total_weight The line's 'total_weight'.
+	 * @param string $form         'full' (default) or 'short'.
+	 * @return string
+	 */
+	public static function format_units( array $units, float $total_weight, string $form = 'full' ): string {
+
+		if ( 'short' === $form ) {
+			$counted = array_filter( $units, array( self::class, 'unit_is_counted' ) );
+
+			if ( ! empty( $units ) && count( $counted ) === count( $units ) ) {
+				$count = 0.0;
+				$title = '';
+
+				foreach ( $units as $unit ) {
+					$count += (float) ( $unit['amount'] ?? 0 );
+					$title  = (string) ( $unit['unit_title'] ?? '' );
+				}
+
+				return self::format_text( $count, $title );
+			}
+
+			return self::format_weight( max( 0.0, $total_weight ) );
+		}
+
+		$pieces = array();
+		$loose  = 0.0;
+
+		foreach ( $units as $unit ) {
+			$title = (string) ( $unit['unit_title'] ?? '' );
+
+			if ( self::unit_is_counted( $unit ) && '' !== trim( $title ) && 'g' !== strtolower( trim( $title ) ) ) {
+				$pieces[] = self::format_text( (float) ( $unit['amount'] ?? 0 ), $title );
+			} else {
+				$loose += (float) ( $unit['weight_g'] ?? 0 );
+			}
+		}
+
+		$parts = array_values( array_filter( $pieces, 'strlen' ) );
+
+		if ( $loose > 0 || empty( $parts ) ) {
+			$parts[] = self::format_weight( max( 0.0, $loose ) );
+		}
+
+		$text = implode( ' + ', $parts );
+
+		if ( ! empty( $pieces ) && $total_weight > 0 ) {
+			$text .= ' (≈ ' . self::format_weight( $total_weight ) . ')';
+		}
+
+		return $text;
+	}
 }

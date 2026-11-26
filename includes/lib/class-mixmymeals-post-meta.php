@@ -2628,7 +2628,8 @@ class Mixmymeals_Post_Meta {
 	 * - Aggregiert mehrfach vorkommende Zutaten und summiert Gewicht.
 	 * - Gibt den Gesamtbedarf je Zutat aus:
 	 *   "Zutatname, 750 g"
-	 *   - Untereinträge: "2 × EL (30 g)" etc. (Unit fallback: "g")
+	 *   - Untereinträge: "2× EL (30 g)" etc., worded by
+	 *     Mixmymeals_Ingredient_Amount::format_text()
 	 *
 	 * @param   int $post_id  Recipe post ID
 	 *
@@ -2719,10 +2720,7 @@ class Mixmymeals_Post_Meta {
 			// Hauptzeile: Name + Gesamtbedarf in Gramm
 			$main_line  = '<a href="' . get_edit_post_link( $ing_id ) . '">'
 						. esc_html( $ingredient_name ) . '</a>';
-			$main_line .= sprintf(
-				', %s g',
-				esc_html( number_format_i18n( $total_weight, 2 ) )
-			);
+			$main_line .= ', ' . esc_html( Mixmymeals_Ingredient_Amount::format_weight( $total_weight ) );
 
 			// Ausgabe Hauptzeile + Unterliste öffnen
 			printf(
@@ -2734,41 +2732,17 @@ class Mixmymeals_Post_Meta {
 			echo '<ul style="margin:6px 0 0 18px; list-style:disc;">';
 
 			foreach ( $data['entries'] as $entry ) {
-				$entry_amount = floatval( $entry['amount'] );
-				// Formatierte Anzeige der Menge (keine unnötigen Nachkommastellen)
-				$decimals       = ( floor( $entry_amount ) != $entry_amount )
-					? 2 : 0;
-				$display_amount = $entry_amount > 0
-					? number_format_i18n( $entry_amount, $decimals ) : '';
+				$unit   = trim( strval( $entry['unit'] ?? '' ) );
+				$weight = floatval( $entry['weight'] ?? 0 );
+				$text   = Mixmymeals_Ingredient_Amount::format_text( floatval( $entry['amount'] ), $unit, $weight );
 
-				// Einheit mit Fallback
-				$unit = trim( strval( $entry['unit'] ?? '' ) );
-				if ( $unit === '' ) {
-					$unit = 'g';
+				// A unit gets its weight beside it, "2× EL (30 g)"; an amount
+				// in grams is its weight already.
+				if ( '' !== $unit && 'g' !== strtolower( $unit ) && $weight > 0 ) {
+					$text .= ' (' . Mixmymeals_Ingredient_Amount::format_weight( $weight ) . ')';
 				}
 
-				$entry_weight = floatval( $entry['weight'] ?? 0 );
-
-				// Gewicht formatieren
-				$display_weight = number_format_i18n(
-					round( $entry_weight, 2 ),
-					2
-				);
-
-				if ( $unit != 'g' ) {
-					printf(
-						'<li>%s × %s (%s g)</li>',
-						esc_html( $display_amount ?: '0' ),
-						esc_html( $unit ),
-						esc_html( $display_weight )
-					);
-				} else {
-					printf(
-						'<li>%s g (%s g)</li>',
-						esc_html( $display_amount ?: '0' ),
-						esc_html( $display_amount ?: '0' )
-					);
-				}
+				printf( '<li>%s</li>', esc_html( '' !== $text ? $text : '0 g' ) );
 			}
 
 			echo '</ul></li>';
