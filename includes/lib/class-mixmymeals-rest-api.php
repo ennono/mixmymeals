@@ -1453,7 +1453,7 @@ class Mixmymeals_Rest_Api {
 							'properties'           => array(
 								'type'           => array(
 									'type' => 'string',
-									'enum' => array( 'ingredient', 'product' ),
+									'enum' => array( 'ingredient', 'product', 'unit' ),
 								),
 								'id'             => array( 'type' => 'integer' ),
 								'nutrition'      => array(
@@ -1483,6 +1483,19 @@ class Mixmymeals_Rest_Api {
 									'exclusiveMinimum' => true,
 									'maximum'          => Mixmymeals_Ingredient::COOKING_FACTOR_MAX,
 								),
+								// Products only (HG-117): what a shopping list
+								// buys and what the packet costs.
+								'package_weight' => array(
+									'type'    => array( 'number', 'null' ),
+									'minimum' => 0,
+								),
+								'price'          => array(
+									'type'    => array( 'number', 'null' ),
+									'minimum' => 0,
+								),
+								'source'         => array( 'type' => 'string' ),
+								// Units only (HG-117): bought whole.
+								'is_package'     => array( 'type' => 'boolean' ),
 							),
 						),
 					),
@@ -1505,13 +1518,15 @@ class Mixmymeals_Rest_Api {
 					'field'           => array(
 						'required' => true,
 						'type'     => 'string',
-						'enum'     => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type', 'cooking_factor' ) ),
+						'enum'     => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type', 'cooking_factor', 'package_weight', 'package_unit' ) ),
 					),
+					// package_weight is always about products, package_unit
+					// always about units; `type` is set from the field there.
 					'type'            => array(
 						'required' => false,
 						'type'     => 'string',
 						'default'  => 'ingredient',
-						'enum'     => array( 'ingredient', 'product' ),
+						'enum'     => array( 'ingredient', 'product', 'unit' ),
 					),
 					'mode'            => array(
 						'required' => false,
@@ -5134,13 +5149,45 @@ class Mixmymeals_Rest_Api {
 				continue;
 			}
 
-			$post_type = 'product' === $kind ? Mixmymeals_Product::POST_TYPE : 'mmm_ingredient';
+			$post_type = match ( $kind ) {
+				'product' => Mixmymeals_Product::POST_TYPE,
+				'unit'    => 'mmm_ingr_unit',
+				default   => 'mmm_ingredient',
+			};
 
 			if ( get_post_type( $id ) !== $post_type ) {
 				$errors[] = array(
 					'id'    => $id,
 					'error' => get_post_type( $id ) ? 'wrong_type' : 'not_found',
 				);
+				continue;
+			}
+
+			/*
+			 * A known key on the wrong kind of item is that item's error, not
+			 * the request's: the schema cannot tie keys to `type`, and the
+			 * rest of the batch is still well-formed.
+			 */
+			$foreign = array_values( array_intersect( array_keys( $item ), self::BULK_FIELDS ) );
+			$foreign = array_values( array_diff( $foreign, self::bulk_fields_for( $kind ) ) );
+
+			if ( $foreign ) {
+				$errors[] = array(
+					'id'     => $id,
+					'error'  => 'field_not_on_type',
+					'fields' => $foreign,
+				);
+				continue;
+			}
+
+			if ( 'unit' === $kind ) {
+				$row = $this->bulk_update_unit( $id, $item, $dry_run );
+
+				if ( isset( $row['error'] ) ) {
+					$errors[] = $row;
+				} else {
+					$results[] = $row;
+				}
 				continue;
 			}
 
@@ -5164,7 +5211,7 @@ class Mixmymeals_Rest_Api {
 				continue;
 			}
 
-			if ( ! array_intersect( array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor' ), array_keys( $item ) ) ) {
+			if ( ! array_intersect( self::bulk_fields_for( $kind ), array_keys( $item ) ) ) {
 				$errors[] = array(
 					'id'    => $id,
 					'error' => 'no_fields',
@@ -5207,13 +5254,61 @@ class Mixmymeals_Rest_Api {
 				}
 			}
 
+			/*
+			 * The package weight first: a price per 100 g in the same item is
+			 * turned into a package price with the weight it will have, not
+			 * the one it had. 0 or null clears it, as the setter does.
+			 */
+			$weight = $product ? $product->get_package_weight() : 0.0;
+
+			if ( $product && array_key_exists( 'package_weight', $item ) ) {
+				$new = null === $item['package_weight'] ? 0.0 : (float) $item['package_weight'];
+				$new = $new > 0 ? $new : 0.0;
+
+				if ( $new !== $weight ) {
+					$changes['package_weight'] = array( $weight > 0 ? $weight : null, $new > 0 ? $new : null );
+					$writes[]                  = fn() => $product->set_package_weight( $new );
+				}
+
+				$weight = $new;
+			}
+
+			if ( $product && array_key_exists( 'price', $item ) && array_key_exists( 'price_per_100g', $item ) ) {
+				$errors[] = array(
+					'id'    => $id,
+					'error' => 'price_twice',
+				);
+				continue;
+			}
+
+			// The package price as it stands on the shelf (HG-117).
+			if ( $product && array_key_exists( 'price', $item ) ) {
+				$price = null === $item['price'] ? null : round( (float) $item['price'], 2 );
+				$price = $price > 0 ? $price : null;
+				$old   = $product->get_price();
+
+				if ( $old !== $price ) {
+					$changes['price'] = array( $old, $price );
+					$writes[]         = fn() => $product->set_price( $price );
+				}
+			}
+
+			if ( $product && array_key_exists( 'source', $item ) ) {
+				$source = sanitize_text_field( (string) $item['source'] );
+				$old    = $product->get_source();
+
+				if ( $old !== $source ) {
+					$changes['source'] = array( $old, $source );
+					$writes[]          = fn() => $product->set_source( $source );
+				}
+			}
+
 			if ( array_key_exists( 'price_per_100g', $item ) ) {
 				$price = null === $item['price_per_100g'] ? null : (float) $item['price_per_100g'];
 				$price = $price > 0 ? $price : null;
 
 				if ( $product ) {
-					$old    = $product->get_price_per_100g();
-					$weight = $product->get_package_weight();
+					$old = $product->get_price_per_100g();
 
 					if ( null !== $price && $weight <= 0 ) {
 						$errors[] = array(
@@ -5300,6 +5395,85 @@ class Mixmymeals_Rest_Api {
 	}
 
 	/**
+	 * Every field /bulk-update knows, whatever the item's type.
+	 *
+	 * @var string[]
+	 */
+	private const BULK_FIELDS = array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor', 'package_weight', 'price', 'source', 'is_package' );
+
+	/**
+	 * The fields /bulk-update writes on one kind of item.
+	 *
+	 * @param string $kind ingredient, product or unit.
+	 * @return string[]
+	 */
+	private static function bulk_fields_for( string $kind ): array {
+		return match ( $kind ) {
+			'product' => array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor', 'package_weight', 'price', 'source' ),
+			'unit'    => array( 'is_package' ),
+			default   => array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor' ),
+		};
+	}
+
+	/**
+	 * One unit of /bulk-update: the "bought whole" mark (HG-117).
+	 *
+	 * Edited through its ingredient, like the units table on the ingredient
+	 * screen, so the permission is the ingredient's.
+	 *
+	 * @param int   $id      Unit ID (type already checked).
+	 * @param array $item    The item.
+	 * @param bool  $dry_run Compute only.
+	 * @return array A result row, or an error row (with `error`).
+	 */
+	private function bulk_update_unit( int $id, array $item, bool $dry_run ): array {
+
+		$unit          = new Mixmymeals_Ingredient_Amount( $id );
+		$ingredient_id = (int) wp_get_post_parent_id( $id );
+
+		if ( ! $unit->is_valid() || $ingredient_id <= 0 ) {
+			return array(
+				'id'    => $id,
+				'error' => 'not_found',
+			);
+		}
+
+		if ( $this->require_can_edit( $ingredient_id ) ) {
+			return array(
+				'id'    => $id,
+				'error' => 'forbidden',
+			);
+		}
+
+		if ( ! array_key_exists( 'is_package', $item ) ) {
+			return array(
+				'id'    => $id,
+				'error' => 'no_fields',
+			);
+		}
+
+		$changes = array();
+		$new     = (bool) $item['is_package'];
+		$old     = $unit->is_package();
+
+		if ( $old !== $new ) {
+			$changes['is_package'] = array( $old, $new );
+
+			if ( ! $dry_run ) {
+				$unit->set_package( $new );
+			}
+		}
+
+		return array(
+			'id'               => $id,
+			'title'            => get_the_title( $id ),
+			'ingredient_id'    => $ingredient_id,
+			'ingredient_title' => get_the_title( $ingredient_id ),
+			'changes'          => (object) $changes,
+		);
+	}
+
+	/**
 	 * Which of the given keys an ingredient's reference product states itself.
 	 *
 	 * Same precedence as Mixmymeals_Ingredient::apply_product() and the price
@@ -5367,6 +5541,21 @@ class Mixmymeals_Rest_Api {
 		$page     = max( 1, (int) $request->get_param( 'page' ) );
 		$per_page = max( 1, min( 200, (int) $request->get_param( 'per_page' ) ) );
 
+		// HG-117: the two package fields belong to one kind of item each.
+		if ( 'package_weight' === $field ) {
+			$kind = 'product';
+		} elseif ( 'package_unit' === $field ) {
+			$kind = 'unit';
+		} elseif ( 'unit' === $kind ) {
+			return new WP_REST_Response(
+				array(
+					'code'    => 'field_not_on_type',
+					'message' => 'type=unit only knows field=package_unit.',
+				),
+				400
+			);
+		}
+
 		$is_missing = function ( $value ) use ( $zero, $field ): bool {
 			if ( 'diet_type' === $field ) {
 				return '' === (string) $value;
@@ -5379,6 +5568,7 @@ class Mixmymeals_Rest_Api {
 				'price_per_100g' => $product->get_price_per_100g(),
 				'diet_type'      => $product->get_diet_type(),
 				'cooking_factor' => $product->get_cooking_factor(),
+				'package_weight' => $product->get_package_weight() > 0 ? $product->get_package_weight() : null,
 				default          => $product->get_nutrition()[ $field ] ?? null,
 			};
 		};
@@ -5388,6 +5578,7 @@ class Mixmymeals_Rest_Api {
 				'price_per_100g' => $ingredient->get_own_price_per_100g() ?: null,
 				'diet_type'      => Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $ingredient->get_id() ), 'diet' ),
 				'cooking_factor' => $ingredient->get_own_cooking_factor(),
+				'package_weight', 'package_unit' => null,
 				default          => $ingredient->get_nutrition_with_product( 0 )[ $field ] ?? null,
 			};
 		};
@@ -5431,6 +5622,42 @@ class Mixmymeals_Rest_Api {
 			$ingredient = new Mixmymeals_Ingredient( (int) $ingredient_id );
 			$ref        = Mixmymeals_Product::get_reference_id( (int) $ingredient_id );
 			$own_ing    = $ingredient_value( $ingredient );
+
+			/*
+			 * package_unit (HG-117): the units of every ingredient a shopping
+			 * list has no package for — none of its units is bought whole and,
+			 * in `effective` mode, its reference product states no package
+			 * weight either. `own` mode ignores the reference. Each unit is a
+			 * row, since the mark is set on a unit; weight and divisor are
+			 * what tells a tin from a tablespoon.
+			 */
+			if ( 'unit' === $kind ) {
+				$units      = array_map(
+					static fn( $unit_post ) => new Mixmymeals_Ingredient_Amount( (int) $unit_post->ID ),
+					$ingredient->get_units()
+				);
+				$has_unit   = (bool) array_filter( $units, static fn( $unit ) => $unit->is_package() );
+				$ref_weight = $ref ? ( new Mixmymeals_Product( $ref ) )->get_package_weight() : 0.0;
+
+				if ( $has_unit || ( 'effective' === $mode && $ref_weight > 0 ) ) {
+					continue;
+				}
+
+				foreach ( $units as $unit ) {
+					$rows[] = array(
+						'id'                => $unit->get_id(),
+						'title'             => get_the_title( $unit->get_id() ),
+						'ingredient_id'     => (int) $ingredient_id,
+						'ingredient_title'  => get_the_title( (int) $ingredient_id ),
+						'own_value'         => false,
+						'inherited_value'   => null,
+						'reference_product' => $ref,
+						'weight'            => (float) $unit->get_weight(),
+						'divisor'           => $unit->get_divisor(),
+					);
+				}
+				continue;
+			}
 
 			if ( 'product' === $kind ) {
 				foreach ( $products_by_ingredient[ (int) $ingredient_id ] ?? array() as $product_id ) {
@@ -6211,6 +6438,79 @@ class Mixmymeals_Rest_Api {
 		);
 	}
 
+	/**
+	 * What the shopping lists of published plans buy (HG-117), for ordering
+	 * the package and price groups of /audit by effect.
+	 *
+	 * Read from calc_shopping_list() itself, so the answer is the one the
+	 * plan page prints: which product decides a line's package (pin, else
+	 * reference, and only where the plan agrees on one), and which lines
+	 * miss a price. Counted in plans, not lines — a plan is what a reader
+	 * sees. Not memoised: /audit asks once, and a request that writes in
+	 * between must see what it wrote.
+	 *
+	 * @return array{ingredients: array<int, int[]>, products: array<int, int[]>, price_gaps: array<int, int[]>}
+	 *         Each maps an ID to the plan IDs.
+	 */
+	private function plan_shopping_usage(): array {
+
+		$usage = array(
+			'ingredients' => array(),
+			'products'    => array(),
+			'price_gaps'  => array(),
+		);
+
+		$plan_ids = get_posts(
+			array(
+				'post_type'      => 'mmm_meal_plan',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+
+		foreach ( $plan_ids as $plan_id ) {
+			$plan_id = (int) $plan_id;
+			$plan    = new Mixmymeals_Meal_Plan( $plan_id );
+
+			foreach ( $plan->calc_shopping_list( false ) as $lines ) {
+				foreach ( $lines as $line ) {
+					$ing_id = (int) ( $line['ingredient_id'] ?? 0 );
+
+					$usage['ingredients'][ $ing_id ][ $plan_id ] = $plan_id;
+
+					if ( ! empty( $line['product_id'] ) ) {
+						$usage['products'][ (int) $line['product_id'] ][ $plan_id ] = $plan_id;
+					}
+					if ( ! empty( $line['price_gap'] ) ) {
+						$usage['price_gaps'][ $ing_id ][ $plan_id ] = $plan_id;
+					}
+				}
+			}
+		}
+
+		return $usage;
+	}
+
+	/**
+	 * Sorts audit entries by `plans`, most first, then by title.
+	 *
+	 * @param array $entries Entries carrying `plans` and `title`.
+	 * @return array
+	 */
+	private static function sort_by_plans( array $entries ): array {
+
+		usort(
+			$entries,
+			static fn( array $a, array $b ): int => $b['plans'] !== $a['plans']
+				? $b['plans'] <=> $a['plans']
+				: strnatcasecmp( (string) $a['title'], (string) $b['title'] )
+		);
+
+		return $entries;
+	}
+
 	/** Die als Platzhalter konfigurierte Media-ID (Einstellungen → Platzhalterbild). */
 	private function placeholder_image_id(): int {
 		return (int) get_option( 'mixmymeals_placeholder_image_id', 0 );
@@ -6360,7 +6660,34 @@ class Mixmymeals_Rest_Api {
 			 * it takes to classify one without opening it.
 			 */
 			'ingredients_without_diet'               => array(),
+
+			/*
+			 * HG-117: what a shopping list buys and what it costs. Entries
+			 * carry `plans`, the number of published plans the gap reaches,
+			 * and each group is sorted by it — the list is a worklist, and
+			 * the first entries are the ones a visitor sees.
+			 *
+			 * Products without a package weight: their lines fall back to a
+			 * unit package or to grams. Here `plans` counts the plans in which
+			 * the product is the line's product (pin, else reference).
+			 */
+			'products_without_package_weight'        => array(),
+			// No package price: shopping costs fall back to the ingredient's
+			// price per 100 g, or have a gap.
+			'products_without_price'                 => array(),
+
+			/*
+			 * Candidates, not faults: ingredients without a reference product
+			 * and without a unit bought whole, whose units state a divisor —
+			 * the units most likely to be a tin, a jar, a bunch.
+			 */
+			'ingredients_package_unit_candidates'    => array(),
+			// Ingredients on a published plan's shopping list without a price
+			// (the has_complete_prices() rule: water is no gap).
+			'shopping_lines_without_price'           => array(),
 		);
+
+		$shopping = $this->plan_shopping_usage();
 
 		$ingredient_ids = get_posts(
 			array(
@@ -6436,10 +6763,28 @@ class Mixmymeals_Rest_Api {
 				$groups['ingredients_products_without_reference'][] = $this->audit_entry( $ingredient_id );
 			}
 
+			$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
+
 			foreach ( $products as $product ) {
 
 				if ( '' === $product->get_source() ) {
 					$groups['products_without_source'][] = $this->audit_entry( $product->get_id() );
+				}
+
+				$package_entry = array(
+					'id'               => $product->get_id(),
+					'title'            => $product->label(),
+					'ingredient_id'    => $ingredient_id,
+					'ingredient_title' => get_the_title( $ingredient_id ),
+					'is_reference'     => $product->get_id() === $reference,
+					'plans'            => count( $shopping['products'][ $product->get_id() ] ?? array() ),
+				);
+
+				if ( $product->get_package_weight() <= 0 ) {
+					$groups['products_without_package_weight'][] = $package_entry;
+				}
+				if ( null === $product->get_price() ) {
+					$groups['products_without_price'][] = $package_entry;
 				}
 
 				$implausible = Mixmymeals_Ingredient::nutrition_warnings( $product->get_nutrition() );
@@ -6483,6 +6828,41 @@ class Mixmymeals_Rest_Api {
 				$groups['ingredients_without_unit'][] = $this->audit_entry( $ingredient_id );
 			}
 
+			if ( ! $reference ) {
+				$units = array_map(
+					static fn( $unit_post ) => new Mixmymeals_Ingredient_Amount( (int) $unit_post->ID ),
+					$ingredient->get_units()
+				);
+				$whole = array_filter( $units, static fn( $unit ) => $unit->get_divisor() >= 1 && $unit->get_weight() > 0 );
+
+				if ( $whole && ! array_filter( $units, static fn( $unit ) => $unit->is_package() ) ) {
+					$groups['ingredients_package_unit_candidates'][] = array(
+						'id'    => $ingredient_id,
+						'title' => get_the_title( $ingredient_id ),
+						'plans' => count( $shopping['ingredients'][ $ingredient_id ] ?? array() ),
+						'units' => array_values(
+							array_map(
+								static fn( $unit ) => array(
+									'id'      => $unit->get_id(),
+									'title'   => get_the_title( $unit->get_id() ),
+									'weight'  => (float) $unit->get_weight(),
+									'divisor' => $unit->get_divisor(),
+								),
+								$whole
+							)
+						),
+					);
+				}
+			}
+
+			if ( ! empty( $shopping['price_gaps'][ $ingredient_id ] ) ) {
+				$groups['shopping_lines_without_price'][] = array(
+					'id'    => $ingredient_id,
+					'title' => get_the_title( $ingredient_id ),
+					'plans' => count( $shopping['price_gaps'][ $ingredient_id ] ),
+				);
+			}
+
 			if ( ! $ingredient->get_price_per_100g() ) {
 				$groups['ingredients_without_price'][] = $this->audit_entry( $ingredient_id );
 			}
@@ -6490,6 +6870,10 @@ class Mixmymeals_Rest_Api {
 			if ( empty( $usage[ $ingredient_id ] ) ) {
 				$groups['ingredients_unused'][] = $this->audit_entry( $ingredient_id );
 			}
+		}
+
+		foreach ( array( 'products_without_package_weight', 'products_without_price', 'ingredients_package_unit_candidates', 'shopping_lines_without_price' ) as $key ) {
+			$groups[ $key ] = self::sort_by_plans( $groups[ $key ] );
 		}
 
 		return $groups;

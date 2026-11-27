@@ -43,20 +43,57 @@ function mmm_bu_call( string $method, string $path, array $body = array(), array
 	return rest_get_server()->dispatch( $request );
 }
 
+/** Every row of /missing, all pages — a test row may sort past the first. */
+function mmm_bu_missing_rows( array $query ): array {
+	$rows = array();
+	$page = 1;
+	do {
+		$data = mmm_bu_call(
+			'GET',
+			'/missing',
+			array(),
+			$query + array(
+				'per_page' => 200,
+				'page'     => $page,
+			)
+		)->get_data();
+		$rows = array_merge( $rows, $data['items'] );
+		++$page;
+	} while ( $page <= $data['total_pages'] );
+	return array_column( $rows, null, 'id' );
+}
+
 function mmm_bu_product( int $ingredient, string $title ): Mixmymeals_Product {
 	$product = Mixmymeals_Product::create( $ingredient, $title );
 	$product->set_brand( 'ZZ' );
 	return $product;
 }
 
-$admins = get_users( array( 'role' => 'administrator', 'fields' => 'ID', 'number' => 1 ) );
+$admins = get_users(
+	array(
+		'role'   => 'administrator',
+		'fields' => 'ID',
+		'number' => 1,
+	)
+);
 wp_set_current_user( (int) ( $admins[0] ?? 1 ) );
 
-$milk  = Mixmymeals_Ingredient::create( 'T Milch' );
+$milk   = Mixmymeals_Ingredient::create( 'T Milch' );
 $cheese = Mixmymeals_Ingredient::create( 'T Ziegenkäse' );
-$milk->set_nutrition( array( 'calories_100' => 64, 'fat' => 3.6, 'saturates' => 0 ) );
+$milk->set_nutrition(
+	array(
+		'calories_100' => 64,
+		'fat'          => 3.6,
+		'saturates'    => 0,
+	)
+);
 $pkt = mmm_bu_product( $milk->get_id(), 'T Vollmilch' );
-$pkt->set_nutrition( array( 'calories_100' => 64, 'saturates' => 2.3 ) );
+$pkt->set_nutrition(
+	array(
+		'calories_100' => 64,
+		'saturates'    => 2.3,
+	)
+);
 $pkt->set_package_weight( 1000 );
 Mixmymeals_Product::set_reference_id( $milk->get_id(), $pkt->get_id() );
 
@@ -74,15 +111,50 @@ mmm_bu_assert( 0.0 === $r->get_data()['own_price_per_100g'], 'null löscht' );
 
 echo "\n-- 3. Bulk: dry_run liefert Diffs und schreibt nichts\n";
 $items = array(
-	array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'nutrition' => array( 'fat' => 3.5, 'saturates' => 2.0, 'calories_100' => 64 ) ),
-	array( 'type' => 'ingredient', 'id' => $cheese->get_id(), 'diet_type' => 'vegetarian', 'price_per_100g' => 2.9 ),
-	array( 'type' => 'product', 'id' => $pkt->get_id(), 'price_per_100g' => 0.11 ),
-	array( 'type' => 'ingredient', 'id' => 99999999, 'nutrition' => array( 'fat' => 1 ) ),
-	array( 'type' => 'product', 'id' => $milk->get_id(), 'diet_type' => '' ),
-	array( 'type' => 'ingredient', 'id' => $cheese->get_id() ),
+	array(
+		'type'      => 'ingredient',
+		'id'        => $milk->get_id(),
+		'nutrition' => array(
+			'fat'          => 3.5,
+			'saturates'    => 2.0,
+			'calories_100' => 64,
+		),
+	),
+	array(
+		'type'           => 'ingredient',
+		'id'             => $cheese->get_id(),
+		'diet_type'      => 'vegetarian',
+		'price_per_100g' => 2.9,
+	),
+	array(
+		'type'           => 'product',
+		'id'             => $pkt->get_id(),
+		'price_per_100g' => 0.11,
+	),
+	array(
+		'type'      => 'ingredient',
+		'id'        => 99999999,
+		'nutrition' => array( 'fat' => 1 ),
+	),
+	array(
+		'type'      => 'product',
+		'id'        => $milk->get_id(),
+		'diet_type' => '',
+	),
+	array(
+		'type' => 'ingredient',
+		'id'   => $cheese->get_id(),
+	),
 );
-$r    = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => $items, 'dry_run' => true ) );
-$data = $r->get_data();
+$r     = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items'   => $items,
+		'dry_run' => true,
+	)
+);
+$data  = $r->get_data();
 mmm_bu_assert( 200 === $r->get_status(), 'Status 200' );
 $first = (array) $data['results'][0]['changes'];
 mmm_bu_assert( array( 3.6, 3.5 ) === $first['fat'] && array( null, 2.0 ) === $first['saturates'], 'fat 3,6→3,5 und saturates null→2' );
@@ -103,42 +175,168 @@ mmm_bu_assert( 3.5 === $milk->get_nutrition_with_product( 0 )['fat'], 'fat gesch
 mmm_bu_assert( '' !== Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $cheese->get_id() ), 'diet' ), 'Ziegenkäse hat eine Ernährungsform' );
 mmm_bu_assert( 2.9 === $cheese->get_own_price_per_100g(), 'Preis der Zutat gesetzt' );
 mmm_bu_assert( abs( 1.1 - (float) $pkt->get_price() ) < 0.001, 'Produkt: 0,11 €/100 g × 1000 g = 1,10 € Packungspreis' );
-$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'nutrition' => array( 'fat' => 3.5 ) ) ) ) );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'      => 'ingredient',
+				'id'        => $milk->get_id(),
+				'nutrition' => array( 'fat' => 3.5 ),
+			),
+		),
+	)
+);
 mmm_bu_assert( 0 === $r->get_data()['changed'], 'gleicher Wert: changed 0' );
 
 echo "\n-- 5. Bulk: Tippfehler oder unbekannte Diät lehnen den ganzen Aufruf ab\n";
-$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'nutrition' => array( 'saturated' => 1 ) ) ) ) );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'      => 'ingredient',
+				'id'        => $milk->get_id(),
+				'nutrition' => array( 'saturated' => 1 ),
+			),
+		),
+	)
+);
 mmm_bu_assert( 400 === $r->get_status(), 'nutrition.saturated → 400' );
-$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'diet_type' => 'carnivore' ) ) ) );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'      => 'ingredient',
+				'id'        => $milk->get_id(),
+				'diet_type' => 'carnivore',
+			),
+		),
+	)
+);
 mmm_bu_assert( 400 === $r->get_status(), 'diet_type carnivore → 400' );
-$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array_fill( 0, 101, array( 'type' => 'ingredient', 'id' => 1 ) ) ) );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array_fill(
+			0,
+			101,
+			array(
+				'type' => 'ingredient',
+				'id'   => 1,
+			)
+		),
+	)
+);
 mmm_bu_assert( 400 === $r->get_status(), '101 Einträge → 400' );
 $bare = mmm_bu_product( $cheese->get_id(), 'T Ohne Gewicht' );
-$r    = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'product', 'id' => $bare->get_id(), 'price_per_100g' => 1 ) ) ) );
+$r    = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'           => 'product',
+				'id'             => $bare->get_id(),
+				'price_per_100g' => 1,
+			),
+		),
+	)
+);
 mmm_bu_assert( 'no_package_weight' === $r->get_data()['errors'][0]['error'], 'Produkt ohne Packungsgewicht: no_package_weight' );
 
 echo "\n-- 6. /missing\n";
-$r   = mmm_bu_call( 'GET', '/missing', array(), array( 'field' => 'saturates', 'per_page' => 200 ) );
+$r   = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'saturates',
+		'per_page' => 200,
+	)
+);
 $ids = wp_list_pluck( $r->get_data()['items'], 'id' );
 mmm_bu_assert( in_array( $cheese->get_id(), $ids, true ), 'effective: Ziegenkäse ohne saturates gelistet' );
 $milk->set_nutrition( array( 'saturates' => 0 ) );
-$r   = mmm_bu_call( 'GET', '/missing', array(), array( 'field' => 'saturates', 'per_page' => 200 ) );
+$r = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'saturates',
+		'per_page' => 200,
+	)
+);
 mmm_bu_assert( ! in_array( $milk->get_id(), wp_list_pluck( $r->get_data()['items'], 'id' ), true ), 'effective: Milch nicht (Referenz liefert 2,3)' );
-$r    = mmm_bu_call( 'GET', '/missing', array(), array( 'field' => 'saturates', 'mode' => 'own', 'per_page' => 200 ) );
+$r    = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'saturates',
+		'mode'     => 'own',
+		'per_page' => 200,
+	)
+);
 $rows = array_column( $r->get_data()['items'], null, 'id' );
 mmm_bu_assert( isset( $rows[ $milk->get_id() ] ) && 0.0 === $rows[ $milk->get_id() ]['own_value'] && 2.3 === $rows[ $milk->get_id() ]['inherited_value'], 'own: Milch mit own 0 / inherited 2,3' );
 mmm_bu_assert( array( 'id', 'title', 'own_value', 'inherited_value', 'reference_product' ) === array_keys( $rows[ $milk->get_id() ] ), 'nur die fünf Felder' );
-$r = mmm_bu_call( 'GET', '/missing', array(), array( 'field' => 'saturates', 'type' => 'product', 'per_page' => 200 ) );
+$r = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'saturates',
+		'type'     => 'product',
+		'per_page' => 200,
+	)
+);
 mmm_bu_assert( in_array( $bare->get_id(), wp_list_pluck( $r->get_data()['items'], 'id' ), true ), 'Produkte: ohne saturates gelistet' );
-$r = mmm_bu_call( 'GET', '/missing', array(), array( 'field' => 'saturates', 'mode' => 'own', 'per_page' => 1 ) );
+$r = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'saturates',
+		'mode'     => 'own',
+		'per_page' => 1,
+	)
+);
 mmm_bu_assert( 1 === count( $r->get_data()['items'] ) && $r->get_data()['total_pages'] >= 2, 'paginiert' );
 
 echo "\n-- 7. Zusammenführen: Produkte ziehen mit, Festlegungen bleiben gültig\n";
 $dupe   = Mixmymeals_Ingredient::create( 'T Ziegenkäse, Rolle' );
 $roll   = mmm_bu_product( $dupe->get_id(), 'T Rolle' );
 $recipe = Mixmymeals_Recipe::create( 'T Rezept' );
-$recipe->set_steps( array( array( 'title' => 'a', 'description' => '', 'ingredients' => array( array( 'id' => $dupe->get_id(), 'amount' => 100, 'amount_id' => 0, 'product_id' => $roll->get_id() ) ) ) ) );
-$r = mmm_bu_call( 'POST', '/ingredients/' . $dupe->get_id() . '/merge', array( 'to_id' => $cheese->get_id(), 'dry_run' => true ) );
+$recipe->set_steps(
+	array(
+		array(
+			'title'       => 'a',
+			'description' => '',
+			'ingredients' => array(
+				array(
+					'id'         => $dupe->get_id(),
+					'amount'     => 100,
+					'amount_id'  => 0,
+					'product_id' => $roll->get_id(),
+				),
+			),
+		),
+	)
+);
+$r = mmm_bu_call(
+	'POST',
+	'/ingredients/' . $dupe->get_id() . '/merge',
+	array(
+		'to_id'   => $cheese->get_id(),
+		'dry_run' => true,
+	)
+);
 mmm_bu_assert( array( $roll->get_id() ) === wp_list_pluck( $r->get_data()['products_moved'], 'id' ) && get_post( $dupe->get_id() ), 'dry_run nennt das Produkt und ändert nichts' );
 $r     = mmm_bu_call( 'POST', '/ingredients/' . $dupe->get_id() . '/merge', array( 'to_id' => $cheese->get_id() ) );
 $steps = get_post_meta( $recipe->get_id(), '_rmm_steps', true );
@@ -147,18 +345,264 @@ mmm_bu_assert( $cheese->get_id() === (int) $steps[0]['ingredients'][0]['id'], 'R
 mmm_bu_assert( $cheese->get_id() === (int) wp_get_post_parent_id( $roll->get_id() ), 'Produkt hängt am Ziel' );
 mmm_bu_assert( $roll->get_id() === Mixmymeals_Ingredient::pinned_product_id( $cheese->get_id(), (int) $steps[0]['ingredients'][0]['product_id'] ), 'Festlegung im Rezept bleibt gültig' );
 
+echo "\n-- 9. HG-117: Packungsgewicht, Packungspreis, Quelle, Gebinde\n";
+$tin_ing = Mixmymeals_Ingredient::create( 'T Kichererbsen' );
+$tin_ing->set_nutrition(
+	array(
+		'calories_100' => 120,
+		'protein'      => 7,
+	)
+);
+$tin = Mixmymeals_Ingredient_Amount::create( $tin_ing->get_id(), 'T Dose' );
+$tin->set_weight( 240 );
+$tin->set_divisor( 1 );
+$spoon = Mixmymeals_Ingredient_Amount::create( $tin_ing->get_id(), 'T EL' );
+$spoon->set_weight( 15 );
+$jar   = mmm_bu_product( $tin_ing->get_id(), 'T Glas' );
+$items = array(
+	array(
+		'type'           => 'product',
+		'id'             => $jar->get_id(),
+		'package_weight' => 400,
+		'price_per_100g' => 0.5,
+		'source'         => 'REWE, Stand 11/2026',
+	),
+	array(
+		'type'       => 'unit',
+		'id'         => $tin->get_id(),
+		'is_package' => true,
+	),
+	array(
+		'type'       => 'unit',
+		'id'         => $spoon->get_id(),
+		'is_package' => false,
+	),
+	array(
+		'type'           => 'ingredient',
+		'id'             => $tin_ing->get_id(),
+		'package_weight' => 400,
+	),
+	array(
+		'type'  => 'unit',
+		'id'    => $tin->get_id(),
+		'price' => 1,
+	),
+	array(
+		'type'       => 'unit',
+		'id'         => $jar->get_id(),
+		'is_package' => true,
+	),
+	array(
+		'type'           => 'product',
+		'id'             => $jar->get_id(),
+		'price'          => 1,
+		'price_per_100g' => 1,
+	),
+);
+$r     = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items'   => $items,
+		'dry_run' => true,
+	)
+);
+$data  = $r->get_data();
+$byid  = array_column( $data['results'], null, 'id' );
+$first = (array) $byid[ $jar->get_id() ]['changes'];
+mmm_bu_assert( 200 === $r->get_status(), 'Status 200' );
+mmm_bu_assert( array( null, 400.0 ) === $first['package_weight'], 'package_weight null→400' );
+mmm_bu_assert( array( null, 0.5 ) === ( $first['price_per_100g'] ?? null ), 'price_per_100g mit dem neuen Gewicht angenommen (kein no_package_weight)' );
+mmm_bu_assert( array( '', 'REWE, Stand 11/2026' ) === $first['source'], 'source gemeldet' );
+mmm_bu_assert( array( false, true ) === (array) $byid[ $tin->get_id() ]['changes']->is_package, 'Einheit: is_package false→true' );
+mmm_bu_assert( array() === (array) $byid[ $spoon->get_id() ]['changes'], 'EL bleibt, keine Änderung' );
+mmm_bu_assert( 0.0 === $jar->get_package_weight() && ! $tin->is_package(), 'dry_run schreibt nichts' );
+$errs = $data['errors'];
+mmm_bu_assert( 'field_not_on_type' === $errs[0]['error'] && array( 'package_weight' ) === $errs[0]['fields'], 'package_weight an Zutat: field_not_on_type' );
+mmm_bu_assert( 'field_not_on_type' === $errs[1]['error'] && array( 'price' ) === $errs[1]['fields'], 'price an Einheit: field_not_on_type' );
+mmm_bu_assert( 'wrong_type' === $errs[2]['error'], 'Produkt als Einheit: wrong_type' );
+mmm_bu_assert( 'price_twice' === $errs[3]['error'], 'price und price_per_100g zugleich: price_twice' );
+
+$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array_slice( $items, 0, 3 ) ) );
+mmm_bu_assert( 400.0 === $jar->get_package_weight(), 'Packungsgewicht geschrieben' );
+mmm_bu_assert( abs( 2.0 - (float) $jar->get_price() ) < 0.001, '0,50 €/100 g × 400 g = 2,00 € Packungspreis' );
+mmm_bu_assert( 'REWE, Stand 11/2026' === $jar->get_source(), 'Quelle geschrieben' );
+mmm_bu_assert( $tin->is_package() && ! $spoon->is_package(), 'Dose ist Gebinde, EL nicht' );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'           => 'product',
+				'id'             => $jar->get_id(),
+				'price'          => 1.79,
+				'package_weight' => null,
+			),
+		),
+	)
+);
+$c = (array) $r->get_data()['results'][0]['changes'];
+mmm_bu_assert( array( 2.0, 1.79 ) === $c['price'] && array( 400.0, null ) === $c['package_weight'], 'price direkt, package_weight null löscht' );
+mmm_bu_assert( 0.0 === $jar->get_package_weight() && ! metadata_exists( 'post', $jar->get_id(), Mixmymeals_Product::META_PACKAGE_WEIGHT ), 'Meta-Zeile weg' );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'      => 'unit',
+				'id'        => $tin->get_id(),
+				'is_pakage' => true,
+			),
+		),
+	)
+);
+mmm_bu_assert( 400 === $r->get_status(), 'Tippfehler is_pakage → 400' );
+
+echo "\n-- 10. HG-117: /missing package_weight und package_unit\n";
+$r = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'package_weight',
+		'per_page' => 1,
+	)
+);
+mmm_bu_assert( 'product' === $r->get_data()['type'], 'package_weight: type=product' );
+$rows = mmm_bu_missing_rows( array( 'field' => 'package_weight' ) );
+mmm_bu_assert( isset( $rows[ $jar->get_id() ] ), 'Produkt ohne Gewicht gelistet' );
+mmm_bu_assert( ! isset( $rows[ $pkt->get_id() ] ), 'Vollmilch (1000 g) nicht' );
+$r = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field'    => 'package_unit',
+		'per_page' => 1,
+	)
+);
+mmm_bu_assert( 'unit' === $r->get_data()['type'], 'package_unit: type=unit' );
+$rows = mmm_bu_missing_rows( array( 'field' => 'package_unit' ) );
+mmm_bu_assert( ! isset( $rows[ $tin->get_id() ] ) && ! isset( $rows[ $spoon->get_id() ] ), 'Zutat mit Gebinde fällt heraus' );
+$tin->set_package( false );
+$rows = mmm_bu_missing_rows( array( 'field' => 'package_unit' ) );
+mmm_bu_assert( isset( $rows[ $tin->get_id() ], $rows[ $spoon->get_id() ] ) && 240.0 === $rows[ $tin->get_id() ]['weight'] && 1 === $rows[ $tin->get_id() ]['divisor'], 'ohne Gebinde: alle Einheiten mit Gewicht und Teiler' );
+$jar->set_package_weight( 400 );
+Mixmymeals_Product::set_reference_id( $tin_ing->get_id(), $jar->get_id() );
+mmm_bu_assert( ! isset( mmm_bu_missing_rows( array( 'field' => 'package_unit' ) )[ $tin->get_id() ] ), 'effective: Referenz mit Packungsgewicht genügt' );
+mmm_bu_assert(
+	isset(
+		mmm_bu_missing_rows(
+			array(
+				'field' => 'package_unit',
+				'mode'  => 'own',
+			)
+		)[ $tin->get_id() ]
+	),
+	'own: Referenz zählt nicht'
+);
+$r = mmm_bu_call(
+	'GET',
+	'/missing',
+	array(),
+	array(
+		'field' => 'fat',
+		'type'  => 'unit',
+	)
+);
+mmm_bu_assert( 400 === $r->get_status(), 'type=unit mit anderem Feld → 400' );
+
+echo "\n-- 11. HG-117: /audit-Gruppen, nach Plänen sortiert\n";
+Mixmymeals_Product::set_reference_id( $tin_ing->get_id(), 0 );
+$jar->set_package_weight( 0 );
+$jar->set_price( null );
+$bowl = Mixmymeals_Recipe::create( 'T Hummus' );
+$bowl->set_steps(
+	array(
+		array(
+			'title'       => 'a',
+			'description' => '',
+			'ingredients' => array(
+				array(
+					'id'         => $tin_ing->get_id(),
+					'amount'     => 1,
+					'amount_id'  => $tin->get_id(),
+					'product_id' => $jar->get_id(),
+				),
+			),
+		),
+	)
+);
+wp_update_post(
+	array(
+		'ID'          => $bowl->get_id(),
+		'post_status' => 'publish',
+	)
+);
+$plan_id = (int) wp_insert_post(
+	array(
+		'post_type'   => 'mmm_meal_plan',
+		'post_title'  => 'T Plan',
+		'post_status' => 'publish',
+	)
+);
+update_post_meta( $plan_id, 'start_day', 1 );
+update_post_meta( $plan_id, 'end_day', 7 );
+$meal = Mixmymeals_Meal::create( 'T Mahlzeit', $plan_id );
+$meal->set_recipe_id( $bowl->get_id() );
+$meal->set_servings( 2 );
+$meal->set_day( 1 );
+$r      = mmm_bu_call( 'GET', '/audit', array(), array( 'scope' => 'ingredients' ) );
+$groups = $r->get_data()['groups'];
+foreach ( array( 'products_without_package_weight', 'products_without_price', 'ingredients_package_unit_candidates', 'shopping_lines_without_price' ) as $key ) {
+	mmm_bu_assert( array_key_exists( $key, $groups ), "Gruppe $key vorhanden" );
+}
+$by = static function ( string $key ) use ( &$groups ): array {
+	return array_column( $groups[ $key ], null, 'id' );
+};
+mmm_bu_assert( 1 === ( $by( 'products_without_package_weight' )[ $jar->get_id() ]['plans'] ?? null ), 'Glas ohne Gewicht: entscheidet in 1 Plan' );
+mmm_bu_assert( 1 === ( $by( 'products_without_price' )[ $jar->get_id() ]['plans'] ?? null ), 'Glas ohne Preis: 1 Plan' );
+mmm_bu_assert( 1 === ( $by( 'shopping_lines_without_price' )[ $tin_ing->get_id() ]['plans'] ?? null ), 'Kichererbsen ohne Preis auf 1 Plan' );
+$cand = $by( 'ingredients_package_unit_candidates' )[ $tin_ing->get_id() ] ?? null;
+mmm_bu_assert( $cand && array( $tin->get_id() ) === wp_list_pluck( $cand['units'], 'id' ) && 1 === $cand['plans'], 'Kandidat: nur die Dose (Teiler), 1 Plan' );
+mmm_bu_assert( $groups['products_without_package_weight'][0]['plans'] >= ( end( $groups['products_without_package_weight'] )['plans'] ?? 0 ), 'absteigend nach Plänen' );
+$tin_ing->set_price_per_100g( 0.4 );
+$tin->set_package( true );
+$r      = mmm_bu_call( 'GET', '/audit', array(), array( 'scope' => 'ingredients' ) );
+$groups = $r->get_data()['groups'];
+mmm_bu_assert( ! isset( $by( 'ingredients_package_unit_candidates' )[ $tin_ing->get_id() ] ), 'mit Gebinde: kein Kandidat mehr' );
+mmm_bu_assert( ! isset( $by( 'shopping_lines_without_price' )[ $tin_ing->get_id() ] ), 'mit Preis: keine Lücke mehr' );
+wp_delete_post( $meal->get_id(), true );
+wp_delete_post( $plan_id, true );
+wp_delete_post( $bowl->get_id(), true );
+
 echo "\n-- 8. Rechte\n";
 wp_set_current_user( 0 );
-$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'nutrition' => array( 'fat' => 1 ) ) ) ) );
+$r = mmm_bu_call(
+	'POST',
+	'/bulk-update',
+	array(
+		'items' => array(
+			array(
+				'type'      => 'ingredient',
+				'id'        => $milk->get_id(),
+				'nutrition' => array( 'fat' => 1 ),
+			),
+		),
+	)
+);
 mmm_bu_assert( in_array( $r->get_status(), array( 401, 403 ), true ), 'anonym: bulk-update abgewiesen' );
 $r = mmm_bu_call( 'GET', '/missing', array(), array( 'field' => 'fat' ) );
 mmm_bu_assert( in_array( $r->get_status(), array( 401, 403 ), true ), 'anonym: missing abgewiesen' );
 wp_set_current_user( (int) ( $admins[0] ?? 1 ) );
 
 wp_delete_post( $recipe->get_id(), true );
-foreach ( array( $pkt, $bare, $roll ) as $p ) {
+foreach ( array( $pkt, $bare, $roll, $jar, $tin, $spoon ) as $p ) {
 	wp_delete_post( $p->get_id(), true );
 }
+wp_delete_post( $tin_ing->get_id(), true );
 wp_delete_post( $milk->get_id(), true );
 wp_delete_post( $cheese->get_id(), true );
 

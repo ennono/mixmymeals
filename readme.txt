@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.18.2
+Stable tag: 4.18.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,18 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.18.3 =
+
+Added:
+* REST `/audit` reports what shopping lists and shopping costs lack:
+  products without a package weight or price, ingredients whose units may
+  be packages, and ingredients without a price on published plans — each
+  entry with the number of published plans it affects, most first.
+* REST `/missing` knows `package_weight` (products) and `package_unit`
+  (units of ingredients a shopping list has no package for).
+* REST `/bulk-update` writes a product's package weight, package price and
+  source, and marks units as bought whole (`type: unit`, `is_package`).
 
 = 4.18.2 =
 

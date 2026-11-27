@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * WordPress REST API – MCP Server (MixMyMeals-Edition v5.3)
+ * WordPress REST API – MCP Server (MixMyMeals-Edition v5.5)
  *
  * Umgebungsvariablen:
  *   WP_URL           z.B. https://speisengeplant.de
@@ -11,6 +11,14 @@
  * Endpunkt-Strategie:
  *   MixMyMeals-Daten  → /wp-json/mixmymeals/v1/  (Plugin-eigene API)
  *   Generisches WP    → /wp-json/wp/v2/           (Posts, Taxonomien, Media)
+ *
+ * Neu in v5.5 (Plugin 4.18.3, HG-117):
+ *   - mmm_bulk_update: package_weight, price, source an Produkten; type 'unit'
+ *     mit is_package.
+ *   - mmm_list_missing: field package_weight (Produkte), package_unit (Einheiten).
+ *   - mmm_audit: products_without_package_weight, products_without_price,
+ *     ingredients_package_unit_candidates, shopping_lines_without_price,
+ *     jeweils mit plans und danach sortiert.
  *
  * Neu in v5.3:
  *   - Zugangscodes verkaufter Pläne: mmm_create_access_key, mmm_lookup_access_key,
@@ -932,7 +940,7 @@ const TOOLS = [
 
   {
     name: "mmm_audit",
-    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Rezepte mit nur teilweisen Naehrwerten (recipes_partial_nutrition: die Summe ist aus einem Teil des Gerichts gebaut, weil ein leeres Feld als 0 zaehlt. Feldweise gerechnet: figure nennt den schlechtesten der sieben Werte, covered dessen gedeckten Gewichtsanteil in Prozent — nicht den Durchschnitt, der mehr verspraeche als die Tabelle haelt —, und missing jede Zutat mit figures, den Werten, die ihr fehlen; gefaehrlicher als ganz fehlende Naehrwerte, weil die Zahl fertig aussieht und zu niedrig ist). Dazu ingredients_partial_nutrition: Zutaten, die einige der sieben Werte nennen und andere nicht. Sie duerfen veroeffentlicht sein — eine Packung, die Energie und Fett nennt und sonst nichts, ist eine echte Packung —, aber jedes leere Feld geht in jede Rezeptsumme dieses Werts als 0 ein. Jeder Eintrag nennt figures und die Zahl der Rezepte, die die Zutat verwenden; danach sortiert lohnt die Pflege zuerst. Nachtragen mit mmm_update_ingredient_nutrition. Dazu nutrition_implausible: Angaben, die sich widersprechen — gesaettigte Fettsaeuren ueber dem Gesamtfett, Zucker ueber den Kohlenhydraten, mehr als 100 g in 100 g, oder eine Energieangabe, die nicht aus den Makros folgt (9/4/4/2 kcal je g Fett/KH/Eiweiss/Ballaststoffe, ein Fuenftel Spielraum). Jeder Eintrag nennt kind (ingredient oder product), bei Produkten die zugehoerige Zutat, und warnings als fertige Saetze. Ein Tippfehler hier wandert in jedes Rezept, jeden Plan, jede Mail und das schema.org-Markup, und nachgelagert ist er von einem gehaltvollen Lebensmittel nicht zu unterscheiden. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu ingredients_without_diet: Zutaten, zu denen weder sie selbst noch eines ihrer Produkte eine Ernaehrungsform nennt. Eine einzige davon nimmt jedem Rezept, das sie verwendet, die Pille \"Geeignet fuer …\" — diese Gruppe entscheidet also, wie viele Rezepte ueberhaupt eine tragen koennen. Jeder Eintrag nennt Kategorie und die Zahl der Rezepte, die die Zutat verwenden: danach sortiert lohnt sich die Pflege zuerst. Zum Nachtragen mmm_set_diets, das viele auf einmal schreibt. Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
+    description: "Datenlücken finden: Rezepte ohne Bild, Nährwerte, Kategorie oder Auszug; Zutaten ohne Nährwerte, Einheit oder Preis und ungenutzte; Plaene mit Platzhaltern oder zu wenig Energie. Rezepte mit nur teilweisen Naehrwerten (recipes_partial_nutrition: die Summe ist aus einem Teil des Gerichts gebaut, weil ein leeres Feld als 0 zaehlt. Feldweise gerechnet: figure nennt den schlechtesten der sieben Werte, covered dessen gedeckten Gewichtsanteil in Prozent — nicht den Durchschnitt, der mehr verspraeche als die Tabelle haelt —, und missing jede Zutat mit figures, den Werten, die ihr fehlen; gefaehrlicher als ganz fehlende Naehrwerte, weil die Zahl fertig aussieht und zu niedrig ist). Dazu ingredients_partial_nutrition: Zutaten, die einige der sieben Werte nennen und andere nicht. Sie duerfen veroeffentlicht sein — eine Packung, die Energie und Fett nennt und sonst nichts, ist eine echte Packung —, aber jedes leere Feld geht in jede Rezeptsumme dieses Werts als 0 ein. Jeder Eintrag nennt figures und die Zahl der Rezepte, die die Zutat verwenden; danach sortiert lohnt die Pflege zuerst. Nachtragen mit mmm_update_ingredient_nutrition. Dazu nutrition_implausible: Angaben, die sich widersprechen — gesaettigte Fettsaeuren ueber dem Gesamtfett, Zucker ueber den Kohlenhydraten, mehr als 100 g in 100 g, oder eine Energieangabe, die nicht aus den Makros folgt (9/4/4/2 kcal je g Fett/KH/Eiweiss/Ballaststoffe, ein Fuenftel Spielraum). Jeder Eintrag nennt kind (ingredient oder product), bei Produkten die zugehoerige Zutat, und warnings als fertige Saetze. Ein Tippfehler hier wandert in jedes Rezept, jeden Plan, jede Mail und das schema.org-Markup, und nachgelagert ist er von einem gehaltvollen Lebensmittel nicht zu unterscheiden. Fuer Produkte zwei eigene Gruppen: ingredients_products_without_reference (Produkte angelegt, aber keins ausgewaehlt — sie aendern dann nichts) und products_without_source (Angaben ohne Herkunft; sie veralten, wenn ein Hersteller die Rezeptur aendert). Dazu ingredients_without_diet: Zutaten, zu denen weder sie selbst noch eines ihrer Produkte eine Ernaehrungsform nennt. Eine einzige davon nimmt jedem Rezept, das sie verwendet, die Pille \"Geeignet fuer …\" — diese Gruppe entscheidet also, wie viele Rezepte ueberhaupt eine tragen koennen. Jeder Eintrag nennt Kategorie und die Zahl der Rezepte, die die Zutat verwenden: danach sortiert lohnt sich die Pflege zuerst. Zum Nachtragen mmm_set_diets, das viele auf einmal schreibt. Dazu units_unused: Einheiten, die kein Rezept verwendet — jeder Eintrag nennt Einheit und zugehoerige Zutat, denn ein blosses Dose sagt nichts. Sie lassen sich gefahrlos mit mmm_delete_ingr_unit entfernen. Fuer Einkaufsliste und Einkaufskosten (seit 4.18.3) vier Gruppen, jeder Eintrag mit plans = Zahl der veroeffentlichten Plaene, in denen die Luecke wirkt, und danach absteigend sortiert (die ersten Eintraege zuerst pflegen): products_without_package_weight und products_without_price (Produkte ohne Packungsgewicht bzw. Packungspreis; Eintrag mit ingredient_id, ingredient_title, is_reference; plans zaehlt die Plaene, in denen das Produkt die Packung der Zeile bestimmt — Pin, sonst Referenz), ingredients_package_unit_candidates (Zutaten ohne Referenzprodukt und ohne Gebinde-Einheit, deren Einheiten einen Teiler haben — Kandidaten, keine Fehler; units nennt id, title, weight, divisor; Mass-Einheiten wie EL nicht markieren) und shopping_lines_without_price (Zutaten auf der Einkaufsliste veroeffentlichter Plaene ohne Preis; Wasser zaehlt nicht). Nachtragen mit mmm_bulk_update (package_weight, price, source, is_package). Die Antwort nennt plugin_version: Jede Gruppe, die diese Version kennt, ist immer enthalten, leere mit count 0. Fehlt ein Schluessel ganz, ist das Plugin auf dem Server aelter als diese Beschreibung — kein Fehler im Endpunkt. Verwendet /mixmymeals/v1/audit.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1002,7 +1010,7 @@ const TOOLS = [
 
   {
     name: "mmm_bulk_update",
-    description: "Nährwerte, Preis, Ernährungsform und Garfaktor für bis zu 100 Zutaten und Produkte in einem Aufruf korrigieren. Antwort bewusst schlank: je Eintrag id, title und changes — nur die tatsächlich geänderten Felder als [alt, neu]; Fehler (not_found, wrong_type, forbidden, no_fields, no_package_weight, weight_item_not_on_product) stehen getrennt in errors, der Rest läuft durch. Keine vollen Entitäten. Geschrieben wird bei Zutaten immer der EIGENWERT. Gibt das Referenzprodukt denselben Wert selbst an, gewinnt dessen Wert weiter — solche Felder nennt shadowed, damit eine scheinbar wirkungslose Änderung erklärt ist. " + NUTRITION_NULL_NOTE + " price_per_100g: bei Zutaten der eigene Preis (null/0 löscht), bei Produkten wird daraus der Packungspreis berechnet — das braucht ein Packungsgewicht. Unbekannte Schlüssel (Tippfehler wie \"saturated\") oder unbekannte diet_type-Werte weisen den GANZEN Aufruf ab, bevor etwas geschrieben wird. dry_run:true liefert nur die Diffs. Verwendet /mixmymeals/v1/bulk-update.",
+    description: "Nährwerte, Preis, Ernährungsform und Garfaktor für bis zu 100 Zutaten und Produkte in einem Aufruf korrigieren. Antwort bewusst schlank: je Eintrag id, title und changes — nur die tatsächlich geänderten Felder als [alt, neu]; Fehler (not_found, wrong_type, forbidden, no_fields, no_package_weight, weight_item_not_on_product, field_not_on_type mit fields, price_twice) stehen getrennt in errors, der Rest läuft durch. Keine vollen Entitäten. Geschrieben wird bei Zutaten immer der EIGENWERT. Gibt das Referenzprodukt denselben Wert selbst an, gewinnt dessen Wert weiter — solche Felder nennt shadowed, damit eine scheinbar wirkungslose Änderung erklärt ist. " + NUTRITION_NULL_NOTE + " price_per_100g: bei Zutaten der eigene Preis (null/0 löscht), bei Produkten wird daraus der Packungspreis berechnet — das braucht ein Packungsgewicht (ein package_weight im selben Eintrag zählt schon). Nur bei Produkten (seit 4.18.3): package_weight, price (Packungspreis wie im Regal; nicht zusammen mit price_per_100g) und source (Herkunft der Angaben, z. B. \"REWE, Stand 11/2026\"). type 'unit' (seit 4.18.3) kennt nur is_package (Einheit wird als Ganzes gekauft: Dose, Glas, Bund — nicht EL, TL, Prise). Ein bekanntes Feld am falschen Typ ist ein Fehler nur dieses Eintrags (field_not_on_type). Unbekannte Schlüssel (Tippfehler wie \"saturated\") oder unbekannte diet_type-Werte weisen den GANZEN Aufruf ab, bevor etwas geschrieben wird. dry_run:true liefert nur die Diffs. Verwendet /mixmymeals/v1/bulk-update.",
     inputSchema: {
       type: "object",
       required: ["items"],
@@ -1015,12 +1023,16 @@ const TOOLS = [
             required: ["type", "id"],
             additionalProperties: false,
             properties: {
-              type:           { type: "string", enum: ["ingredient", "product"] },
-              id:             { type: "number", description: "Post-ID der Zutat bzw. des Produkts" },
+              type:           { type: "string", enum: ["ingredient", "product", "unit"] },
+              id:             { type: "number", description: "Post-ID der Zutat, des Produkts bzw. der Einheit" },
               nutrition:      { type: "object", additionalProperties: false, description: "Nur mitgesendete Schlüssel werden angefasst. weight_item nur bei Zutaten.", properties: INGREDIENT_NUTRITION_PROPS },
               price_per_100g: { type: ["number", "null"], description: "Preis je 100 g. null oder 0 löscht." },
               diet_type:      { type: "string", description: "Slug einer Ernährungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Leer löscht die Einstufung." },
               cooking_factor: { type: ["number", "null"], description: "Garfaktor: Gewicht gegart je Gramm roh bzw. wie gekauft (Nudeln ~2.4, Reis ~2.7, Linsen ~2.5, Hackfleisch ~0.75, Spinat ~0.3). Bei Zutaten der Eigenwert, bei Produkten der des Artikels. Weglassen = unverändert, null löscht (Zutat: keine Korrektur mehr; Produkt: es gilt wieder der Faktor der Zutat). Werte ausserhalb von >0 bis 20 weisen den GANZEN Aufruf ab. Hat das Referenzprodukt einen eigenen Faktor, steht cooking_factor bei der Zutat unter shadowed." },
+              package_weight: { type: ["number", "null"], description: "Nur Produkte: Gewicht einer Packung in g. null oder 0 löscht (die Einkaufsliste fällt dann auf eine Gebinde-Einheit oder Gramm zurück)." },
+              price:          { type: ["number", "null"], description: "Nur Produkte: Preis einer Packung in der Seitenwährung. null oder 0 löscht." },
+              source:         { type: "string", description: "Nur Produkte: Herkunft der Angaben, mit Stand. Leer löscht." },
+              is_package:     { type: "boolean", description: "Nur Einheiten: als Ganzes gekauft (Gebinde)." },
             },
           },
         },
@@ -1031,13 +1043,13 @@ const TOOLS = [
 
   {
     name: "mmm_list_missing",
-    description: "Lückenfinder: Zutaten oder Produkte, denen ein Feld fehlt — seitenweise und schlank (id, title, own_value, inherited_value, reference_product; bei Produkten zusätzlich ingredient_id). Keine Einheiten, keine Kategorien. Bei Zutaten fragt mode 'effective' (Standard), was der Seite tatsächlich fehlt — Referenzprodukt eingerechnet; mode 'own' listet alles, was die Zutat selbst nicht angibt, auch wenn das Referenzprodukt es liefert (so findet man alte 0-Eigenwerte, die man mit null in mmm_bulk_update aufräumen kann). Bei Produkten zählt nur der eigene Wert; inherited_value ist dann der Eigenwert der Zutat. zero_is_missing (Standard true) zählt 0 als Lücke, weil ältere Versionen leere Felder als 0 gespeichert haben — für Ballaststoffe oder Salz, wo 0 oft stimmt, auf false setzen. Verwendet /mixmymeals/v1/missing.",
+    description: "Lückenfinder: Zutaten, Produkte oder Einheiten, denen ein Feld fehlt — seitenweise und schlank (id, title, own_value, inherited_value, reference_product; bei Produkten zusätzlich ingredient_id). Keine Einheiten, keine Kategorien. Bei Zutaten fragt mode 'effective' (Standard), was der Seite tatsächlich fehlt — Referenzprodukt eingerechnet; mode 'own' listet alles, was die Zutat selbst nicht angibt, auch wenn das Referenzprodukt es liefert (so findet man alte 0-Eigenwerte, die man mit null in mmm_bulk_update aufräumen kann). Bei Produkten zählt nur der eigene Wert; inherited_value ist dann der Eigenwert der Zutat. zero_is_missing (Standard true) zählt 0 als Lücke, weil ältere Versionen leere Felder als 0 gespeichert haben — für Ballaststoffe oder Salz, wo 0 oft stimmt, auf false setzen. Seit 4.18.3: field package_weight listet Produkte ohne Packungsgewicht (type wird automatisch product); field package_unit listet die Einheiten jeder Zutat, für die die Einkaufsliste keine Packung kennt — keine ihrer Einheiten ist Gebinde und (mode effective) ihr Referenzprodukt nennt kein Packungsgewicht; mode own ignoriert die Referenz. Zeilen sind dann Einheiten mit ingredient_id, ingredient_title, weight und divisor (type wird automatisch unit). Verwendet /mixmymeals/v1/missing.",
     inputSchema: {
       type: "object",
       required: ["field"],
       properties: {
-        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type", "cooking_factor"], description: "cooking_factor: mode effective findet Zutaten, für die gar kein Garfaktor gilt (weder eigener noch über das Referenzprodukt); mode own die ohne eigenen. Bei Produkten: ohne eigenen Faktor (dann gilt der der Zutat, inherited_value)." },
-        type:            { type: "string", enum: ["ingredient", "product"], default: "ingredient" },
+        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type", "cooking_factor", "package_weight", "package_unit"], description: "cooking_factor: mode effective findet Zutaten, für die gar kein Garfaktor gilt (weder eigener noch über das Referenzprodukt); mode own die ohne eigenen. Bei Produkten: ohne eigenen Faktor (dann gilt der der Zutat, inherited_value)." },
+        type:            { type: "string", enum: ["ingredient", "product", "unit"], default: "ingredient", description: "Bei package_weight und package_unit egal (wird gesetzt)." },
         mode:            { type: "string", enum: ["effective", "own"], default: "effective", description: "Nur für Zutaten, siehe Beschreibung." },
         zero_is_missing: { type: "boolean", default: true },
         page:            { type: "number", default: 1 },
@@ -1970,7 +1982,7 @@ async function handleTool(name, args) {
 // ── MCP Server ───────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "wordpress-rest", version: "5.4.0" },
+  { name: "wordpress-rest", version: "5.5.0" },
   { capabilities: { tools: {} } }
 );
 
