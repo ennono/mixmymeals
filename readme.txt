@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.18.3
+Stable tag: 4.18.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,13 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.18.4 =
+
+Changed:
+* REST `/audit`: `ingredients_products_without_reference` names for each
+  ingredient the number of published plans it reaches, most first — setting
+  a reference changes the figures of every recipe using it.
 
 = 4.18.3 =
 

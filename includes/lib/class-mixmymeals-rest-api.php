@@ -6759,8 +6759,16 @@ class Mixmymeals_Rest_Api {
 
 			$products = Mixmymeals_Product::for_ingredient( $ingredient_id );
 
+			/*
+			 * With `plans` like the package groups (4.18.4): a reference
+			 * changes the figures of every recipe using the ingredient, so
+			 * where it reaches published plans has to be visible before one
+			 * is set.
+			 */
 			if ( $products && ! Mixmymeals_Product::get_reference_id( $ingredient_id ) ) {
-				$groups['ingredients_products_without_reference'][] = $this->audit_entry( $ingredient_id );
+				$groups['ingredients_products_without_reference'][] = $this->audit_entry( $ingredient_id ) + array(
+					'plans' => count( $shopping['ingredients'][ $ingredient_id ] ?? array() ),
+				);
 			}
 
 			$reference = Mixmymeals_Product::get_reference_id( $ingredient_id );
@@ -6872,7 +6880,7 @@ class Mixmymeals_Rest_Api {
 			}
 		}
 
-		foreach ( array( 'products_without_package_weight', 'products_without_price', 'ingredients_package_unit_candidates', 'shopping_lines_without_price' ) as $key ) {
+		foreach ( array( 'ingredients_products_without_reference', 'products_without_package_weight', 'products_without_price', 'ingredients_package_unit_candidates', 'shopping_lines_without_price' ) as $key ) {
 			$groups[ $key ] = self::sort_by_plans( $groups[ $key ] );
 		}
 

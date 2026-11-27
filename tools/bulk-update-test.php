@@ -568,6 +568,8 @@ mmm_bu_assert( 1 === ( $by( 'shopping_lines_without_price' )[ $tin_ing->get_id()
 $cand = $by( 'ingredients_package_unit_candidates' )[ $tin_ing->get_id() ] ?? null;
 mmm_bu_assert( $cand && array( $tin->get_id() ) === wp_list_pluck( $cand['units'], 'id' ) && 1 === $cand['plans'], 'Kandidat: nur die Dose (Teiler), 1 Plan' );
 mmm_bu_assert( $groups['products_without_package_weight'][0]['plans'] >= ( end( $groups['products_without_package_weight'] )['plans'] ?? 0 ), 'absteigend nach Plänen' );
+$ref_entry = $by( 'ingredients_products_without_reference' )[ $tin_ing->get_id() ] ?? null;
+mmm_bu_assert( $ref_entry && 1 === $ref_entry['plans'], 'ohne Referenz: mit plans (4.18.4)' );
 $tin_ing->set_price_per_100g( 0.4 );
 $tin->set_package( true );
 $r      = mmm_bu_call( 'GET', '/audit', array(), array( 'scope' => 'ingredients' ) );
