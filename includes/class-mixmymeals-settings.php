@@ -1455,6 +1455,15 @@ class Mixmymeals_Settings {
 					'callback'    => array( Mixmymeals_Ingredient_Amount::class, 'sanitize_mixed_mode' ),
 				),
 				array(
+					'id'          => 'amount_measures',
+					'label'       => __( 'Measures on shopping lists', 'mixmymeals' ),
+					'description' => __( 'Spoons, pinches and cups are how a recipe measures, not how anything is bought. As weight, a line reads "Olive oil 54 g" instead of "1× tsp + 5× tbsp + 0.5 g". Applies to every shopping list (page, planner, mail, PDF); ingredient lists of recipes and meals keep their spoons.', 'mixmymeals' ),
+					'default'     => Mixmymeals_Ingredient_Amount::MEASURES_COUNT,
+					'placeholder' => '',
+					'choices'     => Mixmymeals_Ingredient_Amount::measure_modes(),
+					'callback'    => array( Mixmymeals_Ingredient_Amount::class, 'sanitize_measure_mode' ),
+				),
+				array(
 					'id'          => 'shopping_cost_basis',
 					'label'       => __( 'Shopping costs follow', 'mixmymeals' ),
 					'description' => __( 'The costs printed under a shopping list. "What is bought" prices whole packages (a product\'s package price where it has one); "What the recipes need" prices the amounts themselves. The price per serving always follows what the recipes need.', 'mixmymeals' ),

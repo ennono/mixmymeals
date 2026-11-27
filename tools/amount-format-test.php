@@ -78,6 +78,28 @@ $is( 'forwarder: Shortcodes', '2× Dose', Mixmymeals_Shortcodes::build_needed_am
 $is( 'breakdown: unit', '2× EL', Mixmymeals_Meal_Plan::detail_amount_string( array( 'amount' => 2, 'unit_title' => 'EL' ) ) );
 $is( 'breakdown: grams, never "200× g"', '200 g', Mixmymeals_Meal_Plan::detail_amount_string( array( 'amount' => 200, 'unit_title' => 'g', 'weight_g' => 200 ) ) );
 
+echo "-- 3b. Measures on shopping lists (4.19.0)\n";
+$saved_measures = get_option( $a::MEASURES_OPTION, null );
+delete_option( $a::MEASURES_OPTION );
+$tsp  = array( 'amount' => 1.0, 'weight_g' => 3.5, 'unit_title' => 'TL', 'step_divisor' => 1, 'is_indivisible' => true );
+$tbsp = array( 'amount' => 5.0, 'weight_g' => 50.0, 'unit_title' => 'EL', 'step_divisor' => 1, 'is_indivisible' => true );
+$oil  = array( 'amount' => 0.5, 'weight_g' => 0.5, 'unit_title' => '', 'step_divisor' => 0 );
+$herb = array( 'amount' => 2.0, 'weight_g' => 6.0, 'unit_title' => 'EL, gehackt', 'step_divisor' => 1, 'is_indivisible' => true );
+$is( 'default: counted as before', '1× TL + 5× EL + 0,5 g (≈ 54 g)', $a::format_units( array( $tsp, $tbsp, $oil ), 54 ) );
+$is( 'mode default reads count', $a::MEASURES_COUNT, $a::measure_mode() );
+update_option( $a::MEASURES_OPTION, $a::MEASURES_WEIGHT );
+$is( 'weight: one figure', '54 g', $a::format_units( array( $tsp, $tbsp, $oil ), 54 ) );
+$is( 'weight: "EL, gehackt" is a measure too', '6 g', $a::format_units( array( $herb ), 6 ) );
+$is( 'weight: a tin stays a count', '2× Dose + 54 g (≈ 854 g)', $a::format_units( array( $tin, $tsp, $tbsp, $oil ), 854 ) );
+$is( 'weight: a unit bought whole stays a count, whatever its title', '1× EL', $a::format_units( array( array_merge( $tbsp, array( 'amount' => 1.0, 'package' => 'unit' ) ) ), 10, 1 ) );
+$is( 'weight: short form too', '54 g', $a::format_units( array( $tsp, $tbsp ), 54, 'short' ) );
+$is( 'weight: Stück is no measure', '2× Stück (≈ 200 g)', $a::format_units( array( array( 'amount' => 2.0, 'weight_g' => 200.0, 'unit_title' => 'Stück', 'step_divisor' => 1, 'is_indivisible' => true ) ), 200 ) );
+$ok( 'ingredient lists keep their spoons', '2× EL' === $a::format_text_at_level( 2, 'EL', 20, 10, false, 1 ) );
+update_option( $a::MEASURES_OPTION, 'nonsense' );
+$is( 'unknown stored value reads as count', $a::MEASURES_COUNT, $a::measure_mode() );
+$is( 'sanitiser drops unknown', $a::MEASURES_COUNT, $a::sanitize_measure_mode( 'grams' ) );
+null === $saved_measures ? delete_option( $a::MEASURES_OPTION ) : update_option( $a::MEASURES_OPTION, $saved_measures );
+
 echo "-- 4. A plan: page list worded, Bring! lines unchanged\n";
 $created = array();
 $tomato  = wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'T Tomaten', 'post_status' => 'publish' ) );

@@ -662,10 +662,113 @@ class Mixmymeals_Ingredient_Amount {
 	}
 
 	/**
+	 * Unit titles that are kitchen measures — how a recipe measures, not how
+	 * anything is bought (4.19.0). Compared in lower case on the title up to
+	 * its first comma or bracket, so "EL, gehackt" and "Schuss (2 cl)" count.
+	 *
+	 * @var string[]
+	 */
+	const MEASURE_UNITS = array( 'el', 'tl', 'prise', 'msp.', 'msp', 'messerspitze', 'tasse', 'schuss', 'spritzer', 'handvoll', 'tbsp', 'tsp', 'pinch', 'cup', 'dash', 'handful' );
+
+	/**
+	 * Option: whether shopping lists count measures or weigh them.
+	 *
+	 * @var string
+	 */
+	const MEASURES_OPTION = 'mixmymeals_amount_measures';
+
+	/**
+	 * Measures are counted, "1× TL + 5× EL (≈ 54 g)" (default, as before).
+	 *
+	 * @var string
+	 */
+	const MEASURES_COUNT = 'count';
+
+	/**
+	 * Measures are summed into the line's weight, "54 g".
+	 *
+	 * @var string
+	 */
+	const MEASURES_WEIGHT = 'weight';
+
+	/**
+	 * Whether a unit title is a kitchen measure (EL, TL, Prise …).
+	 * Filter `mixmymeals_measure_units` adds or removes titles.
+	 *
+	 * @param string $unit Unit title.
+	 * @return bool
+	 */
+	public static function is_measure_unit( string $unit ): bool {
+
+		$base     = strtolower( trim( (string) preg_split( '/[,(]/', $unit )[0] ) );
+		$measures = array_map( 'strtolower', (array) apply_filters( 'mixmymeals_measure_units', self::MEASURE_UNITS ) );
+
+		return '' !== $base && in_array( $base, $measures, true );
+	}
+
+	/**
+	 * The measure modes, worded for the settings.
+	 *
+	 * @return array<string,string> Mode => label.
+	 */
+	public static function measure_modes(): array {
+
+		return array(
+			self::MEASURES_COUNT  => __( 'As counts — "1× tsp + 5× tbsp (≈ 54 g)"', 'mixmymeals' ),
+			self::MEASURES_WEIGHT => __( 'As weight — "54 g"', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The measure mode in force; unknown → MEASURES_COUNT.
+	 *
+	 * @return string
+	 */
+	public static function measure_mode(): string {
+
+		$mode = (string) get_option( self::MEASURES_OPTION, self::MEASURES_COUNT );
+
+		return isset( self::measure_modes()[ $mode ] ) ? $mode : self::MEASURES_COUNT;
+	}
+
+	/**
+	 * Sanitises the measure mode.
+	 *
+	 * @param mixed $value Posted value.
+	 * @return string
+	 */
+	public static function sanitize_measure_mode( $value ): string {
+
+		$value = sanitize_key( (string) $value );
+
+		return isset( self::measure_modes()[ $value ] ) ? $value : self::MEASURES_COUNT;
+	}
+
+	/**
+	 * Whether a shopping-list unit is printed as a count: counted, and not a
+	 * measure weighed by the setting. A unit bought whole always counts,
+	 * whatever its title.
+	 *
+	 * @param array $unit One entry of a line's 'units'.
+	 * @return bool
+	 */
+	private static function counts_on_list( array $unit ): bool {
+
+		if ( ! self::unit_is_counted( $unit ) ) {
+			return false;
+		}
+
+		return ! empty( $unit['package'] ) || ! empty( $unit['is_package'] )
+			|| self::MEASURES_WEIGHT !== self::measure_mode()
+			|| ! self::is_measure_unit( (string) ( $unit['unit_title'] ?? '' ) );
+	}
+
+	/**
 	 * One shopping-list line worded from its units, through format_text().
 	 *
 	 * Counted units are listed as counts, everything else is summed into
-	 * grams. The level says how much follows a count (HG-115):
+	 * grams — measures (EL, Prise) too where the site weighs them
+	 * (measure_mode(), 4.19.0). The level says how much follows a count (HG-115):
 	 *
 	 * 1. count and unit — "2× Dose";
 	 * 2. and, for a package, its weight — "2× Dose à 400 g";
@@ -687,7 +790,7 @@ class Mixmymeals_Ingredient_Amount {
 	public static function format_units( array $units, float $total_weight, $form = 'full' ): string {
 
 		if ( 'short' === $form ) {
-			$counted = array_filter( $units, array( self::class, 'unit_is_counted' ) );
+			$counted = array_filter( $units, array( self::class, 'counts_on_list' ) );
 
 			if ( ! empty( $units ) && count( $counted ) === count( $units ) ) {
 				$count = 0.0;
@@ -712,7 +815,7 @@ class Mixmymeals_Ingredient_Amount {
 		foreach ( $units as $unit ) {
 			$title = trim( (string) ( $unit['unit_title'] ?? '' ) );
 
-			if ( self::unit_is_counted( $unit ) && '' !== $title && 'g' !== strtolower( $title ) ) {
+			if ( self::counts_on_list( $unit ) && '' !== $title && 'g' !== strtolower( $title ) ) {
 				$text = self::format_text( (float) ( $unit['amount'] ?? 0 ), $title );
 				$each = (float) ( $unit['weight_per_unit'] ?? 0 );
 

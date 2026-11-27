@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.18.4
+Stable tag: 4.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.19.0 =
+
+Added:
+* Setting "Measures on shopping lists" (Language → Amounts and shopping
+  costs): spoons, pinches and cups can be summed into the line's weight —
+  "Olive oil 54 g" instead of "1× tsp + 5× tbsp + 0.5 g". Off by default;
+  units bought whole stay counts, ingredient lists keep their spoons.
 
 = 4.18.4 =
 

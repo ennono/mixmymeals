@@ -8676,3 +8676,19 @@ msgstr "Mit Gewicht pro Packung – „2× Dose à 400 g“"
 #: includes/lib/class-mixmymeals-meal-plan.php
 msgid "Pack"
 msgstr "Packung"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Measures on shopping lists"
+msgstr "Maße auf Einkaufslisten"
+
+#: includes/class-mixmymeals-settings.php
+msgid "Spoons, pinches and cups are how a recipe measures, not how anything is bought. As weight, a line reads \"Olive oil 54 g\" instead of \"1× tsp + 5× tbsp + 0.5 g\". Applies to every shopping list (page, planner, mail, PDF); ingredient lists of recipes and meals keep their spoons."
+msgstr "Löffel, Prisen und Tassen sind Maße fürs Kochen, nicht fürs Einkaufen. Als Gewicht heißt eine Zeile „Olivenöl 54 g“ statt „1× TL + 5× EL + 0,5 g“. Gilt für jede Einkaufsliste (Seite, Planer, Mail, PDF); Zutatenlisten von Rezepten und Mahlzeiten behalten ihre Löffel."
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "As counts — \"1× tsp + 5× tbsp (≈ 54 g)\""
+msgstr "Als Anzahl – „1× TL + 5× EL (≈ 54 g)“"
+
+#: includes/lib/class-mixmymeals-ingredient-amount.php
+msgid "As weight — \"54 g\""
+msgstr "Als Gewicht – „54 g“"
