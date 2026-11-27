@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-27T07:10:12+00:00\n"
+"POT-Creation-Date: 2026-11-27T07:19:21+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mixmymeals\n"
@@ -2111,53 +2111,53 @@ msgid "The diet was not saved"
 msgstr ""
 
 #. translators: 1: a count with its package, "2× Dose"; 2: the weight of one, "400 g".
-#: includes/lib/class-mixmymeals-ingredient-amount.php:719
-#: includes/lib/class-mixmymeals-ingredient-amount.php:769
+#: includes/lib/class-mixmymeals-ingredient-amount.php:721
+#: includes/lib/class-mixmymeals-ingredient-amount.php:776
 #, php-format
 msgid "%1$s à %2$s"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:835
+#: includes/lib/class-mixmymeals-ingredient-amount.php:845
 msgid "Ingredient lists (recipe, meal)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:836
+#: includes/lib/class-mixmymeals-ingredient-amount.php:846
 msgid "Shopping list (plan page, planner)"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:837
+#: includes/lib/class-mixmymeals-ingredient-amount.php:847
 msgid "Shopping list teaser"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:838
+#: includes/lib/class-mixmymeals-ingredient-amount.php:848
 msgid "Subscription mails"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:839
+#: includes/lib/class-mixmymeals-ingredient-amount.php:849
 msgid "PDF"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:852
+#: includes/lib/class-mixmymeals-ingredient-amount.php:862
 msgid "Count and unit — \"2× tin\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:853
+#: includes/lib/class-mixmymeals-ingredient-amount.php:863
 msgid "With the weight of a package — \"2× tin à 400 g\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:854
+#: includes/lib/class-mixmymeals-ingredient-amount.php:864
 msgid "With the total weight — \"2× tin à 400 g (≈ 800 g)\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:858
+#: includes/lib/class-mixmymeals-ingredient-amount.php:868
 msgid "One figure — \"2× tin\" or \"1.2 kg\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:901
+#: includes/lib/class-mixmymeals-ingredient-amount.php:911
 msgid "List both — \"2× tin + 100 g\""
 msgstr ""
 
-#: includes/lib/class-mixmymeals-ingredient-amount.php:902
+#: includes/lib/class-mixmymeals-ingredient-amount.php:912
 msgid "Round up into packages — \"3× tin\""
 msgstr ""
 
@@ -2525,7 +2525,12 @@ msgstr ""
 msgid "\"Too little\" means less than %s and only appears for days with breakfast, lunch and dinner."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:3917
+#. translators: what a product is counted in on a shopping list, "1× Packung à 500 g".
+#: includes/lib/class-mixmymeals-meal-plan.php:3645
+msgid "Pack"
+msgstr ""
+
+#: includes/lib/class-mixmymeals-meal-plan.php:3926
 #: includes/lib/class-mixmymeals-meal.php:769
 #: includes/lib/class-mixmymeals-post-meta.php:3074
 #: includes/lib/class-mixmymeals-shortcodes.php:1322
@@ -2534,52 +2539,52 @@ msgstr ""
 msgid "Other"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:3925
+#: includes/lib/class-mixmymeals-meal-plan.php:3934
 #: includes/lib/class-mixmymeals-post-types.php:580
 msgid "All Ingredients"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:4248
+#: includes/lib/class-mixmymeals-meal-plan.php:4257
 msgid "What is bought — whole packages"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:4249
+#: includes/lib/class-mixmymeals-meal-plan.php:4258
 msgid "What the recipes need"
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5168
+#: includes/lib/class-mixmymeals-meal-plan.php:5177
 msgid "Access codes can only be issued for meal plans."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5213
+#: includes/lib/class-mixmymeals-meal-plan.php:5222
 msgid "The access code could not be stored."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5810
+#: includes/lib/class-mixmymeals-meal-plan.php:5819
 msgid "That does not look like an access code. It has eleven characters, like K7F2-9QXM-3T."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5812
+#: includes/lib/class-mixmymeals-meal-plan.php:5821
 msgid "There seems to be a typo in this code. Please check it again — upper or lower case and O or 0 do not matter."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5814
+#: includes/lib/class-mixmymeals-meal-plan.php:5823
 msgid "We do not know this code. Please check it again."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5816
+#: includes/lib/class-mixmymeals-meal-plan.php:5825
 msgid "This code is no longer valid."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5818
+#: includes/lib/class-mixmymeals-meal-plan.php:5827
 msgid "This code has expired."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5820
+#: includes/lib/class-mixmymeals-meal-plan.php:5829
 msgid "This meal plan is not available at the moment."
 msgstr ""
 
-#: includes/lib/class-mixmymeals-meal-plan.php:5822
+#: includes/lib/class-mixmymeals-meal-plan.php:5831
 msgid "Too many attempts. Please try again in an hour."
 msgstr ""
 

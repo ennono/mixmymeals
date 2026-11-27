@@ -3634,7 +3634,16 @@ class Mixmymeals_Meal_Plan {
 				'weight_per_unit' => $package['weight'],
 				'is_indivisible'  => true,
 				'step_divisor'    => 1,
-				'unit_title'      => $package['label'],
+				/*
+				 * A product's packets are counted as "Packung": the line names
+				 * the product right behind its amount already
+				 * (shopping_item_product_text()), so its label here said it
+				 * twice (4.18.1). A unit keeps its own title, "Dose".
+				 */
+				'unit_title'      => 'product' === $package['kind']
+					/* translators: what a product is counted in on a shopping list, "1× Packung à 500 g". */
+					? __( 'Pack', 'mixmymeals' )
+					: $package['label'],
 				'is_package'      => true,
 				'package'         => $package['kind'],
 				'amount'          => (float) $package['count'],

@@ -133,15 +133,23 @@ $p1      = $plan( array( $r1, $r2 ) );
 $l       = $line( $p1, $tomato );
 $ok( 'kind product', 'product' === ( $l['package']['kind'] ?? '' ), wp_json_encode( $l['package'] ?? null ) );
 $ok( '300 g + 200 g need two packages', 2 === ( $l['package']['count'] ?? 0 ) && $near( $l['total_weight'], 800 ) && $near( $l['needed_weight'], 500 ) );
-$is( 'level 3', '2× ZZ Tomaten à 400 g (≈ 800 g)', $amount::format_line( $l, 'shopping_list' ) );
+$is( 'level 3', '2× Packung à 400 g (≈ 800 g)', $amount::format_line( $l, 'shopping_list' ) );
 update_option( $amount::LEVEL_OPTION_PREFIX . 'shopping_list', '1' );
-$is( 'level 1', '2× ZZ Tomaten', $amount::format_line( $l, 'shopping_list' ) );
+$is( 'level 1', '2× Packung', $amount::format_line( $l, 'shopping_list' ) );
 update_option( $amount::LEVEL_OPTION_PREFIX . 'shopping_list', '2' );
-$is( 'level 2', '2× ZZ Tomaten à 400 g', $amount::format_line( $l, 'shopping_list' ) );
+$is( 'level 2', '2× Packung à 400 g', $amount::format_line( $l, 'shopping_list' ) );
 update_option( $amount::LEVEL_OPTION_PREFIX . 'shopping_list', 'nonsense' );
-$is( 'unknown level reads as the default', '2× ZZ Tomaten à 400 g (≈ 800 g)', $amount::format_line( $l, 'shopping_list' ) );
+$is( 'unknown level reads as the default', '2× Packung à 400 g (≈ 800 g)', $amount::format_line( $l, 'shopping_list' ) );
 delete_option( $amount::LEVEL_OPTION_PREFIX . 'shopping_list' );
 $ok( 'the line names the product as before', $mutti === (int) $l['product_id'] );
+$ok( 'the amount does not name it a second time (4.18.1)', false === strpos( $amount::format_line( $l, 'shopping_list' ), 'ZZ' ) );
+
+// One packet: "à 500 g" says the total, no "(≈ 500 g)" behind it (4.18.1).
+$mince = $ingredient( 'T Hack', null );
+$pack  = $product( $mince, 'Hackfleisch, gemischt', 500, null );
+Mixmymeals_Product::set_reference_id( $mince, $pack );
+$p0 = $plan( array( $recipe( 'R0', array( array( 'id' => $mince, 'amount' => 500 ) ) ) ) );
+$is( 'one packet, level 3', '1× Packung à 500 g', $amount::format_line( $line( $p0, $mince ), 'shopping_list' ) );
 $bring = $p1->get_bring_shopping_list_lines();
 $ok( 'Bring!: the bought weight, no brand', in_array( '800 g T Tomaten', $bring, true ), implode( ' | ', $bring ) );
 $ok( 'Bring!: the brand appears nowhere', false === strpos( implode( ' ', $bring ), 'ZZ' ) );
@@ -155,7 +163,7 @@ $ok( 'no package weight → the unit bought whole', 'unit' === ( $l['package']['
 $is( 'plus mode: a gram line stays grams', '300 g', $amount::format_line( $l, 'shopping_list' ) );
 update_option( $amount::MIXED_OPTION, $amount::MIXED_ROUND_UP );
 $l = $line( $p2, $tomato );
-$is( 'round-up mode: one tin', '1× Dose à 400 g (≈ 400 g)', $amount::format_line( $l, 'shopping_list' ) );
+$is( 'round-up mode: one tin', '1× Dose à 400 g', $amount::format_line( $l, 'shopping_list' ) );
 delete_option( $amount::MIXED_OPTION );
 
 echo "-- 3. Recipes disagree on the packet: no product package\n";
@@ -206,14 +214,16 @@ update_option( $amount::LEVEL_OPTION_PREFIX . 'ingredient_list', '2' );
 $ok( 'level 2: with the package weight', false !== strpos( $html( $r5 ), '1½× Dose à 400 g' ), $html( $r5 ) );
 update_option( $amount::LEVEL_OPTION_PREFIX . 'ingredient_list', '3' );
 $ok( 'level 3: and the weight', false !== strpos( $html( $r5 ), '1½× Dose à 400 g (≈ 600 g)' ), $html( $r5 ) );
+$r9 = $recipe( 'R9', array( array( 'id' => $beans, 'amount' => 1, 'amount_id' => $tin ) ) );
+$ok( 'level 3, one tin: no "(≈ …)" (4.18.1)', false !== strpos( $html( $r9 ), '1× Dose à 400 g' ) && false === strpos( $html( $r9 ), '≈' ), $html( $r9 ) );
 $ok( 'a product never rounds an ingredient list', false !== strpos( $html( $r1 ), '300 g' ) && false === strpos( $html( $r1 ), '800' ), $html( $r1 ) );
 delete_option( $amount::LEVEL_OPTION_PREFIX . 'ingredient_list' );
 
 echo "-- 7. Teaser\n";
 $l = $line( $p1, $tomato );
-$is( 'short by default', '2× ZZ Tomaten', Mixmymeals_Meal_Plan::build_short_amount_string( $l['units'], $l['total_weight'] ) );
+$is( 'short by default', '2× Packung', Mixmymeals_Meal_Plan::build_short_amount_string( $l['units'], $l['total_weight'] ) );
 update_option( $amount::LEVEL_OPTION_PREFIX . 'teaser', '2' );
-$is( 'or a level', '2× ZZ Tomaten à 400 g', Mixmymeals_Meal_Plan::build_short_amount_string( $l['units'], $l['total_weight'] ) );
+$is( 'or a level', '2× Packung à 400 g', Mixmymeals_Meal_Plan::build_short_amount_string( $l['units'], $l['total_weight'] ) );
 delete_option( $amount::LEVEL_OPTION_PREFIX . 'teaser' );
 
 echo "-- 8. Shopping costs\n";

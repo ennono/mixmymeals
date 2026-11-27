@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.18.0
+Stable tag: 4.18.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.18.1 =
+
+Fixed:
+* A shopping-list line bought in a product's packets named the product
+  twice — in the amount and behind it. The amount now reads "1× Packung
+  à 500 g"; the product stays named behind it.
+* No "(≈ 500 g)" behind a single package: "à 500 g" says it already.
 
 = 4.18.0 =
 

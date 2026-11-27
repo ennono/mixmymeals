@@ -669,7 +669,8 @@ class Mixmymeals_Ingredient_Amount {
 	 *
 	 * 1. count and unit — "2× Dose";
 	 * 2. and, for a package, its weight — "2× Dose à 400 g";
-	 * 3. and the line's total weight — "2× Dose à 400 g (≈ 800 g)".
+	 * 3. and the line's total weight — "2× Dose à 400 g (≈ 800 g)"; not
+	 *    behind a single package, whose "à" says it already.
 	 *
 	 * "à" only for a package (an entry carrying `package`: the product's or
 	 * a unit bought whole), never for a measure (EL, Prise). A line without
@@ -706,6 +707,7 @@ class Mixmymeals_Ingredient_Amount {
 		$level  = 'full' === $form ? 3 : max( 1, min( 3, (int) $form ) );
 		$pieces = array();
 		$loose  = 0.0;
+		$single = false;
 
 		foreach ( $units as $unit ) {
 			$title = trim( (string) ( $unit['unit_title'] ?? '' ) );
@@ -717,6 +719,9 @@ class Mixmymeals_Ingredient_Amount {
 				if ( '' !== $text && $level >= 2 && ! empty( $unit['package'] ) && $each > 0 ) {
 					/* translators: 1: a count with its package, "2× Dose"; 2: the weight of one, "400 g". */
 					$text = sprintf( __( '%1$s à %2$s', 'mixmymeals' ), $text, self::format_weight( $each ) );
+
+					// One package "à 500 g" already says the total.
+					$single = abs( (float) ( $unit['amount'] ?? 0 ) - 1 ) < 0.001;
 				}
 
 				if ( '' !== $text ) {
@@ -735,7 +740,7 @@ class Mixmymeals_Ingredient_Amount {
 
 		$text = implode( ' + ', $parts );
 
-		if ( $level >= 3 && ! empty( $pieces ) && $total_weight > 0 ) {
+		if ( $level >= 3 && ! empty( $pieces ) && $total_weight > 0 && ! ( $single && 1 === count( $pieces ) && $loose <= 0 ) ) {
 			$text .= ' (≈ ' . self::format_weight( $total_weight ) . ')';
 		}
 
@@ -764,12 +769,17 @@ class Mixmymeals_Ingredient_Amount {
 			return $text;
 		}
 
+		$single = false;
+
 		if ( $level >= 2 && $package && $each > 0 ) {
 			/* translators: 1: a count with its package, "2× Dose"; 2: the weight of one, "400 g". */
 			$text = sprintf( __( '%1$s à %2$s', 'mixmymeals' ), $text, self::format_weight( $each ) );
+
+			// One package "à 400 g" already says the weight.
+			$single = abs( $count - 1 ) < 0.001;
 		}
 
-		if ( $level >= 3 && $weight_g > 0 ) {
+		if ( $level >= 3 && $weight_g > 0 && ! $single ) {
 			$text .= ' (≈ ' . self::format_weight( $weight_g ) . ')';
 		}
 

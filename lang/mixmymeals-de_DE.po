@@ -8671,3 +8671,8 @@ msgstr "Mit Gesamtgewicht – „2× Dose à 400 g (≈ 800 g)“"
 #: includes/lib/class-mixmymeals-ingredient-amount.php
 msgid "With the weight of a package — \"2× tin à 400 g\""
 msgstr "Mit Gewicht pro Packung – „2× Dose à 400 g“"
+
+#. translators: what a product is counted in on a shopping list, "1× Packung à 500 g".
+#: includes/lib/class-mixmymeals-meal-plan.php
+msgid "Pack"
+msgstr "Packung"
