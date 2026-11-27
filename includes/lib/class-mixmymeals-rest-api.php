@@ -4209,8 +4209,9 @@ class Mixmymeals_Rest_Api {
 					'total_weight_g'  => round( (float) $data['total_weight'], 2 ),
 					'optional'        => ! empty( $data['optional'] ),
 					// The article this plan's rows agree on — a recipe's pinned
-					// product first, then the ingredient's reference. 0 and ''
-					// where they disagree, because no single one is right then.
+					// product first, then the ingredient's reference; 0 where
+					// they disagree. `product` names it only where every row
+					// chose it (pin or diet), never a bare reference (4.18.2).
 					'product_id'      => (int) ( $data['product_id'] ?? 0 ),
 					'product'         => (string) ( $data['product'] ?? '' ),
 					'details'         => array_map(

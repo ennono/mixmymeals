@@ -3785,6 +3785,14 @@ class Mixmymeals_Meal_Plan {
 
 				$ingredient_totals[ $group ]['products'][ $row_product ] = true;
 
+				/*
+				 * Whether this row's recipe (or the meal's diet) decided the
+				 * packet. The reference is the site's default, not a statement
+				 * about the dish: it still decides packages and prices, but the
+				 * list names only a packet somebody chose (4.18.2).
+				 */
+				$ingredient_totals[ $group ]['named'][ $open ? 0 : Mixmymeals_Ingredient::pinned_product_id( $ing_id, (int) ( $ing['product_id'] ?? 0 ) ) ] = true;
+
 				$ingredient_totals[ $group ]['optional'] =
 					$ingredient_totals[ $group ]['optional'] && ! empty( $ing['optional'] );
 
@@ -3865,19 +3873,23 @@ class Mixmymeals_Meal_Plan {
 			$data['total_weight'] = $total;
 
 			/*
-			 * Name the article only where the whole plan agrees on it. With
-			 * nothing pinned anywhere that is simply the ingredient's reference
-			 * product, which is what this list has always shown; with a recipe
-			 * pinning one it is that packet, because that is what the dish is
-			 * made of. Disagreement prints nothing rather than one of the two.
+			 * `product_id`: the article the whole plan agrees on — the pin,
+			 * else the ingredient's reference. Packages and shopping costs
+			 * follow it. Disagreement is 0 rather than one of the two.
+			 *
+			 * `product`, the name the list prints: only where every row chose
+			 * that article — pinned by its recipe or decided by the meal's
+			 * diet. A reference nobody chose for the dish is the site's
+			 * default and is not named (4.18.2; before, it was).
 			 */
 			$products           = array_keys( $data['products'] );
 			$data['product_id'] = 1 === count( $products ) ? max( 0, (int) $products[0] ) : 0;
-			$data['product']    = $data['product_id'] > 0
+			$named              = array_keys( $data['named'] ?? array() );
+			$data['product']    = $data['product_id'] > 0 && array( $data['product_id'] ) === array_map( 'intval', $named )
 				? ( new Mixmymeals_Product( $data['product_id'] ) )->label()
 				: '';
 
-			unset( $data['products'] );
+			unset( $data['products'], $data['named'] );
 
 			$data = self::apply_package( $data );
 		}

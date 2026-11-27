@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.18.1
+Stable tag: 4.18.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,14 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.18.2 =
+
+Changed:
+* Shopping lists name a product only where the recipes chose it — pinned
+  in the recipe or decided by the meal's diet. An ingredient's reference
+  product is no longer named, though it still decides packages
+  ("1× Packung à 500 g") and the shopping costs.
 
 = 4.18.1 =
 

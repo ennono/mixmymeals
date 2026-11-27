@@ -34,7 +34,26 @@ $make_post = function ( array $args ) use ( &$trash ): int {
 };
 
 /**
- * A shopping list without the two fields 3.67.0 added to every line
+ * A shopping list without the product name of its lines: 4.18.2 names only a
+ * packet a recipe chose, 3.65.1 also the reference. Applied to both sides of
+ * the comparison; the naming rule is checked on its own.
+ *
+ * @param array|null $list A shopping list.
+ * @return array|null
+ */
+function mmm_ps_without_product_name( ?array $list ): ?array {
+
+	foreach ( (array) $list as $cat => $lines ) {
+		foreach ( $lines as $key => $line ) {
+			unset( $list[ $cat ][ $key ]['product'] );
+		}
+	}
+
+	return $list;
+}
+
+/**
+ * A shopping list without the fields added since 3.65.1 — the two 3.67.0 added to every line
  * (`ingredient_id`, `diet` — the meal's diet). A plan without meal diets
  * carries the line's own key and '' there, which this checks before
  * removing them, so everything else can still be compared with 3.65.1 byte
@@ -368,12 +387,13 @@ try {
 		foreach ( array( true, false ) as $sort ) {
 			$ok(
 				"plan $plan_id, " . ( $sort ? 'by category' : 'flat' ) . ': same as 3.65.1, byte for byte',
-				serialize( mmm_ps_legacy_shopping_list( $plan_id, $sort ) ) === serialize( mmm_ps_without_diet_fields( $plan->calc_shopping_list( $sort ) ) )
+				serialize( mmm_ps_without_product_name( mmm_ps_legacy_shopping_list( $plan_id, $sort ) ) ) === serialize( mmm_ps_without_product_name( mmm_ps_without_diet_fields( $plan->calc_shopping_list( $sort ) ) ) )
 			);
 		}
-		$ok( "plan $plan_id, one day: same as 3.65.1", serialize( mmm_ps_legacy_shopping_list( $plan_id, true, 1 ) ) === serialize( mmm_ps_without_diet_fields( $plan->calc_shopping_list( true, 1 ) ) ) );
+		$ok( "plan $plan_id, one day: same as 3.65.1", serialize( mmm_ps_without_product_name( mmm_ps_legacy_shopping_list( $plan_id, true, 1 ) ) ) === serialize( mmm_ps_without_product_name( mmm_ps_without_diet_fields( $plan->calc_shopping_list( true, 1 ) ) ) ) );
 	}
-	$ok( 'the packet is still named on the line', 'ZZ T Dosentomaten' === ( $row_of( $mixed->calc_shopping_list(), $tomato )['product'] ?? '' ) );
+	$ok( 'the reference packet is still the line\'s product', $packet === (int) ( $row_of( $mixed->calc_shopping_list(), $tomato )['product_id'] ?? 0 ) );
+	$ok( 'but not named: no recipe chose it (4.18.2)', '' === ( $row_of( $mixed->calc_shopping_list(), $tomato )['product'] ?? null ) );
 
 	echo '-- 2. Offset 0 is the stored plan' . PHP_EOL;
 	$ok( 'mixed: list unchanged', serialize( $mixed->calc_shopping_list() ) === serialize( $mixed->with_servings_offset( 0 )->calc_shopping_list() ) );

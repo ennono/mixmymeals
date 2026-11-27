@@ -141,7 +141,8 @@ $is( 'level 2', '2× Packung à 400 g', $amount::format_line( $l, 'shopping_list
 update_option( $amount::LEVEL_OPTION_PREFIX . 'shopping_list', 'nonsense' );
 $is( 'unknown level reads as the default', '2× Packung à 400 g (≈ 800 g)', $amount::format_line( $l, 'shopping_list' ) );
 delete_option( $amount::LEVEL_OPTION_PREFIX . 'shopping_list' );
-$ok( 'the line names the product as before', $mutti === (int) $l['product_id'] );
+$ok( 'the reference is the line\'s product (packages, costs)', $mutti === (int) $l['product_id'] );
+$ok( 'but no recipe chose it, so it is not named (4.18.2)', '' === $l['product'] && '' === Mixmymeals_Shortcodes::shopping_item_product_text( $l ) );
 $ok( 'the amount does not name it a second time (4.18.1)', false === strpos( $amount::format_line( $l, 'shopping_list' ), 'ZZ' ) );
 
 // One packet: "à 500 g" says the total, no "(≈ 500 g)" behind it (4.18.1).
@@ -158,7 +159,7 @@ echo "-- 2. Pin outranks the reference; a product without package weight falls t
 $r3 = $recipe( 'R3', array( array( 'id' => $tomato, 'amount' => 300, 'product_id' => $cheap ) ) );
 $p2 = $plan( array( $r3 ) );
 $l  = $line( $p2, $tomato );
-$ok( 'pinned product named on the line', $cheap === (int) $l['product_id'] );
+$ok( 'pinned product named on the line', $cheap === (int) $l['product_id'] && 'ZZ Billig' === $l['product'] );
 $ok( 'no package weight → the unit bought whole', 'unit' === ( $l['package']['kind'] ?? '' ) && $can === (int) $l['package']['unit_id'], wp_json_encode( $l['package'] ?? null ) );
 $is( 'plus mode: a gram line stays grams', '300 g', $amount::format_line( $l, 'shopping_list' ) );
 update_option( $amount::MIXED_OPTION, $amount::MIXED_ROUND_UP );

@@ -133,7 +133,7 @@ try {
 	$list = Mixmymeals_Meal_Plan::from_meal_rows( $items )->calc_shopping_list( false );
 	$line = $list[ array_key_first( $list ) ][ $tomato ] ?? array();
 	$ok( 'tins rounded up once over the sum', 1.5 === (float) ( $line['units'][ $tin->get_id() ]['amount'] ?? 0 ) );
-	$ok( 'the packet is named', false !== strpos( $html, 'ZZ T Dosentomaten' ) );
+	$ok( 'the reference packet is not named: no recipe chose it (4.18.2)', false === strpos( $html, 'ZZ T Dosentomaten' ) );
 
 	$json = $ask( array( 'shopping' => 1, 'show_details' => 1, 'sort_by_category' => 1 ) );
 	$ok( 'the answer carries the list', is_string( $json['data']['shopping'] ?? null ) && '' !== $json['data']['shopping'] );
