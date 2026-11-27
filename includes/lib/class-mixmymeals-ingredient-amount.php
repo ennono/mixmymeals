@@ -629,6 +629,41 @@ class Mixmymeals_Ingredient_Amount {
 	}
 
 	/**
+	 * A volume: millilitres below 1000 ("59 ml", "2,5 ml" below 10), litres
+	 * with at most one decimal from 1000 ml ("1,2 l", "2 l") — the weight
+	 * rule, for ingredients bought by volume (4.19.0).
+	 *
+	 * @param float $ml Volume in millilitres.
+	 * @return string
+	 */
+	public static function format_volume( float $ml ): string {
+
+		if ( round( $ml ) >= 1000 ) {
+			return self::format_decimal( $ml / 1000 ) . ' l';
+		}
+
+		if ( $ml < 10 ) {
+			return self::format_decimal( $ml ) . ' ml';
+		}
+
+		return number_format_i18n( round( $ml ) ) . ' ml';
+	}
+
+	/**
+	 * A quantity of an ingredient: its weight, or — where it states a
+	 * density (Mixmymeals_Ingredient::get_density()) — the volume that
+	 * weight takes up.
+	 *
+	 * @param float $grams   Weight in grams.
+	 * @param float $density Grams per millilitre; 0 = weigh.
+	 * @return string
+	 */
+	public static function format_quantity( float $grams, float $density = 0.0 ): string {
+
+		return $density > 0 ? self::format_volume( $grams / $density ) : self::format_weight( $grams );
+	}
+
+	/**
 	 * A number with at most one decimal, none where it is whole after
 	 * rounding; above zero never printed as "0".
 	 *
@@ -752,7 +787,7 @@ class Mixmymeals_Ingredient_Amount {
 	 * @param array $unit One entry of a line's 'units'.
 	 * @return bool
 	 */
-	private static function counts_on_list( array $unit ): bool {
+	public static function counts_on_list( array $unit ): bool {
 
 		if ( ! self::unit_is_counted( $unit ) ) {
 			return false;
@@ -785,9 +820,12 @@ class Mixmymeals_Ingredient_Amount {
 	 * @param float      $total_weight The line's 'total_weight'.
 	 * @param string|int $form         1, 2, 3 (also as strings), 'full' (= 3,
 	 *                                 the default) or 'short'.
+	 * @param float      $density      The ingredient's density (g/ml); every
+	 *                                 weight of the line is then printed as
+	 *                                 a volume. 0 = grams (4.19.0).
 	 * @return string
 	 */
-	public static function format_units( array $units, float $total_weight, $form = 'full' ): string {
+	public static function format_units( array $units, float $total_weight, $form = 'full', float $density = 0.0 ): string {
 
 		if ( 'short' === $form ) {
 			$counted = array_filter( $units, array( self::class, 'counts_on_list' ) );
@@ -804,7 +842,7 @@ class Mixmymeals_Ingredient_Amount {
 				return self::format_text( $count, $title );
 			}
 
-			return self::format_weight( max( 0.0, $total_weight ) );
+			return self::format_quantity( max( 0.0, $total_weight ), $density );
 		}
 
 		$level  = 'full' === $form ? 3 : max( 1, min( 3, (int) $form ) );
@@ -821,7 +859,7 @@ class Mixmymeals_Ingredient_Amount {
 
 				if ( '' !== $text && $level >= 2 && ! empty( $unit['package'] ) && $each > 0 ) {
 					/* translators: 1: a count with its package, "2× Dose"; 2: the weight of one, "400 g". */
-					$text = sprintf( __( '%1$s à %2$s', 'mixmymeals' ), $text, self::format_weight( $each ) );
+					$text = sprintf( __( '%1$s à %2$s', 'mixmymeals' ), $text, self::format_quantity( $each, $density ) );
 
 					// One package "à 500 g" already says the total.
 					$single = abs( (float) ( $unit['amount'] ?? 0 ) - 1 ) < 0.001;
@@ -838,13 +876,13 @@ class Mixmymeals_Ingredient_Amount {
 		$parts = $pieces;
 
 		if ( $loose > 0 || empty( $parts ) ) {
-			$parts[] = self::format_weight( max( 0.0, $loose ) );
+			$parts[] = self::format_quantity( max( 0.0, $loose ), $density );
 		}
 
 		$text = implode( ' + ', $parts );
 
 		if ( $level >= 3 && ! empty( $pieces ) && $total_weight > 0 && ! ( $single && 1 === count( $pieces ) && $loose <= 0 ) ) {
-			$text .= ' (≈ ' . self::format_weight( $total_weight ) . ')';
+			$text .= ' (≈ ' . self::format_quantity( $total_weight, $density ) . ')';
 		}
 
 		return $text;
@@ -1053,7 +1091,8 @@ class Mixmymeals_Ingredient_Amount {
 		return self::format_units(
 			(array) ( $line['units'] ?? array() ),
 			(float) ( $line['total_weight'] ?? 0 ),
-			self::level( $place )
+			self::level( $place ),
+			Mixmymeals_Ingredient::density_of( (int) ( $line['ingredient_id'] ?? 0 ) )
 		);
 	}
 }

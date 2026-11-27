@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * WordPress REST API – MCP Server (MixMyMeals-Edition v5.5)
+ * WordPress REST API – MCP Server (MixMyMeals-Edition v5.6)
  *
  * Umgebungsvariablen:
  *   WP_URL           z.B. https://speisengeplant.de
@@ -11,6 +11,11 @@
  * Endpunkt-Strategie:
  *   MixMyMeals-Daten  → /wp-json/mixmymeals/v1/  (Plugin-eigene API)
  *   Generisches WP    → /wp-json/wp/v2/           (Posts, Taxonomien, Media)
+ *
+ * Neu in v5.6 (Plugin 4.19.0):
+ *   - density (g/ml) an Zutaten: mmm_create_ingredient, mmm_update_ingredient,
+ *     mmm_bulk_update, mmm_list_missing field=density. Einkaufsliste und
+ *     Bring! zeigen dann ml/l.
  *
  * Neu in v5.5 (Plugin 4.18.3, HG-117):
  *   - mmm_bulk_update: package_weight, price, source an Produkten; type 'unit'
@@ -632,6 +637,7 @@ const TOOLS = [
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         own_cooking_factor: { type: ["number", "null"], description: "Eigener Garfaktor der Zutat: Gewicht gegart je Gramm roh, z. B. 2.4 fuer trockene Nudeln, 2.7 fuer Reis, 0.75 fuer Hackfleisch, 0.3 fuer Spinat. Aendert keine Naehrwertsumme (Wasser hat keine), nur das Portionsgewicht und alle Werte pro 100 g samt Ampel. Weglassen = unveraendert, null loescht (= keine Korrektur). Ein Produkt mit eigenem Faktor geht vor." },
+        density: { type: ["number", "null"], description: "Dichte in g/ml (seit 4.19.0). Gesetzt heisst: wird nach Volumen gekauft — Einkaufslisten und Bring! zeigen dann ml bzw. l statt g (Oel 0.92, Wasser 1, Milch 1.03, Sahne 1.0). Nur fuer Fluessigkeiten, die man nach Volumen kauft; nicht fuer Honig oder Sirup im Glas. Rechnet nichts um ausser der Anzeige. null loescht." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" }, description: "mmm_ingredient_category Term-IDs" },
         nutrition: {
@@ -666,6 +672,7 @@ const TOOLS = [
         shelf_life_days: { type: ["number", "null"], description: "Haltbarkeit der Zutat selbst in Tagen. NICHT dieselbe Groesse wie die Haltbarkeit eines daraus gekochten Gerichts. Weglassen heisst \"nicht angegeben\", null loescht den Wert, 0 heisst \"muss am Einkaufstag verbraucht werden\"." },
         storage_type: { type: "string", enum: ["room_temperature", "cool_dry", "refrigerated", "frozen", ""], description: "Lagerung der Zutat selbst. NICHT dieselbe Angabe wie die Lagerung eines daraus gekochten Gerichts. Leer = nicht angegeben. Gehoert zu shelf_life_days." },
         own_cooking_factor: { type: ["number", "null"], description: "Eigener Garfaktor der Zutat: Gewicht gegart je Gramm roh, z. B. 2.4 fuer trockene Nudeln, 2.7 fuer Reis, 0.75 fuer Hackfleisch, 0.3 fuer Spinat. Aendert keine Naehrwertsumme (Wasser hat keine), nur das Portionsgewicht und alle Werte pro 100 g samt Ampel. Weglassen = unveraendert, null loescht (= keine Korrektur). Ein Produkt mit eigenem Faktor geht vor." },
+        density: { type: ["number", "null"], description: "Dichte in g/ml (seit 4.19.0). Gesetzt heisst: wird nach Volumen gekauft — Einkaufslisten und Bring! zeigen dann ml bzw. l statt g (Oel 0.92, Wasser 1, Milch 1.03, Sahne 1.0). Nur fuer Fluessigkeiten, die man nach Volumen kauft; nicht fuer Honig oder Sirup im Glas. Rechnet nichts um ausser der Anzeige. null loescht." },
         default_unit: { type: "string" },
         categories:   { type: "array", items: { type: "number" } },
         own_price_per_100g: { type: ["number", "null"], description: "Eigener Preis der Zutat je 100 g. null oder 0 löscht ihn. Hat die Zutat ein Referenzprodukt mit Packungspreis und -gewicht, gilt dessen Preis und dieser nur als Rückfall." },
@@ -1029,6 +1036,7 @@ const TOOLS = [
               price_per_100g: { type: ["number", "null"], description: "Preis je 100 g. null oder 0 löscht." },
               diet_type:      { type: "string", description: "Slug einer Ernährungsform der Gruppe 'diet' (z. B. vegan, vegetarisch; 'vegetarian' geht weiter). Leer löscht die Einstufung." },
               cooking_factor: { type: ["number", "null"], description: "Garfaktor: Gewicht gegart je Gramm roh bzw. wie gekauft (Nudeln ~2.4, Reis ~2.7, Linsen ~2.5, Hackfleisch ~0.75, Spinat ~0.3). Bei Zutaten der Eigenwert, bei Produkten der des Artikels. Weglassen = unverändert, null löscht (Zutat: keine Korrektur mehr; Produkt: es gilt wieder der Faktor der Zutat). Werte ausserhalb von >0 bis 20 weisen den GANZEN Aufruf ab. Hat das Referenzprodukt einen eigenen Faktor, steht cooking_factor bei der Zutat unter shadowed." },
+              density:        { type: ["number", "null"], description: "Nur Zutaten (seit 4.19.0): Dichte in g/ml; gesetzt = Einkaufsliste und Bring! in ml/l. null löscht." },
               package_weight: { type: ["number", "null"], description: "Nur Produkte: Gewicht einer Packung in g. null oder 0 löscht (die Einkaufsliste fällt dann auf eine Gebinde-Einheit oder Gramm zurück)." },
               price:          { type: ["number", "null"], description: "Nur Produkte: Preis einer Packung in der Seitenwährung. null oder 0 löscht." },
               source:         { type: "string", description: "Nur Produkte: Herkunft der Angaben, mit Stand. Leer löscht." },
@@ -1048,7 +1056,7 @@ const TOOLS = [
       type: "object",
       required: ["field"],
       properties: {
-        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type", "cooking_factor", "package_weight", "package_unit"], description: "cooking_factor: mode effective findet Zutaten, für die gar kein Garfaktor gilt (weder eigener noch über das Referenzprodukt); mode own die ohne eigenen. Bei Produkten: ohne eigenen Faktor (dann gilt der der Zutat, inherited_value)." },
+        field:           { type: "string", enum: ["calories_100", "fat", "saturates", "carbs", "sugar", "fiber", "protein", "salt", "price_per_100g", "diet_type", "cooking_factor", "density", "package_weight", "package_unit"], description: "density (seit 4.19.0): Zutaten ohne Dichte, also mit Gramm auf der Einkaufsliste. cooking_factor: mode effective findet Zutaten, für die gar kein Garfaktor gilt (weder eigener noch über das Referenzprodukt); mode own die ohne eigenen. Bei Produkten: ohne eigenen Faktor (dann gilt der der Zutat, inherited_value)." },
         type:            { type: "string", enum: ["ingredient", "product", "unit"], default: "ingredient", description: "Bei package_weight und package_unit egal (wird gesetzt)." },
         mode:            { type: "string", enum: ["effective", "own"], default: "effective", description: "Nur für Zutaten, siehe Beschreibung." },
         zero_is_missing: { type: "boolean", default: true },
@@ -1612,9 +1620,10 @@ async function handleTool(name, args) {
       return mmm("GET", `/ingredients/${args.id}`);
 
     case "mmm_create_ingredient": {
-      const { title, status = "publish", diet_type, shelf_life_days, storage_type, own_cooking_factor, default_unit, categories, nutrition } = args;
+      const { title, status = "publish", diet_type, shelf_life_days, storage_type, own_cooking_factor, density, default_unit, categories, nutrition } = args;
       const body = { title, status };
       if (own_cooking_factor !== undefined) body.own_cooking_factor = own_cooking_factor;
+      if (density !== undefined) body.density = density;
       if (diet_type    !== undefined) body.diet_type    = diet_type;
       if (shelf_life_days !== undefined) body.shelf_life_days = shelf_life_days;
       if (storage_type !== undefined) body.storage_type = storage_type;
@@ -1625,9 +1634,10 @@ async function handleTool(name, args) {
     }
 
     case "mmm_update_ingredient": {
-      const { id, title, diet_type, shelf_life_days, storage_type, own_cooking_factor, default_unit, categories, nutrition, own_price_per_100g } = args;
+      const { id, title, diet_type, shelf_life_days, storage_type, own_cooking_factor, density, default_unit, categories, nutrition, own_price_per_100g } = args;
       const body = {};
       if (own_cooking_factor !== undefined) body.own_cooking_factor = own_cooking_factor;
+      if (density !== undefined) body.density = density;
       if (own_price_per_100g !== undefined) body.own_price_per_100g = own_price_per_100g;
       if (title        !== undefined) body.title        = title;
       if (diet_type    !== undefined) body.diet_type    = diet_type;
@@ -1982,7 +1992,7 @@ async function handleTool(name, args) {
 // ── MCP Server ───────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "wordpress-rest", version: "5.5.0" },
+  { name: "wordpress-rest", version: "5.6.0" },
   { capabilities: { tools: {} } }
 );
 

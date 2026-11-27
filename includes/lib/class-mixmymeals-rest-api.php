@@ -956,6 +956,14 @@ class Mixmymeals_Rest_Api {
 						'exclusiveMinimum' => true,
 						'maximum'          => Mixmymeals_Ingredient::COOKING_FACTOR_MAX,
 					),
+					// g/ml; set = bought by volume, null clears (4.19.0).
+					'density'            => array(
+						'required'         => false,
+						'type'             => array( 'number', 'null' ),
+						'minimum'          => 0,
+						'exclusiveMinimum' => true,
+						'maximum'          => Mixmymeals_Ingredient::DENSITY_MAX,
+					),
 					'storage_type'       => array(
 						'required' => false,
 						'type'     => 'string',
@@ -1018,6 +1026,14 @@ class Mixmymeals_Rest_Api {
 						'minimum'          => 0,
 						'exclusiveMinimum' => true,
 						'maximum'          => Mixmymeals_Ingredient::COOKING_FACTOR_MAX,
+					),
+					// g/ml; set = bought by volume, null clears (4.19.0).
+					'density'            => array(
+						'required'         => false,
+						'type'             => array( 'number', 'null' ),
+						'minimum'          => 0,
+						'exclusiveMinimum' => true,
+						'maximum'          => Mixmymeals_Ingredient::DENSITY_MAX,
 					),
 					'storage_type'       => array(
 						'required' => false,
@@ -1483,6 +1499,13 @@ class Mixmymeals_Rest_Api {
 									'exclusiveMinimum' => true,
 									'maximum'          => Mixmymeals_Ingredient::COOKING_FACTOR_MAX,
 								),
+								// Ingredients only (4.19.0): g/ml, bought by volume.
+								'density'        => array(
+									'type'             => array( 'number', 'null' ),
+									'minimum'          => 0,
+									'exclusiveMinimum' => true,
+									'maximum'          => Mixmymeals_Ingredient::DENSITY_MAX,
+								),
 								// Products only (HG-117): what a shopping list
 								// buys and what the packet costs.
 								'package_weight' => array(
@@ -1518,7 +1541,7 @@ class Mixmymeals_Rest_Api {
 					'field'           => array(
 						'required' => true,
 						'type'     => 'string',
-						'enum'     => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type', 'cooking_factor', 'package_weight', 'package_unit' ) ),
+						'enum'     => array_merge( Mixmymeals_Ingredient::NUTRITION_FIGURE_KEYS, array( 'price_per_100g', 'diet_type', 'cooking_factor', 'density', 'package_weight', 'package_unit' ) ),
 					),
 					// package_weight is always about products, package_unit
 					// always about units; `type` is set from the field there.
@@ -2924,6 +2947,7 @@ class Mixmymeals_Rest_Api {
 			// null: no correction.
 			'cooking_factor'          => $ing->get_cooking_factor(),
 			'own_cooking_factor'      => $ing->get_own_cooking_factor(),
+			'density'                 => $ing->get_density(),
 			/*
 			 * Was die Zutat selbst sagt, im Gegensatz zu `diet_type`, das über
 			 * das Referenzprodukt auflöst. Gelesen über die Taxonomie, nicht
@@ -3798,6 +3822,10 @@ class Mixmymeals_Rest_Api {
 			$mmm_factor = $request->get_param( 'own_cooking_factor' );
 			$ing->set_cooking_factor( null === $mmm_factor ? null : (float) $mmm_factor );
 		}
+		if ( $request->has_param( 'density' ) ) {
+			$mmm_density = $request->get_param( 'density' );
+			$ing->set_density( null === $mmm_density ? null : (float) $mmm_density );
+		}
 		if ( $request->has_param( 'default_unit' ) ) {
 			$ing->set_default_unit( $request->get_param( 'default_unit' ) );
 		}
@@ -3847,6 +3875,10 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'own_cooking_factor' ) ) {
 			$mmm_factor = $request->get_param( 'own_cooking_factor' );
 			$ing->set_cooking_factor( null === $mmm_factor ? null : (float) $mmm_factor );
+		}
+		if ( $request->has_param( 'density' ) ) {
+			$mmm_density = $request->get_param( 'density' );
+			$ing->set_density( null === $mmm_density ? null : (float) $mmm_density );
 		}
 		if ( $request->has_param( 'default_unit' ) ) {
 			$ing->set_default_unit( $request->get_param( 'default_unit' ) );
@@ -5355,6 +5387,17 @@ class Mixmymeals_Rest_Api {
 				}
 			}
 
+			// Ingredients only (bulk_fields_for() keeps it off products).
+			if ( ! $product && array_key_exists( 'density', $item ) ) {
+				$density = Mixmymeals_Ingredient::normalise_density( $item['density'] );
+				$old     = $ingredient->get_density();
+
+				if ( $old !== $density ) {
+					$changes['density'] = array( $old, $density );
+					$writes[]           = fn() => $ingredient->set_density( $density );
+				}
+			}
+
 			if ( ! $dry_run ) {
 				foreach ( $writes as $write ) {
 					$write();
@@ -5399,7 +5442,7 @@ class Mixmymeals_Rest_Api {
 	 *
 	 * @var string[]
 	 */
-	private const BULK_FIELDS = array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor', 'package_weight', 'price', 'source', 'is_package' );
+	private const BULK_FIELDS = array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor', 'density', 'package_weight', 'price', 'source', 'is_package' );
 
 	/**
 	 * The fields /bulk-update writes on one kind of item.
@@ -5411,7 +5454,7 @@ class Mixmymeals_Rest_Api {
 		return match ( $kind ) {
 			'product' => array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor', 'package_weight', 'price', 'source' ),
 			'unit'    => array( 'is_package' ),
-			default   => array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor' ),
+			default   => array( 'nutrition', 'price_per_100g', 'diet_type', 'cooking_factor', 'density' ),
 		};
 	}
 
@@ -5546,6 +5589,10 @@ class Mixmymeals_Rest_Api {
 			$kind = 'product';
 		} elseif ( 'package_unit' === $field ) {
 			$kind = 'unit';
+		} elseif ( 'density' === $field ) {
+			// Ingredients only: a product has no density of its own.
+			$kind = 'ingredient';
+			$mode = 'own';
 		} elseif ( 'unit' === $kind ) {
 			return new WP_REST_Response(
 				array(
@@ -5578,6 +5625,7 @@ class Mixmymeals_Rest_Api {
 				'price_per_100g' => $ingredient->get_own_price_per_100g() ?: null,
 				'diet_type'      => Mixmymeals_Diet::strongest( Mixmymeals_Diet::for_post( $ingredient->get_id() ), 'diet' ),
 				'cooking_factor' => $ingredient->get_own_cooking_factor(),
+				'density'        => $ingredient->get_density(),
 				'package_weight', 'package_unit' => null,
 				default          => $ingredient->get_nutrition_with_product( 0 )[ $field ] ?? null,
 			};

@@ -104,7 +104,15 @@ echo "-- 4. A plan: page list worded, Bring! lines unchanged\n";
 $created = array();
 $tomato  = wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'T Tomaten', 'post_status' => 'publish' ) );
 $flour   = wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'T Mehl', 'post_status' => 'publish' ) );
-$created = array_merge( $created, array( $tomato, $flour ) );
+$oil     = wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'T Öl', 'post_status' => 'publish' ) );
+$milk    = wp_insert_post( array( 'post_type' => 'mmm_ingredient', 'post_title' => 'T Milch', 'post_status' => 'publish' ) );
+$created = array_merge( $created, array( $tomato, $flour, $oil, $milk ) );
+( new Mixmymeals_Ingredient( $oil ) )->set_density( 0.92 );
+( new Mixmymeals_Ingredient( $milk ) )->set_density( Mixmymeals_Ingredient::normalise_density( '1,03' ) );
+$el = Mixmymeals_Ingredient_Amount::create( $oil, 'EL' );
+$el->set_weight( 10 );
+$el->set_divisor( 1 );
+$created[] = $el->get_id();
 $can     = Mixmymeals_Ingredient_Amount::create( $tomato, 'Dose' );
 $can->set_weight( 400 );
 $can->set_divisor( 2 );
@@ -122,6 +130,8 @@ $recipe->set_steps(
 			'ingredients' => array(
 				array( 'id' => $tomato, 'amount' => 1.5, 'amount_id' => $can->get_id() ),
 				array( 'id' => $flour, 'amount' => 600 ),
+				array( 'id' => $oil, 'amount' => 3, 'amount_id' => $el->get_id() ),
+				array( 'id' => $milk, 'amount' => 500 ),
 			),
 		),
 	)
@@ -150,6 +160,38 @@ $is( 'flour in kg', '1,2 kg', $lines[ $flour ] ?? '' );
 $bring = $plan->get_bring_shopping_list_lines();
 $ok( 'Bring!: count without fraction or ×', in_array( '3 Dose T Tomaten', $bring, true ), implode( ' | ', $bring ) );
 $ok( 'Bring!: grams without separator or kg', in_array( '1200 g T Mehl', $bring, true ), implode( ' | ', $bring ) );
+
+echo "-- 4b. Density: volume on the list and in Bring! (4.19.0)\n";
+$saved_measures = get_option( $a::MEASURES_OPTION, null );
+delete_option( $a::MEASURES_OPTION );
+$line_of = static function ( Mixmymeals_Meal_Plan $plan, int $ing ): array {
+	foreach ( $plan->calc_shopping_list( false ) as $items ) {
+		foreach ( $items as $data ) {
+			if ( (int) $data['ingredient_id'] === $ing ) {
+				return $data;
+			}
+		}
+	}
+	return array();
+};
+$is( 'normalise_density: comma, 1,03', '1.03', (string) ( new Mixmymeals_Ingredient( $milk ) )->get_density() );
+$ok( 'normalise_density: 0, negative, text, > max are null', null === Mixmymeals_Ingredient::normalise_density( '0' ) && null === Mixmymeals_Ingredient::normalise_density( -1 ) && null === Mixmymeals_Ingredient::normalise_density( 'viel' ) && null === Mixmymeals_Ingredient::normalise_density( 4 ) );
+$is( 'milk: 1000 g at 1.03 → 971 ml', '971 ml', $a::format_line( $line_of( $plan, $milk ), 'shopping_list' ) );
+$is( 'oil: spoons counted, total as volume', '6× EL (≈ 65 ml)', $a::format_line( $line_of( $plan, $oil ), 'shopping_list' ) );
+$is( 'flour without density stays grams', '1,2 kg', $a::format_line( $line_of( $plan, $flour ), 'shopping_list' ) );
+$is( 'format_volume: litres from 1000 ml', '1,2 l', $a::format_volume( 1200 ) );
+$is( 'format_volume: below 10 ml one decimal', '2,5 ml', $a::format_volume( 2.5 ) );
+$is( 'package "à" as volume', '2× Flasche à 1 l', $a::format_units( array( array( 'amount' => 2.0, 'weight_g' => 2060.0, 'weight_per_unit' => 1030.0, 'unit_title' => 'Flasche', 'step_divisor' => 1, 'is_indivisible' => true, 'package' => 'unit' ) ), 2060, 2, 1.03 ) );
+$is( 'breakdown in ml', '485 ml', Mixmymeals_Meal_Plan::detail_amount_string( array( 'amount' => 500, 'unit_title' => '', 'weight_g' => 500 ), 1.03 ) );
+$is( 'breakdown of a spoon unchanged', '3× EL', Mixmymeals_Meal_Plan::detail_amount_string( array( 'amount' => 3, 'unit_title' => 'EL', 'weight_g' => 30 ), 0.92 ) );
+$bring = $plan->get_bring_shopping_list_lines();
+$ok( 'Bring!: milk in ml', in_array( '971 ml T Milch', $bring, true ), implode( ' | ', $bring ) );
+$ok( 'Bring!: spoons stay counted by default', in_array( '6 EL T Öl', $bring, true ), implode( ' | ', $bring ) );
+update_option( $a::MEASURES_OPTION, $a::MEASURES_WEIGHT );
+$is( 'weighed measures: oil as one volume', '65 ml', $a::format_line( $line_of( $plan, $oil ), 'shopping_list' ) );
+$bring = $plan->get_bring_shopping_list_lines();
+$ok( 'Bring!: weighed measures in ml too', in_array( '65 ml T Öl', $bring, true ), implode( ' | ', $bring ) );
+null === $saved_measures ? delete_option( $a::MEASURES_OPTION ) : update_option( $a::MEASURES_OPTION, $saved_measures );
 
 $schema = $recipe->get_schema();
 $ok( 'schema.org keeps the parser format', in_array( '1.5 Dose T Tomaten', (array) ( $schema['recipeIngredient'] ?? array() ), true ), implode( ' | ', (array) ( $schema['recipeIngredient'] ?? array() ) ) );

@@ -2465,7 +2465,20 @@ class Mixmymeals_Post_Meta {
 			. '" class="small-text" placeholder="1"></td>';
 		echo '</tr>';
 
+		$mmm_density = $ingredient_obj->get_density();
+
+		echo '<tr>';
+		echo '<th scope="row"><label for="mmm_density">'
+			. esc_html__( 'Density (g/ml)', 'mixmymeals' ) . '</label></th>';
+		echo '<td><input type="number" step="0.01" min="0.01" max="'
+			. esc_attr( (string) Mixmymeals_Ingredient::DENSITY_MAX )
+			. '" name="mmm_density" id="mmm_density" value="'
+			. esc_attr( null === $mmm_density ? '' : (string) $mmm_density )
+			. '" class="small-text" placeholder=""></td>';
+		echo '</tr>';
+
 		echo '</tbody></table>';
+
 
 		echo '<p class="description">'
 			. esc_html__( 'Cooked weight per gram raw, e.g. 2.4 for dry pasta, 0.75 for minced meat. Used only for figures per 100 g and the serving weight; empty means no correction. A product with its own factor overrides this one.', 'mixmymeals' )
@@ -2483,6 +2496,10 @@ class Mixmymeals_Post_Meta {
 				)
 			) . '</p>';
 		}
+
+		echo '<p class="description">'
+			. esc_html__( 'Density: only for ingredients bought by volume (water, milk, oil, cream, vinegar), e.g. 0.92 for oil, 1 for water. Shopping lists and Bring! then show millilitres or litres instead of grams. Empty means grams.', 'mixmymeals' )
+			. '</p>';
 	}
 
 	public function save_ingredient_meta( int $post_ID ): void {
@@ -2541,6 +2558,11 @@ class Mixmymeals_Post_Meta {
 		if ( isset( $_POST['mmm_cooking_factor'] ) ) {
 			$ingredient_obj->set_cooking_factor(
 				Mixmymeals_Ingredient::normalise_cooking_factor( sanitize_text_field( wp_unslash( $_POST['mmm_cooking_factor'] ) ) )
+			);
+		}
+		if ( isset( $_POST['mmm_density'] ) ) {
+			$ingredient_obj->set_density(
+				Mixmymeals_Ingredient::normalise_density( sanitize_text_field( wp_unslash( $_POST['mmm_density'] ) ) )
 			);
 		}
 

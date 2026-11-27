@@ -1739,6 +1739,92 @@ class Mixmymeals_Ingredient {
 	}
 
 	/**
+	 * Density in g/ml (4.19.0): stating one says "bought by volume". Shopping
+	 * lines and Bring! then print what they would weigh as millilitres or
+	 * litres ("59 ml" olive oil, "1,2 l" milk). Nothing is calculated in it:
+	 * nutrition, costs and portions stay in grams. Null = not stated = grams.
+	 *
+	 * @var string
+	 */
+	const META_DENSITY = '_mmm_density';
+
+	/**
+	 * Upper bound for a density. Honey and syrups reach about 1.4; anything
+	 * past 3 g/ml is no kitchen liquid and a typo.
+	 */
+	const DENSITY_MAX = 3.0;
+
+	/**
+	 * Reads a density from a form or a stored row: decimal comma accepted,
+	 * empty, zero, negative and absurd values become null.
+	 *
+	 * @param mixed $raw Value.
+	 * @return float|null
+	 */
+	public static function normalise_density( $raw ): ?float {
+
+		if ( null === $raw || is_array( $raw ) ) {
+			return null;
+		}
+
+		$raw = str_replace( ',', '.', trim( (string) $raw ) );
+
+		if ( '' === $raw || ! is_numeric( $raw ) ) {
+			return null;
+		}
+
+		$density = (float) $raw;
+
+		return $density > 0 && $density <= self::DENSITY_MAX ? round( $density, 3 ) : null;
+	}
+
+	/**
+	 * The ingredient's density in g/ml, or null when it is not bought by volume.
+	 *
+	 * @return float|null
+	 */
+	public function get_density(): ?float {
+
+		return $this->is_valid()
+			? self::normalise_density( get_post_meta( $this->post_id, self::META_DENSITY, true ) )
+			: null;
+	}
+
+	/**
+	 * Stores the density; null (or anything invalid) clears it.
+	 *
+	 * @param float|null $density Grams per millilitre.
+	 * @return void
+	 */
+	public function set_density( ?float $density ): void {
+
+		if ( ! $this->is_valid() ) {
+			return;
+		}
+
+		$density = self::normalise_density( $density );
+
+		if ( null === $density ) {
+			delete_post_meta( $this->post_id, self::META_DENSITY );
+			return;
+		}
+
+		update_post_meta( $this->post_id, self::META_DENSITY, $density );
+	}
+
+	/**
+	 * Density of an ingredient by ID, 0.0 when none — what the shopping-list
+	 * wording takes (Mixmymeals_Ingredient_Amount::format_line()).
+	 *
+	 * @param int $ingredient_id Ingredient ID.
+	 * @return float
+	 */
+	public static function density_of( int $ingredient_id ): float {
+
+		return $ingredient_id > 0 ? (float) ( ( new self( $ingredient_id ) )->get_density() ?? 0.0 ) : 0.0;
+	}
+
+	/**
 	 * The cooking factor in force for one recipe row.
 	 *
 	 * The product that supplies the row's figures (pinned, else the reference —

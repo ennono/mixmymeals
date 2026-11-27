@@ -8692,3 +8692,11 @@ msgstr "Als Anzahl – „1× TL + 5× EL (≈ 54 g)“"
 #: includes/lib/class-mixmymeals-ingredient-amount.php
 msgid "As weight — \"54 g\""
 msgstr "Als Gewicht – „54 g“"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Density (g/ml)"
+msgstr "Dichte (g/ml)"
+
+#: includes/lib/class-mixmymeals-post-meta.php
+msgid "Density: only for ingredients bought by volume (water, milk, oil, cream, vinegar), e.g. 0.92 for oil, 1 for water. Shopping lists and Bring! then show millilitres or litres instead of grams. Empty means grams."
+msgstr "Dichte: nur für Zutaten, die man nach Volumen kauft (Wasser, Milch, Öl, Sahne, Essig), z. B. 0,92 für Öl, 1 für Wasser. Einkaufslisten und Bring! zeigen dann Milliliter oder Liter statt Gramm. Leer heißt Gramm."

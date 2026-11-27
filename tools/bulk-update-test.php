@@ -580,6 +580,23 @@ wp_delete_post( $meal->get_id(), true );
 wp_delete_post( $plan_id, true );
 wp_delete_post( $bowl->get_id(), true );
 
+echo "\n-- 12. 4.19.0: Dichte\n";
+$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array(
+	array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'density' => 1.03 ),
+	array( 'type' => 'product', 'id' => $pkt->get_id(), 'density' => 1.03 ),
+) ) );
+$d = $r->get_data();
+mmm_bu_assert( array( null, 1.03 ) === (array) ( (array) $d['results'][0]['changes'] )['density'], 'Zutat: density null→1,03' );
+mmm_bu_assert( 1.03 === $milk->get_density(), 'geschrieben' );
+mmm_bu_assert( 'field_not_on_type' === ( $d['errors'][0]['error'] ?? '' ), 'Produkt: field_not_on_type' );
+$r = mmm_bu_call( 'POST', '/bulk-update', array( 'items' => array( array( 'type' => 'ingredient', 'id' => $milk->get_id(), 'density' => 9 ) ) ) );
+mmm_bu_assert( 400 === $r->get_status(), 'Dichte 9 → 400' );
+$r = mmm_bu_call( 'GET', '/ingredients/' . $milk->get_id() );
+mmm_bu_assert( 1.03 === ( $r->get_data()['density'] ?? null ), 'Serialisierung: density' );
+$r = mmm_bu_call( 'POST', '/ingredients/' . $milk->get_id(), array( 'density' => null ) );
+mmm_bu_assert( null === $milk->get_density() && ! metadata_exists( 'post', $milk->get_id(), Mixmymeals_Ingredient::META_DENSITY ), 'null löscht' );
+mmm_bu_assert( isset( mmm_bu_missing_rows( array( 'field' => 'density' ) )[ $milk->get_id() ] ), '/missing field=density listet sie' );
+
 echo "\n-- 8. Rechte\n";
 wp_set_current_user( 0 );
 $r = mmm_bu_call(

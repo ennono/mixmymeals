@@ -122,6 +122,10 @@ Added:
   costs): spoons, pinches and cups can be summed into the line's weight —
   "Olive oil 54 g" instead of "1× tsp + 5× tbsp + 0.5 g". Off by default;
   units bought whole stay counts, ingredient lists keep their spoons.
+* Density (g/ml) on ingredients: one bought by volume shows millilitres or
+  litres on shopping lists, in their breakdown and in Bring! — "Olive oil
+  59 ml", "Milk 1 l". Nutrition, costs and portions stay in grams. REST
+  `density` on ingredients, `/bulk-update`, `/missing?field=density`.
 
 = 4.18.4 =
 

@@ -4362,7 +4362,7 @@ class Mixmymeals_Shortcodes {
 												printf(
 													/* translators: 1: amount with its unit, e.g. "200 g" or "2× EL"; 2: recipe name. */
 													esc_html__( '%1$s for %2$s', 'mixmymeals' ),
-													esc_html( Mixmymeals_Meal_Plan::detail_amount_string( $detail ) ),
+													esc_html( Mixmymeals_Meal_Plan::detail_amount_string( $detail, Mixmymeals_Ingredient::density_of( (int) ( $data['ingredient_id'] ?? 0 ) ) ) ),
 													esc_html( $detail['recipe_name'] )
 												);
 												?>

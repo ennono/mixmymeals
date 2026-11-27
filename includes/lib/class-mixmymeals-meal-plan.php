@@ -4462,15 +4462,26 @@ class Mixmymeals_Meal_Plan {
 	 * Worded by Mixmymeals_Ingredient_Amount::format_text(), the one wording
 	 * of an amount for people (HG-114).
 	 *
-	 * @param array $detail One entry of an ingredient's 'details' from
-	 *                      calc_shopping_list().
+	 * @param array $detail  One entry of an ingredient's 'details' from
+	 *                        calc_shopping_list().
+	 * @param float $density The ingredient's density (g/ml): an amount in
+	 *                        grams is then printed as a volume (4.19.0).
 	 * @return string
 	 */
-	public static function detail_amount_string( array $detail ): string {
+	public static function detail_amount_string( array $detail, float $density = 0.0 ): string {
+
+		$unit = trim( (string) ( $detail['unit_title'] ?? '' ) );
+
+		if ( $density > 0 && ( '' === $unit || 'g' === strtolower( $unit ) ) ) {
+			$grams = (float) ( $detail['weight_g'] ?? 0 );
+			$grams = $grams > 0 ? $grams : (float) ( $detail['amount'] ?? 0 );
+
+			return $grams > 0 ? Mixmymeals_Ingredient_Amount::format_quantity( $grams, $density ) : '';
+		}
 
 		return Mixmymeals_Ingredient_Amount::format_text(
 			(float) ( $detail['amount'] ?? 0 ),
-			(string) ( $detail['unit_title'] ?? '' ),
+			$unit,
 			(float) ( $detail['weight_g'] ?? 0 )
 		);
 	}
@@ -4779,6 +4790,7 @@ class Mixmymeals_Meal_Plan {
 
 				$loose_grams = 0.0;
 				$added       = false;
+				$density     = (float) ( $ingredient->get_density() ?? 0.0 );
 
 				foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
 					/*
@@ -4787,7 +4799,7 @@ class Mixmymeals_Meal_Plan {
 					 * unit as part of the article. The weight is what was
 					 * rounded up to, so Bring! still buys what the list says.
 					 */
-					if ( 'product' !== ( $unit['package'] ?? '' ) && Mixmymeals_Ingredient_Amount::unit_is_counted( $unit ) ) {
+					if ( 'product' !== ( $unit['package'] ?? '' ) && Mixmymeals_Ingredient_Amount::counts_on_list( $unit ) ) {
 						$lines[] = trim(
 							sprintf(
 								'%s %s %s',
@@ -4802,7 +4814,15 @@ class Mixmymeals_Meal_Plan {
 					}
 				}
 
-				if ( $loose_grams > 0 ) {
+				/*
+				 * An ingredient bought by volume goes over in millilitres
+				 * (4.19.0), whole ones: Bring! reads "250 ml Milch". Measures
+				 * the site weighs (counts_on_list()) are in this sum too.
+				 */
+				if ( $loose_grams > 0 && $density > 0 ) {
+					$lines[] = Mixmymeals_Ingredient::format_amount( max( 1, round( $loose_grams / $density ) ) ) . ' ml ' . $name;
+					$added   = true;
+				} elseif ( $loose_grams > 0 ) {
 					$lines[] = Mixmymeals_Ingredient::format_amount( round( $loose_grams ) ) . ' g ' . $name;
 					$added   = true;
 				}
