@@ -3467,6 +3467,196 @@ class Mixmymeals_Meal_Plan {
 	}
 
 	/**
+	 * What one shopping-list line is bought in — the one resolution of a
+	 * package (HG-115), read by calc_shopping_list() and through it by every
+	 * list, Bring! and the shopping costs:
+	 *
+	 * 1. `product`: the line names a product (the whole plan agrees on it:
+	 *    pin, else reference — `product_id` of the line) and the product
+	 *    states a package weight → its packages, "2× Mutti Tomaten à 400 g".
+	 * 2. `unit`: otherwise a unit of the ingredient marked as bought whole
+	 *    (Mixmymeals_Ingredient_Amount::is_package()) with a weight — one the
+	 *    line uses first, else the ingredient's first.
+	 * 3. `none`: grams.
+	 *
+	 * An open line (a diet leaves several packets) and a line the recipes
+	 * disagree on carry no `product_id`, so they never get a product's
+	 * package — that would read as a recommendation — only 2 or 3.
+	 *
+	 * @param array $line A line of calc_shopping_list() (before or after
+	 *                    apply_package()).
+	 * @return array{kind: string, label: string, weight: float, count: int, product_id: int, unit_id: int}
+	 *               `count` is the number of whole packages that cover what
+	 *               the line needs; 0 for `none`.
+	 */
+	public static function resolve_package( array $line ): array {
+
+		$none   = array(
+			'kind'       => 'none',
+			'label'      => '',
+			'weight'     => 0.0,
+			'count'      => 0,
+			'product_id' => 0,
+			'unit_id'    => 0,
+		);
+		$needed = (float) ( $line['needed_weight'] ?? $line['total_weight'] ?? 0 );
+
+		if ( $needed <= 0 ) {
+			return $none;
+		}
+
+		$whole = static fn( float $each ): int => max( 1, (int) ceil( $needed / $each - 1e-9 ) );
+
+		$product_id = (int) ( $line['product_id'] ?? 0 );
+
+		if ( $product_id > 0 ) {
+			$product = new Mixmymeals_Product( $product_id );
+			$weight  = $product->get_package_weight();
+
+			if ( $product->is_valid() && $weight > 0 ) {
+				return array(
+					'kind'       => 'product',
+					'label'      => $product->label(),
+					'weight'     => $weight,
+					'count'      => $whole( $weight ),
+					'product_id' => $product_id,
+					'unit_id'    => 0,
+				) + $none;
+			}
+		}
+
+		// A unit bought whole: the line's own first, else the ingredient's.
+		$candidates = array();
+
+		foreach ( (array) ( $line['units'] ?? array() ) as $unit_id => $unit ) {
+			if ( is_int( $unit_id ) && $unit_id > 0 && ! empty( $unit['is_package'] ) && (float) ( $unit['weight_per_unit'] ?? 0 ) > 0 ) {
+				$candidates[] = (int) $unit_id;
+			}
+		}
+
+		if ( empty( $candidates ) ) {
+			$ingredient = new Mixmymeals_Ingredient( (int) ( $line['ingredient_id'] ?? 0 ) );
+
+			foreach ( $ingredient->get_units(
+				array(
+					'orderby' => 'ID',
+					'order'   => 'ASC',
+				)
+			) as $unit_post ) {
+				$unit = new Mixmymeals_Ingredient_Amount( (int) $unit_post->ID );
+				if ( $unit->is_package() && $unit->get_weight() > 0 ) {
+					$candidates[] = (int) $unit_post->ID;
+					break;
+				}
+			}
+		}
+
+		if ( empty( $candidates ) ) {
+			return $none;
+		}
+
+		$unit   = new Mixmymeals_Ingredient_Amount( $candidates[0] );
+		$weight = (float) $unit->get_weight();
+
+		return array(
+			'kind'       => 'unit',
+			'label'      => $unit->get_title(),
+			'weight'     => $weight,
+			'count'      => $whole( $weight ),
+			'product_id' => 0,
+			'unit_id'    => $candidates[0],
+		);
+	}
+
+	/**
+	 * Applies the line's package to its purchase (HG-115) — the shopping
+	 * amount itself changes here, once, so every list, mail, PDF and Bring!
+	 * follow the same number.
+	 *
+	 * - A product package always replaces the units: the line is bought in
+	 *   whole packets of that product, "2× Mutti Tomaten".
+	 * - A unit package does so where the line mixes it with grams (or holds
+	 *   no whole number of it) and the site rounds mixed lines up
+	 *   (Mixmymeals_Ingredient_Amount::mixed_mode()); listing both stays as
+	 *   it always was, with the package marked for its "à … g".
+	 *
+	 * `total_weight` is then what is bought; `needed_weight` stays what the
+	 * recipes need. Nutrition, product comparison and impact, and portion
+	 * weights never read this list, so they stay with the need.
+	 *
+	 * @param array $line A line, units already rounded to their steps.
+	 * @return array The line with `package` (resolve_package()) and, where
+	 *               rounded, its units replaced by the package.
+	 */
+	private static function apply_package( array $line ): array {
+
+		$package         = self::resolve_package( $line );
+		$line['package'] = $package;
+
+		if ( 'none' === $package['kind'] ) {
+			return $line;
+		}
+
+		$replace = 'product' === $package['kind'];
+
+		if ( 'unit' === $package['kind'] ) {
+			$mixed = false;
+
+			foreach ( $line['units'] as $unit_id => $unit ) {
+				if ( (int) $unit_id !== $package['unit_id'] ) {
+					$mixed = true;
+					break;
+				}
+
+				$amount = (float) ( $unit['amount'] ?? 0 );
+				if ( abs( $amount - round( $amount ) ) > 0.001 ) {
+					$mixed = true;
+					break;
+				}
+			}
+
+			$replace = $mixed && Mixmymeals_Ingredient_Amount::MIXED_ROUND_UP === Mixmymeals_Ingredient_Amount::mixed_mode();
+
+			if ( ! $replace ) {
+				if ( isset( $line['units'][ $package['unit_id'] ] ) ) {
+					$line['units'][ $package['unit_id'] ]['package'] = 'unit';
+				}
+
+				return $line;
+			}
+		}
+
+		$key = 'product' === $package['kind'] ? 'p' . $package['product_id'] : $package['unit_id'];
+
+		$line['units'] = array(
+			$key => array(
+				'raw_amount'      => $line['needed_weight'] / $package['weight'],
+				'weight_per_unit' => $package['weight'],
+				'is_indivisible'  => true,
+				'step_divisor'    => 1,
+				/*
+				 * A product's packets are counted as "Packung": the line names
+				 * the product right behind its amount already
+				 * (shopping_item_product_text()), so its label here said it
+				 * twice (4.18.1). A unit keeps its own title, "Dose".
+				 */
+				'unit_title'      => 'product' === $package['kind']
+					/* translators: what a product is counted in on a shopping list, "1× Packung à 500 g". */
+					? __( 'Pack', 'mixmymeals' )
+					: $package['label'],
+				'is_package'      => true,
+				'package'         => $package['kind'],
+				'amount'          => (float) $package['count'],
+				'weight_g'        => $package['count'] * $package['weight'],
+			),
+		);
+
+		$line['total_weight'] = $package['count'] * $package['weight'];
+
+		return $line;
+	}
+
+	/**
 	 * Aggregates the plan's ingredient needs, grouped by category.
 	 *
 	 * @param bool     $sort_by_category Group the result by ingredient category.
@@ -3579,6 +3769,13 @@ class Mixmymeals_Meal_Plan {
 						'products'      => array(),
 						'product_id'    => 0,
 						'product'       => '',
+						// What the recipes need, before anything is rounded
+						// up to units or packages, and what that costs.
+						'needed_weight' => 0.0,
+						'needed_cost'   => 0.0,
+						// A row of this line has no price though its
+						// ingredient is not water (has_complete_prices()).
+						'price_gap'     => false,
 					);
 				}
 
@@ -3587,6 +3784,14 @@ class Mixmymeals_Meal_Plan {
 				}
 
 				$ingredient_totals[ $group ]['products'][ $row_product ] = true;
+
+				/*
+				 * Whether this row's recipe (or the meal's diet) decided the
+				 * packet. The reference is the site's default, not a statement
+				 * about the dish: it still decides packages and prices, but the
+				 * list names only a packet somebody chose (4.18.2).
+				 */
+				$ingredient_totals[ $group ]['named'][ $open ? 0 : Mixmymeals_Ingredient::pinned_product_id( $ing_id, (int) ( $ing['product_id'] ?? 0 ) ) ] = true;
 
 				$ingredient_totals[ $group ]['optional'] =
 					$ingredient_totals[ $group ]['optional'] && ! empty( $ing['optional'] );
@@ -3603,6 +3808,22 @@ class Mixmymeals_Meal_Plan {
 					);
 				}
 				$ingredient_totals[ $group ]['units'][ $amount_id ]['raw_amount'] += $raw_amount;
+
+				if ( ! empty( $ing['is_package'] ) ) {
+					$ingredient_totals[ $group ]['units'][ $amount_id ]['is_package'] = true;
+				}
+
+				$row_weight = $weight_per_unit > 0 ? $raw_amount * $weight_per_unit : $raw_amount;
+				$pinned     = (int) ( $ing['product_id'] ?? 0 );
+
+				$ingredient_totals[ $group ]['needed_weight'] += $row_weight;
+				$ingredient_totals[ $group ]['needed_cost']   += $ingredient_obj->calculate_cost_for_weight( $row_weight, $pinned );
+
+				if ( $row_weight > 0
+					&& $ingredient_obj->get_price_per_100g_pinned( $pinned ) <= 0
+					&& $ingredient_obj->has_nutrition( $pinned ) ) {
+					$ingredient_totals[ $group ]['price_gap'] = true;
+				}
 
 				$ingredient_totals[ $group ]['details'][] = array(
 					'amount'      => $raw_amount,
@@ -3652,19 +3873,25 @@ class Mixmymeals_Meal_Plan {
 			$data['total_weight'] = $total;
 
 			/*
-			 * Name the article only where the whole plan agrees on it. With
-			 * nothing pinned anywhere that is simply the ingredient's reference
-			 * product, which is what this list has always shown; with a recipe
-			 * pinning one it is that packet, because that is what the dish is
-			 * made of. Disagreement prints nothing rather than one of the two.
+			 * `product_id`: the article the whole plan agrees on — the pin,
+			 * else the ingredient's reference. Packages and shopping costs
+			 * follow it. Disagreement is 0 rather than one of the two.
+			 *
+			 * `product`, the name the list prints: only where every row chose
+			 * that article — pinned by its recipe or decided by the meal's
+			 * diet. A reference nobody chose for the dish is the site's
+			 * default and is not named (4.18.2; before, it was).
 			 */
 			$products           = array_keys( $data['products'] );
 			$data['product_id'] = 1 === count( $products ) ? max( 0, (int) $products[0] ) : 0;
-			$data['product']    = $data['product_id'] > 0
+			$named              = array_keys( $data['named'] ?? array() );
+			$data['product']    = $data['product_id'] > 0 && array( $data['product_id'] ) === array_map( 'intval', $named )
 				? ( new Mixmymeals_Product( $data['product_id'] ) )->label()
 				: '';
 
-			unset( $data['products'] );
+			unset( $data['products'], $data['named'] );
+
+			$data = self::apply_package( $data );
 		}
 		unset( $data );
 
@@ -3968,26 +4195,193 @@ class Mixmymeals_Meal_Plan {
 		);
 	}
 
-	public function calculate_avg_cost_per_serving(): float {
-		$meals = $this->get_meals();
-		if ( empty( $meals ) ) {
-			return 0.0;
-		}
-		$total = 0.0;
-		$count = 0;
-		foreach ( $meals as $meal_post ) {
-			$meal   = new Mixmymeals_Meal( $meal_post->ID );
-			$recipe = $meal->get_recipe();
+	/**
+	 * What a serving of this plan costs on average, and whether that is the
+	 * whole price — the one reading of the plan's price (HG-116).
+	 *
+	 * From the rows, like every plan calculation: each meal as it is cooked
+	 * (row_recipe(), so a meal settled vegan is priced vegan), weighted by
+	 * the servings it is cooked for — a meal for six counts six times, one
+	 * for one once. A plan made of rows (planner, ?mmm_persons_to_add) is
+	 * priced by the same sum.
+	 *
+	 * A recipe that misses a price (has_complete_prices()) still counts with
+	 * what is priced, but makes the result a lower bound: `complete` false,
+	 * which the chips print as "ab …". A recipe nobody priced at all counts
+	 * as nothing and likewise makes the result incomplete.
+	 *
+	 * @return array{cost: float, complete: bool} cost 0 when nothing is priced.
+	 */
+	public function calc_cost_per_serving(): array {
+
+		$total    = 0.0;
+		$servings = 0.0;
+		$complete = true;
+
+		foreach ( $this->get_meal_rows() as $row ) {
+
+			if ( empty( $row['recipe_id'] ) ) {
+				continue;
+			}
+
+			$recipe = self::row_recipe( $row );
 			if ( ! $recipe->is_valid() ) {
 				continue;
 			}
-			$cost = $recipe->calculate_cost_per_serving();
-			if ( $cost > 0 ) {
-				$total += $cost;
-				++$count;
+
+			$meal_servings = (float) ( $row['servings'] ?? 0 );
+			if ( $meal_servings <= 0 ) {
+				continue;
+			}
+
+			$total    += $recipe->calculate_cost_per_serving() * $meal_servings;
+			$servings += $meal_servings;
+
+			if ( ! $recipe->has_complete_prices() ) {
+				$complete = false;
 			}
 		}
-		return $count > 0 ? $total / $count : 0.0;
+
+		$cost = $servings > 0 ? $total / $servings : 0.0;
+
+		return array(
+			'cost'     => $cost,
+			'complete' => $cost > 0 && $complete,
+		);
+	}
+
+	/**
+	 * Option: whether the shopping costs follow what is bought (rounded up to
+	 * packages) or what the recipes need.
+	 *
+	 * @var string
+	 */
+	const SHOPPING_COST_BASIS_OPTION = 'mixmymeals_shopping_cost_basis';
+
+	/**
+	 * The bases the shopping costs can follow.
+	 *
+	 * @return array<string,string> Basis => label.
+	 */
+	public static function shopping_cost_bases(): array {
+
+		return array(
+			'bought' => __( 'What is bought — whole packages', 'mixmymeals' ),
+			'needed' => __( 'What the recipes need', 'mixmymeals' ),
+		);
+	}
+
+	/**
+	 * The basis in force; unknown → bought.
+	 *
+	 * @return string 'bought' or 'needed'.
+	 */
+	public static function shopping_cost_basis(): string {
+
+		$basis = (string) get_option( self::SHOPPING_COST_BASIS_OPTION, 'bought' );
+
+		return isset( self::shopping_cost_bases()[ $basis ] ) ? $basis : 'bought';
+	}
+
+	/**
+	 * Sanitises the shopping-cost basis.
+	 *
+	 * @param mixed $value Posted value.
+	 * @return string
+	 */
+	public static function sanitize_shopping_cost_basis( $value ): string {
+
+		$value = sanitize_key( (string) $value );
+
+		return isset( self::shopping_cost_bases()[ $value ] ) ? $value : 'bought';
+	}
+
+	/**
+	 * What the plan's shopping costs — the one method (HG-115), over
+	 * calc_shopping_list(), so it follows ?mmm_persons_to_add
+	 * (with_servings_offset()) and works for the planner (from_meal_rows()).
+	 *
+	 * Per line, after shopping_cost_basis():
+	 * - `needed`, or a line bought in grams: what the recipes need costs
+	 *   (each row priced with its own packet, as the recipe prices it);
+	 * - `bought`, a product's packages: count × the product's package price,
+	 *   else the bought weight at the line's price per 100 g;
+	 * - `bought`, a unit bought whole: the bought weight at the line's price
+	 *   per 100 g (calculate_cost_for_weight()).
+	 *
+	 * A line without a price is a gap unless its ingredient states no
+	 * nutrition either (water) — the rule of has_complete_prices(). A gap
+	 * makes the sum a lower bound, `complete` false, printed "ab …".
+	 *
+	 * The price per serving is not this: it stays with the need
+	 * (calc_cost_per_serving()).
+	 *
+	 * @param int|null   $day  Only meals of that plan weekday; null = whole plan.
+	 * @param array|null $list This plan's calc_shopping_list() for $day where the
+	 *                         caller has it already (grouped or not).
+	 * @return array{cost: float, complete: bool, basis: string}
+	 */
+	public function calc_shopping_cost( ?int $day = null, ?array $list = null ): array {
+
+		$basis    = self::shopping_cost_basis();
+		$total    = 0.0;
+		$complete = true;
+
+		foreach ( $list ?? $this->calc_shopping_list( false, $day ) as $lines ) {
+			foreach ( $lines as $line ) {
+
+				$package = (array) ( $line['package'] ?? array() );
+				$kind    = (string) ( $package['kind'] ?? 'none' );
+				$cost    = null;
+
+				if ( 'bought' === $basis && 'none' !== $kind ) {
+					$bought = (float) ( $line['total_weight'] ?? 0 );
+
+					if ( 'product' === $kind ) {
+						$price = ( new Mixmymeals_Product( (int) $package['product_id'] ) )->get_price();
+
+						if ( null !== $price && (int) ( $package['count'] ?? 0 ) > 0 ) {
+							$cost = $price * (int) $package['count'];
+						}
+					}
+
+					if ( null === $cost ) {
+						$ingredient = new Mixmymeals_Ingredient( (int) ( $line['ingredient_id'] ?? 0 ) );
+						$priced     = $ingredient->calculate_cost_for_weight( $bought, (int) ( $line['product_id'] ?? 0 ) );
+
+						if ( $priced > 0 ) {
+							$cost = $priced;
+						} elseif ( ! empty( $line['price_gap'] ) ) {
+							$complete = false;
+						}
+					}
+				} else {
+					$cost = (float) ( $line['needed_cost'] ?? 0 );
+
+					if ( ! empty( $line['price_gap'] ) ) {
+						$complete = false;
+					}
+				}
+
+				$total += (float) $cost;
+			}
+		}
+
+		return array(
+			'cost'     => $total,
+			'complete' => $total > 0 && $complete,
+			'basis'    => $basis,
+		);
+	}
+
+	/**
+	 * Average cost per serving; the figure of calc_cost_per_serving().
+	 *
+	 * @return float 0 when nothing is priced.
+	 */
+	public function calculate_avg_cost_per_serving(): float {
+
+		return $this->calc_cost_per_serving()['cost'];
 	}
 
 	/**
@@ -4062,46 +4456,11 @@ class Mixmymeals_Meal_Plan {
 		return Mixmymeals_Diet::combine( $sets );
 	}
 	/**
-	 * Builds the human-readable needed-amount string for one shopping
-	 * list ingredient from its per-unit totals.
-	 *
-	 * Indivisible units are listed as counts ("3× Stück"), everything
-	 * else is collapsed into grams. A gram equivalent is appended when
-	 * piece counts are shown.
-	 *
-	 * Moved here from Mixmymeals_Shortcodes: it formats the output of
-	 * calc_shopping_list(), which lives in this class.
-	 *
-	 * @param array $units        Per-unit totals from calc_shopping_list().
-	 * @param float $total_weight Total weight in grams.
-	 * @return string E.g. "3× Stück + 150 g (≈ 405 g)".
-	 */
-	/**
-	 * A countable quantity for human eyes: locale separators, and only as many
-	 * decimals as the value actually needs — "1", "0,5", "0,75".
-	 *
-	 * Deliberately not Mixmymeals_Ingredient::format_amount(), which is the
-	 * parser-facing format: it prints a decimal point on purpose, because
-	 * Bring! reads "0,5" as something else entirely. That one belongs in the
-	 * Bring! lines, this one on the page.
-	 *
-	 * @param float $value Quantity in units.
-	 * @return string
-	 */
-	private static function format_count_i18n( float $value ): string {
-
-		$decimals = 0;
-
-		if ( abs( $value - round( $value ) ) > 0.001 ) {
-			$decimals = abs( $value * 10 - round( $value * 10 ) ) < 0.001 ? 1 : 2;
-		}
-
-		return number_format_i18n( $value, $decimals );
-	}
-
-	/**
 	 * One recipe's share of a shopping-list line, as its breakdown prints it:
-	 * "200 g" for an amount in grams, "2× EL" for a unit — never "200 × g".
+	 * "200 g" for an amount in grams, "2× EL" for a unit.
+	 *
+	 * Worded by Mixmymeals_Ingredient_Amount::format_text(), the one wording
+	 * of an amount for people (HG-114).
 	 *
 	 * @param array $detail One entry of an ingredient's 'details' from
 	 *                      calc_shopping_list().
@@ -4109,89 +4468,35 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function detail_amount_string( array $detail ): string {
 
-		$amount = (float) ( $detail['amount'] ?? 0 );
-		$unit   = trim( (string) ( $detail['unit_title'] ?? '' ) );
-
-		// A row without a unit is weighed in grams; its title is "g" or empty.
-		if ( '' === $unit || 'g' === strtolower( $unit ) ) {
-			return number_format_i18n( round( $amount ) ) . ' g';
-		}
-
-		return sprintf( '%s× %s', self::format_count_i18n( $amount ), $unit );
+		return Mixmymeals_Ingredient_Amount::format_text(
+			(float) ( $detail['amount'] ?? 0 ),
+			(string) ( $detail['unit_title'] ?? '' ),
+			(float) ( $detail['weight_g'] ?? 0 )
+		);
 	}
 
 	/**
-	 * Whether a shopping-list unit is something you count rather than weigh.
+	 * The needed amount of one shopping-list line: "2× Dose + 100 g (≈ 900 g)",
+	 * at the shopping list's level (Mixmymeals_Ingredient_Amount::level()).
 	 *
-	 * True for anything that can only be taken in fixed steps — whole ones
-	 * when indivisible, halves at a divisor of 2. Those belong in the list as
-	 * "1,5× Dose", because that is what goes in the basket; a unit without a
-	 * step is better expressed as a weight.
+	 * Forwards to Mixmymeals_Ingredient_Amount::format_units(); kept because
+	 * the Printer calls it (add-on API).
 	 *
-	 * @param array $unit One entry of an ingredient's 'units' array.
-	 * @return bool
+	 * @param array $units        Per-unit totals from calc_shopping_list().
+	 * @param float $total_weight Total weight in grams.
+	 * @return string
 	 */
-	private static function unit_is_counted( array $unit ): bool {
-
-		return ! empty( $unit['is_indivisible'] ) || (int) ( $unit['step_divisor'] ?? 0 ) > 0;
-	}
-
 	public static function build_needed_amount_string( array $units, float $total_weight ): string {
 
-		$piece_parts = array();
-		$loose_grams = 0.0;
-
-		foreach ( $units as $unit ) {
-			/*
-			 * Counted, not weighed, whenever the unit has a step at all — a
-			 * divisor of 2 makes "1,5× Dose" the honest answer, and turning it
-			 * into grams would hide what to put in the basket. format_amount()
-			 * rather than %d for exactly that reason: %d turned half a tin
-			 * into a whole one.
-			 */
-			if ( self::unit_is_counted( $unit ) ) {
-				$piece_parts[] = trim(
-					sprintf(
-						'%s× %s',
-						self::format_count_i18n( (float) ( $unit['amount'] ?? 0 ) ),
-						$unit['unit_title'] ?? ''
-					)
-				);
-			} else {
-				$loose_grams += (float) ( $unit['weight_g'] ?? 0 );
-			}
-		}
-
-		$parts = $piece_parts;
-
-		if ( $loose_grams > 0 || empty( $parts ) ) {
-			$parts[] = number_format_i18n( round( $loose_grams ) ) . ' g';
-		}
-
-		$result = implode( ' + ', $parts );
-
-		if ( ! empty( $piece_parts ) && $total_weight > 0 ) {
-			$result .= sprintf(
-				' (≈ %s g)',
-				number_format_i18n( round( $total_weight ) )
-			);
-		}
-
-		return $result;
+		return Mixmymeals_Ingredient_Amount::format_units( $units, $total_weight, Mixmymeals_Ingredient_Amount::level( 'shopping_list' ) );
 	}
 
 	/**
-	 * Short amount for teasers — one figure, no compounds.
+	 * Amount for teasers — by default one figure: "4× EL", "1,2 kg"; the
+	 * teaser's level where the site chose another.
 	 *
-	 * build_needed_amount_string() is built for the full shopping list, where
-	 * "3× EL + 400 g (≈ 430 g)" is the honest answer. On a teaser that has room
-	 * for one line per item it only produces noise, so this variant commits to a
-	 * single figure:
-	 *
-	 * - every unit indivisible → count and unit, e.g. "4 EL", "2 Stück"
-	 * - otherwise             → total weight, switching to kg from 1000 g
-	 *
-	 * The full breakdown stays available on the meal plan page.
+	 * Forwards to Mixmymeals_Ingredient_Amount::format_units( …, 'short' );
+	 * kept as add-on API.
 	 *
 	 * @param array $units        Units of one ingredient from calc_shopping_list().
 	 * @param float $total_weight Total weight in grams.
@@ -4199,34 +4504,7 @@ class Mixmymeals_Meal_Plan {
 	 */
 	public static function build_short_amount_string( array $units, float $total_weight ): string {
 
-		$divisible = array_filter(
-			$units,
-			static fn( $unit ) => ! self::unit_is_counted( $unit )
-		);
-
-		// Nur Stückgut: Anzahl und Einheit sagen mehr als ein Gewicht.
-		if ( ! empty( $units ) && empty( $divisible ) ) {
-
-			$count = 0;
-			$label = '';
-
-			foreach ( $units as $unit ) {
-				$count += (float) ( $unit['amount'] ?? 0 );
-				$label  = (string) ( $unit['unit_title'] ?? '' );
-			}
-
-			return trim( self::format_count_i18n( $count ) . ' ' . $label );
-		}
-
-		$grams = (int) round( $total_weight );
-
-		if ( $grams >= 1000 ) {
-			$kilos = $grams / 1000;
-
-			return number_format_i18n( $kilos, 0 === $grams % 1000 ? 0 : 1 ) . ' kg';
-		}
-
-		return number_format_i18n( $grams ) . ' g';
+		return Mixmymeals_Ingredient_Amount::format_units( $units, $total_weight, Mixmymeals_Ingredient_Amount::level( 'teaser' ) );
 	}
 
 	/*
@@ -4503,7 +4781,13 @@ class Mixmymeals_Meal_Plan {
 				$added       = false;
 
 				foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
-					if ( self::unit_is_counted( $unit ) ) {
+					/*
+					 * A product's packets go over as their weight: the count
+					 * would carry the brand into Bring!, which parses the
+					 * unit as part of the article. The weight is what was
+					 * rounded up to, so Bring! still buys what the list says.
+					 */
+					if ( 'product' !== ( $unit['package'] ?? '' ) && Mixmymeals_Ingredient_Amount::unit_is_counted( $unit ) ) {
 						$lines[] = trim(
 							sprintf(
 								'%s %s %s',

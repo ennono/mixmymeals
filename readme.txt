@@ -4,7 +4,7 @@ Tags: meal planning, recipes, shopping list, nutrition, meal plan
 Requires at least: 6.0
 Tested up to: 7.2
 Requires PHP: 8.0
-Stable tag: 4.16.1
+Stable tag: 4.18.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,6 +114,67 @@ stripping for visitor photos and a clean uninstall. Review the suggested
 privacy text under Settings → Privacy after installation.
 
 == Changelog ==
+
+= 4.18.2 =
+
+Changed:
+* Shopping lists name a product only where the recipes chose it — pinned
+  in the recipe or decided by the meal's diet. An ingredient's reference
+  product is no longer named, though it still decides packages
+  ("1× Packung à 500 g") and the shopping costs.
+
+= 4.18.1 =
+
+Fixed:
+* A shopping-list line bought in a product's packets named the product
+  twice — in the amount and behind it. The amount now reads "1× Packung
+  à 500 g"; the product stays named behind it.
+* No "(≈ 500 g)" behind a single package: "à 500 g" says it already.
+
+= 4.18.0 =
+
+Added:
+* Units can be marked "Bought whole" (tin, jar, pack) on the ingredient;
+  REST and MCP `is_package`.
+* Shopping lists are bought in packages: a product with a package
+  weight (pinned, else the reference, where the whole plan agrees) is
+  bought in its packets, "2× Brand Tomatoes à 400 g"; otherwise a unit
+  bought whole is the package. Lines left open by a diet, or where the
+  recipes use different products, never name a product's package.
+* Setting for lines mixing packages and grams: list both (default) or
+  round up into packages. Rounding changes what is bought — list, mail,
+  PDF and Bring! follow one number; Bring! gets no brand.
+* How much of an amount each place shows — ingredient lists, shopping
+  list, teaser, mails, PDF: count, with the weight of a package, with
+  the total weight. Defaults are what each showed before.
+* Shopping costs under the shopping list of a plan and of the planner,
+  following what is bought (whole packages) or what the recipes need
+  (setting); "from …" where prices are missing. The price per serving
+  is unchanged.
+
+= 4.17.1 =
+
+Fixed:
+* A plan's price per serving is weighted by the servings each meal is
+  cooked for — a meal for six no longer counts as much as one for one.
+* Recipes with missing prices are no longer silently left out or
+  under-priced: the plan's price then reads as a lower bound, "from
+  3.20 €" (chip text "Price, prices missing").
+* The price is read from the plan's rows, so it follows the meal's diet
+  and works for plans that are not saved yet.
+
+= 4.17.0 =
+
+Changed:
+* Amounts read the same everywhere — ingredient lists, step lists,
+  shopping lists and their breakdown, teasers, mails and the recipe's
+  backend shopping list: counts as "2× Dose", halves and quarters as
+  fractions ("1½× Dose"), other decimals with at most one place, grams
+  from 1000 g as kilograms ("1,2 kg"), and an amount without a unit as
+  its weight only. One formatter,
+  `Mixmymeals_Ingredient_Amount::format_text()` / `format_units()`;
+  the former methods forward to it.
+* Bring!, schema.org and REST keep their machine-readable amounts.
 
 = 4.16.1 =
 

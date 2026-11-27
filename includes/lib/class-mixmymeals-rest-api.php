@@ -1255,6 +1255,11 @@ class Mixmymeals_Rest_Api {
 						'type'     => 'integer',
 						'minimum'  => 0,
 					),
+					'is_package'     => array(
+						'required'    => false,
+						'type'        => 'boolean',
+						'description' => 'Bought whole (tin, jar, pack) — what a shopping list rounds up to for an ingredient without a fixed product.',
+					),
 				),
 			)
 		);
@@ -1614,6 +1619,11 @@ class Mixmymeals_Rest_Api {
 						'required' => false,
 						'type'     => 'integer',
 						'minimum'  => 0,
+					),
+					'is_package'     => array(
+						'required'    => false,
+						'type'        => 'boolean',
+						'description' => 'Bought whole (tin, jar, pack) — what a shopping list rounds up to for an ingredient without a fixed product.',
 					),
 				),
 			)
@@ -2822,6 +2832,7 @@ class Mixmymeals_Rest_Api {
 			'is_indivisible' => $unit->is_indivisible(),
 			'divisor'        => $unit->get_divisor(),
 			'step_divisor'   => $unit->get_step_divisor(),
+			'is_package'     => $unit->is_package(),
 		);
 	}
 
@@ -3938,6 +3949,9 @@ class Mixmymeals_Rest_Api {
 		if ( $request->has_param( 'divisor' ) ) {
 			$unit->set_divisor( (int) $request->get_param( 'divisor' ) );
 		}
+		if ( $request->has_param( 'is_package' ) ) {
+			$unit->set_package( (bool) $request->get_param( 'is_package' ) );
+		}
 
 		return new WP_REST_Response( $this->serialize_ingr_unit( $unit->get_id() ), 201 );
 	}
@@ -3983,6 +3997,9 @@ class Mixmymeals_Rest_Api {
 		}
 		if ( $request->has_param( 'divisor' ) ) {
 			$unit->set_divisor( (int) $request->get_param( 'divisor' ) );
+		}
+		if ( $request->has_param( 'is_package' ) ) {
+			$unit->set_package( (bool) $request->get_param( 'is_package' ) );
 		}
 
 		return new WP_REST_Response( $this->serialize_ingr_unit( $id ), 200 );
@@ -4192,8 +4209,9 @@ class Mixmymeals_Rest_Api {
 					'total_weight_g'  => round( (float) $data['total_weight'], 2 ),
 					'optional'        => ! empty( $data['optional'] ),
 					// The article this plan's rows agree on — a recipe's pinned
-					// product first, then the ingredient's reference. 0 and ''
-					// where they disagree, because no single one is right then.
+					// product first, then the ingredient's reference; 0 where
+					// they disagree. `product` names it only where every row
+					// chose it (pin or diet), never a bare reference (4.18.2).
 					'product_id'      => (int) ( $data['product_id'] ?? 0 ),
 					'product'         => (string) ( $data['product'] ?? '' ),
 					'details'         => array_map(

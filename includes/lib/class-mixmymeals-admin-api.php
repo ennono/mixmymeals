@@ -138,7 +138,31 @@ class Mixmymeals_Admin_API {
 				: ( empty( $m[2] ) ? 'matomo_toggle' : 'matomo_text' );
 		}
 
+		// A field that brings its own closed list of choices is a select.
+		if ( isset( $field['choices'] ) && is_array( $field['choices'] ) ) {
+			$field_id = 'choices';
+		}
+
 		switch ( $field_id ) {
+
+			case 'choices':
+				$html .= '<select id="' . esc_attr( $field['id'] ) . '" name="' . esc_attr( $option_name ) . '">';
+
+				foreach ( $field['choices'] as $choice => $label ) {
+					$html .= sprintf(
+						'<option value="%s"%s>%s</option>',
+						esc_attr( (string) $choice ),
+						selected( (string) $data, (string) $choice, false ),
+						esc_html( $label )
+					);
+				}
+
+				$html .= '</select>';
+
+				if ( ! empty( $field['description'] ) ) {
+					$html .= '<p class="description">' . esc_html( $field['description'] ) . '</p>';
+				}
+				break;
 
 			case 'placeholder_image_id':
 				$html .= '<div class="media-field-wrapper">';

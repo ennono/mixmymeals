@@ -52,13 +52,13 @@ $text = preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) );
 
 $check( false !== strpos( $text, 'T Linsen 250 g' ), 'gram amount printed once: ' . $text );
 $check( false === strpos( $text, '(250 g)' ), 'no weight beside a gram amount' );
-$check( false !== strpos( $text, '4,5 EL + 20 g' ), 'units summed apart' );
+$check( false !== strpos( $text, '4½× EL + 20 g' ), 'units summed apart' );
 $check( false === strpos( $text, ' g)' ), 'no weight in brackets anywhere' );
 
 // Steps of the recipe: each row as stored, its amount worded alike.
 $steps = preg_replace( '/\s+/', ' ', wp_strip_all_tags( do_shortcode( '[mmm_recipe_steps_for_a_single_recipe post_id="' . $recipe_id . '"]' ) ) );
-$check( false !== strpos( $steps, 'T Linsen 250 g T Öl 3 EL' ), 'recipe step 1: ' . $steps );
-$check( false !== strpos( $steps, 'T Öl 20 g T Öl 1,5 EL' ), 'recipe step 2' );
+$check( false !== strpos( $steps, 'T Linsen 250 g T Öl 3× EL' ), 'recipe step 1: ' . $steps );
+$check( false !== strpos( $steps, 'T Öl 20 g T Öl 1½× EL' ), 'recipe step 2' );
 $check( 1 === preg_match( '/Drei T Linsen\s*$/', $steps ), 'a row without amount is listed by name' );
 $check( false === strpos( $steps, '≙' ) && false === strpos( $steps, ' à ' ), 'no weight beside a step amount' );
 
@@ -77,9 +77,9 @@ $meal_steps = preg_replace( '/\s+/', ' ', wp_strip_all_tags( do_shortcode( '[mmm
 $meal_list  = preg_replace( '/\s+/', ' ', wp_strip_all_tags( do_shortcode( '[mmm_meal_ingredients servings_control="0"]' ) ) );
 wp_reset_postdata();
 
-$check( false !== strpos( $meal_steps, 'T Linsen 500 g T Öl 6 EL' ), 'meal step 1 doubled: ' . $meal_steps );
-$check( false !== strpos( $meal_steps, 'T Öl 40 g T Öl 3 EL' ), 'meal step 2 doubled' );
-$check( false !== strpos( $meal_list, 'T Linsen 500 g' ) && false !== strpos( $meal_list, '9 EL + 40 g' ), 'meal list doubled: ' . $meal_list );
+$check( false !== strpos( $meal_steps, 'T Linsen 500 g T Öl 6× EL' ), 'meal step 1 doubled: ' . $meal_steps );
+$check( false !== strpos( $meal_steps, 'T Öl 40 g T Öl 3× EL' ), 'meal step 2 doubled' );
+$check( false !== strpos( $meal_list, 'T Linsen 500 g' ) && false !== strpos( $meal_list, '9× EL + 40 g' ), 'meal list doubled: ' . $meal_list );
 
 foreach ( array( $meal->get_id(), $plan_id, $recipe_id, $spoon, $oil, $lentils ) as $id ) {
 	wp_delete_post( $id, true );

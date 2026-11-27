@@ -935,11 +935,10 @@ class Mixmymeals_Shortcodes {
 			echo '<span class="mmm-meta__item mmm-meta__item--servings">'
 				. esc_html( $serving_range_string ) . '</span>';
 		}
-		$avg_cost = $plan->calculate_avg_cost_per_serving();
-		if ( $avg_cost > 0 ) {
-			$currency = get_option( 'mixmymeals_currency', '€' );
+		$avg_cost = $plan->calc_cost_per_serving();
+		if ( $avg_cost['cost'] > 0 ) {
 			echo '<span class="mmm-meta__item mmm-meta__item--cost">'
-				. esc_html( number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
+				. esc_html( self::price_text( $avg_cost['cost'], $avg_cost['complete'] ) )
 				. '</span>';
 		}
 		echo self::diet_chips( (int) $plan->get_id(), 'mmm-meta__item' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
@@ -4301,10 +4300,7 @@ class Mixmymeals_Shortcodes {
 						// Bedarfsanzeige: was wird gebraucht — die
 						// Kaufentscheidung trifft der Nutzer im Laden.
 						$ingredient_name = get_the_title( $ing_id );
-						$needed_amount   = Mixmymeals_Meal_Plan::build_needed_amount_string(
-							$data['units'] ?? array(),
-							$total_weight
-						);
+						$needed_amount   = Mixmymeals_Ingredient_Amount::format_line( $data, 'shopping_list' );
 						$is_optional     = ! empty( $data['optional'] );
 
 						// Anzeige: Zutat und Menge getrennt auszeichnen. "(optional)"
@@ -4383,6 +4379,7 @@ class Mixmymeals_Shortcodes {
 
 				</ul>
 			<?php endforeach; ?>
+			<?php echo self::shopping_cost_html( $meal_plan_obj, $ingredients_by_cat ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 		</div>
 
 		<?php
@@ -4393,6 +4390,27 @@ class Mixmymeals_Shortcodes {
 		// (Mixmymeals_Meal_Plan::render_bring_page()).
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * The shopping costs under a shopping list (HG-115), worded by the chip
+	 * text shopping_cost and price_text() — "ab …" where prices are missing.
+	 *
+	 * @param Mixmymeals_Meal_Plan $plan The plan the list belongs to.
+	 * @param array                $list Its calc_shopping_list(), already computed.
+	 * @return string '' while nothing is priced.
+	 */
+	public static function shopping_cost_html( Mixmymeals_Meal_Plan $plan, array $list ): string {
+
+		$cost = $plan->calc_shopping_cost( null, $list );
+
+		if ( $cost['cost'] <= 0 ) {
+			return '';
+		}
+
+		return '<p class="mmm-shopping-cost" data-shopping-cost-basis="' . esc_attr( $cost['basis'] ) . '">'
+			. esc_html( self::chip_text( 'shopping_cost', array( 'price' => self::price_text( $cost['cost'], $cost['complete'] ) ) ) )
+			. '</p>';
 	}
 
 	/**
@@ -7211,33 +7229,41 @@ class Mixmymeals_Shortcodes {
 	}
 
 	/**
-	 * The amount an ingredient list prints for one ingredient: "3 EL",
-	 * "250 g", "2 EL + 50 g" where its steps use different units.
+	 * The amount an ingredient list prints for one ingredient: "3× EL",
+	 * "250 g", "2× EL + 50 g" where its steps use different units — each
+	 * worded by Mixmymeals_Ingredient_Amount::format_text() (HG-114).
 	 *
 	 * The amount only. The weight in grams beside it repeated a gram amount
 	 * ("250 g (250 g)") and, beside a unit, said the same thing twice in
 	 * another way ("3 EL (10 g)") — HG-101.
 	 *
+	 * At the ingredient list's level (Mixmymeals_Ingredient_Amount::level(),
+	 * default 1 — the amount alone); never rounded to packages.
+	 *
 	 * @param array<string,float> $amounts Unit title => scaled amount.
+	 * @param array<string,array> $meta    Unit title => weight (grams of the
+	 *                                     amount), each (grams of one unit),
+	 *                                     package (bought whole) — for levels 2, 3.
 	 * @return string '' when nothing is above zero.
 	 */
-	private static function ingredient_amounts_text( array $amounts ): string {
+	private static function ingredient_amounts_text( array $amounts, array $meta = array() ): string {
 
 		$parts = array();
+		$level = (int) Mixmymeals_Ingredient_Amount::level( 'ingredient_list' );
 
 		foreach ( $amounts as $unit => $amount ) {
+			$text = Mixmymeals_Ingredient_Amount::format_text_at_level(
+				(float) $amount,
+				(string) $unit,
+				(float) ( $meta[ $unit ]['weight'] ?? 0 ),
+				(float) ( $meta[ $unit ]['each'] ?? 0 ),
+				! empty( $meta[ $unit ]['package'] ),
+				$level
+			);
 
-			$amount = round( (float) $amount, 2 );
-			if ( $amount <= 0 ) {
-				continue;
+			if ( '' !== $text ) {
+				$parts[] = $text;
 			}
-
-			$decimals = 0;
-			while ( $decimals < 2 && round( $amount, $decimals ) !== $amount ) {
-				++$decimals;
-			}
-
-			$parts[] = number_format_i18n( $amount, $decimals ) . ' ' . $unit;
 		}
 
 		return implode( ' + ', $parts );
@@ -7297,7 +7323,16 @@ class Mixmymeals_Shortcodes {
 			}
 
 			$amount = isset( $row['unit'] )
-				? self::ingredient_amounts_text( array( (string) $row['unit'] => (float) $row['amount'] ) )
+				? self::ingredient_amounts_text(
+					array( (string) $row['unit'] => (float) $row['amount'] ),
+					array(
+						(string) $row['unit'] => array(
+							'weight'  => (float) ( $row['weight_g'] ?? 0 ),
+							'each'    => (float) ( $row['weight_per_unit'] ?? 0 ),
+							'package' => ! empty( $row['is_package'] ),
+						),
+					)
+				)
 				: '';
 
 			$items .= '<li><span class="mmm-ingredient-name">' . esc_html( get_the_title( $id ) ) . '</span>'
@@ -7350,6 +7385,9 @@ class Mixmymeals_Shortcodes {
 					// Amount per unit, in the order the units first occur:
 					// two steps using "2 EL" and "50 g" are not 52 of either.
 					'amounts'  => array(),
+					// Per unit: grams, grams of one, bought whole — for the
+					// list's levels 2 and 3.
+					'meta'     => array(),
 					// Optional only while every use is optional.
 					'optional' => true,
 					// Named only while every step of the dish names the same
@@ -7373,6 +7411,11 @@ class Mixmymeals_Shortcodes {
 			$unit = '' === $unit ? 'g' : $unit;
 
 			$ingredients[ $id ]['amounts'][ $unit ] = ( $ingredients[ $id ]['amounts'][ $unit ] ?? 0.0 ) + (float) ( $ing['amount'] ?? 0 );
+			$ingredients[ $id ]['meta'][ $unit ]    = array(
+				'weight'  => (float) ( $ingredients[ $id ]['meta'][ $unit ]['weight'] ?? 0 ) + (float) ( $ing['weight_g'] ?? 0 ),
+				'each'    => (float) ( $ing['weight_per_unit'] ?? 0 ),
+				'package' => ! empty( $ing['is_package'] ),
+			);
 			$ingredients[ $id ]['optional']  = $ingredients[ $id ]['optional'] && ! empty( $ing['optional'] );
 		}
 
@@ -7407,7 +7450,7 @@ class Mixmymeals_Shortcodes {
 							?>
 
 							<?php
-							$mmm_amount = self::ingredient_amounts_text( $ingredient['amounts'] );
+							$mmm_amount = self::ingredient_amounts_text( $ingredient['amounts'], $ingredient['meta'] );
 							if ( '' !== $mmm_amount ) :
 								?>
 								<span class="mmm-ingredient-amount"><?php echo esc_html( $mmm_amount ); ?></span>
@@ -7882,8 +7925,7 @@ class Mixmymeals_Shortcodes {
 		$num_of_days   = $plan->count_days();
 		$num_of_meals  = $plan->count_meals();
 		$servings_text = self::plan_servings_chip_text( $plan );
-		$avg_cost      = $plan->calculate_avg_cost_per_serving();
-		$currency      = get_option( 'mixmymeals_currency', '€' );
+		$avg_cost      = $plan->calc_cost_per_serving();
 		$texts         = array();
 
 		if ( $num_of_days ) {
@@ -7912,11 +7954,28 @@ class Mixmymeals_Shortcodes {
 			$texts['servings'] = $servings_text;
 		}
 
-		if ( $avg_cost > 0 ) {
-			$texts['price'] = self::chip_text( 'price', array( 'price' => number_format_i18n( $avg_cost, 2 ) . ' ' . $currency ) );
+		if ( $avg_cost['cost'] > 0 ) {
+			$texts['price'] = self::chip_text( 'price', array( 'price' => self::price_text( $avg_cost['cost'], $avg_cost['complete'] ) ) );
 		}
 
 		return $texts;
+	}
+
+	/**
+	 * An amount of money as chips print it, "3,20 €"; a sum that misses
+	 * prices is a lower bound and says so, "ab 3,20 €" (chip text
+	 * price_from). The one rule for incomplete prices on a plan (HG-116)
+	 * and its shopping costs (HG-115).
+	 *
+	 * @param float $amount   Amount in the site's currency.
+	 * @param bool  $complete Whether every price that belongs in it is there.
+	 * @return string Plain text; the caller escapes.
+	 */
+	public static function price_text( float $amount, bool $complete = true ): string {
+
+		$price = number_format_i18n( $amount, 2 ) . ' ' . get_option( 'mixmymeals_currency', '€' );
+
+		return $complete ? $price : self::chip_text( 'price_from', array( 'price' => $price ) );
 	}
 
 	/**
@@ -8942,6 +9001,15 @@ class Mixmymeals_Shortcodes {
 				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
 				'required' => array( 'price' ),
 			),
+			'price_from'               => array(
+				'group'    => 'stats',
+				'label'    => __( 'Price, prices missing', 'mixmymeals' ),
+				'note'     => __( 'Wraps a price that misses some ingredients\' prices, so it is a lower bound — on a plan\'s price per serving and its shopping costs.', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency; the sum lacks some prices, so it is a lower bound. */
+				'default'  => __( 'from {price}', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
+			),
 			'meal_day'                 => array(
 				'group'    => 'stats',
 				'label'    => __( 'Day of a meal', 'mixmymeals' ),
@@ -8981,6 +9049,15 @@ class Mixmymeals_Shortcodes {
 					$unit_token
 				),
 				'required' => array( 'count' ),
+			),
+			'shopping_cost'            => array(
+				'group'    => 'plan',
+				'label'    => __( 'Shopping costs', 'mixmymeals' ),
+				'note'     => __( 'Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set below, under Amounts and shopping costs; with prices missing the price reads as a lower bound.', 'mixmymeals' ),
+				/* translators: chip wording. {price} includes the currency, possibly as "from …". */
+				'default'  => __( 'Shopping costs: {price}', 'mixmymeals' ),
+				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),
+				'required' => array( 'price' ),
 			),
 			'plan_servings'            => array(
 				'group'    => 'plan',
@@ -10163,11 +10240,10 @@ class Mixmymeals_Shortcodes {
 		-------------------------
 		 * Average cost per serving
 		 * ------------------------- */
-		$avg_cost = $plan->calculate_avg_cost_per_serving();
-		if ( $avg_cost > 0 ) {
-			$currency = get_option( 'mixmymeals_currency', '€' );
-			$items[]  = '<span class="mmm-meta__item mmm-meta__item--cost">'
-						. esc_html( number_format_i18n( $avg_cost, 2 ) . ' ' . $currency )
+		$avg_cost = $plan->calc_cost_per_serving();
+		if ( $avg_cost['cost'] > 0 ) {
+			$items[] = '<span class="mmm-meta__item mmm-meta__item--cost">'
+						. esc_html( self::price_text( $avg_cost['cost'], $avg_cost['complete'] ) )
 						. '</span>';
 		}
 

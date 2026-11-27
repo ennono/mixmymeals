@@ -2635,6 +2635,7 @@ class Mixmymeals_Recipe {
 				$weight_per_unit = 0.0;
 				$is_indivisible  = false;
 				$step_divisor    = 0;
+				$is_package      = false;
 
 				if ( $amount_id > 0 ) {
 					$unit_obj        = new Mixmymeals_Ingredient_Amount( $amount_id );
@@ -2642,6 +2643,7 @@ class Mixmymeals_Recipe {
 					$weight_per_unit = floatval( $unit_obj->get_weight() );
 					$is_indivisible  = $unit_obj->is_indivisible();
 					$step_divisor    = $unit_obj->get_step_divisor();
+					$is_package      = $unit_obj->is_package();
 				}
 
 				/*
@@ -2680,6 +2682,8 @@ class Mixmymeals_Recipe {
 					'weight_per_unit'   => $weight_per_unit,
 					'is_indivisible'    => $is_indivisible,
 					'step_divisor'      => $step_divisor,
+					// Bought whole (tin, jar) — see Mixmymeals_Ingredient_Amount::is_package().
+					'is_package'        => $is_package && $weight_per_unit > 0,
 					'amount_id'         => $amount_id,
 					'optional'          => ! empty( $ing['optional'] ),
 					'product_id'        => $product_id,
