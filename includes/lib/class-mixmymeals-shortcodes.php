@@ -9053,7 +9053,7 @@ class Mixmymeals_Shortcodes {
 			'shopping_cost'            => array(
 				'group'    => 'plan',
 				'label'    => __( 'Shopping costs', 'mixmymeals' ),
-				'note'     => __( 'Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set on the Meal Plans tab; with prices missing the price reads as a lower bound.', 'mixmymeals' ),
+				'note'     => __( 'Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set below, under Amounts and shopping costs; with prices missing the price reads as a lower bound.', 'mixmymeals' ),
 				/* translators: chip wording. {price} includes the currency, possibly as "from …". */
 				'default'  => __( 'Shopping costs: {price}', 'mixmymeals' ),
 				'tokens'   => array( 'price' => __( 'the price including the currency', 'mixmymeals' ) ),

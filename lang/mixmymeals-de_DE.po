@@ -8649,8 +8649,8 @@ msgid "The recipe's amounts, never rounded to packages."
 msgstr "Die Mengen des Rezepts, nie auf Packungen gerundet."
 
 #: includes/lib/class-mixmymeals-shortcodes.php
-msgid "Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set on the Meal Plans tab; with prices missing the price reads as a lower bound."
-msgstr "Unter der Einkaufsliste eines Plans und des Planers. Ob sie der eingekauften oder der benötigten Menge folgt, steht im Reiter Essenspläne; fehlen Preise, ist der Betrag eine Untergrenze."
+msgid "Under the shopping list of a plan and of the planner. Whether it follows what is bought or what the recipes need is set below, under Amounts and shopping costs; with prices missing the price reads as a lower bound."
+msgstr "Unter der Einkaufsliste eines Plans und des Planers. Ob sie der eingekauften oder der benötigten Menge folgt, steht weiter unten unter „Mengenangaben und Einkaufskosten“; fehlen Preise, ist der Betrag eine Untergrenze."
 
 #: includes/lib/class-mixmymeals-meal-plan.php
 msgid "What is bought — whole packages"
